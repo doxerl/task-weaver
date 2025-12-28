@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Mic, MicOff, Send, Loader2 } from 'lucide-react';
@@ -16,6 +17,7 @@ interface VoiceInputProps {
 const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
 
 export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
+  const navigate = useNavigate();
   const [text, setText] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -111,6 +113,18 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
 
       if (error) {
         console.error('Edge function error:', error);
+        
+        // 401 hatası için özel handling
+        if (error.message?.includes('401') || error.message?.includes('Unauthorized') || error.message?.includes('JWT')) {
+          toast.error('Oturumunuz sona ermiş. Lütfen tekrar giriş yapın.', {
+            action: {
+              label: 'Giriş Yap',
+              onClick: () => navigate('/auth')
+            }
+          });
+          return;
+        }
+        
         toast.error('İşlem başarısız: ' + error.message);
         return;
       }
