@@ -14,85 +14,167 @@ interface VoiceInputProps {
   onSuccess: () => void;
 }
 
-// Check if browser supports speech recognition
-const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-
 export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
   const navigate = useNavigate();
   const { session } = useAuthContext();
   const [text, setText] = useState('');
-  const [isListening, setIsListening] = useState(false);
+  const [isRecording, setIsRecording] = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const recognitionRef = useRef<any>(null);
+  const [micPermission, setMicPermission] = useState<'prompt' | 'granted' | 'denied' | null>(null);
+  
+  const mediaRecorderRef = useRef<MediaRecorder | null>(null);
+  const audioChunksRef = useRef<Blob[]>([]);
+  const streamRef = useRef<MediaStream | null>(null);
 
-  const supportsVoice = !!SpeechRecognitionAPI;
-
+  // Check microphone permission on mount
   useEffect(() => {
-    if (!SpeechRecognitionAPI) return;
-
-    const recognition = new SpeechRecognitionAPI();
-    recognition.continuous = true;
-    recognition.interimResults = true;
-    recognition.lang = 'tr-TR';
-
-    recognition.onresult = (event: any) => {
-      let finalTranscript = '';
-      let interimTranscript = '';
-
-      for (let i = event.resultIndex; i < event.results.length; i++) {
-        const transcript = event.results[i][0].transcript;
-        if (event.results[i].isFinal) {
-          finalTranscript += transcript;
-        } else {
-          interimTranscript += transcript;
-        }
-      }
-
-      if (finalTranscript) {
-        setText(prev => prev + ' ' + finalTranscript);
-      }
-    };
-
-    recognition.onerror = (event: any) => {
-      console.error('Speech recognition error:', event.error);
-      setIsListening(false);
-      
-      if (event.error === 'not-allowed') {
-        toast.error('Mikrofon izni gerekli');
-      } else if (event.error === 'no-speech') {
-        toast.info('Ses algılanmadı');
-      }
-    };
-
-    recognition.onend = () => {
-      setIsListening(false);
-    };
-
-    recognitionRef.current = recognition;
-
-    return () => {
-      recognition.stop();
-    };
+    if (navigator.permissions) {
+      navigator.permissions.query({ name: 'microphone' as PermissionName })
+        .then(permissionStatus => {
+          setMicPermission(permissionStatus.state as 'prompt' | 'granted' | 'denied');
+          
+          permissionStatus.onchange = () => {
+            setMicPermission(permissionStatus.state as 'prompt' | 'granted' | 'denied');
+          };
+        })
+        .catch(() => {
+          setMicPermission('prompt');
+        });
+    }
   }, []);
 
-  const toggleListening = () => {
-    if (!recognitionRef.current) {
-      toast.error('Tarayıcınız sesli komutu desteklemiyor');
-      return;
-    }
-
-    if (isListening) {
-      recognitionRef.current.stop();
-      setIsListening(false);
-    } else {
-      recognitionRef.current.start();
-      setIsListening(true);
-      toast.info('Dinleniyor... Konuşmaya başlayın');
+  const requestMicPermission = async (): Promise<MediaStream | null> => {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      setMicPermission('granted');
+      return stream;
+    } catch (error) {
+      setMicPermission('denied');
+      toast.error('Mikrofon izni reddedildi');
+      return null;
     }
   };
 
+  const blobToBase64 = (blob: Blob): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const base64 = (reader.result as string).split(',')[1];
+        resolve(base64);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  };
+
+  const processAudio = async () => {
+    if (audioChunksRef.current.length === 0) {
+      toast.error('Ses kaydı bulunamadı');
+      return;
+    }
+
+    setIsTranscribing(true);
+
+    try {
+      const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
+      console.log('Audio blob size:', audioBlob.size, 'bytes');
+      
+      if (audioBlob.size < 1000) {
+        toast.error('Ses kaydı çok kısa');
+        return;
+      }
+
+      const base64Audio = await blobToBase64(audioBlob);
+      console.log('Sending audio to transcribe-audio function...');
+
+      const { data, error } = await supabase.functions.invoke('transcribe-audio', {
+        body: { audio: base64Audio }
+      });
+
+      if (error) {
+        console.error('Transcription error:', error);
+        toast.error('Transkripsiyon hatası: ' + error.message);
+        return;
+      }
+
+      if (data?.text) {
+        setText(prev => prev ? prev + ' ' + data.text : data.text);
+        toast.success('Ses metne dönüştürüldü');
+      } else if (data?.error) {
+        toast.error(data.error);
+      }
+    } catch (error) {
+      console.error('Process audio error:', error);
+      toast.error('Ses işleme hatası');
+    } finally {
+      setIsTranscribing(false);
+      audioChunksRef.current = [];
+    }
+  };
+
+  const startRecording = async () => {
+    // Get or request microphone permission
+    let stream = streamRef.current;
+    
+    if (!stream || !stream.active) {
+      stream = await requestMicPermission();
+      if (!stream) return;
+      streamRef.current = stream;
+    }
+
+    audioChunksRef.current = [];
+
+    try {
+      const mediaRecorder = new MediaRecorder(stream, { 
+        mimeType: 'audio/webm;codecs=opus' 
+      });
+
+      mediaRecorder.ondataavailable = (event) => {
+        if (event.data.size > 0) {
+          audioChunksRef.current.push(event.data);
+        }
+      };
+
+      mediaRecorder.onstop = () => {
+        processAudio();
+      };
+
+      mediaRecorder.start(100); // Collect data every 100ms
+      mediaRecorderRef.current = mediaRecorder;
+      setIsRecording(true);
+      toast.info('Dinleniyor... Konuşmaya başlayın');
+    } catch (error) {
+      console.error('Start recording error:', error);
+      toast.error('Kayıt başlatılamadı');
+    }
+  };
+
+  const stopRecording = () => {
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+      setIsRecording(false);
+    }
+  };
+
+  const toggleRecording = () => {
+    if (isRecording) {
+      stopRecording();
+    } else {
+      startRecording();
+    }
+  };
+
+  // Cleanup on unmount
+  useEffect(() => {
+    return () => {
+      if (streamRef.current) {
+        streamRef.current.getTracks().forEach(track => track.stop());
+      }
+    };
+  }, []);
+
   const handleSubmit = async () => {
-    // Session kontrolü
     if (!session) {
       toast.error('Oturumunuz sona ermiş. Lütfen tekrar giriş yapın.', {
         action: {
@@ -131,7 +213,6 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
       if (error) {
         console.error('Edge function error:', error);
         
-        // 401 hatası için özel handling
         if (error.message?.includes('401') || error.message?.includes('Unauthorized') || error.message?.includes('JWT')) {
           toast.error('Oturumunuz sona ermiş. Lütfen tekrar giriş yapın.', {
             action: {
@@ -169,33 +250,36 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
     ? 'Örn: "Yarın saat 10\'da müşteri toplantısı ekle"'
     : 'Örn: "Şu an rapor yazıyorum"';
 
+  const isDisabled = isProcessing || isTranscribing;
+  const isMicDisabled = isDisabled || micPermission === 'denied';
+
   return (
     <>
       {/* Floating Mic FAB - Fixed bottom right on mobile */}
-      {supportsVoice && (
-        <div className="fixed bottom-6 right-4 z-50 md:hidden">
-          {/* Ripple animation when listening */}
-          {isListening && (
-            <>
-              <span className="absolute inset-0 h-20 w-20 animate-ping rounded-full bg-destructive/40" />
-              <span className="absolute inset-0 h-20 w-20 animate-pulse rounded-full bg-destructive/20" />
-            </>
+      <div className="fixed bottom-6 right-4 z-50 md:hidden">
+        {/* Ripple animation when recording */}
+        {isRecording && (
+          <>
+            <span className="absolute inset-0 h-20 w-20 animate-ping rounded-full bg-destructive/40" />
+            <span className="absolute inset-0 h-20 w-20 animate-pulse rounded-full bg-destructive/20" />
+          </>
+        )}
+        <Button
+          variant={isRecording ? 'destructive' : 'default'}
+          onClick={toggleRecording}
+          disabled={isMicDisabled}
+          title={isRecording ? 'Kaydı durdur' : 'Sesli komut (Whisper)'}
+          className="relative h-20 w-20 rounded-full shadow-2xl"
+        >
+          {isTranscribing ? (
+            <Loader2 className="h-10 w-10 animate-spin" />
+          ) : isRecording ? (
+            <MicOff className="h-10 w-10" />
+          ) : (
+            <Mic className="h-10 w-10" />
           )}
-          <Button
-            variant={isListening ? 'destructive' : 'default'}
-            onClick={toggleListening}
-            disabled={isProcessing}
-            title={isListening ? 'Dinlemeyi durdur' : 'Sesli komut'}
-            className="relative h-20 w-20 rounded-full shadow-2xl"
-          >
-            {isListening ? (
-              <MicOff className="h-10 w-10" />
-            ) : (
-              <Mic className="h-10 w-10" />
-            )}
-          </Button>
-        </div>
-      )}
+        </Button>
+      </div>
 
       <div className="space-y-2">
         <Textarea
@@ -203,14 +287,14 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
           onChange={(e) => setText(e.target.value)}
           placeholder={placeholder}
           className="min-h-[50px] md:min-h-[70px] resize-none text-sm"
-          disabled={isProcessing}
+          disabled={isDisabled}
         />
         
         <div className="flex items-center gap-2">
           {/* Send Button */}
           <Button 
             onClick={handleSubmit}
-            disabled={!text.trim() || isProcessing}
+            disabled={!text.trim() || isDisabled}
             className="flex-1 h-10 md:h-10"
             size="sm"
           >
@@ -229,21 +313,21 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
           </Button>
           
           {/* Desktop Mic Button */}
-          {supportsVoice && (
-            <Button
-              variant={isListening ? 'destructive' : 'default'}
-              onClick={toggleListening}
-              disabled={isProcessing}
-              title={isListening ? 'Dinlemeyi durdur' : 'Sesli komut'}
-              className="hidden md:flex h-10 w-10 shrink-0"
-            >
-              {isListening ? (
-                <MicOff className="h-4 w-4" />
-              ) : (
-                <Mic className="h-4 w-4" />
-              )}
-            </Button>
-          )}
+          <Button
+            variant={isRecording ? 'destructive' : 'default'}
+            onClick={toggleRecording}
+            disabled={isMicDisabled}
+            title={isRecording ? 'Kaydı durdur' : 'Sesli komut (Whisper)'}
+            className="hidden md:flex h-10 w-10 shrink-0"
+          >
+            {isTranscribing ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : isRecording ? (
+              <MicOff className="h-4 w-4" />
+            ) : (
+              <Mic className="h-4 w-4" />
+            )}
+          </Button>
         </div>
       </div>
     </>
