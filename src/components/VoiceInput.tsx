@@ -201,19 +201,19 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
           )}
         </Button>
         
-        {/* Large Mic Button - Mobile Optimized (FAB style) */}
+        {/* Large Mic Button - Mobile Optimized (FAB style) - 80x80px */}
         {supportsVoice && (
           <Button
             variant={isListening ? 'destructive' : 'default'}
             onClick={toggleListening}
             disabled={isProcessing}
             title={isListening ? 'Dinlemeyi durdur' : 'Sesli komut'}
-            className="h-14 w-14 md:h-10 md:w-10 rounded-full md:rounded-md shrink-0 shadow-lg md:shadow-none"
+            className="h-20 w-20 md:h-10 md:w-10 rounded-full md:rounded-md shrink-0 shadow-2xl md:shadow-none"
           >
             {isListening ? (
-              <MicOff className="h-6 w-6 md:h-4 md:w-4" />
+              <MicOff className="h-10 w-10 md:h-4 md:w-4" />
             ) : (
-              <Mic className="h-6 w-6 md:h-4 md:w-4" />
+              <Mic className="h-10 w-10 md:h-4 md:w-4" />
             )}
           </Button>
         )}
