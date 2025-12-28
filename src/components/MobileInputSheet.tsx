@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { Button } from '@/components/ui/button';
 import { VoiceInput } from '@/components/VoiceInput';
 import { QuickChips } from '@/components/QuickChips';
@@ -18,14 +18,29 @@ interface MobileInputSheetProps {
 
 export function MobileInputSheet({ mode, onModeChange, date, onSuccess }: MobileInputSheetProps) {
   const [open, setOpen] = useState(false);
+  const [autoStartRecording, setAutoStartRecording] = useState(false);
 
-  const handleSuccess = () => {
+  const handleSuccess = useCallback(() => {
     onSuccess();
     setOpen(false);
-  };
+    setAutoStartRecording(false);
+  }, [onSuccess]);
+
+  const handleMicClick = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    setAutoStartRecording(true);
+    setOpen(true);
+  }, []);
+
+  const handleOpenChange = useCallback((isOpen: boolean) => {
+    setOpen(isOpen);
+    if (!isOpen) {
+      setAutoStartRecording(false);
+    }
+  }, []);
 
   return (
-    <Drawer open={open} onOpenChange={setOpen}>
+    <Drawer open={open} onOpenChange={handleOpenChange}>
       <DrawerTrigger asChild>
         <div className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t shadow-lg">
           <div className="flex items-center justify-between px-4 py-3">
@@ -47,10 +62,7 @@ export function MobileInputSheet({ mode, onModeChange, date, onSuccess }: Mobile
               size="icon" 
               variant="default"
               className="h-10 w-10 rounded-full"
-              onClick={(e) => {
-                e.stopPropagation();
-                setOpen(true);
-              }}
+              onClick={handleMicClick}
             >
               <Mic className="h-5 w-5" />
             </Button>
@@ -91,6 +103,7 @@ export function MobileInputSheet({ mode, onModeChange, date, onSuccess }: Mobile
             date={date}
             onSuccess={handleSuccess}
             embedded
+            autoStart={autoStartRecording}
           />
 
           {/* Quick Chips */}
