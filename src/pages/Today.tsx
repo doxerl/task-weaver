@@ -13,6 +13,7 @@ import { format, addDays, subDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
+import { getISOWeekData } from '@/lib/weekUtils';
 
 export default function Today() {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export default function Today() {
   const [inputMode, setInputMode] = useState<'plan' | 'actual'>('plan');
   
   const { planItems, actualEntries, loading, refetch } = useDayData(selectedDate);
+  const { weekNumber, weekYear } = getISOWeekData(selectedDate);
 
   const handleSignOut = async () => {
     await signOut();
@@ -43,7 +45,7 @@ export default function Today() {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-44 md:pb-4">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
         <div className="container flex h-14 items-center justify-between px-4">
@@ -97,6 +99,9 @@ export default function Today() {
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div className="text-center">
+            <span className="text-xs text-muted-foreground block">
+              {weekNumber}. Hafta {weekYear}
+            </span>
             <button 
               onClick={handleToday}
               className="text-lg font-medium text-foreground hover:text-primary transition-colors"
@@ -110,40 +115,6 @@ export default function Today() {
           <Button variant="ghost" size="icon" onClick={handleNextDay}>
             <ChevronRight className="h-5 w-5" />
           </Button>
-        </div>
-      </div>
-
-      {/* Voice/Text Input */}
-      <div className="border-b bg-card px-4 py-4">
-        <div className="container">
-          <div className="mb-3 flex gap-2">
-            <Button
-              variant={inputMode === 'plan' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setInputMode('plan')}
-            >
-              Plan Ekle
-            </Button>
-            <Button
-              variant={inputMode === 'actual' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setInputMode('actual')}
-            >
-              Şu An / Az Önce
-            </Button>
-          </div>
-          
-          <VoiceInput 
-            mode={inputMode} 
-            date={selectedDate}
-            onSuccess={refetch}
-          />
-          
-          <QuickChips 
-            mode={inputMode}
-            date={selectedDate}
-            onSuccess={refetch}
-          />
         </div>
       </div>
 
@@ -187,6 +158,42 @@ export default function Today() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* Floating Input Area - Mobile Optimized */}
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-card p-4 shadow-lg">
+        <div className="container">
+          <div className="mb-2 flex gap-2">
+            <Button
+              variant={inputMode === 'plan' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setInputMode('plan')}
+              className="flex-1 md:flex-none"
+            >
+              Plan Ekle
+            </Button>
+            <Button
+              variant={inputMode === 'actual' ? 'default' : 'outline'}
+              size="sm"
+              onClick={() => setInputMode('actual')}
+              className="flex-1 md:flex-none"
+            >
+              Şu An / Az Önce
+            </Button>
+          </div>
+          
+          <VoiceInput 
+            mode={inputMode} 
+            date={selectedDate}
+            onSuccess={refetch}
+          />
+          
+          <QuickChips 
+            mode={inputMode}
+            date={selectedDate}
+            onSuccess={refetch}
+          />
+        </div>
+      </div>
     </div>
   );
 }
