@@ -170,54 +170,73 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
     : 'Örn: "Şu an rapor yazıyorum"';
 
   return (
-    <div className="space-y-2">
-      <Textarea
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-        placeholder={placeholder}
-        className="min-h-[50px] md:min-h-[70px] resize-none text-sm"
-        disabled={isProcessing}
-      />
-      
-      <div className="flex items-center gap-2">
-        {/* Send Button */}
-        <Button 
-          onClick={handleSubmit}
-          disabled={!text.trim() || isProcessing}
-          className="flex-1 h-10 md:h-10"
-          size="sm"
+    <>
+      {/* Floating Mic FAB - Fixed bottom right on mobile */}
+      {supportsVoice && (
+        <Button
+          variant={isListening ? 'destructive' : 'default'}
+          onClick={toggleListening}
+          disabled={isProcessing}
+          title={isListening ? 'Dinlemeyi durdur' : 'Sesli komut'}
+          className="fixed bottom-6 right-4 z-50 h-20 w-20 rounded-full shadow-2xl md:hidden"
         >
-          {isProcessing ? (
-            <>
-              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              <span className="hidden sm:inline">İşleniyor...</span>
-              <span className="sm:hidden">...</span>
-            </>
+          {isListening ? (
+            <MicOff className="h-10 w-10" />
           ) : (
-            <>
-              <Send className="mr-2 h-4 w-4" />
-              {mode === 'plan' ? 'Plan Ekle' : 'Kaydet'}
-            </>
+            <Mic className="h-10 w-10" />
           )}
         </Button>
+      )}
+
+      <div className="space-y-2">
+        <Textarea
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          placeholder={placeholder}
+          className="min-h-[50px] md:min-h-[70px] resize-none text-sm"
+          disabled={isProcessing}
+        />
         
-        {/* Large Mic Button - Mobile Optimized (FAB style) - 80x80px */}
-        {supportsVoice && (
-          <Button
-            variant={isListening ? 'destructive' : 'default'}
-            onClick={toggleListening}
-            disabled={isProcessing}
-            title={isListening ? 'Dinlemeyi durdur' : 'Sesli komut'}
-            className="h-20 w-20 md:h-10 md:w-10 rounded-full md:rounded-md shrink-0 shadow-2xl md:shadow-none"
+        <div className="flex items-center gap-2">
+          {/* Send Button */}
+          <Button 
+            onClick={handleSubmit}
+            disabled={!text.trim() || isProcessing}
+            className="flex-1 h-10 md:h-10"
+            size="sm"
           >
-            {isListening ? (
-              <MicOff className="h-10 w-10 md:h-4 md:w-4" />
+            {isProcessing ? (
+              <>
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                <span className="hidden sm:inline">İşleniyor...</span>
+                <span className="sm:hidden">...</span>
+              </>
             ) : (
-              <Mic className="h-10 w-10 md:h-4 md:w-4" />
+              <>
+                <Send className="mr-2 h-4 w-4" />
+                {mode === 'plan' ? 'Plan Ekle' : 'Kaydet'}
+              </>
             )}
           </Button>
-        )}
+          
+          {/* Desktop Mic Button */}
+          {supportsVoice && (
+            <Button
+              variant={isListening ? 'destructive' : 'default'}
+              onClick={toggleListening}
+              disabled={isProcessing}
+              title={isListening ? 'Dinlemeyi durdur' : 'Sesli komut'}
+              className="hidden md:flex h-10 w-10 shrink-0"
+            >
+              {isListening ? (
+                <MicOff className="h-4 w-4" />
+              ) : (
+                <Mic className="h-4 w-4" />
+              )}
+            </Button>
+          )}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
