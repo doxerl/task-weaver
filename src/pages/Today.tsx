@@ -48,7 +48,7 @@ export default function Today() {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="min-h-screen bg-background pb-52 md:pb-48">
+    <div className="min-h-screen bg-background pb-40 md:pb-36">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
         <div className="container flex h-14 items-center justify-between px-4">
@@ -153,7 +153,7 @@ export default function Today() {
             <ChevronLeft className="h-5 w-5" />
           </Button>
           <div className="text-center">
-            <span className="text-xs text-muted-foreground block">
+            <span className="text-sm text-muted-foreground block">
               {weekNumber}. Hafta {weekYear}
             </span>
             <button 
@@ -176,13 +176,13 @@ export default function Today() {
       <main className="container px-4 py-4">
         <Tabs defaultValue="plan" className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-4">
-            <TabsTrigger value="plan" className="text-xs md:text-sm">
+            <TabsTrigger value="plan" className="text-sm">
               Plan ({planItems.length})
             </TabsTrigger>
-            <TabsTrigger value="actual" className="text-xs md:text-sm">
-              Gerçekleşen ({actualEntries.length})
+            <TabsTrigger value="actual" className="text-sm">
+              Gerçek ({actualEntries.length})
             </TabsTrigger>
-            <TabsTrigger value="compare" className="text-xs md:text-sm">
+            <TabsTrigger value="compare" className="text-sm">
               Karşılaştır
             </TabsTrigger>
           </TabsList>
@@ -219,22 +219,22 @@ export default function Today() {
           {/* Compact Mode Toggle */}
           <div className="flex items-center gap-2 mb-2">
             <div className="flex gap-1 flex-1">
-              <Button
-                variant={inputMode === 'plan' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setInputMode('plan')}
-                className="flex-1 h-8 text-xs md:text-sm"
-              >
-                Plan
-              </Button>
-              <Button
-                variant={inputMode === 'actual' ? 'default' : 'outline'}
-                size="sm"
-                onClick={() => setInputMode('actual')}
-                className="flex-1 h-8 text-xs md:text-sm"
-              >
-                Gerçek
-              </Button>
+                <Button
+                  variant={inputMode === 'plan' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setInputMode('plan')}
+                  className="flex-1 h-9 text-sm"
+                >
+                  Plan
+                </Button>
+                <Button
+                  variant={inputMode === 'actual' ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setInputMode('actual')}
+                  className="flex-1 h-9 text-sm"
+                >
+                  Gerçek
+                </Button>
             </div>
             <span className="text-xs text-muted-foreground hidden sm:block">
               {inputMode === 'plan' ? 'Ne yapacaksın?' : 'Ne yaptın?'}
@@ -251,7 +251,7 @@ export default function Today() {
           <div className="md:hidden mt-2">
             <Collapsible open={quickChipsOpen} onOpenChange={setQuickChipsOpen}>
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="w-full h-8 text-xs text-muted-foreground">
+                <Button variant="ghost" size="sm" className="w-full h-9 text-sm text-muted-foreground">
                   <ChevronUp className={`h-4 w-4 mr-1 transition-transform ${quickChipsOpen ? 'rotate-180' : ''}`} />
                   Hızlı Seçenekler
                 </Button>

@@ -455,7 +455,7 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
       </Dialog>
 
       {/* Floating Mic FAB - Fixed bottom right on mobile */}
-      <div className="fixed bottom-28 right-4 z-50 md:hidden">
+      <div className="fixed bottom-44 right-4 z-50 md:hidden">
         {/* Ripple animation when recording */}
         {isRecording && (
           <>
@@ -485,7 +485,7 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
           value={text}
           onChange={(e) => setText(e.target.value)}
           placeholder={placeholder}
-          className="min-h-[50px] md:min-h-[70px] resize-none text-sm"
+          className="min-h-[44px] md:min-h-[60px] resize-none text-base"
           disabled={isDisabled}
         />
         
