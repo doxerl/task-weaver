@@ -13,9 +13,10 @@ interface VoiceInputProps {
   mode: 'plan' | 'actual';
   date: Date;
   onSuccess: () => void;
+  embedded?: boolean;
 }
 
-export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
+export function VoiceInput({ mode, date, onSuccess, embedded = false }: VoiceInputProps) {
   const navigate = useNavigate();
   const { session } = useAuthContext();
   const [text, setText] = useState('');
@@ -454,31 +455,33 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
         </DialogContent>
       </Dialog>
 
-      {/* Floating Mic FAB - Fixed bottom right on mobile */}
-      <div className="fixed bottom-44 right-4 z-50 md:hidden">
-        {/* Ripple animation when recording */}
-        {isRecording && (
-          <>
-            <span className="absolute inset-0 h-16 w-16 animate-ping rounded-full bg-destructive/40" />
-            <span className="absolute inset-0 h-16 w-16 animate-pulse rounded-full bg-destructive/20" />
-          </>
-        )}
-        <Button
-          variant={isRecording ? 'destructive' : 'default'}
-          onClick={toggleRecording}
-          disabled={isMicDisabled}
-          title={isRecording ? 'Kaydı durdur' : 'Sesli komut'}
-          className="relative h-16 w-16 rounded-full shadow-2xl"
-        >
-          {isTranscribing ? (
-            <Loader2 className="h-8 w-8 animate-spin" />
-          ) : isRecording ? (
-            <MicOff className="h-8 w-8" />
-          ) : (
-            <Mic className="h-8 w-8" />
+      {/* Floating Mic FAB - Fixed bottom right on mobile (only when not embedded) */}
+      {!embedded && (
+        <div className="fixed bottom-20 right-4 z-50 md:hidden">
+          {/* Ripple animation when recording */}
+          {isRecording && (
+            <>
+              <span className="absolute inset-0 h-16 w-16 animate-ping rounded-full bg-destructive/40" />
+              <span className="absolute inset-0 h-16 w-16 animate-pulse rounded-full bg-destructive/20" />
+            </>
           )}
-        </Button>
-      </div>
+          <Button
+            variant={isRecording ? 'destructive' : 'default'}
+            onClick={toggleRecording}
+            disabled={isMicDisabled}
+            title={isRecording ? 'Kaydı durdur' : 'Sesli komut'}
+            className="relative h-16 w-16 rounded-full shadow-2xl"
+          >
+            {isTranscribing ? (
+              <Loader2 className="h-8 w-8 animate-spin" />
+            ) : isRecording ? (
+              <MicOff className="h-8 w-8" />
+            ) : (
+              <Mic className="h-8 w-8" />
+            )}
+          </Button>
+        </div>
+      )}
 
       <div className="space-y-2">
         <Textarea
