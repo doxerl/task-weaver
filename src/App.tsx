@@ -9,6 +9,7 @@ import Auth from "./pages/Auth";
 import Today from "./pages/Today";
 import Settings from "./pages/Settings";
 import Review from "./pages/Review";
+import Week from "./pages/Week";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -36,6 +37,11 @@ const App = () => (
             <Route path="/review/:date" element={
               <ProtectedRoute>
                 <Review />
+              </ProtectedRoute>
+            } />
+            <Route path="/week" element={
+              <ProtectedRoute>
+                <Week />
               </ProtectedRoute>
             } />
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
