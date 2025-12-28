@@ -49,31 +49,29 @@ export default function Week() {
 
       if (error) throw error;
 
-      // Download Plan CSV
-      if (data.planCsv) {
-        const planBlob = new Blob([data.planCsv], { type: 'text/csv;charset=utf-8;' });
-        const planUrl = URL.createObjectURL(planBlob);
-        const planLink = document.createElement('a');
-        planLink.href = planUrl;
-        planLink.download = `${data.filename}_plan.csv`;
-        planLink.click();
-        URL.revokeObjectURL(planUrl);
-      }
-
-      // Download Actual CSV
-      if (data.actualCsv) {
-        const actualBlob = new Blob([data.actualCsv], { type: 'text/csv;charset=utf-8;' });
-        const actualUrl = URL.createObjectURL(actualBlob);
-        const actualLink = document.createElement('a');
-        actualLink.href = actualUrl;
-        actualLink.download = `${data.filename}_kayit.csv`;
-        actualLink.click();
-        URL.revokeObjectURL(actualUrl);
+      if (data.xlsxBase64) {
+        // Convert base64 to binary
+        const binaryString = atob(data.xlsxBase64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+          bytes[i] = binaryString.charCodeAt(i);
+        }
+        
+        // Create blob and download
+        const blob = new Blob([bytes], { 
+          type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+        });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = `${data.filename}.xlsx`;
+        link.click();
+        URL.revokeObjectURL(url);
       }
 
       toast({ 
         title: 'Export başarılı', 
-        description: `${data.planCount} plan, ${data.actualCount} kayıt indirildi` 
+        description: `${data.weekNumber}. Hafta - ${data.planCount} plan, ${data.actualCount} kayıt` 
       });
     } catch (error) {
       console.error('Export error:', error);
