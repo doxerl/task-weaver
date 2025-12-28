@@ -1,11 +1,13 @@
+import { useState, useRef, useEffect } from 'react';
 import { PlanItem } from '@/types/plan';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { Check, X, Clock, MapPin, Github, Trash2 } from 'lucide-react';
+import { Check, X, Clock, MapPin, Github, Trash2, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -28,6 +30,54 @@ const statusIcons: Record<string, React.ReactNode> = {
 };
 
 export function PlanTimeline({ items, loading, onUpdate }: PlanTimelineProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingId && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingId]);
+
+  const startEditing = (item: PlanItem) => {
+    if (item.status !== 'done') {
+      setEditingId(item.id);
+      setEditValue(item.title);
+    }
+  };
+
+  const handleSave = async () => {
+    if (!editingId || !editValue.trim()) {
+      setEditingId(null);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('plan_items')
+      .update({ title: editValue.trim() })
+      .eq('id', editingId);
+
+    if (error) {
+      toast.error('Güncellenemedi');
+    } else {
+      toast.success('Güncellendi');
+      onUpdate();
+    }
+
+    setEditingId(null);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      handleSave();
+    } else if (e.key === 'Escape') {
+      setEditingId(null);
+    }
+  };
+
   const handleStatusChange = async (item: PlanItem, newStatus: 'done' | 'skipped') => {
     const { error } = await supabase
       .from('plan_items')
@@ -90,9 +140,26 @@ export function PlanTimeline({ items, loading, onUpdate }: PlanTimelineProps) {
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
                   {statusIcons[item.status]}
-                  <h3 className={`font-medium truncate ${item.status === 'done' ? 'line-through text-muted-foreground' : ''}`}>
-                    {item.title}
-                  </h3>
+                  {editingId === item.id ? (
+                    <Input
+                      ref={inputRef}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleSave}
+                      onKeyDown={handleKeyDown}
+                      className="h-7 px-2 font-medium flex-1"
+                    />
+                  ) : (
+                    <h3 
+                      className={`font-medium truncate group cursor-pointer hover:text-primary transition-colors ${item.status === 'done' ? 'line-through text-muted-foreground' : ''}`}
+                      onClick={() => startEditing(item)}
+                    >
+                      {item.title}
+                      {item.status !== 'done' && (
+                        <Pencil className="h-3 w-3 ml-1.5 opacity-0 group-hover:opacity-50 inline-block" />
+                      )}
+                    </h3>
+                  )}
                 </div>
                 
                 <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
