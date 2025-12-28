@@ -8,7 +8,7 @@ import { ActualTimeline } from '@/components/ActualTimeline';
 import { CompareView } from '@/components/CompareView';
 import { QuickChips } from '@/components/QuickChips';
 import { useDayData } from '@/hooks/useDayData';
-import { LogOut, Settings, Calendar, ChevronLeft, ChevronRight, ClipboardList } from 'lucide-react';
+import { LogOut, Settings, Calendar, ChevronLeft, ChevronRight, ClipboardList, CalendarDays } from 'lucide-react';
 import { format, addDays, subDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -54,6 +54,14 @@ export default function Today() {
             </span>
           </div>
           <div className="flex items-center gap-2">
+            <Button 
+              variant="ghost" 
+              size="icon"
+              onClick={() => navigate('/week')}
+              title="Haftalık Görünüm"
+            >
+              <CalendarDays className="h-5 w-5" />
+            </Button>
             <Button 
               variant="ghost" 
               size="icon"
