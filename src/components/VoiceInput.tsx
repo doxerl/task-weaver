@@ -173,19 +173,28 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
     <>
       {/* Floating Mic FAB - Fixed bottom right on mobile */}
       {supportsVoice && (
-        <Button
-          variant={isListening ? 'destructive' : 'default'}
-          onClick={toggleListening}
-          disabled={isProcessing}
-          title={isListening ? 'Dinlemeyi durdur' : 'Sesli komut'}
-          className="fixed bottom-6 right-4 z-50 h-20 w-20 rounded-full shadow-2xl md:hidden"
-        >
-          {isListening ? (
-            <MicOff className="h-10 w-10" />
-          ) : (
-            <Mic className="h-10 w-10" />
+        <div className="fixed bottom-6 right-4 z-50 md:hidden">
+          {/* Ripple animation when listening */}
+          {isListening && (
+            <>
+              <span className="absolute inset-0 h-20 w-20 animate-ping rounded-full bg-destructive/40" />
+              <span className="absolute inset-0 h-20 w-20 animate-pulse rounded-full bg-destructive/20" />
+            </>
           )}
-        </Button>
+          <Button
+            variant={isListening ? 'destructive' : 'default'}
+            onClick={toggleListening}
+            disabled={isProcessing}
+            title={isListening ? 'Dinlemeyi durdur' : 'Sesli komut'}
+            className="relative h-20 w-20 rounded-full shadow-2xl"
+          >
+            {isListening ? (
+              <MicOff className="h-10 w-10" />
+            ) : (
+              <Mic className="h-10 w-10" />
+            )}
+          </Button>
+        </div>
       )}
 
       <div className="space-y-2">
