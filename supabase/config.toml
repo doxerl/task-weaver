@@ -1,10 +1,10 @@
 project_id = "pruoyfpntzvyeaceyign"
 
 [functions.parse-plan]
-verify_jwt = true
+verify_jwt = false
 
 [functions.parse-actual]
-verify_jwt = true
+verify_jwt = false
 
 [functions.github-connect]
 verify_jwt = true
@@ -13,4 +13,4 @@ verify_jwt = true
 verify_jwt = true
 
 [functions.export-week]
-verify_jwt = true
+verify_jwt = false
