@@ -3,26 +3,27 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { VoiceInput } from '@/components/VoiceInput';
 import { PlanTimeline } from '@/components/PlanTimeline';
 import { ActualTimeline } from '@/components/ActualTimeline';
 import { CompareView } from '@/components/CompareView';
 import { QuickChips } from '@/components/QuickChips';
+import { MobileInputSheet } from '@/components/MobileInputSheet';
 import { useDayData } from '@/hooks/useDayData';
-import { LogOut, Settings, Calendar, ChevronLeft, ChevronRight, ClipboardList, CalendarDays, Menu, ChevronUp } from 'lucide-react';
+import { LogOut, Settings, Calendar, ChevronLeft, ChevronRight, ClipboardList, CalendarDays, Menu } from 'lucide-react';
 import { format, addDays, subDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { getISOWeekData } from '@/lib/weekUtils';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function Today() {
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { profile, signOut } = useAuthContext();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [inputMode, setInputMode] = useState<'plan' | 'actual'>('plan');
-  const [quickChipsOpen, setQuickChipsOpen] = useState(false);
   
   const { planItems, actualEntries, loading, refetch } = useDayData(selectedDate);
   const { weekNumber, weekYear } = getISOWeekData(selectedDate);
@@ -48,7 +49,7 @@ export default function Today() {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="min-h-screen bg-background pb-40 md:pb-36">
+    <div className="min-h-screen bg-background pb-20 md:pb-36">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
         <div className="container flex h-14 items-center justify-between px-4">
@@ -213,12 +214,23 @@ export default function Today() {
         </Tabs>
       </main>
 
-      {/* Floating Input Area - Mobile Optimized */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-card p-3 md:p-4 shadow-lg">
-        <div className="container">
-          {/* Compact Mode Toggle */}
-          <div className="flex items-center gap-2 mb-2">
-            <div className="flex gap-1 flex-1">
+      {/* Mobile: Bottom Sheet Pattern */}
+      {isMobile && (
+        <MobileInputSheet
+          mode={inputMode}
+          onModeChange={setInputMode}
+          date={selectedDate}
+          onSuccess={refetch}
+        />
+      )}
+
+      {/* Desktop: Fixed Input Area */}
+      {!isMobile && (
+        <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-card p-4 shadow-lg">
+          <div className="container">
+            {/* Mode Toggle */}
+            <div className="flex items-center gap-2 mb-2">
+              <div className="flex gap-1 flex-1">
                 <Button
                   variant={inputMode === 'plan' ? 'default' : 'outline'}
                   size="sm"
@@ -235,47 +247,29 @@ export default function Today() {
                 >
                   Gerçek
                 </Button>
+              </div>
+              <span className="text-xs text-muted-foreground">
+                {inputMode === 'plan' ? 'Ne yapacaksın?' : 'Ne yaptın?'}
+              </span>
             </div>
-            <span className="text-xs text-muted-foreground hidden sm:block">
-              {inputMode === 'plan' ? 'Ne yapacaksın?' : 'Ne yaptın?'}
-            </span>
-          </div>
-          
-          <VoiceInput 
-            mode={inputMode} 
-            date={selectedDate}
-            onSuccess={refetch}
-          />
-          
-          {/* Collapsible Quick Chips on Mobile */}
-          <div className="md:hidden mt-2">
-            <Collapsible open={quickChipsOpen} onOpenChange={setQuickChipsOpen}>
-              <CollapsibleTrigger asChild>
-                <Button variant="ghost" size="sm" className="w-full h-9 text-sm text-muted-foreground">
-                  <ChevronUp className={`h-4 w-4 mr-1 transition-transform ${quickChipsOpen ? 'rotate-180' : ''}`} />
-                  Hızlı Seçenekler
-                </Button>
-              </CollapsibleTrigger>
-              <CollapsibleContent className="pt-2">
-                <QuickChips 
-                  mode={inputMode}
-                  date={selectedDate}
-                  onSuccess={refetch}
-                />
-              </CollapsibleContent>
-            </Collapsible>
-          </div>
-
-          {/* Always visible on Desktop */}
-          <div className="hidden md:block">
-            <QuickChips 
-              mode={inputMode}
+            
+            <VoiceInput 
+              mode={inputMode} 
               date={selectedDate}
               onSuccess={refetch}
             />
+            
+            {/* Quick Chips */}
+            <div className="mt-2">
+              <QuickChips 
+                mode={inputMode}
+                date={selectedDate}
+                onSuccess={refetch}
+              />
+            </div>
           </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }
