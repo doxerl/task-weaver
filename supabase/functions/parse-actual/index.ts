@@ -43,27 +43,51 @@ serve(async (req) => {
   }
 
   try {
+    // Auth header kontrolü
     const authHeader = req.headers.get('Authorization');
+    console.log('Auth header present:', !!authHeader);
+    
     if (!authHeader) {
+      console.error('Missing Authorization header');
       return new Response(JSON.stringify({ error: 'Authorization header required' }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
 
+    // Supabase client'ları oluştur
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
-    const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
-    const supabase = createClient(supabaseUrl, supabaseKey);
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY')!;
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+    
+    // User client - auth header ile
+    const supabaseUser = createClient(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+    
+    // Service client - DB işlemleri için
+    const supabaseAdmin = createClient(supabaseUrl, supabaseServiceKey);
 
-    const token = authHeader.replace('Bearer ', '');
-    const { data: { user }, error: authError } = await supabase.auth.getUser(token);
-
-    if (authError || !user) {
-      return new Response(JSON.stringify({ error: 'Invalid token' }), {
+    // Kullanıcıyı doğrula
+    const { data: { user }, error: authError } = await supabaseUser.auth.getUser();
+    
+    if (authError) {
+      console.error('Auth error:', authError.message);
+      return new Response(JSON.stringify({ error: 'Authentication failed', details: authError.message }), {
         status: 401,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       });
     }
+    
+    if (!user) {
+      console.error('No user found in token');
+      return new Response(JSON.stringify({ error: 'Invalid token - no user' }), {
+        status: 401,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      });
+    }
+
+    console.log('User authenticated:', user.id);
 
     const { text, date, timezone, now } = await req.json();
     console.log('Parse actual request:', { text, date, timezone, now, userId: user.id });
@@ -92,6 +116,8 @@ Kullanıcı komutu: "${text}"
 
 Bu komutu analiz et ve gerçekleşen aktivite olarak JSON formatında döndür. Zamanları şu ana göre hesapla.`;
 
+    console.log('Calling AI gateway...');
+    
     const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
@@ -110,12 +136,14 @@ Bu komutu analiz et ve gerçekleşen aktivite olarak JSON formatında döndür. 
 
     if (!aiResponse.ok) {
       if (aiResponse.status === 429) {
+        console.error('Rate limit exceeded');
         return new Response(JSON.stringify({ error: 'Rate limit exceeded. Please try again later.' }), {
           status: 429,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       if (aiResponse.status === 402) {
+        console.error('AI credits exhausted');
         return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add funds.' }), {
           status: 402,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -131,9 +159,10 @@ Bu komutu analiz et ve gerçekleşen aktivite olarak JSON formatında döndür. 
 
     const aiData = await aiResponse.json();
     const content = aiData.choices?.[0]?.message?.content;
-    console.log('AI response:', content);
+    console.log('AI response received:', content?.substring(0, 200));
 
     if (!content) {
+      console.error('No content in AI response');
       return new Response(JSON.stringify({ error: 'No AI response' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -148,10 +177,11 @@ Bu komutu analiz et ve gerçekleşen aktivite olarak JSON formatında döndür. 
         throw new Error('No JSON found in response');
       }
       parsedPatch = JSON.parse(jsonMatch[0]);
+      console.log('Parsed operations:', parsedPatch.operations?.length || 0);
     } catch (parseError) {
       console.error('JSON parse error:', parseError, content);
       
-      await supabase.from('command_events').insert({
+      await supabaseAdmin.from('command_events').insert({
         user_id: user.id,
         source: 'text',
         raw_transcript: text,
@@ -174,7 +204,7 @@ Bu komutu analiz et ve gerçekleşen aktivite olarak JSON formatında döndür. 
     const results = [];
     for (const op of parsedPatch.operations || []) {
       if (op.op === 'addActual') {
-        const { data, error } = await supabase.from('actual_entries').insert({
+        const { data, error } = await supabaseAdmin.from('actual_entries').insert({
           user_id: user.id,
           title: op.title,
           start_at: op.startAt,
@@ -188,12 +218,13 @@ Bu komutu analiz et ve gerçekleşen aktivite olarak JSON formatında döndür. 
           console.error('Insert error:', error);
         } else {
           results.push(data);
+          console.log('Inserted actual entry:', data.id);
         }
       }
     }
 
     // Log command event
-    await supabase.from('command_events').insert({
+    await supabaseAdmin.from('command_events').insert({
       user_id: user.id,
       source: 'text',
       raw_transcript: text,
@@ -204,6 +235,8 @@ Bu komutu analiz et ve gerçekleşen aktivite olarak JSON formatında döndür. 
       apply_status: 'applied',
       diff_summary: { added: results.length },
     });
+
+    console.log('Successfully added', results.length, 'entries');
 
     return new Response(JSON.stringify({
       success: true,
