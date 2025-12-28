@@ -1,11 +1,13 @@
+import { useState, useRef, useEffect } from 'react';
 import { ActualEntry } from '@/types/plan';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Input } from '@/components/ui/input';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { Activity, Github, Trash2, Link } from 'lucide-react';
+import { Activity, Github, Trash2, Link, Pencil } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -16,6 +18,114 @@ interface ActualTimelineProps {
 }
 
 export function ActualTimeline({ entries, loading, onUpdate }: ActualTimelineProps) {
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [editField, setEditField] = useState<'title' | 'time' | null>(null);
+  const [editValue, setEditValue] = useState('');
+  const [editStartTime, setEditStartTime] = useState('');
+  const [editEndTime, setEditEndTime] = useState('');
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    if (editingId && inputRef.current) {
+      inputRef.current.focus();
+      inputRef.current.select();
+    }
+  }, [editingId, editField]);
+
+  const startEditingTitle = (entry: ActualEntry) => {
+    setEditingId(entry.id);
+    setEditField('title');
+    setEditValue(entry.title);
+  };
+
+  const startEditingTime = (entry: ActualEntry) => {
+    setEditingId(entry.id);
+    setEditField('time');
+    setEditStartTime(format(new Date(entry.start_at), 'HH:mm'));
+    setEditEndTime(format(new Date(entry.end_at), 'HH:mm'));
+  };
+
+  const handleSaveTitle = async () => {
+    if (!editingId || !editValue.trim()) {
+      setEditingId(null);
+      setEditField(null);
+      return;
+    }
+
+    const { error } = await supabase
+      .from('actual_entries')
+      .update({ title: editValue.trim() })
+      .eq('id', editingId);
+
+    if (error) {
+      toast.error('Güncellenemedi');
+    } else {
+      toast.success('Güncellendi');
+      onUpdate();
+    }
+    
+    setEditingId(null);
+    setEditField(null);
+  };
+
+  const handleSaveTime = async () => {
+    if (!editingId) {
+      setEditingId(null);
+      setEditField(null);
+      return;
+    }
+
+    const entry = entries.find(e => e.id === editingId);
+    if (!entry) return;
+
+    const baseDate = new Date(entry.start_at);
+    const [startHour, startMin] = editStartTime.split(':').map(Number);
+    const [endHour, endMin] = editEndTime.split(':').map(Number);
+
+    const newStartAt = new Date(baseDate);
+    newStartAt.setHours(startHour, startMin, 0, 0);
+
+    const newEndAt = new Date(baseDate);
+    newEndAt.setHours(endHour, endMin, 0, 0);
+
+    // If end time is before start time, assume it's the next day
+    if (newEndAt <= newStartAt) {
+      newEndAt.setDate(newEndAt.getDate() + 1);
+    }
+
+    const { error } = await supabase
+      .from('actual_entries')
+      .update({ 
+        start_at: newStartAt.toISOString(),
+        end_at: newEndAt.toISOString()
+      })
+      .eq('id', editingId);
+
+    if (error) {
+      toast.error('Güncellenemedi');
+    } else {
+      toast.success('Güncellendi');
+      onUpdate();
+    }
+    
+    setEditingId(null);
+    setEditField(null);
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      if (editField === 'title') {
+        handleSaveTitle();
+      } else if (editField === 'time') {
+        handleSaveTime();
+      }
+    } else if (e.key === 'Escape') {
+      setEditingId(null);
+      setEditField(null);
+    }
+  };
+
   const handleDelete = async (entry: ActualEntry) => {
     const { error } = await supabase
       .from('actual_entries')
@@ -72,14 +182,57 @@ export function ActualTimeline({ entries, loading, onUpdate }: ActualTimelinePro
             <div className="flex items-start justify-between gap-3">
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-2 mb-1">
-                  <Activity className="h-4 w-4 text-accent-foreground" />
-                  <h3 className="font-medium truncate">{entry.title}</h3>
+                  <Activity className="h-4 w-4 text-accent-foreground shrink-0" />
+                  {editingId === entry.id && editField === 'title' ? (
+                    <Input
+                      ref={inputRef}
+                      value={editValue}
+                      onChange={(e) => setEditValue(e.target.value)}
+                      onBlur={handleSaveTitle}
+                      onKeyDown={handleKeyDown}
+                      className="h-7 px-2 font-medium flex-1"
+                    />
+                  ) : (
+                    <h3 
+                      className="font-medium truncate cursor-pointer hover:text-primary group flex items-center gap-1"
+                      onClick={() => startEditingTitle(entry)}
+                    >
+                      {entry.title}
+                      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50 shrink-0" />
+                    </h3>
+                  )}
                 </div>
                 
                 <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
-                  <span>
-                    {format(new Date(entry.start_at), 'HH:mm', { locale: tr })} - {format(new Date(entry.end_at), 'HH:mm', { locale: tr })}
-                  </span>
+                  {editingId === entry.id && editField === 'time' ? (
+                    <div className="flex items-center gap-1">
+                      <input 
+                        type="time" 
+                        value={editStartTime}
+                        onChange={(e) => setEditStartTime(e.target.value)}
+                        onKeyDown={handleKeyDown}
+                        className="w-24 text-sm border border-input rounded px-2 py-1 bg-background"
+                      />
+                      <span>-</span>
+                      <input 
+                        ref={inputRef as React.RefObject<HTMLInputElement>}
+                        type="time" 
+                        value={editEndTime}
+                        onChange={(e) => setEditEndTime(e.target.value)}
+                        onBlur={handleSaveTime}
+                        onKeyDown={handleKeyDown}
+                        className="w-24 text-sm border border-input rounded px-2 py-1 bg-background"
+                      />
+                    </div>
+                  ) : (
+                    <span 
+                      className="cursor-pointer hover:text-primary group flex items-center gap-1"
+                      onClick={() => startEditingTime(entry)}
+                    >
+                      {format(new Date(entry.start_at), 'HH:mm', { locale: tr })} - {format(new Date(entry.end_at), 'HH:mm', { locale: tr })}
+                      <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50" />
+                    </span>
+                  )}
                   <span className="text-primary font-medium">
                     {calculateDuration(entry.start_at, entry.end_at)}
                   </span>
