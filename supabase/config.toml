@@ -1,1 +1,13 @@
 project_id = "pruoyfpntzvyeaceyign"
+
+[functions.parse-plan]
+verify_jwt = true
+
+[functions.parse-actual]
+verify_jwt = true
+
+[functions.github-connect]
+verify_jwt = true
+
+[functions.github-sync]
+verify_jwt = true
