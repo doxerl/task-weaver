@@ -6,6 +6,7 @@ import { Mic, MicOff, Send, Loader2 } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
+import { useAuthContext } from '@/contexts/AuthContext';
 
 interface VoiceInputProps {
   mode: 'plan' | 'actual';
@@ -18,6 +19,7 @@ const SpeechRecognitionAPI = (window as any).SpeechRecognition || (window as any
 
 export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
   const navigate = useNavigate();
+  const { session } = useAuthContext();
   const [text, setText] = useState('');
   const [isListening, setIsListening] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -90,6 +92,17 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
   };
 
   const handleSubmit = async () => {
+    // Session kontrolü
+    if (!session) {
+      toast.error('Oturumunuz sona ermiş. Lütfen tekrar giriş yapın.', {
+        action: {
+          label: 'Giriş Yap',
+          onClick: () => navigate('/auth')
+        }
+      });
+      return;
+    }
+
     if (!text.trim()) {
       toast.error('Lütfen bir komut girin');
       return;
@@ -107,9 +120,13 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
         now: new Date().toISOString()
       };
 
+      console.log('Calling edge function:', functionName, payload);
+
       const { data, error } = await supabase.functions.invoke(functionName, {
         body: payload
       });
+      
+      console.log('Edge function response:', { data, error });
 
       if (error) {
         console.error('Edge function error:', error);
