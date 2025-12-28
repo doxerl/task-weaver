@@ -3,19 +3,22 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronLeft, ChevronRight, Calendar, Settings, LogOut } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Calendar, Settings, LogOut, Download } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useWeekData } from '@/hooks/useWeekData';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { supabase } from '@/integrations/supabase/client';
+import { toast } from '@/hooks/use-toast';
 
 export default function Week() {
   const navigate = useNavigate();
-  const { profile, signOut } = useAuthContext();
+  const { profile, signOut, session } = useAuthContext();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => 
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
+  const [exporting, setExporting] = useState(false);
   
   const { weekData, loading } = useWeekData(currentWeekStart);
 
@@ -26,6 +29,58 @@ export default function Week() {
   const handleSignOut = async () => {
     await signOut();
     navigate('/auth');
+  };
+
+  const handleExport = async () => {
+    if (!session) {
+      toast({ title: 'Lütfen önce giriş yapın', variant: 'destructive' });
+      navigate('/auth');
+      return;
+    }
+
+    setExporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('export-week', {
+        body: { 
+          weekStart: currentWeekStart.toISOString(),
+          timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
+        }
+      });
+
+      if (error) throw error;
+
+      // Download Plan CSV
+      if (data.planCsv) {
+        const planBlob = new Blob([data.planCsv], { type: 'text/csv;charset=utf-8;' });
+        const planUrl = URL.createObjectURL(planBlob);
+        const planLink = document.createElement('a');
+        planLink.href = planUrl;
+        planLink.download = `${data.filename}_plan.csv`;
+        planLink.click();
+        URL.revokeObjectURL(planUrl);
+      }
+
+      // Download Actual CSV
+      if (data.actualCsv) {
+        const actualBlob = new Blob([data.actualCsv], { type: 'text/csv;charset=utf-8;' });
+        const actualUrl = URL.createObjectURL(actualBlob);
+        const actualLink = document.createElement('a');
+        actualLink.href = actualUrl;
+        actualLink.download = `${data.filename}_kayit.csv`;
+        actualLink.click();
+        URL.revokeObjectURL(actualUrl);
+      }
+
+      toast({ 
+        title: 'Export başarılı', 
+        description: `${data.planCount} plan, ${data.actualCount} kayıt indirildi` 
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({ title: 'Export başarısız', variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
   };
 
   const weekEnd = endOfWeek(currentWeekStart, { weekStartsOn: 1 });
@@ -54,6 +109,10 @@ export default function Week() {
             </h1>
           </div>
           <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
+              <Download className="h-4 w-4 mr-2" />
+              {exporting ? 'İndiriliyor...' : 'Excel Export'}
+            </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate('/today')}>
               <Calendar className="h-4 w-4 mr-2" />
               Bugün
