@@ -2,8 +2,9 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { format, addMinutes } from 'date-fns';
+import { addMinutes } from 'date-fns';
 import { Loader2 } from 'lucide-react';
+import { useAuthContext } from '@/contexts/AuthContext';
 
 interface QuickChipsProps {
   mode: 'plan' | 'actual';
@@ -20,9 +21,15 @@ const QUICK_ITEMS = [
 ];
 
 export function QuickChips({ mode, date, onSuccess }: QuickChipsProps) {
+  const { user } = useAuthContext();
   const [loadingItem, setLoadingItem] = useState<string | null>(null);
 
   const handleQuickAdd = async (item: typeof QUICK_ITEMS[0]) => {
+    if (!user) {
+      toast.error('Giriş yapmalısınız');
+      return;
+    }
+
     setLoadingItem(item.label);
 
     try {
@@ -32,6 +39,7 @@ export function QuickChips({ mode, date, onSuccess }: QuickChipsProps) {
 
       if (mode === 'plan') {
         const { error } = await supabase.from('plan_items').insert([{
+          user_id: user.id,
           title: item.label,
           start_at: startAt.toISOString(),
           end_at: endAt.toISOString(),
@@ -44,6 +52,7 @@ export function QuickChips({ mode, date, onSuccess }: QuickChipsProps) {
         toast.success(`"${item.label}" planlandı`);
       } else {
         const { error } = await supabase.from('actual_entries').insert([{
+          user_id: user.id,
           title: item.label,
           start_at: startAt.toISOString(),
           end_at: endAt.toISOString(),
