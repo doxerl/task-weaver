@@ -34,27 +34,53 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
   const silenceStartRef = useRef<number | null>(null);
   const animationFrameRef = useRef<number | null>(null);
 
-  // Check microphone permission on mount
+  // Check if stream is still active and usable
+  const isStreamActive = useCallback(() => {
+    return streamRef.current && 
+           streamRef.current.active && 
+           streamRef.current.getTracks().some(track => track.readyState === 'live');
+  }, []);
+
+  // Check microphone permission on mount and initialize persistent stream
   useEffect(() => {
-    if (navigator.permissions) {
-      navigator.permissions.query({ name: 'microphone' as PermissionName })
-        .then(permissionStatus => {
+    const checkPermission = async () => {
+      if (navigator.permissions) {
+        try {
+          const permissionStatus = await navigator.permissions.query({ name: 'microphone' as PermissionName });
           setMicPermission(permissionStatus.state as 'prompt' | 'granted' | 'denied');
           
           permissionStatus.onchange = () => {
             setMicPermission(permissionStatus.state as 'prompt' | 'granted' | 'denied');
           };
-        })
-        .catch(() => {
+
+          // If already granted, initialize persistent stream
+          if (permissionStatus.state === 'granted' && !isStreamActive()) {
+            try {
+              const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+              streamRef.current = stream;
+            } catch (e) {
+              console.log('Could not initialize persistent stream');
+            }
+          }
+        } catch {
           setMicPermission('prompt');
-        });
-    }
-  }, []);
+        }
+      }
+    };
+
+    checkPermission();
+  }, [isStreamActive]);
 
   const requestMicPermission = async (): Promise<MediaStream | null> => {
+    // First check if we already have an active stream
+    if (isStreamActive()) {
+      return streamRef.current;
+    }
+
     try {
       const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
       setMicPermission('granted');
+      streamRef.current = stream; // Store for reuse
       return stream;
     } catch (error) {
       setMicPermission('denied');
@@ -181,13 +207,15 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
   }, []);
 
   const startRecording = async () => {
-    // Get or request microphone permission
-    let stream = streamRef.current;
+    // Get or reuse existing stream
+    let stream: MediaStream | null = null;
     
-    if (!stream || !stream.active) {
+    if (isStreamActive()) {
+      stream = streamRef.current;
+    } else {
+      // Only request new stream if current one is not usable
       stream = await requestMicPermission();
       if (!stream) return;
-      streamRef.current = stream;
     }
 
     audioChunksRef.current = [];
