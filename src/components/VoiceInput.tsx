@@ -14,9 +14,10 @@ interface VoiceInputProps {
   date: Date;
   onSuccess: () => void;
   embedded?: boolean;
+  autoStart?: boolean;
 }
 
-export function VoiceInput({ mode, date, onSuccess, embedded = false }: VoiceInputProps) {
+export function VoiceInput({ mode, date, onSuccess, embedded = false, autoStart = false }: VoiceInputProps) {
   const navigate = useNavigate();
   const { session } = useAuthContext();
   const [text, setText] = useState('');
@@ -56,6 +57,15 @@ export function VoiceInput({ mode, date, onSuccess, embedded = false }: VoiceInp
 
     checkPermission();
   }, []);
+
+  // Auto-start recording when autoStart prop is true
+  const hasAutoStarted = useRef(false);
+  useEffect(() => {
+    if (autoStart && !hasAutoStarted.current && !isRecording && !isTranscribing) {
+      hasAutoStarted.current = true;
+      startRecording();
+    }
+  }, [autoStart]);
 
   const requestMicPermission = async (): Promise<MediaStream | null> => {
     // Always close any existing stream first
@@ -509,7 +519,7 @@ export function VoiceInput({ mode, date, onSuccess, embedded = false }: VoiceInp
             onClick={toggleRecording}
             disabled={isMicDisabled}
             title={isRecording ? 'Kaydı durdur' : 'Sesli komut'}
-            className="hidden md:flex h-10 w-10 shrink-0"
+            className={embedded ? "h-10 w-10 shrink-0" : "hidden md:flex h-10 w-10 shrink-0"}
           >
             {isTranscribing ? (
               <Loader2 className="h-4 w-4 animate-spin" />
