@@ -1,8 +1,9 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
-import { Mic, MicOff, Send, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
+import { Mic, MicOff, Send, Loader2, X } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
@@ -22,10 +23,16 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
   const [isTranscribing, setIsTranscribing] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [micPermission, setMicPermission] = useState<'prompt' | 'granted' | 'denied' | null>(null);
+  const [audioLevel, setAudioLevel] = useState(0);
+  const [showRecordingModal, setShowRecordingModal] = useState(false);
   
   const mediaRecorderRef = useRef<MediaRecorder | null>(null);
   const audioChunksRef = useRef<Blob[]>([]);
   const streamRef = useRef<MediaStream | null>(null);
+  const audioContextRef = useRef<AudioContext | null>(null);
+  const analyserRef = useRef<AnalyserNode | null>(null);
+  const silenceStartRef = useRef<number | null>(null);
+  const animationFrameRef = useRef<number | null>(null);
 
   // Check microphone permission on mount
   useEffect(() => {
@@ -75,6 +82,7 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
     }
 
     setIsTranscribing(true);
+    setShowRecordingModal(false);
 
     try {
       const audioBlob = new Blob(audioChunksRef.current, { type: 'audio/webm' });
@@ -113,6 +121,65 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
     }
   };
 
+  const stopSilenceDetection = useCallback(() => {
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = null;
+    }
+    if (audioContextRef.current) {
+      audioContextRef.current.close();
+      audioContextRef.current = null;
+    }
+    analyserRef.current = null;
+    silenceStartRef.current = null;
+    setAudioLevel(0);
+  }, []);
+
+  const startSilenceDetection = useCallback((stream: MediaStream, onSilence: () => void) => {
+    const audioContext = new AudioContext();
+    const analyser = audioContext.createAnalyser();
+    const microphone = audioContext.createMediaStreamSource(stream);
+    
+    microphone.connect(analyser);
+    analyser.fftSize = 256;
+    
+    audioContextRef.current = audioContext;
+    analyserRef.current = analyser;
+    
+    const bufferLength = analyser.frequencyBinCount;
+    const dataArray = new Uint8Array(bufferLength);
+    
+    const SILENCE_THRESHOLD = 0.02;
+    const SILENCE_DURATION = 2000; // 2 seconds
+    
+    const checkAudioLevel = () => {
+      if (!analyserRef.current) return;
+      
+      analyser.getByteFrequencyData(dataArray);
+      const average = dataArray.reduce((a, b) => a + b, 0) / bufferLength / 255;
+      
+      setAudioLevel(average);
+      
+      if (average < SILENCE_THRESHOLD) {
+        // Silence detected
+        if (!silenceStartRef.current) {
+          silenceStartRef.current = Date.now();
+        } else if (Date.now() - silenceStartRef.current > SILENCE_DURATION) {
+          // 2 seconds of silence = speech ended
+          onSilence();
+          return;
+        }
+      } else {
+        // Sound detected - reset silence timer
+        silenceStartRef.current = null;
+      }
+      
+      animationFrameRef.current = requestAnimationFrame(checkAudioLevel);
+    };
+    
+    checkAudioLevel();
+  }, []);
+
   const startRecording = async () => {
     // Get or request microphone permission
     let stream = streamRef.current;
@@ -137,25 +204,43 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
       };
 
       mediaRecorder.onstop = () => {
+        stopSilenceDetection();
         processAudio();
       };
 
       mediaRecorder.start(100); // Collect data every 100ms
       mediaRecorderRef.current = mediaRecorder;
       setIsRecording(true);
-      toast.info('Dinleniyor... Konuşmaya başlayın');
+      setShowRecordingModal(true);
+      
+      // Start silence detection for auto-stop
+      startSilenceDetection(stream, () => {
+        stopRecording();
+      });
+      
     } catch (error) {
       console.error('Start recording error:', error);
       toast.error('Kayıt başlatılamadı');
     }
   };
 
-  const stopRecording = () => {
+  const stopRecording = useCallback(() => {
+    stopSilenceDetection();
     if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
       mediaRecorderRef.current.stop();
       setIsRecording(false);
     }
-  };
+  }, [stopSilenceDetection]);
+
+  const cancelRecording = useCallback(() => {
+    stopSilenceDetection();
+    if (mediaRecorderRef.current && mediaRecorderRef.current.state !== 'inactive') {
+      mediaRecorderRef.current.stop();
+    }
+    audioChunksRef.current = [];
+    setIsRecording(false);
+    setShowRecordingModal(false);
+  }, [stopSilenceDetection]);
 
   const toggleRecording = () => {
     if (isRecording) {
@@ -168,11 +253,12 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
   // Cleanup on unmount
   useEffect(() => {
     return () => {
+      stopSilenceDetection();
       if (streamRef.current) {
         streamRef.current.getTracks().forEach(track => track.stop());
       }
     };
-  }, []);
+  }, [stopSilenceDetection]);
 
   const handleSubmit = async () => {
     if (!session) {
@@ -253,30 +339,115 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
   const isDisabled = isProcessing || isTranscribing;
   const isMicDisabled = isDisabled || micPermission === 'denied';
 
+  // Audio level bars for visualization
+  const renderAudioBars = () => {
+    const bars = 12;
+    return (
+      <div className="flex items-end justify-center gap-1 h-24">
+        {[...Array(bars)].map((_, i) => {
+          const heightMultiplier = Math.sin((i / bars) * Math.PI); // Bell curve
+          const baseHeight = 20;
+          const dynamicHeight = audioLevel * 200 * heightMultiplier;
+          const height = Math.max(baseHeight, baseHeight + dynamicHeight);
+          
+          return (
+            <div
+              key={i}
+              className="w-2 bg-primary rounded-full transition-all duration-75"
+              style={{ height: `${Math.min(height, 96)}px` }}
+            />
+          );
+        })}
+      </div>
+    );
+  };
+
   return (
     <>
+      {/* Full Screen Recording Modal - Mobile */}
+      <Dialog open={showRecordingModal} onOpenChange={(open) => {
+        if (!open && isRecording) {
+          cancelRecording();
+        }
+      }}>
+        <DialogContent className="h-[100dvh] w-screen max-w-none p-0 border-0 rounded-none flex flex-col items-center justify-center bg-background">
+          {/* Close button */}
+          <Button
+            variant="ghost"
+            size="icon"
+            className="absolute top-4 right-4"
+            onClick={cancelRecording}
+          >
+            <X className="h-6 w-6" />
+          </Button>
+
+          {/* Main content */}
+          <div className="flex flex-col items-center justify-center flex-1 px-8">
+            {/* Animated mic with pulse */}
+            <div className="relative mb-8">
+              {isRecording && (
+                <>
+                  <span className="absolute inset-0 h-32 w-32 animate-ping rounded-full bg-primary/30" />
+                  <span className="absolute inset-0 h-32 w-32 animate-pulse rounded-full bg-primary/20" />
+                </>
+              )}
+              <div className="relative h-32 w-32 rounded-full bg-primary flex items-center justify-center">
+                {isTranscribing ? (
+                  <Loader2 className="h-16 w-16 text-primary-foreground animate-spin" />
+                ) : (
+                  <Mic className="h-16 w-16 text-primary-foreground" />
+                )}
+              </div>
+            </div>
+
+            {/* Audio level visualization */}
+            {isRecording && renderAudioBars()}
+
+            {/* Status text */}
+            <p className="mt-8 text-xl font-medium text-foreground">
+              {isTranscribing ? 'Dönüştürülüyor...' : 'Dinleniyor...'}
+            </p>
+            <p className="mt-2 text-sm text-muted-foreground text-center max-w-xs">
+              {isTranscribing 
+                ? 'Ses metne dönüştürülüyor' 
+                : 'Konuşmayı bitirdiğinizde otomatik duracak (2 sn sessizlik)'}
+            </p>
+
+            {/* Cancel button */}
+            <Button
+              variant="outline"
+              size="lg"
+              onClick={cancelRecording}
+              className="mt-8"
+            >
+              İptal
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Floating Mic FAB - Fixed bottom right on mobile */}
-      <div className="fixed bottom-6 right-4 z-50 md:hidden">
+      <div className="fixed bottom-28 right-4 z-50 md:hidden">
         {/* Ripple animation when recording */}
         {isRecording && (
           <>
-            <span className="absolute inset-0 h-20 w-20 animate-ping rounded-full bg-destructive/40" />
-            <span className="absolute inset-0 h-20 w-20 animate-pulse rounded-full bg-destructive/20" />
+            <span className="absolute inset-0 h-16 w-16 animate-ping rounded-full bg-destructive/40" />
+            <span className="absolute inset-0 h-16 w-16 animate-pulse rounded-full bg-destructive/20" />
           </>
         )}
         <Button
           variant={isRecording ? 'destructive' : 'default'}
           onClick={toggleRecording}
           disabled={isMicDisabled}
-          title={isRecording ? 'Kaydı durdur' : 'Sesli komut (Whisper)'}
-          className="relative h-20 w-20 rounded-full shadow-2xl"
+          title={isRecording ? 'Kaydı durdur' : 'Sesli komut'}
+          className="relative h-16 w-16 rounded-full shadow-2xl"
         >
           {isTranscribing ? (
-            <Loader2 className="h-10 w-10 animate-spin" />
+            <Loader2 className="h-8 w-8 animate-spin" />
           ) : isRecording ? (
-            <MicOff className="h-10 w-10" />
+            <MicOff className="h-8 w-8" />
           ) : (
-            <Mic className="h-10 w-10" />
+            <Mic className="h-8 w-8" />
           )}
         </Button>
       </div>
@@ -295,7 +466,7 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
           <Button 
             onClick={handleSubmit}
             disabled={!text.trim() || isDisabled}
-            className="flex-1 h-10 md:h-10"
+            className="flex-1 h-10"
             size="sm"
           >
             {isProcessing ? (
@@ -317,7 +488,7 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
             variant={isRecording ? 'destructive' : 'default'}
             onClick={toggleRecording}
             disabled={isMicDisabled}
-            title={isRecording ? 'Kaydı durdur' : 'Sesli komut (Whisper)'}
+            title={isRecording ? 'Kaydı durdur' : 'Sesli komut'}
             className="hidden md:flex h-10 w-10 shrink-0"
           >
             {isTranscribing ? (

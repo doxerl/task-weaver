@@ -2,13 +2,15 @@ import { useState } from 'react';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { VoiceInput } from '@/components/VoiceInput';
 import { PlanTimeline } from '@/components/PlanTimeline';
 import { ActualTimeline } from '@/components/ActualTimeline';
 import { CompareView } from '@/components/CompareView';
 import { QuickChips } from '@/components/QuickChips';
 import { useDayData } from '@/hooks/useDayData';
-import { LogOut, Settings, Calendar, ChevronLeft, ChevronRight, ClipboardList, CalendarDays } from 'lucide-react';
+import { LogOut, Settings, Calendar, ChevronLeft, ChevronRight, ClipboardList, CalendarDays, Menu, ChevronUp } from 'lucide-react';
 import { format, addDays, subDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -20,6 +22,7 @@ export default function Today() {
   const { profile, signOut } = useAuthContext();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [inputMode, setInputMode] = useState<'plan' | 'actual'>('plan');
+  const [quickChipsOpen, setQuickChipsOpen] = useState(false);
   
   const { planItems, actualEntries, loading, refetch } = useDayData(selectedDate);
   const { weekNumber, weekYear } = getISOWeekData(selectedDate);
@@ -45,17 +48,68 @@ export default function Today() {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="min-h-screen bg-background pb-44 md:pb-4">
+    <div className="min-h-screen bg-background pb-52 md:pb-48">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
         <div className="container flex h-14 items-center justify-between px-4">
           <div className="flex items-center gap-2">
             <Calendar className="h-5 w-5 text-primary" />
-            <span className="font-semibold text-foreground">
+            <span className="font-semibold text-foreground text-sm md:text-base truncate max-w-[150px] md:max-w-none">
               {profile?.first_name ? `Merhaba, ${profile.first_name}` : 'Sesli Planlama'}
             </span>
           </div>
-          <div className="flex items-center gap-2">
+          
+          {/* Mobile: Hamburger Menu */}
+          <Sheet>
+            <SheetTrigger asChild className="md:hidden">
+              <Button variant="ghost" size="icon">
+                <Menu className="h-5 w-5" />
+              </Button>
+            </SheetTrigger>
+            <SheetContent side="right" className="w-64">
+              <SheetHeader>
+                <SheetTitle>Menü</SheetTitle>
+              </SheetHeader>
+              <div className="flex flex-col gap-2 mt-6">
+                <Button 
+                  variant="ghost" 
+                  className="justify-start"
+                  onClick={() => navigate('/week')}
+                >
+                  <CalendarDays className="h-5 w-5 mr-3" />
+                  Haftalık Görünüm
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="justify-start"
+                  onClick={() => navigate('/review/' + format(selectedDate, 'yyyy-MM-dd'))}
+                >
+                  <ClipboardList className="h-5 w-5 mr-3" />
+                  Gün İnceleme
+                </Button>
+                <Button 
+                  variant="ghost" 
+                  className="justify-start"
+                  onClick={() => navigate('/settings')}
+                >
+                  <Settings className="h-5 w-5 mr-3" />
+                  Ayarlar
+                </Button>
+                <hr className="my-2" />
+                <Button 
+                  variant="ghost" 
+                  className="justify-start text-destructive hover:text-destructive"
+                  onClick={handleSignOut}
+                >
+                  <LogOut className="h-5 w-5 mr-3" />
+                  Çıkış Yap
+                </Button>
+              </div>
+            </SheetContent>
+          </Sheet>
+
+          {/* Desktop: All buttons visible */}
+          <div className="hidden md:flex items-center gap-2">
             <Button 
               variant="ghost" 
               size="icon"
@@ -93,7 +147,7 @@ export default function Today() {
       </header>
 
       {/* Date Navigation */}
-      <div className="border-b bg-muted/30 px-4 py-3">
+      <div className="border-b bg-muted/30 px-4 py-2 md:py-3">
         <div className="container flex items-center justify-between">
           <Button variant="ghost" size="icon" onClick={handlePrevDay}>
             <ChevronLeft className="h-5 w-5" />
@@ -104,7 +158,7 @@ export default function Today() {
             </span>
             <button 
               onClick={handleToday}
-              className="text-lg font-medium text-foreground hover:text-primary transition-colors"
+              className="text-base md:text-lg font-medium text-foreground hover:text-primary transition-colors"
             >
               {format(selectedDate, 'd MMMM yyyy, EEEE', { locale: tr })}
             </button>
@@ -122,13 +176,13 @@ export default function Today() {
       <main className="container px-4 py-4">
         <Tabs defaultValue="plan" className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-4">
-            <TabsTrigger value="plan">
+            <TabsTrigger value="plan" className="text-xs md:text-sm">
               Plan ({planItems.length})
             </TabsTrigger>
-            <TabsTrigger value="actual">
+            <TabsTrigger value="actual" className="text-xs md:text-sm">
               Gerçekleşen ({actualEntries.length})
             </TabsTrigger>
-            <TabsTrigger value="compare">
+            <TabsTrigger value="compare" className="text-xs md:text-sm">
               Karşılaştır
             </TabsTrigger>
           </TabsList>
@@ -160,25 +214,31 @@ export default function Today() {
       </main>
 
       {/* Floating Input Area - Mobile Optimized */}
-      <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-card p-4 shadow-lg">
+      <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-card p-3 md:p-4 shadow-lg">
         <div className="container">
-          <div className="mb-2 flex gap-2">
-            <Button
-              variant={inputMode === 'plan' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setInputMode('plan')}
-              className="flex-1 md:flex-none"
-            >
-              Plan Ekle
-            </Button>
-            <Button
-              variant={inputMode === 'actual' ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setInputMode('actual')}
-              className="flex-1 md:flex-none"
-            >
-              Şu An / Az Önce
-            </Button>
+          {/* Compact Mode Toggle */}
+          <div className="flex items-center gap-2 mb-2">
+            <div className="flex gap-1 flex-1">
+              <Button
+                variant={inputMode === 'plan' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setInputMode('plan')}
+                className="flex-1 h-8 text-xs md:text-sm"
+              >
+                Plan
+              </Button>
+              <Button
+                variant={inputMode === 'actual' ? 'default' : 'outline'}
+                size="sm"
+                onClick={() => setInputMode('actual')}
+                className="flex-1 h-8 text-xs md:text-sm"
+              >
+                Gerçek
+              </Button>
+            </div>
+            <span className="text-xs text-muted-foreground hidden sm:block">
+              {inputMode === 'plan' ? 'Ne yapacaksın?' : 'Ne yaptın?'}
+            </span>
           </div>
           
           <VoiceInput 
@@ -187,11 +247,33 @@ export default function Today() {
             onSuccess={refetch}
           />
           
-          <QuickChips 
-            mode={inputMode}
-            date={selectedDate}
-            onSuccess={refetch}
-          />
+          {/* Collapsible Quick Chips on Mobile */}
+          <div className="md:hidden mt-2">
+            <Collapsible open={quickChipsOpen} onOpenChange={setQuickChipsOpen}>
+              <CollapsibleTrigger asChild>
+                <Button variant="ghost" size="sm" className="w-full h-8 text-xs text-muted-foreground">
+                  <ChevronUp className={`h-4 w-4 mr-1 transition-transform ${quickChipsOpen ? 'rotate-180' : ''}`} />
+                  Hızlı Seçenekler
+                </Button>
+              </CollapsibleTrigger>
+              <CollapsibleContent className="pt-2">
+                <QuickChips 
+                  mode={inputMode}
+                  date={selectedDate}
+                  onSuccess={refetch}
+                />
+              </CollapsibleContent>
+            </Collapsible>
+          </div>
+
+          {/* Always visible on Desktop */}
+          <div className="hidden md:block">
+            <QuickChips 
+              mode={inputMode}
+              date={selectedDate}
+              onSuccess={refetch}
+            />
+          </div>
         </div>
       </div>
     </div>
