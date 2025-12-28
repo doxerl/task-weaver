@@ -74,23 +74,26 @@ export function QuickChips({ mode, date, onSuccess }: QuickChipsProps) {
   };
 
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
-      <span className="text-sm text-muted-foreground self-center mr-1">Hızlı:</span>
-      {QUICK_ITEMS.map((item) => (
-        <Button
-          key={item.label}
-          variant="secondary"
-          size="sm"
-          onClick={() => handleQuickAdd(item)}
-          disabled={loadingItem !== null}
-        >
-          {loadingItem === item.label ? (
-            <Loader2 className="h-3 w-3 animate-spin" />
-          ) : (
-            item.label
-          )}
-        </Button>
-      ))}
+    <div className="mt-2 overflow-x-auto -mx-4 px-4 scrollbar-hide">
+      <div className="flex gap-2 min-w-max items-center">
+        <span className="text-xs text-muted-foreground shrink-0">Hızlı:</span>
+        {QUICK_ITEMS.map((item) => (
+          <Button
+            key={item.label}
+            variant="secondary"
+            size="sm"
+            onClick={() => handleQuickAdd(item)}
+            disabled={loadingItem !== null}
+            className="shrink-0 text-xs h-8"
+          >
+            {loadingItem === item.label ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              item.label
+            )}
+          </Button>
+        ))}
+      </div>
     </div>
   );
 }

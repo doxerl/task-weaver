@@ -11,6 +11,7 @@ import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
+import { getISOWeekData } from '@/lib/weekUtils';
 
 export default function Week() {
   const navigate = useNavigate();
@@ -21,6 +22,7 @@ export default function Week() {
   const [exporting, setExporting] = useState(false);
   
   const { weekData, loading } = useWeekData(currentWeekStart);
+  const { weekNumber, weekYear } = getISOWeekData(currentWeekStart);
 
   const handlePrevWeek = () => setCurrentWeekStart(prev => subWeeks(prev, 1));
   const handleNextWeek = () => setCurrentWeekStart(prev => addWeeks(prev, 1));
@@ -88,6 +90,12 @@ export default function Week() {
     navigate(`/today?date=${format(date, 'yyyy-MM-dd')}`);
   };
 
+  // Calculate stats
+  const totalPlanned = weekData.reduce((sum, day) => sum + day.planItems.length, 0);
+  const totalActual = weekData.reduce((sum, day) => sum + day.actualEntries.length, 0);
+  const activeDays = weekData.filter(day => day.planItems.length > 0 || day.actualEntries.length > 0).length;
+  const completionRate = totalPlanned > 0 ? Math.round((totalActual / totalPlanned) * 100) : 0;
+
   if (loading) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-background">
@@ -100,20 +108,25 @@ export default function Week() {
     <div className="min-h-screen bg-background">
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h1 className="text-xl font-semibold">
+        <div className="container max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
+          <div className="flex items-center justify-between md:justify-start gap-4">
+            <h1 className="text-lg md:text-xl font-semibold">
               Merhaba, {profile?.first_name || 'Kullanıcı'}
             </h1>
+            {/* Week Badge - Large and prominent */}
+            <Badge variant="outline" className="text-sm md:text-base px-3 py-1 font-bold">
+              {weekNumber}. Hafta {weekYear}
+            </Badge>
           </div>
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting}>
-              <Download className="h-4 w-4 mr-2" />
-              {exporting ? 'İndiriliyor...' : 'Excel Export'}
+          <div className="flex items-center gap-2 justify-end">
+            <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="text-xs md:text-sm">
+              <Download className="h-4 w-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">{exporting ? 'İndiriliyor...' : 'Excel Export'}</span>
+              <span className="sm:hidden">{exporting ? '...' : 'Excel'}</span>
             </Button>
             <Button variant="ghost" size="sm" onClick={() => navigate('/today')}>
-              <Calendar className="h-4 w-4 mr-2" />
-              Bugün
+              <Calendar className="h-4 w-4 mr-1 md:mr-2" />
+              <span className="hidden sm:inline">Bugün</span>
             </Button>
             <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
               <Settings className="h-4 w-4" />
@@ -125,9 +138,9 @@ export default function Week() {
         </div>
       </header>
 
-      <div className="container max-w-7xl mx-auto py-6 px-4">
+      <div className="container max-w-7xl mx-auto py-4 md:py-6 px-4">
         {/* Week Navigation */}
-        <div className="flex items-center justify-between mb-6">
+        <div className="flex items-center justify-between mb-4 md:mb-6">
           <div className="flex items-center gap-2">
             <Button variant="outline" size="icon" onClick={handlePrevWeek}>
               <ChevronLeft className="h-4 w-4" />
@@ -142,19 +155,17 @@ export default function Week() {
             )}
           </div>
           
-          <h2 className="text-lg font-semibold">
+          <h2 className="text-sm md:text-lg font-semibold text-right">
             {format(currentWeekStart, 'd MMM', { locale: tr })} - {format(weekEnd, 'd MMM yyyy', { locale: tr })}
           </h2>
-          
-          <div className="w-32" />
         </div>
 
-        {/* Week Grid */}
-        <div className="grid grid-cols-7 gap-3">
+        {/* Week Grid - Responsive: 2 cols mobile, 7 cols desktop */}
+        <div className="grid grid-cols-2 md:grid-cols-7 gap-2 md:gap-3">
           {weekData.map((day) => {
             const dayIsToday = isToday(day.date);
-            const totalPlanned = day.planItems.length;
-            const totalActual = day.actualEntries.length;
+            const dayTotalPlanned = day.planItems.length;
+            const dayTotalActual = day.actualEntries.length;
             
             return (
               <Card 
@@ -164,36 +175,36 @@ export default function Week() {
                 }`}
                 onClick={() => handleDayClick(day.date)}
               >
-                <CardHeader className="pb-2 px-3 pt-3">
-                  <CardTitle className="text-sm flex items-center justify-between">
+                <CardHeader className="pb-2 px-2 md:px-3 pt-2 md:pt-3">
+                  <CardTitle className="text-xs md:text-sm flex items-center justify-between">
                     <span className={dayIsToday ? 'text-primary font-bold' : ''}>
                       {format(day.date, 'EEE', { locale: tr })}
                     </span>
-                    <span className={`text-lg ${dayIsToday ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
+                    <span className={`text-base md:text-lg ${dayIsToday ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
                       {format(day.date, 'd')}
                     </span>
                   </CardTitle>
                 </CardHeader>
-                <CardContent className="px-3 pb-3">
-                  <div className="flex gap-1 mb-2">
-                    {totalPlanned > 0 && (
-                      <Badge variant="outline" className="text-xs">
-                        {totalPlanned} plan
+                <CardContent className="px-2 md:px-3 pb-2 md:pb-3">
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {dayTotalPlanned > 0 && (
+                      <Badge variant="outline" className="text-[10px] md:text-xs">
+                        {dayTotalPlanned} plan
                       </Badge>
                     )}
-                    {totalActual > 0 && (
-                      <Badge variant="secondary" className="text-xs">
-                        {totalActual} kayıt
+                    {dayTotalActual > 0 && (
+                      <Badge variant="secondary" className="text-[10px] md:text-xs">
+                        {dayTotalActual} kayıt
                       </Badge>
                     )}
                   </div>
                   
-                  <ScrollArea className="h-[120px]">
+                  <ScrollArea className="h-[80px] md:h-[120px]">
                     <div className="space-y-1">
-                      {day.planItems.slice(0, 5).map(item => (
+                      {day.planItems.slice(0, 3).map(item => (
                         <div 
                           key={item.id} 
-                          className="text-xs p-1.5 rounded bg-primary/10 truncate"
+                          className="text-[10px] md:text-xs p-1 md:p-1.5 rounded bg-primary/10 truncate"
                           title={item.title}
                         >
                           <span className="text-muted-foreground">
@@ -203,13 +214,13 @@ export default function Week() {
                           {item.title}
                         </div>
                       ))}
-                      {day.planItems.length > 5 && (
-                        <div className="text-xs text-muted-foreground text-center">
-                          +{day.planItems.length - 5} daha
+                      {day.planItems.length > 3 && (
+                        <div className="text-[10px] md:text-xs text-muted-foreground text-center">
+                          +{day.planItems.length - 3} daha
                         </div>
                       )}
                       {day.planItems.length === 0 && day.actualEntries.length === 0 && (
-                        <div className="text-xs text-muted-foreground text-center py-4">
+                        <div className="text-[10px] md:text-xs text-muted-foreground text-center py-2 md:py-4">
                           Boş
                         </div>
                       )}
@@ -222,34 +233,44 @@ export default function Week() {
         </div>
 
         {/* Summary */}
-        <div className="mt-8 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="mt-6 md:mt-8 grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 md:pt-6">
               <div className="text-center">
-                <div className="text-3xl font-bold text-primary">
-                  {weekData.reduce((sum, day) => sum + day.planItems.length, 0)}
+                <div className="text-2xl md:text-3xl font-bold text-primary">
+                  {totalPlanned}
                 </div>
-                <div className="text-sm text-muted-foreground">Toplam Plan</div>
+                <div className="text-xs md:text-sm text-muted-foreground">Toplam Plan</div>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 md:pt-6">
               <div className="text-center">
-                <div className="text-3xl font-bold text-secondary-foreground">
-                  {weekData.reduce((sum, day) => sum + day.actualEntries.length, 0)}
+                <div className="text-2xl md:text-3xl font-bold text-secondary-foreground">
+                  {totalActual}
                 </div>
-                <div className="text-sm text-muted-foreground">Toplam Kayıt</div>
+                <div className="text-xs md:text-sm text-muted-foreground">Toplam Kayıt</div>
               </div>
             </CardContent>
           </Card>
           <Card>
-            <CardContent className="pt-6">
+            <CardContent className="pt-4 md:pt-6">
               <div className="text-center">
-                <div className="text-3xl font-bold">
-                  {weekData.filter(day => day.planItems.length > 0 || day.actualEntries.length > 0).length}
+                <div className="text-2xl md:text-3xl font-bold">
+                  {activeDays}
                 </div>
-                <div className="text-sm text-muted-foreground">Aktif Gün</div>
+                <div className="text-xs md:text-sm text-muted-foreground">Aktif Gün</div>
+              </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardContent className="pt-4 md:pt-6">
+              <div className="text-center">
+                <div className="text-2xl md:text-3xl font-bold text-primary">
+                  %{completionRate}
+                </div>
+                <div className="text-xs md:text-sm text-muted-foreground">Uyum Oranı</div>
               </div>
             </CardContent>
           </Card>

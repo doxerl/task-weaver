@@ -53,7 +53,7 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
       }
     };
 
-    recognition.onerror = (event) => {
+    recognition.onerror = (event: any) => {
       console.error('Speech recognition error:', event.error);
       setIsListening(false);
       
@@ -166,47 +166,32 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
   };
 
   const placeholder = mode === 'plan' 
-    ? 'Örn: "Yarın saat 10\'da müşteri toplantısı ekle" veya "Cuma 14:00-15:30 proje sunumu"'
-    : 'Örn: "Şu an rapor yazıyorum" veya "Az önce 40 dakika müşteriyle telefon görüşmesi yaptım"';
+    ? 'Örn: "Yarın saat 10\'da müşteri toplantısı ekle"'
+    : 'Örn: "Şu an rapor yazıyorum"';
 
   return (
-    <div className="space-y-3">
-      <div className="flex gap-2">
-        <Textarea
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          placeholder={placeholder}
-          className="min-h-[80px] resize-none"
-          disabled={isProcessing}
-        />
-      </div>
+    <div className="space-y-2">
+      <Textarea
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        placeholder={placeholder}
+        className="min-h-[50px] md:min-h-[70px] resize-none text-sm"
+        disabled={isProcessing}
+      />
       
-      <div className="flex gap-2">
-        {supportsVoice && (
-          <Button
-            variant={isListening ? 'destructive' : 'outline'}
-            size="icon"
-            onClick={toggleListening}
-            disabled={isProcessing}
-            title={isListening ? 'Dinlemeyi durdur' : 'Sesli komut'}
-          >
-            {isListening ? (
-              <MicOff className="h-4 w-4" />
-            ) : (
-              <Mic className="h-4 w-4" />
-            )}
-          </Button>
-        )}
-        
+      <div className="flex items-center gap-2">
+        {/* Send Button */}
         <Button 
           onClick={handleSubmit}
           disabled={!text.trim() || isProcessing}
-          className="flex-1"
+          className="flex-1 h-10 md:h-10"
+          size="sm"
         >
           {isProcessing ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              İşleniyor...
+              <span className="hidden sm:inline">İşleniyor...</span>
+              <span className="sm:hidden">...</span>
             </>
           ) : (
             <>
@@ -215,6 +200,23 @@ export function VoiceInput({ mode, date, onSuccess }: VoiceInputProps) {
             </>
           )}
         </Button>
+        
+        {/* Large Mic Button - Mobile Optimized (FAB style) */}
+        {supportsVoice && (
+          <Button
+            variant={isListening ? 'destructive' : 'default'}
+            onClick={toggleListening}
+            disabled={isProcessing}
+            title={isListening ? 'Dinlemeyi durdur' : 'Sesli komut'}
+            className="h-14 w-14 md:h-10 md:w-10 rounded-full md:rounded-md shrink-0 shadow-lg md:shadow-none"
+          >
+            {isListening ? (
+              <MicOff className="h-6 w-6 md:h-4 md:w-4" />
+            ) : (
+              <Mic className="h-6 w-6 md:h-4 md:w-4" />
+            )}
+          </Button>
+        )}
       </div>
     </div>
   );
