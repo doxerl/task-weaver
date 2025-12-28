@@ -19,7 +19,7 @@ const App = () => (
     <TooltipProvider>
       <AuthProvider>
         <Toaster />
-        <Sonner />
+        <Sonner position="top-center" />
         <BrowserRouter>
           <Routes>
             <Route path="/" element={<Navigate to="/today" replace />} />

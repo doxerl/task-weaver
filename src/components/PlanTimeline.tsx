@@ -151,19 +151,19 @@ export function PlanTimeline({ items, loading, onUpdate }: PlanTimelineProps) {
                     />
                   ) : (
                     <h3 
-                      className={`font-medium truncate group cursor-pointer hover:text-primary transition-colors ${item.status === 'done' ? 'line-through text-muted-foreground' : ''}`}
+                      className={`text-base font-semibold truncate group cursor-pointer hover:text-primary transition-colors ${item.status === 'done' ? 'line-through text-muted-foreground' : ''}`}
                       onClick={() => startEditing(item)}
                     >
                       {item.title}
                       {item.status !== 'done' && (
-                        <Pencil className="h-3 w-3 ml-1.5 opacity-0 group-hover:opacity-50 inline-block" />
+                        <Pencil className="h-3.5 w-3.5 ml-1.5 opacity-0 group-hover:opacity-50 inline-block" />
                       )}
                     </h3>
                   )}
                 </div>
                 
                 <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
-                  <span>
+                  <span className="font-medium">
                     {format(new Date(item.start_at), 'HH:mm', { locale: tr })} - {format(new Date(item.end_at), 'HH:mm', { locale: tr })}
                   </span>
                   {item.location && (
