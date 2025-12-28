@@ -11,3 +11,6 @@ verify_jwt = true
 
 [functions.github-sync]
 verify_jwt = true
+
+[functions.export-week]
+verify_jwt = true
