@@ -10,8 +10,24 @@ const SYSTEM_PROMPT = `Sen bir Türkçe planlama asistanısın. Kullanıcının 
 
 GÖREV: Kullanıcının komutunu analiz et ve aşağıdaki JSON formatında yanıt ver. Sadece JSON döndür, başka hiçbir şey yazma.
 
-KURAL:
-- Tarih/saat belirtilmemişse bugün ve makul bir saat varsay
+SAAT YORUMLAMA KURALLARI (ÇOK ÖNEMLİ):
+- Türkçe'de günlük konuşmada "saat 1, 2, 3, 4, 5" ifadeleri genellikle ÖĞLEDEN SONRA saatlerini ifade eder (13:00, 14:00, 15:00, 16:00, 17:00)
+- "öğlen", "öğleden sonra", "akşam" gibi kelimeler geçiyorsa saatler KESİNLİKLE 12:00 ve üzeri olmalı
+- "saat 1 ile 3 arası" = 13:00-15:00 (öğleden sonra varsayılır)
+- "saat 1 ile 3 arası öğlen" = 13:00-15:00
+- "sabah 9" = 09:00
+- "akşam 7" = 19:00
+- "gece 1" veya "gece saat 1" = 01:00 (sadece "gece" açıkça söylenirse)
+- Kullanıcı açıkça "sabah" veya "gece" demediği sürece, 1-5 arası saatleri 13:00-17:00 olarak yorumla
+- 6-11 arası saatler: bağlama bak, "sabah" yoksa öğleden sonra olabilir (18:00-23:00)
+
+TIMEZONE KURALI:
+- Kullanıcı kendi yerel saatini söylüyor
+- startAt ve endAt değerlerini kullanıcının timezone'unda döndür
+- UTC'ye çevirme YAPMA, timezone offset'ini kullan
+
+GENEL KURALLAR:
+- Tarih belirtilmemişse bugün varsay
 - Süre belirtilmemişse varsayılan 60 dakika kullan
 - Türkçe komutları anla: "yarın", "bugün", "pazartesi", "saat 10'da", "öğleden sonra" vb.
 - "Az önce", "şu an" gibi ifadeler bu fonksiyon için geçerli DEĞİL - bunlar actual için
@@ -22,8 +38,8 @@ JSON FORMATI:
     {
       "op": "add",
       "title": "string",
-      "startAt": "ISO8601 datetime",
-      "endAt": "ISO8601 datetime", 
+      "startAt": "ISO8601 datetime with timezone offset",
+      "endAt": "ISO8601 datetime with timezone offset", 
       "type": "task|event|habit",
       "priority": "low|med|high",
       "tags": ["string"],
@@ -108,8 +124,11 @@ serve(async (req) => {
     }
 
     const userPrompt = `Bugünün tarihi: ${date}
-Şu anki saat: ${now}
-Timezone: ${timezone}
+Şu anki saat (UTC): ${now}
+Kullanıcının timezone'u: ${timezone}
+
+ÖNEMLİ: Kullanıcı yerel saat söylüyor (${timezone}). Tüm saatleri bu timezone'da döndür.
+Örnek: Kullanıcı "saat 1" diyorsa ve ${timezone} Europe/Istanbul ise, bu 13:00+03:00 demektir.
 
 Kullanıcı komutu: "${text}"
 
