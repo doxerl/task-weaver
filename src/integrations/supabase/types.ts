@@ -422,6 +422,7 @@ export type Database = {
       }
       plan_items: {
         Row: {
+          carry_over_count: number | null
           created_at: string
           deviation_reason: string | null
           end_at: string
@@ -429,9 +430,11 @@ export type Database = {
           estimated_duration_minutes: number | null
           frozen_at: string | null
           id: string
+          last_carried_at: string | null
           linked_github: Json | null
           location: string | null
           notes: string | null
+          original_planned_date: string | null
           priority: string | null
           source: string | null
           start_at: string
@@ -444,6 +447,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          carry_over_count?: number | null
           created_at?: string
           deviation_reason?: string | null
           end_at: string
@@ -451,9 +455,11 @@ export type Database = {
           estimated_duration_minutes?: number | null
           frozen_at?: string | null
           id?: string
+          last_carried_at?: string | null
           linked_github?: Json | null
           location?: string | null
           notes?: string | null
+          original_planned_date?: string | null
           priority?: string | null
           source?: string | null
           start_at: string
@@ -466,6 +472,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          carry_over_count?: number | null
           created_at?: string
           deviation_reason?: string | null
           end_at?: string
@@ -473,9 +480,11 @@ export type Database = {
           estimated_duration_minutes?: number | null
           frozen_at?: string | null
           id?: string
+          last_carried_at?: string | null
           linked_github?: Json | null
           location?: string | null
           notes?: string | null
+          original_planned_date?: string | null
           priority?: string | null
           source?: string | null
           start_at?: string
@@ -535,6 +544,86 @@ export type Database = {
           working_hours_start?: string | null
         }
         Relationships: []
+      }
+      weekly_retrospectives: {
+        Row: {
+          auto_suggestions: Json | null
+          carried_over_count: number | null
+          category_distribution: Json | null
+          completion_rate: number | null
+          created_at: string | null
+          day_performance: Json | null
+          deep_work_ratio: number | null
+          estimation_accuracy: number | null
+          focus_achievement: Json | null
+          id: string
+          next_week_changes: string[] | null
+          plan_volatility_score: number | null
+          selected_action: string | null
+          top_deviation_reasons: Json | null
+          total_carry_over_minutes: number | null
+          updated_at: string | null
+          user_id: string
+          week_start: string
+          what_was_hard: string[] | null
+          what_worked: string[] | null
+          zombie_tasks: string[] | null
+        }
+        Insert: {
+          auto_suggestions?: Json | null
+          carried_over_count?: number | null
+          category_distribution?: Json | null
+          completion_rate?: number | null
+          created_at?: string | null
+          day_performance?: Json | null
+          deep_work_ratio?: number | null
+          estimation_accuracy?: number | null
+          focus_achievement?: Json | null
+          id?: string
+          next_week_changes?: string[] | null
+          plan_volatility_score?: number | null
+          selected_action?: string | null
+          top_deviation_reasons?: Json | null
+          total_carry_over_minutes?: number | null
+          updated_at?: string | null
+          user_id: string
+          week_start: string
+          what_was_hard?: string[] | null
+          what_worked?: string[] | null
+          zombie_tasks?: string[] | null
+        }
+        Update: {
+          auto_suggestions?: Json | null
+          carried_over_count?: number | null
+          category_distribution?: Json | null
+          completion_rate?: number | null
+          created_at?: string | null
+          day_performance?: Json | null
+          deep_work_ratio?: number | null
+          estimation_accuracy?: number | null
+          focus_achievement?: Json | null
+          id?: string
+          next_week_changes?: string[] | null
+          plan_volatility_score?: number | null
+          selected_action?: string | null
+          top_deviation_reasons?: Json | null
+          total_carry_over_minutes?: number | null
+          updated_at?: string | null
+          user_id?: string
+          week_start?: string
+          what_was_hard?: string[] | null
+          what_worked?: string[] | null
+          zombie_tasks?: string[] | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "weekly_retrospectives_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
     }
     Views: {

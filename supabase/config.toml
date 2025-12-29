@@ -20,3 +20,6 @@ verify_jwt = false
 
 [functions.suggest-duration]
 verify_jwt = true
+
+[functions.calculate-weekly-metrics]
+verify_jwt = false

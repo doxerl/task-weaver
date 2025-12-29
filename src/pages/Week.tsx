@@ -3,16 +3,21 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronLeft, ChevronRight, Settings, Download } from 'lucide-react';
-import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay } from 'date-fns';
+import { ChevronLeft, ChevronRight, Settings, Download, BookOpen } from 'lucide-react';
+import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay, isWeekend } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useWeekData } from '@/hooks/useWeekData';
+import { useWeeklyRetrospective } from '@/hooks/useWeeklyRetrospective';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Dialog, DialogContent } from '@/components/ui/dialog';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { getISOWeekData } from '@/lib/weekUtils';
 import { BottomTabBar } from '@/components/BottomTabBar';
+import { WeeklyRetro } from '@/components/retrospective/WeeklyRetro';
+import { AutoInsights } from '@/components/retrospective/AutoInsights';
+import { ZombieTaskAlert } from '@/components/retrospective/ZombieTaskAlert';
 
 export default function Week() {
   const navigate = useNavigate();
@@ -21,9 +26,14 @@ export default function Week() {
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
   const [exporting, setExporting] = useState(false);
+  const [showRetroDialog, setShowRetroDialog] = useState(false);
   
   const { weekData, loading } = useWeekData(currentWeekStart);
   const { weekNumber, weekYear } = getISOWeekData(currentWeekStart);
+  const weekStartStr = format(currentWeekStart, 'yyyy-MM-dd');
+  const { retrospective, metrics, calculateMetrics, saveRetrospective, isCalculating, refresh } = useWeeklyRetrospective(weekStartStr);
+  
+  const showRetroButton = isWeekend(new Date()) || !isSameDay(currentWeekStart, startOfWeek(new Date(), { weekStartsOn: 1 }));
 
   const handlePrevWeek = () => setCurrentWeekStart(prev => subWeeks(prev, 1));
   const handleNextWeek = () => setCurrentWeekStart(prev => addWeeks(prev, 1));
@@ -116,6 +126,19 @@ export default function Week() {
             </Badge>
           </div>
           <div className="flex items-center gap-2 justify-end">
+            {showRetroButton && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={() => { calculateMetrics(); setShowRetroDialog(true); }}
+                disabled={isCalculating}
+                className="text-xs md:text-sm"
+              >
+                <BookOpen className="h-4 w-4 mr-1 md:mr-2" />
+                <span className="hidden sm:inline">{isCalculating ? 'Hesaplanıyor...' : 'Haftalık Özet'}</span>
+                <span className="sm:hidden">{isCalculating ? '...' : 'Özet'}</span>
+              </Button>
+            )}
             <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="text-xs md:text-sm">
               <Download className="h-4 w-4 mr-1 md:mr-2" />
               <span className="hidden sm:inline">{exporting ? 'İndiriliyor...' : 'Excel Export'}</span>
@@ -266,6 +289,42 @@ export default function Week() {
           </Card>
         </div>
       </div>
+
+      {/* Weekly Retrospective Dialog */}
+      <Dialog open={showRetroDialog} onOpenChange={setShowRetroDialog}>
+        <DialogContent className="max-w-2xl max-h-[90vh] overflow-y-auto p-0">
+          <div className="p-4 space-y-4">
+            <WeeklyRetro
+              whatWorked={retrospective?.what_worked || []}
+              whatWasHard={retrospective?.what_was_hard || []}
+              nextWeekChanges={retrospective?.next_week_changes || []}
+              onSave={(data) => {
+                saveRetrospective(data);
+                setShowRetroDialog(false);
+              }}
+              onClose={() => setShowRetroDialog(false)}
+            />
+            
+            {metrics && (
+              <>
+                <AutoInsights
+                  completionRate={metrics.completionRate}
+                  estimationAccuracy={metrics.estimationAccuracy}
+                  categoryDistribution={metrics.categoryDistribution}
+                  dayPerformance={metrics.dayPerformance}
+                  deepWorkRatio={metrics.deepWorkRatio}
+                  autoSuggestions={metrics.autoSuggestions}
+                />
+                
+                <ZombieTaskAlert
+                  tasks={metrics.zombieTasks}
+                  onRefresh={refresh}
+                />
+              </>
+            )}
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Bottom Tab Bar */}
       <BottomTabBar />
