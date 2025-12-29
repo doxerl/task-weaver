@@ -41,7 +41,7 @@ export default function Week() {
     try {
       const { data, error } = await supabase.functions.invoke('export-week', {
         body: { 
-          weekStart: currentWeekStart.toISOString(),
+          weekStart: format(currentWeekStart, 'yyyy-MM-dd'),
           timezone: Intl.DateTimeFormat().resolvedOptions().timeZone
         }
       });

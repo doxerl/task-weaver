@@ -100,12 +100,13 @@ serve(async (req) => {
     console.log('[export-week] Fetching data for week:', weekStart);
 
     // Calculate week end (7 days from start)
-    const weekStartDate = new Date(weekStart);
+    // Parse date string (YYYY-MM-DD) without timezone shift
+    const [year, month, day] = weekStart.split('-').map(Number);
+    const weekStartDate = new Date(year, month - 1, day, 12, 0, 0); // Noon local to avoid DST issues
     const weekEndDate = new Date(weekStartDate);
     weekEndDate.setDate(weekEndDate.getDate() + 7);
 
     const { weekNumber, weekYear } = getISOWeekData(weekStartDate);
-    const year = weekYear; // ISO hafta yılını kullan
 
     // Kullanıcı profil bilgilerini al
     const { data: profile } = await supabase
