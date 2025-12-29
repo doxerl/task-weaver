@@ -145,14 +145,50 @@ export function PlanTimeline({ items, loading, onUpdate }: PlanTimelineProps) {
   };
 
   const handleStatusChange = async (item: PlanItem, newStatus: 'done' | 'skipped') => {
-    const { error } = await supabase
+    // 1. Plan durumunu güncelle
+    const { error: planError } = await supabase
       .from('plan_items')
       .update({ status: newStatus })
       .eq('id', item.id);
 
-    if (error) {
+    if (planError) {
       toast.error('Güncellenemedi');
       return;
+    }
+
+    // 2. Eğer tamamlandıysa, actual_entries'e de kayıt ekle (duplicate kontrolü ile)
+    if (newStatus === 'done') {
+      const { data: userData } = await supabase.auth.getUser();
+      if (userData.user) {
+        // Önce bu plan için zaten actual entry var mı kontrol et
+        const { data: existingEntry } = await supabase
+          .from('actual_entries')
+          .select('id')
+          .eq('linked_plan_item_id', item.id)
+          .maybeSingle();
+
+        if (!existingEntry) {
+          const { error: actualError } = await supabase
+            .from('actual_entries')
+            .insert({
+              user_id: userData.user.id,
+              title: item.title,
+              start_at: item.start_at,
+              end_at: item.end_at,
+              tags: item.tags,
+              notes: item.notes,
+              source: 'review',
+              linked_plan_item_id: item.id,
+              deviation_minutes: 0,
+              match_method: 'auto_complete'
+            });
+
+          if (actualError) {
+            console.error('Actual entry oluşturulamadı:', actualError);
+            toast.warning('Tamamlandı, ama gerçekleşen kaydı oluşturulamadı');
+          }
+        }
+      }
     }
 
     toast.success(newStatus === 'done' ? 'Tamamlandı!' : 'Atlandı');
