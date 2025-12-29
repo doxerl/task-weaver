@@ -7,6 +7,7 @@ import { calculateDayMetrics, isWithinTolerance, formatDeviation, getDeviationSt
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { Check, X, Clock, Activity, AlertTriangle, Lightbulb, TrendingUp, TrendingDown, Minus, Link } from 'lucide-react';
+import { EstimationInsights } from '@/components/estimation/EstimationInsights';
 
 interface CompareViewProps {
   planItems: PlanItem[];
@@ -331,6 +332,9 @@ export function CompareView({ planItems, actualEntries, loading }: CompareViewPr
           </CardContent>
         </Card>
       )}
+
+      {/* Estimation Insights */}
+      <EstimationInsights />
 
       {/* Suggestions Section */}
       {(pendingPlans.length > 0 || skippedPlans.length > 0 || planItems.length > 0) && (
