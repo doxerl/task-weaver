@@ -44,7 +44,7 @@ export default function Today() {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="min-h-screen bg-background pb-36 md:pb-36">
+    <div className="min-h-screen bg-background pb-36 md:pb-52">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
         <div className="container flex h-14 items-center justify-between px-4">
