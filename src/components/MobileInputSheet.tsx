@@ -42,7 +42,7 @@ export function MobileInputSheet({ mode, onModeChange, date, onSuccess }: Mobile
   return (
     <Drawer open={open} onOpenChange={handleOpenChange}>
       <DrawerTrigger asChild>
-        <div className="fixed bottom-0 left-0 right-0 z-40 bg-card border-t shadow-lg">
+        <div className="fixed bottom-16 left-0 right-0 z-50 bg-card border-t shadow-lg">
           <div className="flex items-center justify-between px-4 py-3">
             {/* Left: Mode indicator */}
             <div className="flex items-center gap-2">
