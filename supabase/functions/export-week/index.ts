@@ -144,15 +144,15 @@ serve(async (req) => {
 
     console.log('[export-week] Found', planItems?.length, 'plans and', actualEntries?.length, 'actuals');
 
-    // Helper functions
-    const formatDate = (dateStr: string) => {
+    // Helper functions with timezone support
+    const formatDate = (dateStr: string, tz: string) => {
       const d = new Date(dateStr);
-      return d.toLocaleDateString('tr-TR');
+      return d.toLocaleDateString('tr-TR', { timeZone: tz });
     };
 
-    const formatTime = (dateStr: string) => {
+    const formatTime = (dateStr: string, tz: string) => {
       const d = new Date(dateStr);
-      return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' });
+      return d.toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit', timeZone: tz });
     };
 
     // Group data by day
@@ -189,9 +189,8 @@ serve(async (req) => {
     const summaryData = [
       ['HAFTALIK RAPOR'],
       [],
-      ['Hafta', `${weekNumber}. Hafta`],
-      ['Yıl', year.toString()],
-      ['Tarih Aralığı', `${formatDate(weekStartDate.toISOString())} - ${formatDate(new Date(weekEndDate.getTime() - 1).toISOString())}`],
+      ['ISO Hafta', `${weekYear}-W${weekNumber.toString().padStart(2, '0')}`],
+      ['Tarih Aralığı', `${formatDate(weekStartDate.toISOString(), timezone)} - ${formatDate(new Date(weekEndDate.getTime() - 1).toISOString(), timezone)}`],
       [],
       ['İSTATİSTİKLER'],
       [],
@@ -215,7 +214,7 @@ serve(async (req) => {
       dayDate.setDate(dayDate.getDate() + i);
       summaryData.push([
         dayNames[i],
-        formatDate(dayDate.toISOString()),
+        formatDate(dayDate.toISOString(), timezone),
         dayData[i].plans.length,
         dayData[i].actuals.length
       ]);
@@ -244,7 +243,7 @@ serve(async (req) => {
       const maxRows = Math.max(plans.length, actuals.length, 1);
       
       const daySheetData: any[][] = [
-        [`${dayNames[i]} - ${formatDate(dayDate.toISOString())}`],
+        [`${dayNames[i]} - ${formatDate(dayDate.toISOString(), timezone)}`],
         [],
         ['PLANLANAN', '', '', '', '', '', 'GERÇEKLEŞEN', '', '', ''],
         ['Saat', 'Bitiş', 'Başlık', 'Tip', 'Öncelik', 'Durum', 'Saat', 'Bitiş', 'Başlık', 'Kaynak']
@@ -255,14 +254,14 @@ serve(async (req) => {
         const actual = actuals[row];
         
         const rowData = [
-          plan ? formatTime(plan.start_at) : '',
-          plan ? formatTime(plan.end_at) : '',
+          plan ? formatTime(plan.start_at, timezone) : '',
+          plan ? formatTime(plan.end_at, timezone) : '',
           plan ? plan.title : '',
           plan ? (plan.type || '') : '',
           plan ? (plan.priority || '') : '',
           plan ? (plan.status || '') : '',
-          actual ? formatTime(actual.start_at) : '',
-          actual ? formatTime(actual.end_at) : '',
+          actual ? formatTime(actual.start_at, timezone) : '',
+          actual ? formatTime(actual.end_at, timezone) : '',
           actual ? actual.title : '',
           actual ? (actual.source || '') : ''
         ];
