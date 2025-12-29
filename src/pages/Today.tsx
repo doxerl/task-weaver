@@ -2,15 +2,15 @@ import { useState } from 'react';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { VoiceInput } from '@/components/VoiceInput';
 import { PlanTimeline } from '@/components/PlanTimeline';
 import { ActualTimeline } from '@/components/ActualTimeline';
 import { CompareView } from '@/components/CompareView';
 import { QuickChips } from '@/components/QuickChips';
 import { MobileInputSheet } from '@/components/MobileInputSheet';
+import { BottomTabBar } from '@/components/BottomTabBar';
 import { useDayData } from '@/hooks/useDayData';
-import { LogOut, Settings, Calendar, ChevronLeft, ChevronRight, ClipboardList, CalendarDays, Menu } from 'lucide-react';
+import { LogOut, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addDays, subDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -49,7 +49,7 @@ export default function Today() {
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
 
   return (
-    <div className="min-h-screen bg-background pb-20 md:pb-36">
+    <div className="min-h-screen bg-background pb-36 md:pb-36">
       {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
         <div className="container flex h-14 items-center justify-between px-4">
@@ -60,90 +60,15 @@ export default function Today() {
             </span>
           </div>
           
-          {/* Mobile: Hamburger Menu */}
-          <Sheet>
-            <SheetTrigger asChild className="md:hidden">
-              <Button variant="ghost" size="icon">
-                <Menu className="h-5 w-5" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent side="right" className="w-64">
-              <SheetHeader>
-                <SheetTitle>Menü</SheetTitle>
-              </SheetHeader>
-              <div className="flex flex-col gap-2 mt-6">
-                <Button 
-                  variant="ghost" 
-                  className="justify-start"
-                  onClick={() => navigate('/week')}
-                >
-                  <CalendarDays className="h-5 w-5 mr-3" />
-                  Haftalık Görünüm
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  className="justify-start"
-                  onClick={() => navigate('/review/' + format(selectedDate, 'yyyy-MM-dd'))}
-                >
-                  <ClipboardList className="h-5 w-5 mr-3" />
-                  Gün İnceleme
-                </Button>
-                <Button 
-                  variant="ghost" 
-                  className="justify-start"
-                  onClick={() => navigate('/settings')}
-                >
-                  <Settings className="h-5 w-5 mr-3" />
-                  Ayarlar
-                </Button>
-                <hr className="my-2" />
-                <Button 
-                  variant="ghost" 
-                  className="justify-start text-destructive hover:text-destructive"
-                  onClick={handleSignOut}
-                >
-                  <LogOut className="h-5 w-5 mr-3" />
-                  Çıkış Yap
-                </Button>
-              </div>
-            </SheetContent>
-          </Sheet>
-
-          {/* Desktop: All buttons visible */}
-          <div className="hidden md:flex items-center gap-2">
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => navigate('/week')}
-              title="Haftalık Görünüm"
-            >
-              <CalendarDays className="h-5 w-5" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => navigate('/review/' + format(selectedDate, 'yyyy-MM-dd'))}
-              title="Gün İnceleme"
-            >
-              <ClipboardList className="h-5 w-5" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon"
-              onClick={() => navigate('/settings')}
-              title="Ayarlar"
-            >
-              <Settings className="h-5 w-5" />
-            </Button>
-            <Button 
-              variant="ghost" 
-              size="icon" 
-              onClick={handleSignOut}
-              title="Çıkış Yap"
-            >
-              <LogOut className="h-5 w-5" />
-            </Button>
-          </div>
+          {/* Logout button */}
+          <Button 
+            variant="ghost" 
+            size="icon" 
+            onClick={handleSignOut}
+            title="Çıkış Yap"
+          >
+            <LogOut className="h-5 w-5" />
+          </Button>
         </div>
       </header>
 
@@ -226,7 +151,7 @@ export default function Today() {
 
       {/* Desktop: Fixed Input Area */}
       {!isMobile && (
-        <div className="fixed bottom-0 left-0 right-0 z-40 border-t bg-card p-4 shadow-lg">
+        <div className="fixed bottom-16 left-0 right-0 z-40 border-t bg-card p-4 shadow-lg">
           <div className="container">
             {/* Mode Toggle */}
             <div className="flex items-center gap-2 mb-2">
@@ -270,6 +195,9 @@ export default function Today() {
           </div>
         </div>
       )}
+
+      {/* Bottom Tab Bar */}
+      <BottomTabBar />
     </div>
   );
 }

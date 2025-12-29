@@ -8,7 +8,6 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
 import Today from "./pages/Today";
 import Settings from "./pages/Settings";
-import Review from "./pages/Review";
 import Week from "./pages/Week";
 import NotFound from "./pages/NotFound";
 
@@ -32,11 +31,6 @@ const App = () => (
             <Route path="/settings" element={
               <ProtectedRoute>
                 <Settings />
-              </ProtectedRoute>
-            } />
-            <Route path="/review/:date" element={
-              <ProtectedRoute>
-                <Review />
               </ProtectedRoute>
             } />
             <Route path="/week" element={
