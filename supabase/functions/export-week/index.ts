@@ -37,6 +37,18 @@ function getISOWeekData(date: Date): { weekNumber: number; weekYear: number } {
 // Türkçe gün isimleri
 const dayNames = ['Pazartesi', 'Salı', 'Çarşamba', 'Perşembe', 'Cuma', 'Cumartesi', 'Pazar'];
 
+// Türkçe karakterleri ASCII'ye çevir
+function sanitizeName(text: string): string {
+  return text
+    .replace(/ı/g, 'i').replace(/İ/g, 'I')
+    .replace(/ğ/g, 'g').replace(/Ğ/g, 'G')
+    .replace(/ü/g, 'u').replace(/Ü/g, 'U')
+    .replace(/ş/g, 's').replace(/Ş/g, 'S')
+    .replace(/ö/g, 'o').replace(/Ö/g, 'O')
+    .replace(/ç/g, 'c').replace(/Ç/g, 'C')
+    .replace(/[^a-zA-Z0-9]/g, '');
+}
+
 serve(async (req) => {
   // Handle CORS preflight
   if (req.method === 'OPTIONS') {
@@ -94,6 +106,13 @@ serve(async (req) => {
 
     const { weekNumber, weekYear } = getISOWeekData(weekStartDate);
     const year = weekYear; // ISO hafta yılını kullan
+
+    // Kullanıcı profil bilgilerini al
+    const { data: profile } = await supabase
+      .from('profiles')
+      .select('first_name, last_name')
+      .eq('id', user.id)
+      .single();
 
     // Fetch plan items for the week
     const { data: planItems, error: planError } = await supabase
@@ -288,7 +307,20 @@ serve(async (req) => {
     }
     const base64 = btoa(binaryString);
 
-    const filename = `${weekNumber}.Hafta_${year}`;
+    // Kullanıcı adını hazırla
+    const firstName = sanitizeName(profile?.first_name || '');
+    const lastName = sanitizeName(profile?.last_name || '');
+    const userName = [firstName, lastName].filter(Boolean).join('_') || 'Kullanici';
+
+    // ISO hafta formatı: YYYY-Www
+    const isoWeekStr = `${weekYear}-W${weekNumber.toString().padStart(2, '0')}`;
+
+    // İndirme tarihi (DD-MM-YYYY)
+    const downloadDate = new Date();
+    const downloadDateStr = `${downloadDate.getDate().toString().padStart(2, '0')}-${(downloadDate.getMonth() + 1).toString().padStart(2, '0')}-${downloadDate.getFullYear()}`;
+
+    // Final dosya adı: AdSoyad_YYYY-Www_DD-MM-YYYY
+    const filename = `${userName}_${isoWeekStr}_${downloadDateStr}`;
 
     console.log('[export-week] XLSX export successful');
 
