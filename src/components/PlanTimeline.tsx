@@ -235,27 +235,45 @@ export function PlanTimeline({ items, loading, onUpdate }: PlanTimelineProps) {
                   </div>
                   
                   <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
-                    {editingId === item.id && editField === 'time' ? (
-                      <div className="flex items-center gap-1">
-                        <input 
-                          type="time" 
-                          value={editStartTime}
-                          onChange={(e) => setEditStartTime(e.target.value)}
-                          onKeyDown={handleKeyDown}
-                          className="w-24 text-sm border border-input rounded px-2 py-1 bg-background"
-                        />
-                        <span>-</span>
-                        <input 
-                          ref={inputRef as React.RefObject<HTMLInputElement>}
-                          type="time" 
-                          value={editEndTime}
-                          onChange={(e) => setEditEndTime(e.target.value)}
-                          onBlur={handleSaveTime}
-                          onKeyDown={handleKeyDown}
-                          className="w-24 text-sm border border-input rounded px-2 py-1 bg-background"
-                        />
-                      </div>
-                    ) : (
+                {editingId === item.id && editField === 'time' ? (
+                  <div className="flex items-center gap-1">
+                    <input 
+                      type="time" 
+                      value={editStartTime}
+                      onChange={(e) => setEditStartTime(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      className="w-24 text-sm border border-input rounded px-2 py-1 bg-background"
+                    />
+                    <span>-</span>
+                    <input 
+                      ref={inputRef as React.RefObject<HTMLInputElement>}
+                      type="time" 
+                      value={editEndTime}
+                      onChange={(e) => setEditEndTime(e.target.value)}
+                      onKeyDown={handleKeyDown}
+                      className="w-24 text-sm border border-input rounded px-2 py-1 bg-background"
+                    />
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-green-600 hover:text-green-700"
+                      onClick={handleSaveTime}
+                    >
+                      <Check className="h-3.5 w-3.5" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-6 w-6 text-muted-foreground"
+                      onClick={() => {
+                        setEditingId(null);
+                        setEditField(null);
+                      }}
+                    >
+                      <X className="h-3.5 w-3.5" />
+                    </Button>
+                  </div>
+                ) : (
                       <span 
                         className={`font-medium cursor-pointer hover:text-primary group flex items-center gap-1 ${item.status === 'done' ? 'pointer-events-none' : ''}`}
                         onClick={() => startEditingTime(item)}
