@@ -240,6 +240,86 @@ export type Database = {
           },
         ]
       }
+      estimation_history: {
+        Row: {
+          actual_minutes: number | null
+          category: string | null
+          created_at: string | null
+          deviation_minutes: number | null
+          deviation_percent: number | null
+          estimated_minutes: number
+          id: string
+          plan_item_id: string | null
+          user_id: string
+        }
+        Insert: {
+          actual_minutes?: number | null
+          category?: string | null
+          created_at?: string | null
+          deviation_minutes?: number | null
+          deviation_percent?: number | null
+          estimated_minutes: number
+          id?: string
+          plan_item_id?: string | null
+          user_id: string
+        }
+        Update: {
+          actual_minutes?: number | null
+          category?: string | null
+          created_at?: string | null
+          deviation_minutes?: number | null
+          deviation_percent?: number | null
+          estimated_minutes?: number
+          id?: string
+          plan_item_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "estimation_history_plan_item_id_fkey"
+            columns: ["plan_item_id"]
+            isOneToOne: false
+            referencedRelation: "plan_items"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      estimation_stats: {
+        Row: {
+          avg_deviation_percent: number | null
+          calibration_score: number | null
+          category: string
+          id: string
+          last_updated: string | null
+          total_actual_minutes: number | null
+          total_estimated_minutes: number | null
+          total_tasks: number | null
+          user_id: string
+        }
+        Insert: {
+          avg_deviation_percent?: number | null
+          calibration_score?: number | null
+          category: string
+          id?: string
+          last_updated?: string | null
+          total_actual_minutes?: number | null
+          total_estimated_minutes?: number | null
+          total_tasks?: number | null
+          user_id: string
+        }
+        Update: {
+          avg_deviation_percent?: number | null
+          calibration_score?: number | null
+          category?: string
+          id?: string
+          last_updated?: string | null
+          total_actual_minutes?: number | null
+          total_estimated_minutes?: number | null
+          total_tasks?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       github_work_items_cache: {
         Row: {
           assignees: string[] | null
@@ -343,7 +423,10 @@ export type Database = {
       plan_items: {
         Row: {
           created_at: string
+          deviation_reason: string | null
           end_at: string
+          energy_requirement: string | null
+          estimated_duration_minutes: number | null
           frozen_at: string | null
           id: string
           linked_github: Json | null
@@ -353,6 +436,7 @@ export type Database = {
           source: string | null
           start_at: string
           status: string | null
+          suggested_duration_minutes: number | null
           tags: string[] | null
           title: string
           type: string | null
@@ -361,7 +445,10 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          deviation_reason?: string | null
           end_at: string
+          energy_requirement?: string | null
+          estimated_duration_minutes?: number | null
           frozen_at?: string | null
           id?: string
           linked_github?: Json | null
@@ -371,6 +458,7 @@ export type Database = {
           source?: string | null
           start_at: string
           status?: string | null
+          suggested_duration_minutes?: number | null
           tags?: string[] | null
           title: string
           type?: string | null
@@ -379,7 +467,10 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          deviation_reason?: string | null
           end_at?: string
+          energy_requirement?: string | null
+          estimated_duration_minutes?: number | null
           frozen_at?: string | null
           id?: string
           linked_github?: Json | null
@@ -389,6 +480,7 @@ export type Database = {
           source?: string | null
           start_at?: string
           status?: string | null
+          suggested_duration_minutes?: number | null
           tags?: string[] | null
           title?: string
           type?: string | null
