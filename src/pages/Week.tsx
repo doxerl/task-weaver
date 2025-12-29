@@ -116,7 +116,7 @@ export default function Week() {
             </h1>
             {/* Week Badge - Large and prominent */}
             <Badge variant="outline" className="text-sm md:text-base px-3 py-1 font-bold">
-              {weekNumber}. Hafta {weekYear}
+              {weekYear}-W{weekNumber.toString().padStart(2, '0')}
             </Badge>
           </div>
           <div className="flex items-center gap-2 justify-end">
