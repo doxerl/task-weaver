@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronLeft, ChevronRight, LogOut, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Settings, Download } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useWeekData } from '@/hooks/useWeekData';
@@ -16,7 +16,7 @@ import { BottomTabBar } from '@/components/BottomTabBar';
 
 export default function Week() {
   const navigate = useNavigate();
-  const { profile, signOut, session } = useAuthContext();
+  const { profile, session } = useAuthContext();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => 
     startOfWeek(new Date(), { weekStartsOn: 1 })
   );
@@ -29,10 +29,6 @@ export default function Week() {
   const handleNextWeek = () => setCurrentWeekStart(prev => addWeeks(prev, 1));
   const handleThisWeek = () => setCurrentWeekStart(startOfWeek(new Date(), { weekStartsOn: 1 }));
 
-  const handleSignOut = async () => {
-    await signOut();
-    navigate('/auth');
-  };
 
   const handleExport = async () => {
     if (!session) {
@@ -125,8 +121,8 @@ export default function Week() {
               <span className="hidden sm:inline">{exporting ? 'İndiriliyor...' : 'Excel Export'}</span>
               <span className="sm:hidden">{exporting ? '...' : 'Excel'}</span>
             </Button>
-            <Button variant="ghost" size="icon" onClick={handleSignOut}>
-              <LogOut className="h-4 w-4" />
+            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')} title="Ayarlar">
+              <Settings className="h-4 w-4" />
             </Button>
           </div>
         </div>

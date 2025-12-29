@@ -10,7 +10,7 @@ import { QuickChips } from '@/components/QuickChips';
 import { MobileInputSheet } from '@/components/MobileInputSheet';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { useDayData } from '@/hooks/useDayData';
-import { LogOut, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Settings, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addDays, subDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { toast } from 'sonner';
@@ -21,18 +21,13 @@ import { useIsMobile } from '@/hooks/use-mobile';
 export default function Today() {
   const navigate = useNavigate();
   const isMobile = useIsMobile();
-  const { profile, signOut } = useAuthContext();
+  const { profile } = useAuthContext();
   const [selectedDate, setSelectedDate] = useState(new Date());
   const [inputMode, setInputMode] = useState<'plan' | 'actual'>('plan');
   
   const { planItems, actualEntries, loading, refetch } = useDayData(selectedDate);
   const { weekNumber, weekYear } = getISOWeekData(selectedDate);
 
-  const handleSignOut = async () => {
-    await signOut();
-    toast.success('Çıkış yapıldı');
-    navigate('/auth');
-  };
 
   const handlePrevDay = () => {
     setSelectedDate(prev => subDays(prev, 1));
@@ -60,14 +55,14 @@ export default function Today() {
             </span>
           </div>
           
-          {/* Logout button */}
+          {/* Settings button */}
           <Button 
             variant="ghost" 
             size="icon" 
-            onClick={handleSignOut}
-            title="Çıkış Yap"
+            onClick={() => navigate('/settings')}
+            title="Ayarlar"
           >
-            <LogOut className="h-5 w-5" />
+            <Settings className="h-5 w-5" />
           </Button>
         </div>
       </header>
