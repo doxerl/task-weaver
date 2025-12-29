@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronLeft, ChevronRight, Calendar, Settings, LogOut, Download } from 'lucide-react';
+import { ChevronLeft, ChevronRight, LogOut, Download } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import { useWeekData } from '@/hooks/useWeekData';
@@ -12,6 +12,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { getISOWeekData } from '@/lib/weekUtils';
+import { BottomTabBar } from '@/components/BottomTabBar';
 
 export default function Week() {
   const navigate = useNavigate();
@@ -105,7 +106,7 @@ export default function Week() {
   }
 
   return (
-    <div className="min-h-screen bg-background">
+    <div className="min-h-screen bg-background pb-20">
       {/* Header */}
       <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
         <div className="container max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
@@ -123,13 +124,6 @@ export default function Week() {
               <Download className="h-4 w-4 mr-1 md:mr-2" />
               <span className="hidden sm:inline">{exporting ? 'İndiriliyor...' : 'Excel Export'}</span>
               <span className="sm:hidden">{exporting ? '...' : 'Excel'}</span>
-            </Button>
-            <Button variant="ghost" size="sm" onClick={() => navigate('/today')}>
-              <Calendar className="h-4 w-4 mr-1 md:mr-2" />
-              <span className="hidden sm:inline">Bugün</span>
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
-              <Settings className="h-4 w-4" />
             </Button>
             <Button variant="ghost" size="icon" onClick={handleSignOut}>
               <LogOut className="h-4 w-4" />
@@ -276,6 +270,9 @@ export default function Week() {
           </Card>
         </div>
       </div>
+
+      {/* Bottom Tab Bar */}
+      <BottomTabBar />
     </div>
   );
 }
