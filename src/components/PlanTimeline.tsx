@@ -12,6 +12,7 @@ import { tr } from 'date-fns/locale';
 import { Check, X, Clock, MapPin, Github, Trash2, Pencil, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import { useRecordEstimation } from '@/hooks/useEstimation';
 
 interface PlanTimelineProps {
   items: PlanItem[];
@@ -38,6 +39,7 @@ export function PlanTimeline({ items, loading, onUpdate }: PlanTimelineProps) {
   const [editStartTime, setEditStartTime] = useState('');
   const [editEndTime, setEditEndTime] = useState('');
   const inputRef = useRef<HTMLInputElement>(null);
+  const recordEstimation = useRecordEstimation();
 
   useEffect(() => {
     if (editingId && inputRef.current) {
@@ -188,6 +190,21 @@ export function PlanTimeline({ items, loading, onUpdate }: PlanTimelineProps) {
             toast.warning('Tamamlandı, ama gerçekleşen kaydı oluşturulamadı');
           }
         }
+
+        // 3. Tahmin kalibrasyonu için kayıt oluştur
+        const estimatedMinutes = (item as any).estimated_duration_minutes ?? 
+          Math.round((new Date(item.end_at).getTime() - new Date(item.start_at).getTime()) / 60000);
+        const actualMinutes = Math.round(
+          (new Date(item.end_at).getTime() - new Date(item.start_at).getTime()) / 60000
+        );
+        const category = item.tags.length > 0 ? item.tags[0] : 'Genel';
+
+        recordEstimation.mutate({
+          planItemId: item.id,
+          category,
+          estimatedMinutes,
+          actualMinutes,
+        });
       }
     }
 
