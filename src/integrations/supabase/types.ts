@@ -18,10 +18,12 @@ export type Database = {
         Row: {
           confidence: number | null
           created_at: string
+          deviation_minutes: number | null
           end_at: string
           id: string
           linked_github: Json | null
           linked_plan_item_id: string | null
+          match_method: string | null
           notes: string | null
           source: string | null
           start_at: string
@@ -33,10 +35,12 @@ export type Database = {
         Insert: {
           confidence?: number | null
           created_at?: string
+          deviation_minutes?: number | null
           end_at: string
           id?: string
           linked_github?: Json | null
           linked_plan_item_id?: string | null
+          match_method?: string | null
           notes?: string | null
           source?: string | null
           start_at: string
@@ -48,10 +52,12 @@ export type Database = {
         Update: {
           confidence?: number | null
           created_at?: string
+          deviation_minutes?: number | null
           end_at?: string
           id?: string
           linked_github?: Json | null
           linked_plan_item_id?: string | null
+          match_method?: string | null
           notes?: string | null
           source?: string | null
           start_at?: string
@@ -138,6 +144,63 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      day_metrics: {
+        Row: {
+          actual_count: number
+          actual_minutes: number
+          avg_deviation_minutes: number | null
+          completed_count: number
+          completion_rate: number | null
+          created_at: string
+          date: string
+          focus_score: number | null
+          id: string
+          planned_count: number
+          planned_minutes: number
+          skipped_count: number
+          unplanned_count: number
+          updated_at: string
+          user_id: string
+          within_tolerance_count: number
+        }
+        Insert: {
+          actual_count?: number
+          actual_minutes?: number
+          avg_deviation_minutes?: number | null
+          completed_count?: number
+          completion_rate?: number | null
+          created_at?: string
+          date: string
+          focus_score?: number | null
+          id?: string
+          planned_count?: number
+          planned_minutes?: number
+          skipped_count?: number
+          unplanned_count?: number
+          updated_at?: string
+          user_id: string
+          within_tolerance_count?: number
+        }
+        Update: {
+          actual_count?: number
+          actual_minutes?: number
+          avg_deviation_minutes?: number | null
+          completed_count?: number
+          completion_rate?: number | null
+          created_at?: string
+          date?: string
+          focus_score?: number | null
+          id?: string
+          planned_count?: number
+          planned_minutes?: number
+          skipped_count?: number
+          unplanned_count?: number
+          updated_at?: string
+          user_id?: string
+          within_tolerance_count?: number
+        }
+        Relationships: []
       }
       day_reviews: {
         Row: {
@@ -281,6 +344,7 @@ export type Database = {
         Row: {
           created_at: string
           end_at: string
+          frozen_at: string | null
           id: string
           linked_github: Json | null
           location: string | null
@@ -298,6 +362,7 @@ export type Database = {
         Insert: {
           created_at?: string
           end_at: string
+          frozen_at?: string | null
           id?: string
           linked_github?: Json | null
           location?: string | null
@@ -315,6 +380,7 @@ export type Database = {
         Update: {
           created_at?: string
           end_at?: string
+          frozen_at?: string | null
           id?: string
           linked_github?: Json | null
           location?: string | null

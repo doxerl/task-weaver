@@ -28,6 +28,7 @@ export interface PlanItem {
   status: PlanStatus;
   source: Source;
   linked_github: LinkedGitHub | null;
+  frozen_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -44,6 +45,27 @@ export interface ActualEntry {
   linked_plan_item_id: string | null;
   linked_github: LinkedGitHub | null;
   confidence: number | null;
+  deviation_minutes: number | null;
+  match_method: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface DayMetrics {
+  id: string;
+  user_id: string;
+  date: string;
+  planned_count: number;
+  completed_count: number;
+  skipped_count: number;
+  actual_count: number;
+  unplanned_count: number;
+  planned_minutes: number;
+  actual_minutes: number;
+  avg_deviation_minutes: number | null;
+  within_tolerance_count: number;
+  completion_rate: number | null;
+  focus_score: number | null;
   created_at: string;
   updated_at: string;
 }

@@ -119,6 +119,7 @@ export default function Today() {
           <TabsContent value="actual">
             <ActualTimeline 
               entries={actualEntries}
+              planItems={planItems}
               loading={loading}
               onUpdate={refetch}
             />

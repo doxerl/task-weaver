@@ -6,9 +6,10 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Input } from '@/components/ui/input';
 import { SwipeableCard } from '@/components/SwipeableCard';
+import { isPlanFrozen } from '@/lib/planUtils';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { Check, X, Clock, MapPin, Github, Trash2, Pencil } from 'lucide-react';
+import { Check, X, Clock, MapPin, Github, Trash2, Pencil, Lock } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 
@@ -46,7 +47,7 @@ export function PlanTimeline({ items, loading, onUpdate }: PlanTimelineProps) {
   }, [editingId, editField]);
 
   const startEditingTitle = (item: PlanItem) => {
-    if (item.status !== 'done') {
+    if (item.status !== 'done' && !isPlanFrozen(item)) {
       setEditingId(item.id);
       setEditField('title');
       setEditValue(item.title);
@@ -54,7 +55,7 @@ export function PlanTimeline({ items, loading, onUpdate }: PlanTimelineProps) {
   };
 
   const startEditingTime = (item: PlanItem) => {
-    if (item.status !== 'done') {
+    if (item.status !== 'done' && !isPlanFrozen(item)) {
       setEditingId(item.id);
       setEditField('time');
       setEditStartTime(format(new Date(item.start_at), 'HH:mm'));
@@ -159,6 +160,12 @@ export function PlanTimeline({ items, loading, onUpdate }: PlanTimelineProps) {
   };
 
   const handleDelete = async (item: PlanItem) => {
+    // Don't allow deletion of frozen plans
+    if (isPlanFrozen(item)) {
+      toast.error('Dondurulmuş planlar silinemez');
+      return;
+    }
+
     const { error } = await supabase
       .from('plan_items')
       .delete()
@@ -195,171 +202,187 @@ export function PlanTimeline({ items, loading, onUpdate }: PlanTimelineProps) {
 
   return (
     <div className="space-y-3">
-      {items.map((item) => (
-        <SwipeableCard
-          key={item.id}
-          onSwipeLeft={() => handleDelete(item)}
-          onSwipeRight={() => item.status === 'planned' && handleStatusChange(item, 'done')}
-          disabled={item.status === 'done'}
-          rightLabel="Tamamla"
-          leftLabel="Sil"
-        >
-          <Card 
-            className={`border-l-4 ${priorityColors[item.priority]} transition-all hover:shadow-md`}
+      {items.map((item) => {
+        const frozen = isPlanFrozen(item);
+        const canEdit = !frozen && item.status !== 'done';
+        
+        return (
+          <SwipeableCard
+            key={item.id}
+            onSwipeLeft={() => !frozen && handleDelete(item)}
+            onSwipeRight={() => item.status === 'planned' && handleStatusChange(item, 'done')}
+            disabled={item.status === 'done' || frozen}
+            rightLabel="Tamamla"
+            leftLabel="Sil"
           >
-            <CardContent className="p-4">
-              <div className="flex items-start justify-between gap-3">
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    {statusIcons[item.status]}
-                    {editingId === item.id && editField === 'title' ? (
-                      <Input
-                        ref={inputRef}
-                        value={editValue}
-                        onChange={(e) => setEditValue(e.target.value)}
-                        onBlur={handleSaveTitle}
-                        onKeyDown={handleKeyDown}
-                        className="h-7 px-2 font-medium flex-1"
-                      />
-                    ) : (
-                      <h3 
-                        className={`text-base font-semibold truncate group cursor-pointer hover:text-primary transition-colors ${item.status === 'done' ? 'line-through text-muted-foreground' : ''}`}
-                        onClick={() => startEditingTitle(item)}
-                      >
-                        {item.title}
-                        {item.status !== 'done' && (
-                          <Pencil className="h-3.5 w-3.5 ml-1.5 opacity-0 group-hover:opacity-50 inline-block" />
-                        )}
-                      </h3>
-                    )}
-                  </div>
-                  
-                  <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
-                {editingId === item.id && editField === 'time' ? (
-                  <div className="flex items-center gap-1">
-                    <input 
-                      type="time" 
-                      value={editStartTime}
-                      onChange={(e) => setEditStartTime(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      className="w-24 text-sm border border-input rounded px-2 py-1 bg-background"
-                    />
-                    <span>-</span>
-                    <input 
-                      ref={inputRef as React.RefObject<HTMLInputElement>}
-                      type="time" 
-                      value={editEndTime}
-                      onChange={(e) => setEditEndTime(e.target.value)}
-                      onKeyDown={handleKeyDown}
-                      className="w-24 text-sm border border-input rounded px-2 py-1 bg-background"
-                    />
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-green-600 hover:text-green-700"
-                      onClick={handleSaveTime}
-                    >
-                      <Check className="h-3.5 w-3.5" />
-                    </Button>
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="h-6 w-6 text-muted-foreground"
-                      onClick={() => {
-                        setEditingId(null);
-                        setEditField(null);
-                      }}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  </div>
-                ) : (
-                      <span 
-                        className={`font-medium cursor-pointer hover:text-primary group flex items-center gap-1 ${item.status === 'done' ? 'pointer-events-none' : ''}`}
-                        onClick={() => startEditingTime(item)}
-                      >
-                        {format(new Date(item.start_at), 'HH:mm', { locale: tr })} - {format(new Date(item.end_at), 'HH:mm', { locale: tr })}
-                        {item.status !== 'done' && (
-                          <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50" />
-                        )}
-                      </span>
-                    )}
-                    {item.location && (
-                      <span className="flex items-center gap-1">
-                        <MapPin className="h-3 w-3" />
-                        {item.location}
-                      </span>
-                    )}
+            <Card 
+              className={`border-l-4 ${priorityColors[item.priority]} transition-all hover:shadow-md ${frozen ? 'opacity-80' : ''}`}
+            >
+              <CardContent className="p-4">
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      {frozen ? (
+                        <Lock className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        statusIcons[item.status]
+                      )}
+                      {editingId === item.id && editField === 'title' ? (
+                        <Input
+                          ref={inputRef}
+                          value={editValue}
+                          onChange={(e) => setEditValue(e.target.value)}
+                          onBlur={handleSaveTitle}
+                          onKeyDown={handleKeyDown}
+                          className="h-7 px-2 font-medium flex-1"
+                        />
+                      ) : (
+                        <h3 
+                          className={`text-base font-semibold truncate group ${canEdit ? 'cursor-pointer hover:text-primary' : ''} transition-colors ${item.status === 'done' ? 'line-through text-muted-foreground' : ''}`}
+                          onClick={() => canEdit && startEditingTitle(item)}
+                        >
+                          {item.title}
+                          {canEdit && (
+                            <Pencil className="h-3.5 w-3.5 ml-1.5 opacity-0 group-hover:opacity-50 inline-block" />
+                          )}
+                        </h3>
+                      )}
+                      {frozen && (
+                        <Badge variant="secondary" className="text-xs">
+                          🔒 Donduruldu
+                        </Badge>
+                      )}
+                    </div>
+                    
+                    <div className="flex items-center gap-3 text-sm text-muted-foreground mb-2">
+                      {editingId === item.id && editField === 'time' ? (
+                        <div className="flex items-center gap-1">
+                          <input 
+                            type="time" 
+                            value={editStartTime}
+                            onChange={(e) => setEditStartTime(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            className="w-24 text-sm border border-input rounded px-2 py-1 bg-background"
+                          />
+                          <span>-</span>
+                          <input 
+                            ref={inputRef as React.RefObject<HTMLInputElement>}
+                            type="time" 
+                            value={editEndTime}
+                            onChange={(e) => setEditEndTime(e.target.value)}
+                            onKeyDown={handleKeyDown}
+                            className="w-24 text-sm border border-input rounded px-2 py-1 bg-background"
+                          />
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-green-600 hover:text-green-700"
+                            onClick={handleSaveTime}
+                          >
+                            <Check className="h-3.5 w-3.5" />
+                          </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-6 w-6 text-muted-foreground"
+                            onClick={() => {
+                              setEditingId(null);
+                              setEditField(null);
+                            }}
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <span 
+                          className={`font-medium ${canEdit ? 'cursor-pointer hover:text-primary' : ''} group flex items-center gap-1`}
+                          onClick={() => canEdit && startEditingTime(item)}
+                        >
+                          {format(new Date(item.start_at), 'HH:mm', { locale: tr })} - {format(new Date(item.end_at), 'HH:mm', { locale: tr })}
+                          {canEdit && (
+                            <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50" />
+                          )}
+                        </span>
+                      )}
+                      {item.location && (
+                        <span className="flex items-center gap-1">
+                          <MapPin className="h-3 w-3" />
+                          {item.location}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-1">
+                      <Badge variant="outline" className="text-xs">
+                        {item.type === 'task' ? 'Görev' : item.type === 'event' ? 'Etkinlik' : 'Alışkanlık'}
+                      </Badge>
+                      {item.tags.map((tag) => (
+                        <Badge key={tag} variant="secondary" className="text-xs">
+                          {tag}
+                        </Badge>
+                      ))}
+                      {item.linked_github && (
+                        <Badge variant="outline" className="text-xs flex items-center gap-1">
+                          <Github className="h-3 w-3" />
+                          #{item.linked_github.number}
+                        </Badge>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="flex flex-wrap gap-1">
-                    <Badge variant="outline" className="text-xs">
-                      {item.type === 'task' ? 'Görev' : item.type === 'event' ? 'Etkinlik' : 'Alışkanlık'}
-                    </Badge>
-                    {item.tags.map((tag) => (
-                      <Badge key={tag} variant="secondary" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                    {item.linked_github && (
-                      <Badge variant="outline" className="text-xs flex items-center gap-1">
-                        <Github className="h-3 w-3" />
-                        #{item.linked_github.number}
-                      </Badge>
+                  {/* Desktop action buttons - hidden on mobile */}
+                  <div className="hidden md:flex flex-col gap-1">
+                    {item.status === 'planned' && (
+                      <>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
+                          onClick={() => handleStatusChange(item, 'done')}
+                          title="Tamamla"
+                        >
+                          <Check className="h-4 w-4" />
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-muted-foreground hover:text-foreground"
+                          onClick={() => handleStatusChange(item, 'skipped')}
+                          title="Atla"
+                        >
+                          <X className="h-4 w-4" />
+                        </Button>
+                      </>
                     )}
-                  </div>
-                </div>
-
-                {/* Desktop action buttons - hidden on mobile */}
-                <div className="hidden md:flex flex-col gap-1">
-                  {item.status === 'planned' && (
-                    <>
+                    {!frozen && (
                       <Button
                         variant="ghost"
                         size="icon"
-                        className="h-8 w-8 text-green-600 hover:text-green-700 hover:bg-green-50"
-                        onClick={() => handleStatusChange(item, 'done')}
-                        title="Tamamla"
+                        className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => handleDelete(item)}
+                        title="Sil"
                       >
-                        <Check className="h-4 w-4" />
+                        <Trash2 className="h-4 w-4" />
                       </Button>
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-muted-foreground hover:text-foreground"
-                        onClick={() => handleStatusChange(item, 'skipped')}
-                        title="Atla"
-                      >
-                        <X className="h-4 w-4" />
-                      </Button>
-                    </>
-                  )}
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-8 w-8 text-destructive hover:text-destructive hover:bg-destructive/10"
-                    onClick={() => handleDelete(item)}
-                    title="Sil"
-                  >
-                    <Trash2 className="h-4 w-4" />
-                  </Button>
+                    )}
+                  </div>
+
+                  {/* Mobile: Small hint for swipe */}
+                  <div className="md:hidden flex items-center">
+                    {!frozen && <span className="text-xs text-muted-foreground/50">←→</span>}
+                  </div>
                 </div>
 
-                {/* Mobile: Small hint for swipe */}
-                <div className="md:hidden flex items-center">
-                  <span className="text-xs text-muted-foreground/50">←→</span>
-                </div>
-              </div>
-
-              {item.notes && (
-                <p className="mt-2 text-sm text-muted-foreground border-t pt-2">
-                  {item.notes}
-                </p>
-              )}
-            </CardContent>
-          </Card>
-        </SwipeableCard>
-      ))}
+                {item.notes && (
+                  <p className="mt-2 text-sm text-muted-foreground border-t pt-2">
+                    {item.notes}
+                  </p>
+                )}
+              </CardContent>
+            </Card>
+          </SwipeableCard>
+        );
+      })}
     </div>
   );
 }
