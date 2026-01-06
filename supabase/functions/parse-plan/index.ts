@@ -87,6 +87,12 @@ JSON FORMATI:
   "clarifyingQuestions": ["netleştirme soruları"]
 }
 
+ZAMAN VALİDASYON KURALLARI (ÇOK ÖNEMLİ):
+- ASLA end_at < start_at olacak şekilde güncelleme yapma
+- Eğer güncelleme sonucu end_at, start_at'tan önce olacaksa, planı tamamen sil (remove operasyonu kullan)
+- Minimum plan süresi 5 dakikadır, daha kısa süre oluşacaksa planı sil
+- Her zaman: end_at > start_at olmalı
+
 ÖNEMLİ: 
 - Yalnızca geçerli JSON döndür. Açıklama, markdown veya başka metin ekleme.
 - Çakışma varsa önce update/remove operasyonlarını, sonra add operasyonunu yaz.
@@ -344,11 +350,47 @@ Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında
         }
       } else if (op.op === 'update') {
         // Update existing plan (either startAt or endAt or both)
-        const updateData: Record<string, unknown> = {};
-        if (op.startAt) updateData.start_at = op.startAt;
-        if (op.endAt) updateData.end_at = op.endAt;
-        
-        if (Object.keys(updateData).length > 0 && op.id) {
+        if (op.id) {
+          // First get the current plan to validate time range
+          const { data: existingPlan, error: fetchError } = await supabaseAdmin
+            .from('plan_items')
+            .select('start_at, end_at')
+            .eq('id', op.id)
+            .eq('user_id', user.id)
+            .single();
+
+          if (fetchError || !existingPlan) {
+            console.error('Fetch error for update:', fetchError);
+            continue;
+          }
+
+          const newStartAt = op.startAt || existingPlan.start_at;
+          const newEndAt = op.endAt || existingPlan.end_at;
+          
+          // Validate: end_at must be after start_at
+          const startTime = new Date(newStartAt).getTime();
+          const endTime = new Date(newEndAt).getTime();
+          
+          if (endTime <= startTime) {
+            console.warn(`Invalid time range for plan ${op.id}: ${newStartAt} - ${newEndAt}. Deleting instead.`);
+            // Delete the plan instead of creating invalid data
+            const { error: deleteError } = await supabaseAdmin
+              .from('plan_items')
+              .delete()
+              .eq('id', op.id)
+              .eq('user_id', user.id);
+
+            if (!deleteError) {
+              results.removed.push(op.id);
+              console.log('Removed plan item due to invalid time range:', op.id);
+            }
+            continue;
+          }
+
+          const updateData: Record<string, unknown> = {};
+          if (op.startAt) updateData.start_at = op.startAt;
+          if (op.endAt) updateData.end_at = op.endAt;
+
           const { data, error } = await supabaseAdmin
             .from('plan_items')
             .update(updateData)

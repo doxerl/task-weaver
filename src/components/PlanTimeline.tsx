@@ -347,15 +347,22 @@ export function PlanTimeline({ items, loading, onUpdate }: PlanTimelineProps) {
                           </Button>
                         </div>
                       ) : (
-                        <span 
-                          className={`font-medium ${canEdit ? 'cursor-pointer hover:text-primary' : ''} group flex items-center gap-1`}
-                          onClick={() => canEdit && startEditingTime(item)}
-                        >
-                          {format(new Date(item.start_at), 'HH:mm', { locale: tr })} - {format(new Date(item.end_at), 'HH:mm', { locale: tr })}
-                          {canEdit && (
-                            <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50" />
+                        <>
+                          <span 
+                            className={`font-medium ${canEdit ? 'cursor-pointer hover:text-primary' : ''} group flex items-center gap-1`}
+                            onClick={() => canEdit && startEditingTime(item)}
+                          >
+                            {format(new Date(item.start_at), 'HH:mm', { locale: tr })} - {format(new Date(item.end_at), 'HH:mm', { locale: tr })}
+                            {canEdit && (
+                              <Pencil className="h-3 w-3 opacity-0 group-hover:opacity-50" />
+                            )}
+                          </span>
+                          {new Date(item.end_at) <= new Date(item.start_at) && (
+                            <Badge variant="destructive" className="text-xs">
+                              ⚠️ Geçersiz zaman
+                            </Badge>
                           )}
-                        </span>
+                        </>
                       )}
                       {item.location && (
                         <span className="flex items-center gap-1">
