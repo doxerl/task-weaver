@@ -163,8 +163,8 @@ export default function Today() {
           existingPlans={planItems.map(p => ({
             id: p.id,
             title: p.title,
-            startAt: p.start_at,
-            endAt: p.end_at,
+            startAt: format(new Date(p.start_at), "yyyy-MM-dd'T'HH:mm:ssXXX"),
+            endAt: format(new Date(p.end_at), "yyyy-MM-dd'T'HH:mm:ssXXX"),
             type: p.type || 'task'
           }))}
         />
@@ -207,8 +207,8 @@ export default function Today() {
               existingPlans={planItems.map(p => ({
                 id: p.id,
                 title: p.title,
-                startAt: p.start_at,
-                endAt: p.end_at,
+                startAt: format(new Date(p.start_at), "yyyy-MM-dd'T'HH:mm:ssXXX"),
+                endAt: format(new Date(p.end_at), "yyyy-MM-dd'T'HH:mm:ssXXX"),
                 type: p.type || 'task'
               }))}
             />

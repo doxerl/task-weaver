@@ -37,27 +37,59 @@ GEÇMİŞ TARİH İÇİN EK KURALLAR:
 - "yarın", "bugün" gibi göreli ifadeleri hedef tarihe göre yorumla
 - TÜM ZAMANLARI HEDEF TARİH İÇİN OLUŞTUR
 
-ÇAKIŞMA YÖNETİMİ KURALLARI (ÇOK ÖNEMLİ):
-Eğer mevcut planlar verilmişse, yeni plan eklerken çakışma kontrolü yap:
+ZORUNLU ÇAKIŞMA KONTROLÜ (HER İSTEKTE MUTLAKA UYGULA):
 
-1. ÖNCEKİ PLAN KISALTMA: 
-   - Yeni plan önceki planın bitmeden önce başlıyorsa
-   - Önceki planın bitiş saatini yeni planın başlangıç saatine ayarla
-   - op: "update" ile sadece endAt güncelle, id'yi belirt
+Yeni bir plan eklemeden ÖNCE, aşağıdaki adımları MUTLAKA uygula:
 
-2. SONRAKİ PLAN KAYDIRMA:
-   - Yeni plan sonraki planın başlangıcını kapsıyorsa
-   - Sonraki planın başlangıcını yeni planın bitişine kaydır
-   - op: "update" ile sadece startAt güncelle, id'yi belirt
+ADIM 1: Yeni planın zaman aralığını belirle: [YENI_START, YENI_END]
 
-3. TAM KAPSAMA (SİLME):
-   - Yeni plan mevcut bir planı tamamen kapsıyorsa (yeni.start <= mevcut.start VE yeni.end >= mevcut.end)
-   - Mevcut planı sil
-   - op: "remove" ve id kullan
+ADIM 2: MEVCUT PLANLAR listesindeki HER planı tek tek kontrol et:
+  - Her mevcut plan için: [MEVCUT_START, MEVCUT_END]
+  - ÇAKIŞMA KONTROLÜ: YENI_START < MEVCUT_END VE YENI_END > MEVCUT_START ise ÇAKIŞMA VAR
 
-4. UYARI OLUŞTUR:
-   - Her çakışma değişikliği için warnings[] arrayine açıklama ekle
-   - Türkçe yaz: "'Kahvaltı' planı silindi çünkü yeni toplantı ile çakışıyor" gibi
+ADIM 3: Çakışma varsa, çakışma tipine göre işlem yap:
+
+  a) TAM KAPSAMA (mevcut plan tamamen örtülüyor):
+     Koşul: YENI_START <= MEVCUT_START VE YENI_END >= MEVCUT_END
+     İşlem: op:"remove" ile mevcut planı SİL
+     Örnek: Yeni 09:00-12:00, Mevcut 10:00-11:00 → Mevcut silinir
+
+  b) ÖNCEKİ PLAN ÇAKIŞMASI (mevcut plan yeniden önce başlıyor):
+     Koşul: MEVCUT_START < YENI_START < MEVCUT_END
+     İşlem: op:"update" ile mevcut planın endAt = YENI_START yap
+     Örnek: Yeni 10:00-12:00, Mevcut 08:00-11:00 → Mevcut 08:00-10:00 olur
+
+  c) SONRAKİ PLAN ÇAKIŞMASI (mevcut plan yeniden sonra başlıyor):
+     Koşul: MEVCUT_START < YENI_END < MEVCUT_END
+     İşlem: op:"update" ile mevcut planın startAt = YENI_END yap
+     Örnek: Yeni 09:00-11:00, Mevcut 10:00-13:00 → Mevcut 11:00-13:00 olur
+
+ADIM 4: Operasyon sırası (ÇOK ÖNEMLİ):
+  - ÖNCE tüm update operasyonlarını yaz
+  - SONRA tüm remove operasyonlarını yaz
+  - EN SON add operasyonunu yaz
+
+ADIM 5: Her değişiklik için warnings[] arrayine Türkçe açıklama ekle:
+  - "'X planı' Y saatine kısaltıldı"
+  - "'X planı' silindi çünkü yeni plan ile çakışıyor"
+
+ÖRNEK SENARYO:
+Mevcut: "PC'de çalışma" 07:30-10:00
+Yeni: "Toplantı" 09:30-11:30
+
+Analiz:
+- YENI_START (09:30) < MEVCUT_END (10:00) VE YENI_END (11:30) > MEVCUT_START (07:30) → ÇAKIŞMA VAR
+- MEVCUT_START (07:30) < YENI_START (09:30) < MEVCUT_END (10:00) → ÖNCEKİ PLAN ÇAKIŞMASI
+- İşlem: op:"update" id:"mevcut-id" endAt:"09:30"
+
+Çıktı:
+{
+  "operations": [
+    {"op": "update", "id": "mevcut-id", "endAt": "2026-01-08T09:30:00+03:00"},
+    {"op": "add", "title": "Toplantı", "startAt": "2026-01-08T09:30:00+03:00", "endAt": "2026-01-08T11:30:00+03:00", ...}
+  ],
+  "warnings": ["'PC'de çalışma' planı 10:00'dan 09:30'a kısaltıldı"]
+}
 
 JSON FORMATI:
 {
@@ -298,6 +330,8 @@ Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında
       }
       parsedPatch = JSON.parse(jsonMatch[0]);
       console.log('Parsed operations:', parsedPatch.operations?.length || 0);
+      console.log('AI parsed operations detail:', JSON.stringify(parsedPatch.operations, null, 2));
+      console.log('AI warnings:', JSON.stringify(parsedPatch.warnings || []));
     } catch (parseError) {
       console.error('JSON parse error:', parseError, content);
       
