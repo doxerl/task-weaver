@@ -175,23 +175,29 @@ serve(async (req) => {
     
     const isToday = date === userToday;
 
-    // Format existing plans for AI context
+    // Format existing plans for AI context - use FULL ISO8601 timestamps
     let existingPlansContext = '';
     if (existingPlans && existingPlans.length > 0) {
+      // Log existing plans for debugging
+      console.log('Existing plans received:', JSON.stringify(existingPlans.slice(0, 5), null, 2));
+      
       existingPlansContext = `
 
 MEVCUT PLANLAR (${date} tarihindeki mevcut programın):
 ${existingPlans.map((p: { id: string; title: string; startAt: string; endAt: string; type: string }) => {
-  const startTime = p.startAt.split('T')[1]?.substring(0, 5) || '';
-  const endTime = p.endAt.split('T')[1]?.substring(0, 5) || '';
-  return `- [${p.id}] "${p.title}" ${startTime}-${endTime} (${p.type})`;
+  // Use full ISO8601 format for accurate comparison
+  return `- [${p.id}] "${p.title}" startAt=${p.startAt} endAt=${p.endAt} (${p.type})`;
 }).join('\n')}
 
-YENİ PLAN EKLERKENİÇAKIŞMA KONTROLÜ YAP! Yukarıdaki planlarla çakışma varsa:
-- Önceki planı kısalt (update ile endAt değiştir)
-- Sonraki planı kaydır (update ile startAt değiştir)  
-- Tamamen kapsanan planı sil (remove kullan)
-- Her değişikliği warnings[] içinde açıkla`;
+ÇAKIŞMA KONTROL ADIMLARI:
+1. Yeni planın startAt ve endAt değerlerini belirle
+2. Yukarıdaki MEVCUT PLANLAR listesindeki HER planı tek tek kontrol et (sadece ${date} tarihindekiler!)
+3. Çakışma tipleri:
+   - TAM KAPSAMA: yeni.startAt <= mevcut.startAt VE yeni.endAt >= mevcut.endAt → op:"remove" ile sil
+   - ÖNCEKİ PLAN ÇAKIŞMASI: mevcut.startAt < yeni.startAt < mevcut.endAt → op:"update" ile mevcut.endAt = yeni.startAt
+   - SONRAKİ PLAN ÇAKIŞMASI: mevcut.startAt < yeni.endAt < mevcut.endAt → op:"update" ile mevcut.startAt = yeni.endAt
+4. Her değişiklik için warnings[] arrayine Türkçe açıklama ekle
+5. SADECE ${date} tarihindeki planları kontrol et ve değiştir!`;
     }
 
     const userPrompt = isToday 
