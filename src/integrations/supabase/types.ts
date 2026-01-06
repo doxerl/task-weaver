@@ -545,6 +545,47 @@ export type Database = {
         }
         Relationships: []
       }
+      user_quick_chips: {
+        Row: {
+          created_at: string
+          default_hour: number | null
+          duration: number
+          id: string
+          label: string
+          tags: string[] | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          default_hour?: number | null
+          duration?: number
+          id?: string
+          label: string
+          tags?: string[] | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          default_hour?: number | null
+          duration?: number
+          id?: string
+          label?: string
+          tags?: string[] | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_quick_chips_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       weekly_retrospectives: {
         Row: {
           auto_suggestions: Json | null
