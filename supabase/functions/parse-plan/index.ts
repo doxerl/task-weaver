@@ -39,96 +39,89 @@ GEÇMİŞ TARİH İÇİN EK KURALLAR:
 
 ZORUNLU ÇAKIŞMA KONTROLÜ (HER İSTEKTE MUTLAKA UYGULA):
 
-Yeni bir plan eklemeden ÖNCE, aşağıdaki adımları MUTLAKA uygula:
+Yeni bir plan eklemeden ÖNCE, MEVCUT PLANLAR listesindeki HER planı tek tek kontrol et:
 
-ADIM 1: Yeni planın zaman aralığını belirle: [YENI_START, YENI_END]
+ÇAKIŞMA MANTIK AKIŞI:
 
-ADIM 2: MEVCUT PLANLAR listesindeki HER planı tek tek kontrol et:
-  - Her mevcut plan için: [MEVCUT_START, MEVCUT_END]
-  - ÇAKIŞMA KONTROLÜ: YENI_START < MEVCUT_END VE YENI_END > MEVCUT_START ise ÇAKIŞMA VAR
+YENI_START = yeni planın başlangıç saati
+YENI_END = yeni planın bitiş saati
 
-ADIM 3: Çakışma varsa, çakışma tipine göre işlem yap:
+Her MEVCUT plan için:
+  MEVCUT_START = mevcut planın başlangıç saati
+  MEVCUT_END = mevcut planın bitiş saati
 
-  a) TAM KAPSAMA (mevcut plan tamamen örtülüyor):
-     Koşul: YENI_START <= MEVCUT_START VE YENI_END >= MEVCUT_END
-     İşlem: op:"remove" ile mevcut planı SİL
-     Örnek: Yeni 09:00-12:00, Mevcut 10:00-11:00 → Mevcut silinir
+  IF MEVCUT_START < YENI_START:
+      (Mevcut plan yeni plandan ÖNCE başlıyor)
+      IF MEVCUT_END <= YENI_START:
+          -> ÇAKIŞMA YOK, bu plana dokunma
+      ELSE:
+          -> ÖNCEKİ PLAN ÇAKIŞMASI
+          -> op:"update" endAt = YENI_START (mevcut planın sonunu kısalt)
+  ELSE:
+      (Mevcut plan yeni planla AYNI ANDA veya SONRA başlıyor)
+      IF MEVCUT_START >= YENI_END:
+          -> ÇAKIŞMA YOK, bu plana dokunma
+      ELSE IF MEVCUT_END <= YENI_END:
+          -> TAM KAPSAMA (mevcut plan tamamen yeni planın içinde kalıyor)
+          -> op:"remove" (mevcut planı SİL)
+      ELSE:
+          -> SONRAKİ PLAN ÇAKIŞMASI (mevcut plan yeni planın bitişinden sonra devam ediyor)
+          -> op:"update" startAt = YENI_END (mevcut planın başlangıcını kaydır)
 
-  b) ÖNCEKİ PLAN ÇAKIŞMASI (mevcut plan yeniden önce başlıyor):
-     Koşul: MEVCUT_START < YENI_START < MEVCUT_END
-     İşlem: op:"update" ile mevcut planın endAt = YENI_START yap
-     Örnek: Yeni 10:00-12:00, Mevcut 08:00-11:00 → Mevcut 08:00-10:00 olur
+KRİTİK KURAL - SONRAKİ PLAN ÇAKIŞMASI:
+Eğer mevcut planın BİTİŞİ yeni planın BİTİŞİNDEN SONRA ise → MEVCUT PLAN SİLİNMEZ, KAYDIRILIR!
+MEVCUT_END > YENI_END → Bu plan devam ediyor, startAt = YENI_END ile kaydır
 
-  c) SONRAKİ PLAN ÇAKIŞMASI (mevcut plan yeniden sonra başlıyor):
-     Koşul: MEVCUT_START < YENI_END < MEVCUT_END
-     İşlem: op:"update" ile mevcut planın startAt = YENI_END yap
-     Örnek: Yeni 09:00-11:00, Mevcut 10:00-13:00 → Mevcut 11:00-13:00 olur
+SOMUT ÖRNEK SENARYOLAR:
 
-ADIM 4: Operasyon sırası (ÇOK ÖNEMLİ):
-  - ÖNCE tüm update operasyonlarını yaz
-  - SONRA tüm remove operasyonlarını yaz
-  - EN SON add operasyonunu yaz
+SENARYO 1 - Önceki plan kısaltılır:
+  Yeni: "Toplantı" 09:30-11:30
+  Mevcut: "PC çalışma" 07:30-10:00
+  Analiz: Mevcut 07:30 < Yeni 09:30 (önce başlıyor), Mevcut bitiş 10:00 > Yeni başlangıç 09:30 (çakışıyor)
+  → op:"update" id:"xxx" endAt:"09:30" 
+  → PC çalışma: 07:30-09:30 olur
+  → warnings: ["'PC çalışma' 10:00'dan 09:30'a kısaltıldı"]
 
-ADIM 5: Her değişiklik için warnings[] arrayine Türkçe açıklama ekle:
-  - "'X planı' Y saatine kısaltıldı"
-  - "'X planı' silindi çünkü yeni plan ile çakışıyor"
+SENARYO 2 - Sonraki plan KAYDIRILIR (SİLİNMEZ!):
+  Yeni: "Toplantı" 09:30-11:30
+  Mevcut: "Çalışma" 11:00-12:00
+  Analiz: 
+    - Mevcut 11:00 >= Yeni 09:30 (sonra başlıyor)
+    - Mevcut 11:00 < Yeni bitiş 11:30 (çakışıyor)  
+    - Mevcut bitiş 12:00 > Yeni bitiş 11:30 (DEVAM EDİYOR → SİLME, KAYDIR!)
+  → op:"update" id:"yyy" startAt:"11:30"
+  → Çalışma: 11:30-12:00 olur (SİLİNMEDİ!)
+  → warnings: ["'Çalışma' 11:00'dan 11:30'a kaydırıldı"]
 
-ÖRNEK SENARYO:
-Mevcut: "PC'de çalışma" 07:30-10:00
-Yeni: "Toplantı" 09:30-11:30
-
-Analiz:
-- YENI_START (09:30) < MEVCUT_END (10:00) VE YENI_END (11:30) > MEVCUT_START (07:30) → ÇAKIŞMA VAR
-- MEVCUT_START (07:30) < YENI_START (09:30) < MEVCUT_END (10:00) → ÖNCEKİ PLAN ÇAKIŞMASI
-- İşlem: op:"update" id:"mevcut-id" endAt:"09:30"
-
-Çıktı:
-{
-  "operations": [
-    {"op": "update", "id": "mevcut-id", "endAt": "2026-01-08T09:30:00+03:00"},
-    {"op": "add", "title": "Toplantı", "startAt": "2026-01-08T09:30:00+03:00", "endAt": "2026-01-08T11:30:00+03:00", ...}
-  ],
-  "warnings": ["'PC'de çalışma' planı 10:00'dan 09:30'a kısaltıldı"]
-}
+SENARYO 3 - Tam kapsama (silinir):
+  Yeni: "Toplantı" 09:00-12:00
+  Mevcut: "Kahvaltı" 10:00-11:00
+  Analiz:
+    - Mevcut 10:00 >= Yeni 09:00 (sonra başlıyor)
+    - Mevcut 10:00 < Yeni bitiş 12:00 (çakışıyor)
+    - Mevcut bitiş 11:00 <= Yeni bitiş 12:00 (TAM KAPSAMA)
+  → op:"remove" id:"zzz"
+  → warnings: ["'Kahvaltı' silindi çünkü toplantı ile tamamen çakışıyor"]
 
 JSON FORMATI:
 {
   "operations": [
-    {
-      "op": "update",
-      "id": "existing-plan-uuid",
-      "startAt": "ISO8601 (sadece startAt değişiyorsa)",
-      "endAt": "ISO8601 (sadece endAt değişiyorsa)"
-    },
-    {
-      "op": "remove",
-      "id": "existing-plan-uuid-to-delete"
-    },
-    {
-      "op": "add",
-      "title": "string",
-      "startAt": "ISO8601 datetime with timezone offset",
-      "endAt": "ISO8601 datetime with timezone offset", 
-      "type": "task|event|habit",
-      "priority": "low|med|high",
-      "tags": ["string"],
-      "notes": "string veya null"
-    }
+    {"op": "update", "id": "existing-plan-uuid", "startAt": "ISO8601", "endAt": "ISO8601"},
+    {"op": "remove", "id": "existing-plan-uuid-to-delete"},
+    {"op": "add", "title": "string", "startAt": "ISO8601", "endAt": "ISO8601", "type": "task|event|habit", "priority": "low|med|high", "tags": [], "notes": null}
   ],
-  "warnings": ["uyarı mesajları - çakışma değişiklikleri burada açıklanır"],
-  "clarifyingQuestions": ["netleştirme soruları"]
+  "warnings": ["Türkçe açıklamalar"],
+  "clarifyingQuestions": []
 }
 
-ZAMAN VALİDASYON KURALLARI (ÇOK ÖNEMLİ):
-- ASLA end_at < start_at olacak şekilde güncelleme yapma
-- Eğer güncelleme sonucu end_at, start_at'tan önce olacaksa, planı tamamen sil (remove operasyonu kullan)
-- Minimum plan süresi 5 dakikadır, daha kısa süre oluşacaksa planı sil
+OPERASYON SIRASI: ÖNCE update, SONRA remove, EN SON add
+
+ZAMAN VALİDASYON:
+- ASLA end_at < start_at olacak güncelleme yapma
+- Süre < 5 dakika olacaksa planı sil
 - Her zaman: end_at > start_at olmalı
 
-ÖNEMLİ: 
-- Yalnızca geçerli JSON döndür. Açıklama, markdown veya başka metin ekleme.
-- Çakışma varsa önce update/remove operasyonlarını, sonra add operasyonunu yaz.
-- Çakışma yoksa sadece add operasyonu yeterli.`;
+ÖNEMLİ: Yalnızca geçerli JSON döndür, başka metin ekleme.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
