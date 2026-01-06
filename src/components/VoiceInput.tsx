@@ -309,11 +309,16 @@ export function VoiceInput({ mode, date, onSuccess, embedded = false, autoStart 
     try {
       const functionName = mode === 'plan' ? 'parse-plan' : 'parse-actual';
       
+      const now = new Date();
+      const timezoneOffset = now.getTimezoneOffset(); // e.g., -180 for UTC+3
+      
       const payload = {
         text: text.trim(),
         date: format(date, 'yyyy-MM-dd'),
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
-        now: new Date().toISOString()
+        now: now.toISOString(),
+        timezoneOffset: timezoneOffset,
+        localTime: format(now, "yyyy-MM-dd'T'HH:mm:ssXXX") // Local time with offset
       };
 
       console.log('Calling edge function:', functionName, payload);
