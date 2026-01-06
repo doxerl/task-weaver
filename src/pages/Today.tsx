@@ -160,6 +160,13 @@ export default function Today() {
           onModeChange={setInputMode}
           date={selectedDate}
           onSuccess={refetch}
+          existingPlans={planItems.map(p => ({
+            id: p.id,
+            title: p.title,
+            startAt: p.start_at,
+            endAt: p.end_at,
+            type: p.type || 'task'
+          }))}
         />
       )}
 
@@ -197,6 +204,13 @@ export default function Today() {
               mode={inputMode} 
               date={selectedDate}
               onSuccess={refetch}
+              existingPlans={planItems.map(p => ({
+                id: p.id,
+                title: p.title,
+                startAt: p.start_at,
+                endAt: p.end_at,
+                type: p.type || 'task'
+              }))}
             />
             
             {/* Quick Chips */}

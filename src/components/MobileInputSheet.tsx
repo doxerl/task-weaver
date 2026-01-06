@@ -10,14 +10,23 @@ import {
 import { ChevronUp, Mic } from 'lucide-react';
 import { format } from 'date-fns';
 
+interface ExistingPlan {
+  id: string;
+  title: string;
+  startAt: string;
+  endAt: string;
+  type: string;
+}
+
 interface MobileInputSheetProps {
   mode: 'plan' | 'actual';
   onModeChange: (mode: 'plan' | 'actual') => void;
   date: Date;
   onSuccess: () => void;
+  existingPlans?: ExistingPlan[];
 }
 
-export function MobileInputSheet({ mode, onModeChange, date, onSuccess }: MobileInputSheetProps) {
+export function MobileInputSheet({ mode, onModeChange, date, onSuccess, existingPlans = [] }: MobileInputSheetProps) {
   const [open, setOpen] = useState(false);
   const [autoStartRecording, setAutoStartRecording] = useState(false);
   
@@ -108,6 +117,7 @@ export function MobileInputSheet({ mode, onModeChange, date, onSuccess }: Mobile
             onSuccess={handleSuccess}
             embedded
             autoStart={autoStartRecording}
+            existingPlans={existingPlans}
           />
 
           {/* Quick Chips */}

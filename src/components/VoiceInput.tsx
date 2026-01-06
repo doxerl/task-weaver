@@ -9,15 +9,24 @@ import { supabase } from '@/integrations/supabase/client';
 import { format } from 'date-fns';
 import { useAuthContext } from '@/contexts/AuthContext';
 
+interface ExistingPlan {
+  id: string;
+  title: string;
+  startAt: string;
+  endAt: string;
+  type: string;
+}
+
 interface VoiceInputProps {
   mode: 'plan' | 'actual';
   date: Date;
   onSuccess: () => void;
   embedded?: boolean;
   autoStart?: boolean;
+  existingPlans?: ExistingPlan[];
 }
 
-export function VoiceInput({ mode, date, onSuccess, embedded = false, autoStart = false }: VoiceInputProps) {
+export function VoiceInput({ mode, date, onSuccess, embedded = false, autoStart = false, existingPlans = [] }: VoiceInputProps) {
   const navigate = useNavigate();
   const { session } = useAuthContext();
   const [text, setText] = useState('');
@@ -318,7 +327,8 @@ export function VoiceInput({ mode, date, onSuccess, embedded = false, autoStart 
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         now: now.toISOString(),
         timezoneOffset: timezoneOffset,
-        localTime: format(now, "yyyy-MM-dd'T'HH:mm:ssXXX") // Local time with offset
+        localTime: format(now, "yyyy-MM-dd'T'HH:mm:ssXXX"), // Local time with offset
+        existingPlans: mode === 'plan' ? existingPlans : [] // Only send for plan mode
       };
 
       console.log('Calling edge function:', functionName, payload);
@@ -347,11 +357,15 @@ export function VoiceInput({ mode, date, onSuccess, embedded = false, autoStart 
       }
 
       if (data?.success) {
+        // Show warnings as info toasts (plan modifications)
+        if (data?.warnings?.length > 0) {
+          data.warnings.forEach((warning: string) => {
+            toast.info(warning, { duration: 4000 });
+          });
+        }
         toast.success(data.message || 'Başarıyla eklendi!');
         setText('');
         onSuccess();
-      } else if (data?.warnings?.length > 0) {
-        toast.warning(data.warnings.join(', '));
       } else if (data?.clarifyingQuestions?.length > 0) {
         toast.info(data.clarifyingQuestions[0]);
       } else {
