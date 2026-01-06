@@ -8,6 +8,7 @@ import {
   DrawerTrigger,
 } from '@/components/ui/drawer';
 import { ChevronUp, Mic } from 'lucide-react';
+import { format } from 'date-fns';
 
 interface MobileInputSheetProps {
   mode: 'plan' | 'actual';
@@ -19,6 +20,8 @@ interface MobileInputSheetProps {
 export function MobileInputSheet({ mode, onModeChange, date, onSuccess }: MobileInputSheetProps) {
   const [open, setOpen] = useState(false);
   const [autoStartRecording, setAutoStartRecording] = useState(false);
+  
+  const isPastDay = format(date, 'yyyy-MM-dd') < format(new Date(), 'yyyy-MM-dd');
 
   const handleSuccess = useCallback(() => {
     onSuccess();
@@ -78,6 +81,7 @@ export function MobileInputSheet({ mode, onModeChange, date, onSuccess }: Mobile
               variant={mode === 'plan' ? 'default' : 'outline'}
               size="sm"
               onClick={() => onModeChange('plan')}
+              disabled={isPastDay}
               className="flex-1 h-10"
             >
               Plan

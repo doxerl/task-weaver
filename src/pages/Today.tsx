@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -42,6 +42,14 @@ export default function Today() {
   };
 
   const isToday = format(selectedDate, 'yyyy-MM-dd') === format(new Date(), 'yyyy-MM-dd');
+  const isPastDay = format(selectedDate, 'yyyy-MM-dd') < format(new Date(), 'yyyy-MM-dd');
+
+  // Geçmiş gün için otomatik "gerçekleşen" moduna geç
+  useEffect(() => {
+    if (isPastDay) {
+      setInputMode('actual');
+    }
+  }, [isPastDay]);
 
   return (
     <div className="min-h-screen bg-background pb-36 md:pb-72">
@@ -92,6 +100,16 @@ export default function Today() {
           </Button>
         </div>
       </div>
+
+      {/* Geçmiş gün uyarısı */}
+      {isPastDay && (
+        <div className="mx-4 mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
+          <p className="text-sm text-amber-600 dark:text-amber-400 text-center">
+            {format(selectedDate, 'd MMMM', { locale: tr })} için kayıt ekliyorsunuz. 
+            Lütfen saat belirtin (örn: "Sabah 9'da toplantı yaptım")
+          </p>
+        </div>
+      )}
 
       {/* Main Content Tabs */}
       <main className="container px-4 py-4">
@@ -156,6 +174,7 @@ export default function Today() {
                   variant={inputMode === 'plan' ? 'default' : 'outline'}
                   size="sm"
                   onClick={() => setInputMode('plan')}
+                  disabled={isPastDay}
                   className="flex-1 h-9 text-sm"
                 >
                   Plan
