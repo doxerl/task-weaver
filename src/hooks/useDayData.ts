@@ -11,8 +11,9 @@ export function useDayData(date: Date) {
   const fetchData = useCallback(async () => {
     setLoading(true);
     
-    const dayStart = startOfDay(date).toISOString();
-    const dayEnd = endOfDay(date).toISOString();
+    // Use timezone-aware format instead of toISOString() which converts to UTC
+    const dayStart = format(startOfDay(date), "yyyy-MM-dd'T'HH:mm:ssXXX");
+    const dayEnd = format(endOfDay(date), "yyyy-MM-dd'T'HH:mm:ssXXX");
 
     try {
       // Fetch plan items for the day

@@ -321,14 +321,21 @@ export function VoiceInput({ mode, date, onSuccess, embedded = false, autoStart 
       const now = new Date();
       const timezoneOffset = now.getTimezoneOffset(); // e.g., -180 for UTC+3
       
+      // Filter existing plans to only include plans for the selected date
+      const selectedDateStr = format(date, 'yyyy-MM-dd');
+      const filteredPlans = existingPlans.filter(p => {
+        const planDate = p.startAt.split('T')[0];
+        return planDate === selectedDateStr;
+      });
+
       const payload = {
         text: text.trim(),
-        date: format(date, 'yyyy-MM-dd'),
+        date: selectedDateStr,
         timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
         now: now.toISOString(),
         timezoneOffset: timezoneOffset,
         localTime: format(now, "yyyy-MM-dd'T'HH:mm:ssXXX"), // Local time with offset
-        existingPlans: mode === 'plan' ? existingPlans : [] // Only send for plan mode
+        existingPlans: mode === 'plan' ? filteredPlans : [] // Only send for plan mode
       };
 
       console.log('Calling edge function:', functionName, payload);
