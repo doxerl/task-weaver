@@ -27,10 +27,15 @@ TIMEZONE KURALI:
 - UTC'ye çevirme YAPMA, timezone offset'ini kullan
 
 GENEL KURALLAR:
-- Tarih belirtilmemişse bugün varsay
+- Tarih belirtilmemişse hedef tarihi kullan
 - Süre belirtilmemişse varsayılan 60 dakika kullan
 - Türkçe komutları anla: "yarın", "bugün", "pazartesi", "saat 10'da", "öğleden sonra" vb.
 - "Az önce", "şu an" gibi ifadeler bu fonksiyon için geçerli DEĞİL - bunlar actual için
+
+GEÇMİŞ TARİH İÇİN EK KURALLAR:
+- Eğer hedef tarih bugünden farklıysa, kullanıcı geçmiş bir gün için plan ekliyor demektir (retrospektif planlama)
+- "yarın", "bugün" gibi göreli ifadeleri hedef tarihe göre yorumla
+- TÜM ZAMANLARI HEDEF TARİH İÇİN OLUŞTUR
 
 JSON FORMATI:
 {
@@ -123,7 +128,12 @@ serve(async (req) => {
       });
     }
 
-    const userPrompt = `Bugünün tarihi: ${date}
+    // Hedef tarihin bugün olup olmadığını kontrol et
+    const today = new Date().toISOString().split('T')[0];
+    const isToday = date === today;
+
+    const userPrompt = isToday 
+      ? `Bugünün tarihi: ${date}
 Şu anki saat (UTC): ${now}
 Kullanıcının timezone'u: ${timezone}
 
@@ -132,7 +142,19 @@ Kullanıcının timezone'u: ${timezone}
 
 Kullanıcı komutu: "${text}"
 
-Bu komutu analiz et ve plan öğesi olarak JSON formatında döndür.`;
+Bu komutu analiz et ve plan öğesi olarak JSON formatında döndür.`
+      : `Hedef tarih: ${date} (GEÇMİŞ BİR GÜN - Bugün: ${today})
+Kullanıcının timezone'u: ${timezone}
+
+Bu GEÇMİŞ GÜN için plan ekleme (retrospektif planlama).
+- "yarın" = ${date} tarihinin ertesi günü
+- "bugün" = ${date} tarihi
+- TÜM ZAMANLARI ${date} TARİHİ İÇİN OLUŞTUR!
+- Kullanıcı yerel saat söylüyor (${timezone}). Tüm saatleri bu timezone'da döndür.
+
+Kullanıcı komutu: "${text}"
+
+Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında döndür.`;
 
     console.log('Calling AI gateway...');
 

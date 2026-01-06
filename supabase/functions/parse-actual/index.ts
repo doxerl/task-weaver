@@ -10,7 +10,7 @@ const SYSTEM_PROMPT = `Sen bir Türkçe zaman takip asistanısın. Kullanıcın�
 
 GÖREV: Kullanıcının komutunu analiz et ve aşağıdaki JSON formatında yanıt ver. Sadece JSON döndür, başka hiçbir şey yazma.
 
-ZAMAN TAHMİN KURALLARI:
+ZAMAN TAHMİN KURALLARI (BUGÜN İÇİN):
 - "şu an" / "şimdi" → şu anki saat başlangıç, varsayılan 30 dk süre
 - "az önce" → şu an - 15 dakika başlangıç
 - "biraz önce" → şu an - 10 dakika başlangıç  
@@ -18,6 +18,12 @@ ZAMAN TAHMİN KURALLARI:
 - "X dakika önce" → şu an - X dakika başlangıç
 - "X saat sürdü" / "X dakika sürdü" → süreyi buna göre ayarla
 - Net saat verilirse (örn: "12:10-12:45") onu kullan
+
+GEÇMİŞ TARİH İÇİN EK KURALLAR:
+- Eğer hedef tarih bugünden farklıysa, bu geçmiş bir gün için kayıt demektir
+- Geçmiş gün için "şu an" veya "az önce" dendiğinde, o günün makul bir saatini tahmin et (örn: 14:00-14:30)
+- Kullanıcı net saat belirtirse (örn: "sabah 9'da", "akşam 7'de") o saati kullan
+- TÜM ZAMANLARI HEDEF TARİH İÇİN OLUŞTUR, bugün için değil
 
 JSON FORMATI:
 {
@@ -108,13 +114,27 @@ serve(async (req) => {
       });
     }
 
-    const userPrompt = `Bugünün tarihi: ${date}
+    // Hedef tarihin bugün olup olmadığını kontrol et
+    const today = new Date().toISOString().split('T')[0];
+    const isToday = date === today;
+
+    const userPrompt = isToday 
+      ? `Bugünün tarihi: ${date}
 Şu anki zaman: ${now}
 Timezone: ${timezone}
 
 Kullanıcı komutu: "${text}"
 
-Bu komutu analiz et ve gerçekleşen aktivite olarak JSON formatında döndür. Zamanları şu ana göre hesapla.`;
+Bu komutu analiz et ve gerçekleşen aktivite olarak JSON formatında döndür. Zamanları şu ana göre hesapla.`
+      : `Hedef tarih: ${date} (GEÇMİŞ BİR GÜN - Bugün: ${today})
+Timezone: ${timezone}
+
+Kullanıcı komutu: "${text}"
+
+Bu GEÇMİŞ GÜN için aktivite kaydı. 
+- "Şu an" veya "az önce" ifadeleri varsa, o günün makul bir saatini tahmin et (örn: 14:00-14:30)
+- Net saat verilmişse (örn: "sabah 9'da") o saati kullan
+- TÜM ZAMANLARI ${date} TARİHİ İÇİN OLUŞTUR, bugün için değil!`;
 
     console.log('Calling AI gateway...');
     
