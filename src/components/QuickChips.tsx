@@ -110,12 +110,16 @@ export function QuickChips({ mode, date, onSuccess }: QuickChipsProps) {
       
       const endAt = addMinutes(startAt, item.duration);
 
+      // Use timezone-aware format instead of toISOString() to prevent UTC conversion
+      const startAtFormatted = format(startAt, "yyyy-MM-dd'T'HH:mm:ssXXX");
+      const endAtFormatted = format(endAt, "yyyy-MM-dd'T'HH:mm:ssXXX");
+
       if (isPastDay || mode === 'actual') {
         const { error } = await supabase.from('actual_entries').insert([{
           user_id: user.id,
           title: item.label,
-          start_at: startAt.toISOString(),
-          end_at: endAt.toISOString(),
+          start_at: startAtFormatted,
+          end_at: endAtFormatted,
           tags: item.tags,
           source: 'text'
         }]);
@@ -126,8 +130,8 @@ export function QuickChips({ mode, date, onSuccess }: QuickChipsProps) {
         const { error } = await supabase.from('plan_items').insert([{
           user_id: user.id,
           title: item.label,
-          start_at: startAt.toISOString(),
-          end_at: endAt.toISOString(),
+          start_at: startAtFormatted,
+          end_at: endAtFormatted,
           type: 'event',
           tags: item.tags,
           source: 'manual'

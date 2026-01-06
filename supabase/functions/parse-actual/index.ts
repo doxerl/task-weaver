@@ -95,8 +95,8 @@ serve(async (req) => {
 
     console.log('User authenticated:', user.id);
 
-    const { text, date, timezone, now } = await req.json();
-    console.log('Parse actual request:', { text, date, timezone, now, userId: user.id });
+    const { text, date, timezone, now, timezoneOffset, localTime } = await req.json();
+    console.log('Parse actual request:', { text, date, timezone, now, timezoneOffset, localTime, userId: user.id });
 
     if (!text) {
       return new Response(JSON.stringify({ error: 'Text is required' }), {
@@ -114,27 +114,43 @@ serve(async (req) => {
       });
     }
 
-    // Hedef tarihin bugün olup olmadığını kontrol et
-    const today = new Date().toISOString().split('T')[0];
-    const isToday = date === today;
+    // Calculate user's local "today" based on their timezone offset
+    const offsetHours = -(timezoneOffset || 0) / 60;
+    const offsetSign = offsetHours >= 0 ? '+' : '-';
+    const offsetString = `${offsetSign}${String(Math.abs(Math.floor(offsetHours))).padStart(2, '0')}:00`;
+    
+    // Use client's local time to determine "today"
+    const userLocalNow = localTime ? new Date(localTime) : new Date(new Date(now).getTime() - ((timezoneOffset || 0) * 60000));
+    const userToday = localTime ? localTime.split('T')[0] : userLocalNow.toISOString().split('T')[0];
+    const userLocalTimeString = localTime || userLocalNow.toISOString();
+    
+    const isToday = date === userToday;
 
     const userPrompt = isToday 
-      ? `Bugünün tarihi: ${date}
-Şu anki zaman: ${now}
-Timezone: ${timezone}
+      ? `Bugünün tarihi (kullanıcının yerel saatine göre): ${date}
+Kullanıcının şu anki yerel saati: ${userLocalTimeString}
+Timezone: ${timezone} (UTC${offsetString})
+
+ÖNEMLİ:
+- Kullanıcı yerel saat söylüyor (${timezone}).
+- TÜM SAATLERİ ${timezone} timezone'unda döndür!
+- Format: ${date}T14:00:00${offsetString}
+- "şu an" = ${userLocalTimeString.split('T')[1]?.substring(0, 5) || 'şimdiki saat'}
 
 Kullanıcı komutu: "${text}"
 
-Bu komutu analiz et ve gerçekleşen aktivite olarak JSON formatında döndür. Zamanları şu ana göre hesapla.`
-      : `Hedef tarih: ${date} (GEÇMİŞ BİR GÜN - Bugün: ${today})
-Timezone: ${timezone}
+Bu komutu analiz et ve gerçekleşen aktivite olarak JSON formatında döndür.`
+      : `Hedef tarih: ${date} (GEÇMİŞ BİR GÜN - Kullanıcının bugünü: ${userToday})
+Timezone: ${timezone} (UTC${offsetString})
 
 Kullanıcı komutu: "${text}"
 
 Bu GEÇMİŞ GÜN için aktivite kaydı. 
 - "Şu an" veya "az önce" ifadeleri varsa, o günün makul bir saatini tahmin et (örn: 14:00-14:30)
 - Net saat verilmişse (örn: "sabah 9'da") o saati kullan
-- TÜM ZAMANLARI ${date} TARİHİ İÇİN OLUŞTUR, bugün için değil!`;
+- TÜM ZAMANLARI ${date} TARİHİ İÇİN OLUŞTUR!
+- TÜM SAATLERİ ${timezone} timezone'unda döndür!
+- Format: ${date}T14:00:00${offsetString}`;
 
     console.log('Calling AI gateway...');
     

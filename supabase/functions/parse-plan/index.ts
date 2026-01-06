@@ -109,8 +109,8 @@ serve(async (req) => {
 
     console.log('User authenticated:', user.id);
 
-    const { text, date, timezone, now } = await req.json();
-    console.log('Parse plan request:', { text, date, timezone, now, userId: user.id });
+    const { text, date, timezone, now, timezoneOffset, localTime } = await req.json();
+    console.log('Parse plan request:', { text, date, timezone, now, timezoneOffset, localTime, userId: user.id });
 
     if (!text) {
       return new Response(JSON.stringify({ error: 'Text is required' }), {
@@ -128,29 +128,42 @@ serve(async (req) => {
       });
     }
 
-    // Hedef tarihin bugün olup olmadığını kontrol et
-    const today = new Date().toISOString().split('T')[0];
-    const isToday = date === today;
+    // Calculate user's local "today" based on their timezone offset
+    // timezoneOffset is in minutes (e.g., -180 for UTC+3)
+    const offsetHours = -(timezoneOffset || 0) / 60; // Convert to positive hours for UTC+X
+    const offsetSign = offsetHours >= 0 ? '+' : '-';
+    const offsetString = `${offsetSign}${String(Math.abs(Math.floor(offsetHours))).padStart(2, '0')}:00`;
+    
+    // Use client's local time to determine "today"
+    const userLocalNow = localTime ? new Date(localTime) : new Date(new Date(now).getTime() - ((timezoneOffset || 0) * 60000));
+    const userToday = localTime ? localTime.split('T')[0] : userLocalNow.toISOString().split('T')[0];
+    const userLocalTimeString = localTime || userLocalNow.toISOString();
+    
+    const isToday = date === userToday;
 
     const userPrompt = isToday 
-      ? `Bugünün tarihi: ${date}
-Şu anki saat (UTC): ${now}
-Kullanıcının timezone'u: ${timezone}
+      ? `Bugünün tarihi (kullanıcının yerel saatine göre): ${date}
+Kullanıcının şu anki yerel saati: ${userLocalTimeString}
+Timezone: ${timezone} (UTC${offsetString})
 
-ÖNEMLİ: Kullanıcı yerel saat söylüyor (${timezone}). Tüm saatleri bu timezone'da döndür.
-Örnek: Kullanıcı "saat 1" diyorsa ve ${timezone} Europe/Istanbul ise, bu 13:00+03:00 demektir.
+ÖNEMLİ: 
+- Kullanıcı yerel saat söylüyor (${timezone}). 
+- TÜM SAATLERİ ${timezone} timezone'unda döndür!
+- Format: ${date}T14:00:00${offsetString}
+- Örnek: Kullanıcı "saat 1" diyorsa → ${date}T13:00:00${offsetString}
 
 Kullanıcı komutu: "${text}"
 
 Bu komutu analiz et ve plan öğesi olarak JSON formatında döndür.`
-      : `Hedef tarih: ${date} (GEÇMİŞ BİR GÜN - Bugün: ${today})
-Kullanıcının timezone'u: ${timezone}
+      : `Hedef tarih: ${date} (GEÇMİŞ BİR GÜN - Kullanıcının bugünü: ${userToday})
+Kullanıcının timezone'u: ${timezone} (UTC${offsetString})
 
 Bu GEÇMİŞ GÜN için plan ekleme (retrospektif planlama).
 - "yarın" = ${date} tarihinin ertesi günü
 - "bugün" = ${date} tarihi
 - TÜM ZAMANLARI ${date} TARİHİ İÇİN OLUŞTUR!
-- Kullanıcı yerel saat söylüyor (${timezone}). Tüm saatleri bu timezone'da döndür.
+- TÜM SAATLERİ ${timezone} timezone'unda döndür!
+- Format: ${date}T14:00:00${offsetString}
 
 Kullanıcı komutu: "${text}"
 
