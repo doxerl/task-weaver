@@ -37,9 +37,41 @@ GEÇMİŞ TARİH İÇİN EK KURALLAR:
 - "yarın", "bugün" gibi göreli ifadeleri hedef tarihe göre yorumla
 - TÜM ZAMANLARI HEDEF TARİH İÇİN OLUŞTUR
 
+ÇAKIŞMA YÖNETİMİ KURALLARI (ÇOK ÖNEMLİ):
+Eğer mevcut planlar verilmişse, yeni plan eklerken çakışma kontrolü yap:
+
+1. ÖNCEKİ PLAN KISALTMA: 
+   - Yeni plan önceki planın bitmeden önce başlıyorsa
+   - Önceki planın bitiş saatini yeni planın başlangıç saatine ayarla
+   - op: "update" ile sadece endAt güncelle, id'yi belirt
+
+2. SONRAKİ PLAN KAYDIRMA:
+   - Yeni plan sonraki planın başlangıcını kapsıyorsa
+   - Sonraki planın başlangıcını yeni planın bitişine kaydır
+   - op: "update" ile sadece startAt güncelle, id'yi belirt
+
+3. TAM KAPSAMA (SİLME):
+   - Yeni plan mevcut bir planı tamamen kapsıyorsa (yeni.start <= mevcut.start VE yeni.end >= mevcut.end)
+   - Mevcut planı sil
+   - op: "remove" ve id kullan
+
+4. UYARI OLUŞTUR:
+   - Her çakışma değişikliği için warnings[] arrayine açıklama ekle
+   - Türkçe yaz: "'Kahvaltı' planı silindi çünkü yeni toplantı ile çakışıyor" gibi
+
 JSON FORMATI:
 {
   "operations": [
+    {
+      "op": "update",
+      "id": "existing-plan-uuid",
+      "startAt": "ISO8601 (sadece startAt değişiyorsa)",
+      "endAt": "ISO8601 (sadece endAt değişiyorsa)"
+    },
+    {
+      "op": "remove",
+      "id": "existing-plan-uuid-to-delete"
+    },
     {
       "op": "add",
       "title": "string",
@@ -51,11 +83,14 @@ JSON FORMATI:
       "notes": "string veya null"
     }
   ],
-  "warnings": ["uyarı mesajları"],
+  "warnings": ["uyarı mesajları - çakışma değişiklikleri burada açıklanır"],
   "clarifyingQuestions": ["netleştirme soruları"]
 }
 
-ÖNEMLİ: Yalnızca geçerli JSON döndür. Açıklama, markdown veya başka metin ekleme.`;
+ÖNEMLİ: 
+- Yalnızca geçerli JSON döndür. Açıklama, markdown veya başka metin ekleme.
+- Çakışma varsa önce update/remove operasyonlarını, sonra add operasyonunu yaz.
+- Çakışma yoksa sadece add operasyonu yeterli.`;
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -109,8 +144,8 @@ serve(async (req) => {
 
     console.log('User authenticated:', user.id);
 
-    const { text, date, timezone, now, timezoneOffset, localTime } = await req.json();
-    console.log('Parse plan request:', { text, date, timezone, now, timezoneOffset, localTime, userId: user.id });
+    const { text, date, timezone, now, timezoneOffset, localTime, existingPlans } = await req.json();
+    console.log('Parse plan request:', { text, date, timezone, now, timezoneOffset, localTime, existingPlansCount: existingPlans?.length || 0, userId: user.id });
 
     if (!text) {
       return new Response(JSON.stringify({ error: 'Text is required' }), {
@@ -129,8 +164,7 @@ serve(async (req) => {
     }
 
     // Calculate user's local "today" based on their timezone offset
-    // timezoneOffset is in minutes (e.g., -180 for UTC+3)
-    const offsetHours = -(timezoneOffset || 0) / 60; // Convert to positive hours for UTC+X
+    const offsetHours = -(timezoneOffset || 0) / 60;
     const offsetSign = offsetHours >= 0 ? '+' : '-';
     const offsetString = `${offsetSign}${String(Math.abs(Math.floor(offsetHours))).padStart(2, '0')}:00`;
     
@@ -141,10 +175,30 @@ serve(async (req) => {
     
     const isToday = date === userToday;
 
+    // Format existing plans for AI context
+    let existingPlansContext = '';
+    if (existingPlans && existingPlans.length > 0) {
+      existingPlansContext = `
+
+MEVCUT PLANLAR (${date} tarihindeki mevcut programın):
+${existingPlans.map((p: { id: string; title: string; startAt: string; endAt: string; type: string }) => {
+  const startTime = p.startAt.split('T')[1]?.substring(0, 5) || '';
+  const endTime = p.endAt.split('T')[1]?.substring(0, 5) || '';
+  return `- [${p.id}] "${p.title}" ${startTime}-${endTime} (${p.type})`;
+}).join('\n')}
+
+YENİ PLAN EKLERKENİÇAKIŞMA KONTROLÜ YAP! Yukarıdaki planlarla çakışma varsa:
+- Önceki planı kısalt (update ile endAt değiştir)
+- Sonraki planı kaydır (update ile startAt değiştir)  
+- Tamamen kapsanan planı sil (remove kullan)
+- Her değişikliği warnings[] içinde açıkla`;
+    }
+
     const userPrompt = isToday 
       ? `Bugünün tarihi (kullanıcının yerel saatine göre): ${date}
 Kullanıcının şu anki yerel saati: ${userLocalTimeString}
 Timezone: ${timezone} (UTC${offsetString})
+${existingPlansContext}
 
 ÖNEMLİ: 
 - Kullanıcı yerel saat söylüyor (${timezone}). 
@@ -154,9 +208,10 @@ Timezone: ${timezone} (UTC${offsetString})
 
 Kullanıcı komutu: "${text}"
 
-Bu komutu analiz et ve plan öğesi olarak JSON formatında döndür.`
+Bu komutu analiz et ve plan öğesi olarak JSON formatında döndür. Çakışma varsa mevcut planları güncelle/sil.`
       : `Hedef tarih: ${date} (GEÇMİŞ BİR GÜN - Kullanıcının bugünü: ${userToday})
 Kullanıcının timezone'u: ${timezone} (UTC${offsetString})
+${existingPlansContext}
 
 Bu GEÇMİŞ GÜN için plan ekleme (retrospektif planlama).
 - "yarın" = ${date} tarihinin ertesi günü
@@ -167,7 +222,7 @@ Bu GEÇMİŞ GÜN için plan ekleme (retrospektif planlama).
 
 Kullanıcı komutu: "${text}"
 
-Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında döndür.`;
+Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında döndür. Çakışma varsa mevcut planları güncelle/sil.`;
 
     console.log('Calling AI gateway...');
 
@@ -212,7 +267,7 @@ Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında
 
     const aiData = await aiResponse.json();
     const content = aiData.choices?.[0]?.message?.content;
-    console.log('AI response received:', content?.substring(0, 200));
+    console.log('AI response received:', content?.substring(0, 500));
 
     if (!content) {
       console.error('No content in AI response');
@@ -255,7 +310,12 @@ Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında
     }
 
     // Apply operations to database
-    const results = [];
+    const results = {
+      added: [] as unknown[],
+      updated: [] as unknown[],
+      removed: [] as string[],
+    };
+    
     for (const op of parsedPatch.operations || []) {
       if (op.op === 'add') {
         const { data, error } = await supabaseAdmin.from('plan_items').insert({
@@ -273,10 +333,84 @@ Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında
         if (error) {
           console.error('Insert error:', error);
         } else {
-          results.push(data);
+          results.added.push(data);
           console.log('Inserted plan item:', data.id);
         }
+      } else if (op.op === 'update') {
+        // Update existing plan (either startAt or endAt or both)
+        const updateData: Record<string, unknown> = {};
+        if (op.startAt) updateData.start_at = op.startAt;
+        if (op.endAt) updateData.end_at = op.endAt;
+        
+        if (Object.keys(updateData).length > 0 && op.id) {
+          const { data, error } = await supabaseAdmin
+            .from('plan_items')
+            .update(updateData)
+            .eq('id', op.id)
+            .eq('user_id', user.id)
+            .select()
+            .single();
+
+          if (error) {
+            console.error('Update error:', error);
+          } else {
+            results.updated.push(data);
+            console.log('Updated plan item:', op.id, updateData);
+          }
+        }
+      } else if (op.op === 'remove') {
+        // Delete plan that is completely overlapped
+        if (op.id) {
+          const { error } = await supabaseAdmin
+            .from('plan_items')
+            .delete()
+            .eq('id', op.id)
+            .eq('user_id', user.id);
+
+          if (error) {
+            console.error('Delete error:', error);
+          } else {
+            results.removed.push(op.id);
+            console.log('Removed plan item:', op.id);
+          }
+        }
+      } else if (op.op === 'move') {
+        // Move plan (update both start and end)
+        if (op.id && op.startAt && op.endAt) {
+          const { data, error } = await supabaseAdmin
+            .from('plan_items')
+            .update({ start_at: op.startAt, end_at: op.endAt })
+            .eq('id', op.id)
+            .eq('user_id', user.id)
+            .select()
+            .single();
+
+          if (error) {
+            console.error('Move error:', error);
+          } else {
+            results.updated.push(data);
+            console.log('Moved plan item:', op.id);
+          }
+        }
       }
+    }
+
+    // Build summary message
+    const totalChanges = results.added.length + results.updated.length + results.removed.length;
+    let message = '';
+    if (results.added.length > 0) {
+      message += `${results.added.length} plan eklendi`;
+    }
+    if (results.updated.length > 0) {
+      message += message ? ', ' : '';
+      message += `${results.updated.length} plan güncellendi`;
+    }
+    if (results.removed.length > 0) {
+      message += message ? ', ' : '';
+      message += `${results.removed.length} plan silindi`;
+    }
+    if (!message) {
+      message = 'İşlem tamamlandı';
     }
 
     // Log command event
@@ -289,15 +423,21 @@ Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında
       ai_json_output: parsedPatch,
       ai_parse_ok: true,
       apply_status: 'applied',
-      diff_summary: { added: results.length },
+      diff_summary: { 
+        added: results.added.length, 
+        updated: results.updated.length,
+        removed: results.removed.length 
+      },
     });
 
-    console.log('Successfully added', results.length, 'items');
+    console.log('Successfully processed:', totalChanges, 'operations');
 
     return new Response(JSON.stringify({
       success: true,
-      message: `${results.length} plan öğesi eklendi`,
-      items: results,
+      message,
+      items: results.added,
+      updated: results.updated,
+      removed: results.removed,
       warnings: parsedPatch.warnings || [],
       clarifyingQuestions: parsedPatch.clarifyingQuestions || [],
     }), {
