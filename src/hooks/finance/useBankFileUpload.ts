@@ -62,14 +62,11 @@ export function useBankFileUpload() {
   }, []);
 
   const stopProcessing = useCallback(() => {
+    console.log('Stop processing called, setting abortRef to true');
     abortRef.current = true;
     clearProgressInterval();
-    setStatus('paused');
-    toast({
-      title: 'İşlem Duraklatıldı',
-      description: 'Devam etmek için "Devam Et" butonuna tıklayın.',
-    });
-  }, [clearProgressInterval, toast]);
+    // Don't set status here - let processBatches handle it after PAUSED error
+  }, [clearProgressInterval]);
 
   const reset = useCallback(() => {
     abortRef.current = false;
@@ -172,14 +169,17 @@ export function useBankFileUpload() {
       if (abortRef.current) {
         console.log('Processing stopped by user at batch group starting', i + 1);
         // Save state for resume
+        const collectedTransactions = Array.from(transactionMap.values()).flat().sort((a, b) => a.index - b.index);
         resumeStateRef.current = {
           batches,
           currentIndex: i,
           ext,
           fileName,
-          collectedTransactions: Array.from(transactionMap.values()).flat().sort((a, b) => a.index - b.index),
+          collectedTransactions,
         };
         setCanResume(true);
+        setStatus('paused');
+        console.log(`Saved resume state: batch ${i}, collected ${collectedTransactions.length} transactions`);
         break;
       }
 
@@ -325,18 +325,21 @@ export function useBankFileUpload() {
   // Resume processing from where it stopped
   const resumeProcessing = useMutation({
     mutationFn: async (): Promise<ParsedTransaction[]> => {
-      if (!resumeStateRef.current) {
+      const resumeState = resumeStateRef.current;
+      if (!resumeState) {
         throw new Error('Devam edilecek işlem bulunamadı');
       }
 
-      const { batches, currentIndex, ext, fileName, collectedTransactions } = resumeStateRef.current;
+      const { batches, currentIndex, ext, fileName, collectedTransactions } = resumeState;
+      
+      // CRITICAL: Reset abort flag BEFORE setting status
       abortRef.current = false;
       setCanResume(false);
       setStatus('parsing');
+      
+      console.log(`Resuming from batch ${currentIndex + 1}/${batches.length}, collected: ${collectedTransactions.length}`);
 
       try {
-        console.log(`Resuming from batch ${currentIndex + 1}/${batches.length}`);
-        
         const allTransactions = await processBatches(
           batches,
           currentIndex,
@@ -361,12 +364,19 @@ export function useBankFileUpload() {
         return categorized;
       } catch (error) {
         if (error instanceof Error && error.message === 'PAUSED') {
-          // User paused again
-          return collectedTransactions;
+          // User paused again - return current collected transactions
+          const currentCollected = resumeStateRef.current?.collectedTransactions || collectedTransactions;
+          return currentCollected;
         }
         clearProgressInterval();
         setStatus('error');
         throw error;
+      }
+    },
+    onSuccess: (result) => {
+      // Only go to preview if we have results and not paused
+      if (result.length > 0 && status !== 'paused') {
+        console.log(`Resume completed with ${result.length} transactions`);
       }
     },
     onError: (error: Error) => {
