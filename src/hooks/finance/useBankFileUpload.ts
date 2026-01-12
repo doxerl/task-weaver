@@ -27,10 +27,10 @@ export interface ResumeState {
 }
 
 const PARSE_BATCH_SIZE = 10; // 10 satır per parse batch
-const PARALLEL_BATCH_COUNT = 3; // 3 batch aynı anda işlenecek
+const PARALLEL_BATCH_COUNT = 3; // 3 batch aynı anda işlenecek (parse & categorize)
 const CATEGORIZE_BATCH_SIZE = 25;
 const ESTIMATED_SECONDS_PER_PARSE_BATCH = 5; // Paralel işleme ile daha hızlı
-const ESTIMATED_SECONDS_PER_CATEGORIZE_BATCH = 6;
+const ESTIMATED_SECONDS_PER_CATEGORIZE_GROUP = 4; // Paralel gruplar için
 
 export function useBankFileUpload() {
   const { user } = useAuth();
@@ -256,6 +256,7 @@ export function useBankFileUpload() {
   // Categorize transactions
   const categorizeTransactions = async (parsed: ParsedTransaction[]): Promise<ParsedTransaction[]> => {
     const totalCatBatches = Math.ceil(parsed.length / CATEGORIZE_BATCH_SIZE);
+    const totalParallelGroups = Math.ceil(totalCatBatches / PARALLEL_BATCH_COUNT);
 
     // Initialize batch progress for categorization
     setBatchProgress({
@@ -263,26 +264,27 @@ export function useBankFileUpload() {
       total: totalCatBatches,
       processedTransactions: 0,
       totalTransactions: parsed.length,
-      estimatedTimeLeft: totalCatBatches * ESTIMATED_SECONDS_PER_CATEGORIZE_BATCH,
+      estimatedTimeLeft: totalParallelGroups * ESTIMATED_SECONDS_PER_CATEGORIZE_GROUP,
       stage: 'categorizing',
     });
 
-    // Start simulated progress interval for categorization
-    let simulatedBatch = 0;
+    // Start simulated progress interval for categorization (now faster with parallel)
+    let simulatedGroup = 0;
     clearProgressInterval();
     progressIntervalRef.current = setInterval(() => {
-      simulatedBatch += 1;
-      if (simulatedBatch >= totalCatBatches) {
+      simulatedGroup += 1;
+      const simulatedBatch = Math.min(simulatedGroup * PARALLEL_BATCH_COUNT, totalCatBatches);
+      if (simulatedGroup >= totalParallelGroups) {
         clearProgressInterval();
       }
       setBatchProgress(prev => ({
         ...prev,
-        current: Math.min(simulatedBatch, prev.total),
+        current: simulatedBatch,
         processedTransactions: Math.min(simulatedBatch * CATEGORIZE_BATCH_SIZE, parsed.length),
-        estimatedTimeLeft: Math.max(0, (prev.total - simulatedBatch) * ESTIMATED_SECONDS_PER_CATEGORIZE_BATCH),
+        estimatedTimeLeft: Math.max(0, (totalParallelGroups - simulatedGroup) * ESTIMATED_SECONDS_PER_CATEGORIZE_GROUP),
         stage: 'categorizing',
       }));
-    }, ESTIMATED_SECONDS_PER_CATEGORIZE_BATCH * 1000);
+    }, ESTIMATED_SECONDS_PER_CATEGORIZE_GROUP * 1000);
 
     try {
       const { data: catData, error: catError } = await supabase.functions.invoke('categorize-transactions', {
