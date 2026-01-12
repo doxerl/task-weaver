@@ -67,6 +67,56 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
   );
   const [selectAll, setSelectAll] = useState(false);
 
+  // İşlem tutarına göre ilgili kategorileri getir
+  const getRelevantCategories = (amount: number) => {
+    if (amount > 0) {
+      // Para girişi - Gelir kategorileri
+      return {
+        primary: { label: 'Gelir', items: grouped.income },
+        partner: { 
+          label: 'Ortaktan Gelen', 
+          items: grouped.partner.filter(c => 
+            c.code?.includes('IN') || 
+            c.name.toLowerCase().includes('tahsilat') ||
+            c.name.toLowerCase().includes('iade')
+          )
+        },
+        financing: { label: 'Finansman', items: grouped.financing },
+        excluded: { label: 'Hariç Tut', items: grouped.excluded }
+      };
+    }
+    
+    // Para çıkışı - Gider kategorileri
+    return {
+      primary: { label: 'Gider', items: grouped.expense },
+      partner: { 
+        label: 'Ortağa Giden', 
+        items: grouped.partner.filter(c => 
+          c.code?.includes('OUT') || 
+          c.name.toLowerCase().includes('ödeme') ||
+          c.name.toLowerCase().includes('tediye')
+        )
+      },
+      investment: { label: 'Yatırım', items: grouped.investment },
+      excluded: { label: 'Hariç Tut', items: grouped.excluded }
+    };
+  };
+
+  // Toplu seçim için kategori belirleme
+  const getBulkCategories = () => {
+    const selectedTxs = editableTransactions.filter(t => t.isSelected);
+    if (selectedTxs.length === 0) return null;
+    
+    const allPositive = selectedTxs.every(t => t.amount > 0);
+    const allNegative = selectedTxs.every(t => t.amount < 0);
+    
+    if (allPositive) return getRelevantCategories(1);
+    if (allNegative) return getRelevantCategories(-1);
+    
+    // Karışık seçim - tüm kategorileri göster
+    return null;
+  };
+
   const handleCategoryChange = (index: number, categoryId: string) => {
     setEditableTransactions(prev => 
       prev.map((t, i) => i === index ? { ...t, categoryId, isManuallyChanged: true } : t)
@@ -88,7 +138,7 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
 
   const handleBulkCategory = (categoryId: string) => {
     setEditableTransactions(prev =>
-      prev.map(t => t.isSelected ? { ...t, categoryId } : t)
+      prev.map(t => t.isSelected ? { ...t, categoryId, isManuallyChanged: true } : t)
     );
   };
 
@@ -101,6 +151,8 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
     if (!categoryId) return null;
     return categories.find(c => c.id === categoryId)?.name;
   };
+
+  const bulkCategories = getBulkCategories();
 
   return (
     <Card>
@@ -138,30 +190,79 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
                   <SelectValue placeholder="Toplu kategori ata" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Gelir</SelectLabel>
-                    {grouped.income.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
-                    ))}
-                  </SelectGroup>
-                  <SelectGroup>
-                    <SelectLabel>Gider</SelectLabel>
-                    {grouped.expense.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
-                    ))}
-                  </SelectGroup>
-                  <SelectGroup>
-                    <SelectLabel>Ortak / Finansman</SelectLabel>
-                    {[...grouped.partner, ...grouped.financing].map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
-                    ))}
-                  </SelectGroup>
-                  <SelectGroup>
-                    <SelectLabel>Hariç Tut</SelectLabel>
-                    {grouped.excluded.map(c => (
-                      <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
-                    ))}
-                  </SelectGroup>
+                  {bulkCategories ? (
+                    // Filtrelenmiş kategoriler (hepsi + veya hepsi -)
+                    <>
+                      {bulkCategories.primary.items.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>{bulkCategories.primary.label}</SelectLabel>
+                          {bulkCategories.primary.items.map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      {bulkCategories.partner.items.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>{bulkCategories.partner.label}</SelectLabel>
+                          {bulkCategories.partner.items.map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      {'financing' in bulkCategories && bulkCategories.financing.items.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>{bulkCategories.financing.label}</SelectLabel>
+                          {bulkCategories.financing.items.map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      {'investment' in bulkCategories && bulkCategories.investment.items.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>{bulkCategories.investment.label}</SelectLabel>
+                          {bulkCategories.investment.items.map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      {bulkCategories.excluded.items.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>{bulkCategories.excluded.label}</SelectLabel>
+                          {bulkCategories.excluded.items.map(c => (
+                            <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                    </>
+                  ) : (
+                    // Karışık seçim - tüm kategoriler
+                    <>
+                      <SelectGroup>
+                        <SelectLabel>Gelir</SelectLabel>
+                        {grouped.income.map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Gider</SelectLabel>
+                        {grouped.expense.map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Ortak / Finansman</SelectLabel>
+                        {[...grouped.partner, ...grouped.financing].map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                      <SelectGroup>
+                        <SelectLabel>Hariç Tut</SelectLabel>
+                        {grouped.excluded.map(c => (
+                          <SelectItem key={c.id} value={c.id}>{c.icon} {c.name}</SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </>
+                  )}
                 </SelectContent>
               </Select>
             </>
@@ -210,62 +311,88 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
                 </div>
               </div>
 
-              <Select
-                value={tx.categoryId || undefined}
-                onValueChange={(value) => handleCategoryChange(index, value)}
-              >
-                <SelectTrigger className="w-40 h-8 shrink-0">
-                  <SelectValue placeholder="Kategori seç">
-                    {getCategoryName(tx.categoryId)}
-                  </SelectValue>
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectGroup>
-                    <SelectLabel>Gelir</SelectLabel>
-                    {grouped.income.map(c => (
-                      <SelectItem key={c.id} value={c.id}>
-                        <span className="flex items-center gap-2">
-                          <span>{c.icon}</span>
-                          <span>{c.name}</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                  <SelectGroup>
-                    <SelectLabel>Gider</SelectLabel>
-                    {grouped.expense.map(c => (
-                      <SelectItem key={c.id} value={c.id}>
-                        <span className="flex items-center gap-2">
-                          <span>{c.icon}</span>
-                          <span>{c.name}</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                  <SelectGroup>
-                    <SelectLabel>Ortak / Finansman</SelectLabel>
-                    {[...grouped.partner, ...grouped.financing].map(c => (
-                      <SelectItem key={c.id} value={c.id}>
-                        <span className="flex items-center gap-2">
-                          <span>{c.icon}</span>
-                          <span>{c.name}</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                  <SelectGroup>
-                    <SelectLabel>Hariç Tut</SelectLabel>
-                    {grouped.excluded.map(c => (
-                      <SelectItem key={c.id} value={c.id}>
-                        <span className="flex items-center gap-2">
-                          <span>{c.icon}</span>
-                          <span>{c.name}</span>
-                        </span>
-                      </SelectItem>
-                    ))}
-                  </SelectGroup>
-                </SelectContent>
-              </Select>
+              {(() => {
+                const relevantCats = getRelevantCategories(tx.amount);
+                return (
+                  <Select
+                    value={tx.categoryId || undefined}
+                    onValueChange={(value) => handleCategoryChange(index, value)}
+                  >
+                    <SelectTrigger className="w-40 h-8 shrink-0">
+                      <SelectValue placeholder="Kategori seç">
+                        {getCategoryName(tx.categoryId)}
+                      </SelectValue>
+                    </SelectTrigger>
+                    <SelectContent>
+                      {relevantCats.primary.items.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>{relevantCats.primary.label}</SelectLabel>
+                          {relevantCats.primary.items.map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              <span className="flex items-center gap-2">
+                                <span>{c.icon}</span>
+                                <span>{c.name}</span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      {relevantCats.partner.items.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>{relevantCats.partner.label}</SelectLabel>
+                          {relevantCats.partner.items.map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              <span className="flex items-center gap-2">
+                                <span>{c.icon}</span>
+                                <span>{c.name}</span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      {'financing' in relevantCats && relevantCats.financing.items.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>{relevantCats.financing.label}</SelectLabel>
+                          {relevantCats.financing.items.map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              <span className="flex items-center gap-2">
+                                <span>{c.icon}</span>
+                                <span>{c.name}</span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      {'investment' in relevantCats && relevantCats.investment.items.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>{relevantCats.investment.label}</SelectLabel>
+                          {relevantCats.investment.items.map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              <span className="flex items-center gap-2">
+                                <span>{c.icon}</span>
+                                <span>{c.name}</span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                      {relevantCats.excluded.items.length > 0 && (
+                        <SelectGroup>
+                          <SelectLabel>{relevantCats.excluded.label}</SelectLabel>
+                          {relevantCats.excluded.items.map(c => (
+                            <SelectItem key={c.id} value={c.id}>
+                              <span className="flex items-center gap-2">
+                                <span>{c.icon}</span>
+                                <span>{c.name}</span>
+                              </span>
+                            </SelectItem>
+                          ))}
+                        </SelectGroup>
+                      )}
+                    </SelectContent>
+                  </Select>
+                );
+              })()}
 
               {/* AI/Manual indicator */}
               <div className="flex items-center gap-1 shrink-0">
