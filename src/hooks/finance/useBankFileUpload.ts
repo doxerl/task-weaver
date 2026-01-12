@@ -5,7 +5,8 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useCategories } from './useCategories';
 import { parseFile } from '@/lib/fileParser';
-import { ParsedTransaction, EditableTransaction } from '@/components/finance/TransactionEditor';
+import { ParsedTransaction, ParseResult, ParseSummary, BankInfo } from '@/types/finance';
+import { EditableTransaction } from '@/components/finance/TransactionEditor';
 
 export type UploadStatus = 'idle' | 'uploading' | 'parsing' | 'categorizing' | 'saving' | 'completed' | 'error' | 'cancelled' | 'paused';
 
@@ -40,6 +41,7 @@ export function useBankFileUpload() {
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<UploadStatus>('idle');
   const [parsedTransactions, setParsedTransactions] = useState<ParsedTransaction[]>([]);
+  const [parseResult, setParseResult] = useState<ParseResult | null>(null);
   const [currentFileId, setCurrentFileId] = useState<string | null>(null);
   const [batchProgress, setBatchProgress] = useState<BatchProgress>({
     current: 0,
@@ -76,6 +78,7 @@ export function useBankFileUpload() {
     setProgress(0);
     setStatus('idle');
     setParsedTransactions([]);
+    setParseResult(null);
     setCurrentFileId(null);
     setCanResume(false);
     setPausedTransactionCount(0);
@@ -97,7 +100,7 @@ export function useBankFileUpload() {
     ext: string,
     fileName: string,
     totalBatches: number
-  ): Promise<{ batchIndex: number; transactions: ParsedTransaction[]; success: boolean }> => {
+  ): Promise<{ batchIndex: number; transactions: ParsedTransaction[]; summary: ParseSummary | null; bank_info: BankInfo | null; success: boolean }> => {
     try {
       console.log(`Processing parse batch ${batchIndex + 1}/${totalBatches}`);
 
@@ -113,7 +116,7 @@ export function useBankFileUpload() {
 
       if (parseError) {
         console.warn(`Batch ${batchIndex + 1} error:`, parseError.message);
-        return { batchIndex, transactions: [], success: false };
+        return { batchIndex, transactions: [], summary: null, bank_info: null, success: false };
       }
 
       if (parseData?.success && parseData?.transactions?.length > 0) {
@@ -123,14 +126,20 @@ export function useBankFileUpload() {
           index: (batchIndex * PARSE_BATCH_SIZE) + idx
         }));
         console.log(`Batch ${batchIndex + 1}: Got ${parseData.transactions.length} transactions`);
-        return { batchIndex, transactions: offsetTransactions, success: true };
+        return { 
+          batchIndex, 
+          transactions: offsetTransactions, 
+          summary: parseData.summary || null,
+          bank_info: parseData.bank_info || null,
+          success: true 
+        };
       } else {
         console.warn(`Batch ${batchIndex + 1}: No transactions returned`);
-        return { batchIndex, transactions: [], success: false };
+        return { batchIndex, transactions: [], summary: null, bank_info: null, success: false };
       }
     } catch (batchErr) {
       console.error(`Batch ${batchIndex + 1} exception:`, batchErr);
-      return { batchIndex, transactions: [], success: false };
+      return { batchIndex, transactions: [], summary: null, bank_info: null, success: false };
     }
   };
 
@@ -505,12 +514,48 @@ export function useBankFileUpload() {
           throw new Error('Dosyadan işlem çıkarılamadı. Lütfen farklı bir format deneyin.');
         }
 
+        // Calculate summary from transactions
+        const calculatedSummary: ParseSummary = {
+          total_rows_in_file: allTransactions.length,
+          header_rows_skipped: 0,
+          footer_rows_skipped: 0,
+          empty_rows_skipped: 0,
+          transaction_count: allTransactions.length,
+          needs_review_count: allTransactions.filter(t => t.needs_review).length,
+          total_income: allTransactions.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0),
+          total_expense: allTransactions.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0),
+          date_range: {
+            start: allTransactions[0]?.date || '',
+            end: allTransactions[allTransactions.length - 1]?.date || ''
+          }
+        };
+
+        const bankInfo: BankInfo = {
+          detected_bank: null,
+          account_number: null,
+          iban: null,
+          currency: 'TRY'
+        };
+
+        // Set parse result
+        setParseResult({
+          transactions: allTransactions,
+          summary: calculatedSummary,
+          bank_info: bankInfo
+        });
+
         setProgress(65);
 
         // Step 6: AI Kategorilendirme
         setStatus('categorizing');
 
         const categorized = await categorizeTransactions(allTransactions);
+
+        // Update parse result with categorized transactions
+        setParseResult(prev => prev ? {
+          ...prev,
+          transactions: categorized
+        } : null);
 
         setProgress(85);
         setParsedTransactions(categorized);
@@ -736,6 +781,7 @@ export function useBankFileUpload() {
     isResuming: resumeProcessing.isPending,
     isCategorizing: categorizeAndShowPaused.isPending,
     parsedTransactions,
+    parseResult,
     batchProgress,
     canResume,
     pausedTransactionCount,

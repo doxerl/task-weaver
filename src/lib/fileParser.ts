@@ -1,21 +1,50 @@
 import * as XLSX from 'xlsx';
 
 /**
- * Parse XLSX/XLS file and extract content as text
+ * Parse XLSX/XLS file and extract content as text with row numbers
+ * Each row is prefixed with [ROW X] for AI tracking
  */
 export async function parseXLSX(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
-  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+  const workbook = XLSX.read(arrayBuffer, { type: 'array', cellDates: true });
   
-  let content = '';
-  workbook.SheetNames.forEach(sheetName => {
+  let fullText = '';
+  
+  workbook.SheetNames.forEach((sheetName, sheetIndex) => {
     const sheet = workbook.Sheets[sheetName];
-    // Extract as CSV format (tab-separated for better AI parsing)
-    const csv = XLSX.utils.sheet_to_csv(sheet, { FS: '\t', RS: '\n' });
-    content += csv + '\n\n';
+    const range = XLSX.utils.decode_range(sheet['!ref'] || 'A1');
+    
+    fullText += `=== SAYFA ${sheetIndex + 1}: ${sheetName} ===\n`;
+    
+    for (let row = range.s.r; row <= range.e.r; row++) {
+      const rowNum = row + 1;
+      const rowData: string[] = [];
+      
+      for (let col = range.s.c; col <= range.e.c; col++) {
+        const cellAddress = XLSX.utils.encode_cell({ r: row, c: col });
+        const cell = sheet[cellAddress];
+        
+        if (cell) {
+          // Format dates as DD.MM.YYYY
+          if (cell.t === 'd' && cell.v instanceof Date) {
+            const d = cell.v;
+            rowData.push(`${d.getDate().toString().padStart(2, '0')}.${(d.getMonth() + 1).toString().padStart(2, '0')}.${d.getFullYear()}`);
+          } else {
+            rowData.push(String(cell.v || '').trim());
+          }
+        } else {
+          rowData.push('');
+        }
+      }
+      
+      const rowText = rowData.join('\t');
+      if (rowText.trim()) {
+        fullText += `[ROW ${rowNum}]\t${rowText}\n`;
+      }
+    }
   });
   
-  return content.trim();
+  return fullText.trim();
 }
 
 /**
