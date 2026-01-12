@@ -3,7 +3,19 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Loader2, TrendingUp, TrendingDown, X } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { ArrowLeft, Loader2, TrendingUp, TrendingDown, X, Trash2 } from 'lucide-react';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from '@/components/ui/alert-dialog';
 import { useBankTransactions } from '@/hooks/finance/useBankTransactions';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { cn } from '@/lib/utils';
@@ -22,9 +34,10 @@ interface TransactionCardProps {
   tx: BankTransaction;
   categories: { id: string; icon: string; name: string }[];
   onCategoryChange: (id: string, categoryId: string | null) => void;
+  onDelete: (id: string) => void;
 }
 
-function TransactionCard({ tx, categories, onCategoryChange }: TransactionCardProps) {
+function TransactionCard({ tx, categories, onCategoryChange, onDelete }: TransactionCardProps) {
   return (
     <Card className={cn(!tx.category_id && "ring-2 ring-amber-400")}>
       <CardContent className="p-3">
@@ -33,15 +46,43 @@ function TransactionCard({ tx, categories, onCategoryChange }: TransactionCardPr
             <p className="text-xs text-muted-foreground">{formatDate(tx.transaction_date)}</p>
             <p className="text-sm truncate">{tx.description}</p>
           </div>
-          <div className="text-right">
-            <p className={cn("font-bold", tx.amount > 0 ? "text-green-600" : "text-red-600")}>
-              {tx.amount > 0 ? '+' : '-'}{formatCurrency(tx.amount)} ₺
-            </p>
-            {tx.ai_confidence > 0 && (
-              <Badge variant="secondary" className="text-xs">
-                AI {Math.round(tx.ai_confidence * 100)}%
-              </Badge>
-            )}
+          <div className="flex items-start gap-2">
+            <div className="text-right">
+              <p className={cn("font-bold", tx.amount > 0 ? "text-green-600" : "text-red-600")}>
+                {tx.amount > 0 ? '+' : '-'}{formatCurrency(tx.amount)} ₺
+              </p>
+              {tx.ai_confidence > 0 && (
+                <Badge variant="secondary" className="text-xs">
+                  AI {Math.round(tx.ai_confidence * 100)}%
+                </Badge>
+              )}
+            </div>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive">
+                  <Trash2 className="h-4 w-4" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>İşlemi Sil</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    "{tx.description}" işlemini silmek istediğinize emin misiniz?
+                    <br /><br />
+                    <strong>Bu işlem geri alınamaz.</strong>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>İptal</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={() => onDelete(tx.id)}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Sil
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
           </div>
         </div>
         
@@ -73,7 +114,7 @@ export default function BankTransactions() {
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   
-  const { transactions, isLoading, updateCategory, stats } = useBankTransactions(year);
+  const { transactions, isLoading, updateCategory, deleteTransaction, deleteAllTransactions, stats } = useBankTransactions(year);
   const { grouped } = useCategories();
 
   // Get available months from transactions
@@ -136,6 +177,14 @@ export default function BankTransactions() {
     updateCategory.mutate({ id, categoryId });
   };
 
+  const handleDelete = (id: string) => {
+    deleteTransaction.mutate(id);
+  };
+
+  const handleDeleteAll = () => {
+    deleteAllTransactions.mutate();
+  };
+
   const clearFilters = () => {
     setSelectedMonth('all');
     setCategoryFilter('all');
@@ -152,6 +201,40 @@ export default function BankTransactions() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold flex-1">Banka İşlemleri</h1>
+          
+          {transactions.length > 0 && (
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="destructive" size="sm" className="gap-1">
+                  <Trash2 className="h-4 w-4" />
+                  Tümünü Sil
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>⚠️ Tüm Veritabanını Temizle</AlertDialogTitle>
+                  <AlertDialogDescription className="space-y-2">
+                    <p>
+                      <strong>{stats.total} işlem</strong> ve ilgili tüm yüklenen dosyalar kalıcı olarak silinecek.
+                    </p>
+                    <p className="text-destructive font-semibold">
+                      Bu işlem GERİ ALINAMAZ!
+                    </p>
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>İptal</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={handleDeleteAll}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                    disabled={deleteAllTransactions.isPending}
+                  >
+                    {deleteAllTransactions.isPending ? 'Siliniyor...' : 'Tümünü Sil'}
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          )}
         </div>
 
         {/* Filters Row */}
@@ -315,6 +398,7 @@ export default function BankTransactions() {
                       tx={tx} 
                       categories={grouped.all}
                       onCategoryChange={handleCategoryChange}
+                      onDelete={handleDelete}
                     />
                   ))}
                 </div>
@@ -342,6 +426,7 @@ export default function BankTransactions() {
                       tx={tx} 
                       categories={grouped.all}
                       onCategoryChange={handleCategoryChange}
+                      onDelete={handleDelete}
                     />
                   ))}
                 </div>

@@ -100,6 +100,32 @@ export function useBankTransactions(year?: number) {
     }
   });
 
+  const deleteAllTransactions = useMutation({
+    mutationFn: async () => {
+      // Delete all bank transactions
+      const { error: txError } = await supabase
+        .from('bank_transactions')
+        .delete()
+        .eq('user_id', user?.id);
+      if (txError) throw txError;
+      
+      // Delete all uploaded files
+      const { error: fileError } = await supabase
+        .from('uploaded_bank_files')
+        .delete()
+        .eq('user_id', user?.id);
+      if (fileError) throw fileError;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['uploaded-bank-files'] });
+      toast({ title: 'Tüm işlemler ve dosyalar silindi' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Hata', description: error.message, variant: 'destructive' });
+    }
+  });
+
   // Stats
   const stats = {
     total: transactions.length,
@@ -116,6 +142,7 @@ export function useBankTransactions(year?: number) {
     updateCategory, 
     bulkUpdateCategory, 
     toggleExcluded,
-    deleteTransaction
+    deleteTransaction,
+    deleteAllTransactions
   };
 }
