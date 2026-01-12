@@ -1,0 +1,96 @@
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { supabase } from '@/integrations/supabase/client';
+import { useAuth } from '@/hooks/useAuth';
+import { TransactionCategory, CategoryType } from '@/types/finance';
+import { useMemo } from 'react';
+
+export function useCategories() {
+  const { user } = useAuth();
+  const queryClient = useQueryClient();
+
+  const { data: categories = [], isLoading, error } = useQuery({
+    queryKey: ['transaction-categories', user?.id],
+    queryFn: async () => {
+      const { data, error } = await supabase
+        .from('transaction_categories')
+        .select('*')
+        .or(`user_id.eq.${user?.id},is_system.eq.true`)
+        .eq('is_active', true)
+        .order('sort_order');
+      
+      if (error) throw error;
+      return data as TransactionCategory[];
+    },
+    enabled: !!user?.id
+  });
+
+  const grouped = useMemo(() => ({
+    income: categories.filter(c => c.type === 'INCOME'),
+    expense: categories.filter(c => c.type === 'EXPENSE'),
+    partner: categories.filter(c => c.type === 'PARTNER'),
+    financing: categories.filter(c => c.type === 'FINANCING'),
+    investment: categories.filter(c => c.type === 'INVESTMENT'),
+    excluded: categories.filter(c => c.type === 'EXCLUDED'),
+    all: categories
+  }), [categories]);
+
+  const createCategory = useMutation({
+    mutationFn: async (data: Partial<TransactionCategory>) => {
+      const insertData = {
+        name: data.name || '',
+        code: data.code || '',
+        type: data.type || 'EXPENSE',
+        color: data.color || '#6b7280',
+        icon: data.icon || '💰',
+        keywords: data.keywords || [],
+        vendor_patterns: data.vendor_patterns || [],
+        user_id: user?.id,
+        is_system: false 
+      };
+      const { error } = await supabase
+        .from('transaction_categories')
+        .insert(insertData);
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['transaction-categories'] })
+  });
+
+  const updateCategory = useMutation({
+    mutationFn: async ({ id, ...data }: Partial<TransactionCategory> & { id: string }) => {
+      const { error } = await supabase
+        .from('transaction_categories')
+        .update(data)
+        .eq('id', id)
+        .eq('is_system', false); // Can only update non-system categories
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['transaction-categories'] })
+  });
+
+  const deleteCategory = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('transaction_categories')
+        .update({ is_active: false })
+        .eq('id', id)
+        .eq('is_system', false); // Can only delete non-system categories
+      if (error) throw error;
+    },
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['transaction-categories'] })
+  });
+
+  const getCategoryByCode = (code: string) => categories.find(c => c.code === code);
+  const getCategoryById = (id: string) => categories.find(c => c.id === id);
+
+  return { 
+    categories, 
+    grouped, 
+    isLoading, 
+    error,
+    createCategory, 
+    updateCategory, 
+    deleteCategory,
+    getCategoryByCode,
+    getCategoryById
+  };
+}

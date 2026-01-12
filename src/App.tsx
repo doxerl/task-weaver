@@ -10,6 +10,13 @@ import Today from "./pages/Today";
 import Settings from "./pages/Settings";
 import Week from "./pages/Week";
 import NotFound from "./pages/NotFound";
+import FinanceDashboard from "./pages/finance/FinanceDashboard";
+import BankImport from "./pages/finance/BankImport";
+import BankTransactions from "./pages/finance/BankTransactions";
+import Receipts from "./pages/finance/Receipts";
+import ReceiptUpload from "./pages/finance/ReceiptUpload";
+import Categories from "./pages/finance/Categories";
+import Reports from "./pages/finance/Reports";
 
 const queryClient = new QueryClient();
 
@@ -23,22 +30,16 @@ const App = () => (
           <Routes>
             <Route path="/" element={<Navigate to="/today" replace />} />
             <Route path="/auth" element={<Auth />} />
-            <Route path="/today" element={
-              <ProtectedRoute>
-                <Today />
-              </ProtectedRoute>
-            } />
-            <Route path="/settings" element={
-              <ProtectedRoute>
-                <Settings />
-              </ProtectedRoute>
-            } />
-            <Route path="/week" element={
-              <ProtectedRoute>
-                <Week />
-              </ProtectedRoute>
-            } />
-            {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
+            <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />
+            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+            <Route path="/week" element={<ProtectedRoute><Week /></ProtectedRoute>} />
+            <Route path="/finance" element={<ProtectedRoute><FinanceDashboard /></ProtectedRoute>} />
+            <Route path="/finance/bank-import" element={<ProtectedRoute><BankImport /></ProtectedRoute>} />
+            <Route path="/finance/bank-transactions" element={<ProtectedRoute><BankTransactions /></ProtectedRoute>} />
+            <Route path="/finance/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
+            <Route path="/finance/receipts/upload" element={<ProtectedRoute><ReceiptUpload /></ProtectedRoute>} />
+            <Route path="/finance/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
+            <Route path="/finance/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
