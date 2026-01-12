@@ -3,9 +3,10 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft, PenLine, Building2, Receipt } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft, PenLine, Building2, Receipt, Scale } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/finance/useFinancialCalculations';
 import { useVatCalculations } from '@/hooks/finance/useVatCalculations';
+import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { BottomTabBar } from '@/components/BottomTabBar';
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
@@ -14,6 +15,7 @@ export default function FinanceDashboard() {
   const [year, setYear] = useState(new Date().getFullYear());
   const calc = useFinancialCalculations(year);
   const vat = useVatCalculations(year);
+  const { balanceSheet, isLoading: balanceLoading } = useBalanceSheet(year);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -158,6 +160,41 @@ export default function FinanceDashboard() {
               </div>
             </CardContent>
           </Card>
+        )}
+
+        {/* Balance Sheet Summary */}
+        {!balanceLoading && balanceSheet && (
+          <Link to="/finance/balance-sheet">
+            <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100/50 dark:hover:bg-blue-950/30 transition-colors">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <Scale className="h-5 w-5 text-blue-600" />
+                    <div>
+                      <p className="text-sm font-medium">Bilanço Özeti</p>
+                      <div className="flex gap-4 mt-1">
+                        <div>
+                          <p className="text-xs text-muted-foreground">Varlıklar</p>
+                          <p className="text-sm font-semibold text-green-600">{formatCurrency(balanceSheet.totalAssets)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Borçlar</p>
+                          <p className="text-sm font-semibold text-red-600">{formatCurrency(balanceSheet.totalLiabilities)}</p>
+                        </div>
+                        <div>
+                          <p className="text-xs text-muted-foreground">Özkaynak</p>
+                          <p className={`text-sm font-semibold ${balanceSheet.equity.total >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                            {formatCurrency(balanceSheet.equity.total)}
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
         )}
 
         {/* Warning */}
