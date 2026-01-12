@@ -157,11 +157,44 @@ ${categoryList}
 9. "VİRMAN", "HAVALE EFT GELEN" → genellikle EXCLUDED
 10. "KESİNTİ VE EKLERİ", "MASRAF" → BANKA
 11. "HGS", "OGS" → ULASIM
+12. "FAİZ GELİRİ", "REPO GELİRİ", "MEVDUAT FAİZ" → FAIZ_IN (Income)
+13. "FAİZ GİDERİ", "GECİKME FAİZİ", "TEMERRÜT" → FAIZ_OUT (Financing)
+14. "MAAŞ", "SSK", "SGK", "BORDRO", "PRİM" → PERSONEL
+15. "MUHASEBE", "SMMM", "YMM", "MALİ MÜŞAVİR" → MUHASEBE
+16. "AVUKAT", "NOTER", "HUKUK", "VEKİL" → HUKUK
+17. "VERGİ", "KDV", "STOPAJ", "MTV", "GELİR VERGİSİ" → VERGI
+18. "KİRA" + negatif → KIRA_OUT
+19. "KİRA" + pozitif → KIRA_IN
+20. "EĞİTİM", "KURS", "SERTİFİKA" + negatif → EGITIM_OUT
+21. "EĞİTİM", "SEMİNER", "WORKSHOP" + pozitif → EGITIM_IN
+22. "LEASİNG", "FİNANSAL KİRALAMA" → LEASING (Financing)
+23. "FAKTORİNG" → FAKTORING (Financing)
+24. "MAKİNE", "EKİPMAN", "DEMİRBAŞ", "CİHAZ" alımı (büyük tutar, negatif) → EKIPMAN (Investment)
+25. "ARAÇ", "OTOMOBİL", "TAŞIT" alımı → ARAC (Investment)
+26. "OFİS", "DEPO", "ARSA", "BİNA", "GAYRİMENKUL" alımı → GAYRIMENKUL (Investment)
+27. "HİSSE", "ORTAKLIK", "ŞİRKET" yatırımı → HISSE (Investment)
+28. "KARGO", "NAKLİYE", "KURYE", "GÖNDERİM" → KARGO
+29. "MICROSOFT", "GOOGLE", "ZOOM", "SLACK", "ADOBE", "SaaS" → YAZILIM
+30. "AİDAT", "ÜYELİK", "ODA", "DERNEK" → AIDAT
+31. "TAMİR", "BAKIM", "SERVİS", "ONARIM" → BAKIM
+32. "HEDİYE", "ÇELENK", "TEMSİL", "AĞIRLAMA" → TEMSIL
+33. "LİSANS", "TELİF", "ROYALTY" + pozitif → LISANS (Income)
+34. "RAPOR", "BELGE" + pozitif → RAPOR (Income)
+
+YATIRIM (INVESTMENT) KURALI:
+- INVESTMENT türündeki kategoriler genellikle büyük tutarlı, tek seferlik alımlardır
+- Tutar > 10.000 TL ve "ALIŞ", "SATIN ALMA", "YATIRIM" içeriyorsa yatırım olabilir
+- Yatırım kategorileri: EKIPMAN, ARAC, GAYRIMENKUL, HISSE
+
+FİNANSMAN (FINANCING) KURALI:
+- Kredi, leasing, faktoring işlemleri finansman kategorisindedir
+- Faiz gelirleri FAIZ_IN, faiz giderleri FAIZ_OUT
 
 EŞLEŞME ÖNCELİĞİ:
 1. vendor_patterns ile tam eşleşme
-2. keywords ile kısmi eşleşme
-3. Tutar işaretine göre tip belirleme
+2. keywords ile kısmi eşleşme  
+3. Özel kurallar kontrolü
+4. Tutar işaretine göre tip belirleme
 
 Her işlem için en uygun kategori kodunu ve güven skorunu (0.0-1.0) belirle.`;
 
