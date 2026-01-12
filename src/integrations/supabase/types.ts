@@ -83,6 +83,54 @@ export type Database = {
           },
         ]
       }
+      balance_sheet_items: {
+        Row: {
+          amount: number | null
+          as_of_date: string
+          category: string
+          code: string | null
+          created_at: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          notes: string | null
+          subcategory: string
+          updated_at: string | null
+          user_id: string
+          year: number
+        }
+        Insert: {
+          amount?: number | null
+          as_of_date: string
+          category: string
+          code?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          notes?: string | null
+          subcategory: string
+          updated_at?: string | null
+          user_id: string
+          year: number
+        }
+        Update: {
+          amount?: number | null
+          as_of_date?: string
+          category?: string
+          code?: string | null
+          created_at?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          notes?: string | null
+          subcategory?: string
+          updated_at?: string | null
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
       bank_transactions: {
         Row: {
           ai_confidence: number | null
@@ -471,6 +519,57 @@ export type Database = {
           total_income?: number | null
           total_receipt_expenses?: number | null
           user_id?: string | null
+        }
+        Relationships: []
+      }
+      financial_settings: {
+        Row: {
+          accumulated_depreciation: number | null
+          bank_loans: number | null
+          cash_on_hand: number | null
+          created_at: string | null
+          equipment_value: number | null
+          fiscal_year_start: number | null
+          id: string
+          inventory_value: number | null
+          notes: string | null
+          paid_capital: number | null
+          retained_earnings: number | null
+          updated_at: string | null
+          user_id: string
+          vehicles_value: number | null
+        }
+        Insert: {
+          accumulated_depreciation?: number | null
+          bank_loans?: number | null
+          cash_on_hand?: number | null
+          created_at?: string | null
+          equipment_value?: number | null
+          fiscal_year_start?: number | null
+          id?: string
+          inventory_value?: number | null
+          notes?: string | null
+          paid_capital?: number | null
+          retained_earnings?: number | null
+          updated_at?: string | null
+          user_id: string
+          vehicles_value?: number | null
+        }
+        Update: {
+          accumulated_depreciation?: number | null
+          bank_loans?: number | null
+          cash_on_hand?: number | null
+          created_at?: string | null
+          equipment_value?: number | null
+          fiscal_year_start?: number | null
+          id?: string
+          inventory_value?: number | null
+          notes?: string | null
+          paid_capital?: number | null
+          retained_earnings?: number | null
+          updated_at?: string | null
+          user_id?: string
+          vehicles_value?: number | null
         }
         Relationships: []
       }
