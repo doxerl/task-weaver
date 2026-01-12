@@ -42,35 +42,30 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    // Check file type
-    const isPdf = imageUrl.toLowerCase().includes('.pdf');
-    
-    if (isPdf) {
-      // For PDF files, we need to inform the user that only images are supported
-      // Gemini doesn't support PDF in image_url, only in file uploads which requires different API
-      return new Response(JSON.stringify({ 
-        error: 'PDF dosyaları desteklenmiyor. Lütfen fiş/faturanın fotoğrafını (JPG, PNG) yükleyin.',
-        supportedFormats: ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
-      }), {
-        status: 400,
-        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-      });
-    }
-
-    // Fetch image and convert to base64 data URL for better compatibility
-    console.log('Fetching image and converting to base64...');
+    // Fetch file and convert to base64 data URL
+    console.log('Fetching file and converting to base64...');
     const { dataUrl, mimeType } = await fetchAsBase64(imageUrl);
     
-    // Validate mime type
-    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
-    if (!supportedTypes.some(t => mimeType.includes(t.split('/')[1]))) {
+    // Validate mime type - now includes PDF
+    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+    const isSupported = supportedTypes.some(t => {
+      if (t === 'application/pdf') return mimeType.includes('pdf');
+      return mimeType.includes(t.split('/')[1]);
+    });
+    
+    if (!isSupported) {
       return new Response(JSON.stringify({ 
-        error: `Desteklenmeyen dosya formatı: ${mimeType}. Lütfen JPG, PNG, WebP veya GIF yükleyin.`,
+        error: `Desteklenmeyen dosya formatı: ${mimeType}. Lütfen JPG, PNG, WebP, GIF veya PDF yükleyin.`,
         supportedFormats: supportedTypes
       }), {
         status: 400,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
       });
+    }
+    
+    const isPdf = mimeType.includes('pdf');
+    if (isPdf) {
+      console.log('Processing PDF file with Gemini...');
     }
 
     const systemPrompt = `Sen Türk fiş/fatura OCR uzmanısın.
