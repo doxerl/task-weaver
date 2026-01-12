@@ -117,52 +117,71 @@ SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
     // Extract JSON array from response
     let transactions = [];
     
-    // Yöntem 1: ```json ... ``` bloğunu ara
-    const jsonBlockMatch = fullText.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonBlockMatch) {
-      console.log('Step 6a: Found markdown code block');
+    // Clean up response text
+    let cleanedText = fullText;
+    
+    // Remove markdown code blocks
+    cleanedText = cleanedText.replace(/^```(?:json)?\s*/gm, '');
+    cleanedText = cleanedText.replace(/```\s*$/gm, '');
+    cleanedText = cleanedText.trim();
+    
+    // Find first [ and last ]
+    const firstBracket = cleanedText.indexOf('[');
+    const lastBracket = cleanedText.lastIndexOf(']');
+    
+    if (firstBracket !== -1 && lastBracket > firstBracket) {
+      let jsonString = cleanedText.substring(firstBracket, lastBracket + 1);
+      console.log('Step 6a: Extracted JSON length:', jsonString.length);
+      
       try {
-        const jsonContent = jsonBlockMatch[1].trim();
-        // JSON array'i bul
-        const arrayMatch = jsonContent.match(/\[[\s\S]*\]/);
-        if (arrayMatch) {
-          transactions = JSON.parse(arrayMatch[0]);
-          console.log('Step 6b: Parsed from code block:', transactions.length, 'transactions');
-        }
+        transactions = JSON.parse(jsonString);
+        console.log('Step 6b: Parsed successfully:', transactions.length, 'transactions');
       } catch (e) {
-        console.error('Step 6c: Code block parse error:', e);
-      }
-    }
-    
-    // Yöntem 2: Direkt JSON array bul (code block yoksa)
-    if (transactions.length === 0) {
-      console.log('Step 7a: Trying direct JSON array match');
-      const jsonMatch = fullText.match(/\[\s*\{[\s\S]*?\}\s*\]/);
-      if (jsonMatch) {
-        try {
-          transactions = JSON.parse(jsonMatch[0]);
-          console.log('Step 7b: Parsed direct JSON:', transactions.length, 'transactions');
-        } catch (e) {
-          console.error('Step 7c: Direct parse error:', e);
+        console.log('Step 6c: Initial parse failed, trying to fix truncated JSON');
+        
+        // Try to fix truncated JSON by finding last complete object
+        // Look for the last valid },{  or }] pattern
+        const lastCompletePattern = jsonString.lastIndexOf('},');
+        const lastObjectEnd = jsonString.lastIndexOf('}]');
+        
+        if (lastCompletePattern > lastObjectEnd && lastCompletePattern > 0) {
+          // JSON was truncated mid-object, cut at last complete object
+          jsonString = jsonString.substring(0, lastCompletePattern + 1) + ']';
+          console.log('Step 6d: Fixed truncated JSON, new length:', jsonString.length);
+          try {
+            transactions = JSON.parse(jsonString);
+            console.log('Step 6e: Parsed fixed JSON:', transactions.length, 'transactions');
+          } catch (e2) {
+            console.error('Step 6f: Fixed JSON still failed:', e2);
+          }
+        } else if (lastObjectEnd === -1 && lastCompletePattern > 0) {
+          // No proper ending found
+          jsonString = jsonString.substring(0, lastCompletePattern + 1) + ']';
+          try {
+            transactions = JSON.parse(jsonString);
+            console.log('Step 6g: Parsed with forced closure:', transactions.length, 'transactions');
+          } catch (e3) {
+            console.error('Step 6h: Forced closure failed:', e3);
+          }
+        }
+        
+        // If still no transactions, try more aggressive cleanup
+        if (transactions.length === 0) {
+          console.log('Step 7a: Trying aggressive cleanup');
+          // Remove any trailing incomplete object
+          const aggressiveClean = jsonString.replace(/,\s*\{[^}]*$/, ']');
+          try {
+            transactions = JSON.parse(aggressiveClean);
+            console.log('Step 7b: Aggressive cleanup worked:', transactions.length, 'transactions');
+          } catch (e4) {
+            console.error('Step 7c: All parse attempts failed');
+            console.error('First 500 chars:', jsonString.substring(0, 500));
+            console.error('Last 500 chars:', jsonString.substring(Math.max(0, jsonString.length - 500)));
+          }
         }
       }
-    }
-    
-    // Yöntem 3: İlk [ ve son ] arasını al
-    if (transactions.length === 0) {
-      console.log('Step 8a: Trying bracket extraction');
-      const firstBracket = fullText.indexOf('[');
-      const lastBracket = fullText.lastIndexOf(']');
-      if (firstBracket !== -1 && lastBracket > firstBracket) {
-        try {
-          const jsonString = fullText.substring(firstBracket, lastBracket + 1);
-          transactions = JSON.parse(jsonString);
-          console.log('Step 8b: Parsed from brackets:', transactions.length, 'transactions');
-        } catch (e) {
-          console.error('Step 8c: Bracket parse error:', e);
-          console.error('Attempted JSON (first 300):', fullText.substring(firstBracket, firstBracket + 300));
-        }
-      }
+    } else {
+      console.error('Step 6x: No JSON array brackets found in response');
     }
     
     console.log('Step 9: Total transactions found:', transactions.length);

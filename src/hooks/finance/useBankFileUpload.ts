@@ -17,8 +17,8 @@ export interface BatchProgress {
   estimatedTimeLeft: number;
 }
 
-const BATCH_SIZE = 50;
-const ESTIMATED_SECONDS_PER_BATCH = 4;
+const BATCH_SIZE = 25;
+const ESTIMATED_SECONDS_PER_BATCH = 6;
 
 export function useBankFileUpload() {
   const { user } = useAuth();
