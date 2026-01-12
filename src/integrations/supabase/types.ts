@@ -83,6 +83,100 @@ export type Database = {
           },
         ]
       }
+      bank_transactions: {
+        Row: {
+          ai_confidence: number | null
+          ai_suggested_category_id: string | null
+          amount: number | null
+          balance: number | null
+          category_id: string | null
+          counterparty: string | null
+          created_at: string | null
+          description: string | null
+          file_id: string | null
+          id: string
+          is_excluded: boolean | null
+          is_income: boolean | null
+          is_manually_categorized: boolean | null
+          notes: string | null
+          raw_amount: string | null
+          raw_date: string | null
+          raw_description: string | null
+          reference_no: string | null
+          row_number: number | null
+          transaction_date: string | null
+          user_id: string | null
+        }
+        Insert: {
+          ai_confidence?: number | null
+          ai_suggested_category_id?: string | null
+          amount?: number | null
+          balance?: number | null
+          category_id?: string | null
+          counterparty?: string | null
+          created_at?: string | null
+          description?: string | null
+          file_id?: string | null
+          id?: string
+          is_excluded?: boolean | null
+          is_income?: boolean | null
+          is_manually_categorized?: boolean | null
+          notes?: string | null
+          raw_amount?: string | null
+          raw_date?: string | null
+          raw_description?: string | null
+          reference_no?: string | null
+          row_number?: number | null
+          transaction_date?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          ai_confidence?: number | null
+          ai_suggested_category_id?: string | null
+          amount?: number | null
+          balance?: number | null
+          category_id?: string | null
+          counterparty?: string | null
+          created_at?: string | null
+          description?: string | null
+          file_id?: string | null
+          id?: string
+          is_excluded?: boolean | null
+          is_income?: boolean | null
+          is_manually_categorized?: boolean | null
+          notes?: string | null
+          raw_amount?: string | null
+          raw_date?: string | null
+          raw_description?: string | null
+          reference_no?: string | null
+          row_number?: number | null
+          transaction_date?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_transactions_ai_suggested_category_id_fkey"
+            columns: ["ai_suggested_category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_transactions_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "uploaded_bank_files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       command_events: {
         Row: {
           ai_json_output: Json | null
@@ -320,6 +414,66 @@ export type Database = {
         }
         Relationships: []
       }
+      financial_reports: {
+        Row: {
+          created_at: string | null
+          id: string
+          net_partner_balance: number | null
+          operating_profit: number | null
+          partner_deposits: number | null
+          partner_withdrawals: number | null
+          pdf_url: string | null
+          profit_margin: number | null
+          report_data: Json | null
+          report_month: number | null
+          report_name: string | null
+          report_year: number | null
+          total_expenses: number | null
+          total_financing_in: number | null
+          total_income: number | null
+          total_receipt_expenses: number | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          net_partner_balance?: number | null
+          operating_profit?: number | null
+          partner_deposits?: number | null
+          partner_withdrawals?: number | null
+          pdf_url?: string | null
+          profit_margin?: number | null
+          report_data?: Json | null
+          report_month?: number | null
+          report_name?: string | null
+          report_year?: number | null
+          total_expenses?: number | null
+          total_financing_in?: number | null
+          total_income?: number | null
+          total_receipt_expenses?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          net_partner_balance?: number | null
+          operating_profit?: number | null
+          partner_deposits?: number | null
+          partner_withdrawals?: number | null
+          pdf_url?: string | null
+          profit_margin?: number | null
+          report_data?: Json | null
+          report_month?: number | null
+          report_name?: string | null
+          report_year?: number | null
+          total_expenses?: number | null
+          total_financing_in?: number | null
+          total_income?: number | null
+          total_receipt_expenses?: number | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       github_work_items_cache: {
         Row: {
           assignees: string[] | null
@@ -542,6 +696,220 @@ export type Database = {
           updated_at?: string
           working_hours_end?: string | null
           working_hours_start?: string | null
+        }
+        Relationships: []
+      }
+      receipts: {
+        Row: {
+          ai_suggested_category_id: string | null
+          category_id: string | null
+          created_at: string | null
+          currency: string | null
+          file_name: string | null
+          file_type: string | null
+          file_url: string | null
+          id: string
+          is_included_in_report: boolean | null
+          is_manually_categorized: boolean | null
+          is_verified: boolean | null
+          linked_bank_transaction_id: string | null
+          month: number | null
+          notes: string | null
+          ocr_confidence: number | null
+          ocr_raw_text: string | null
+          processing_status: string | null
+          receipt_date: string | null
+          receipt_no: string | null
+          tax_amount: number | null
+          thumbnail_url: string | null
+          total_amount: number | null
+          user_id: string | null
+          vendor_name: string | null
+          vendor_tax_no: string | null
+          year: number | null
+        }
+        Insert: {
+          ai_suggested_category_id?: string | null
+          category_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          file_name?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_included_in_report?: boolean | null
+          is_manually_categorized?: boolean | null
+          is_verified?: boolean | null
+          linked_bank_transaction_id?: string | null
+          month?: number | null
+          notes?: string | null
+          ocr_confidence?: number | null
+          ocr_raw_text?: string | null
+          processing_status?: string | null
+          receipt_date?: string | null
+          receipt_no?: string | null
+          tax_amount?: number | null
+          thumbnail_url?: string | null
+          total_amount?: number | null
+          user_id?: string | null
+          vendor_name?: string | null
+          vendor_tax_no?: string | null
+          year?: number | null
+        }
+        Update: {
+          ai_suggested_category_id?: string | null
+          category_id?: string | null
+          created_at?: string | null
+          currency?: string | null
+          file_name?: string | null
+          file_type?: string | null
+          file_url?: string | null
+          id?: string
+          is_included_in_report?: boolean | null
+          is_manually_categorized?: boolean | null
+          is_verified?: boolean | null
+          linked_bank_transaction_id?: string | null
+          month?: number | null
+          notes?: string | null
+          ocr_confidence?: number | null
+          ocr_raw_text?: string | null
+          processing_status?: string | null
+          receipt_date?: string | null
+          receipt_no?: string | null
+          tax_amount?: number | null
+          thumbnail_url?: string | null
+          total_amount?: number | null
+          user_id?: string | null
+          vendor_name?: string | null
+          vendor_tax_no?: string | null
+          year?: number | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipts_ai_suggested_category_id_fkey"
+            columns: ["ai_suggested_category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipts_linked_bank_transaction_id_fkey"
+            columns: ["linked_bank_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      transaction_categories: {
+        Row: {
+          affects_partner_account: boolean | null
+          code: string
+          color: string | null
+          created_at: string | null
+          icon: string | null
+          id: string
+          is_active: boolean | null
+          is_excluded: boolean | null
+          is_financing: boolean | null
+          is_system: boolean | null
+          keywords: string[] | null
+          name: string
+          sort_order: number | null
+          type: string
+          user_id: string | null
+          vendor_patterns: string[] | null
+        }
+        Insert: {
+          affects_partner_account?: boolean | null
+          code: string
+          color?: string | null
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_excluded?: boolean | null
+          is_financing?: boolean | null
+          is_system?: boolean | null
+          keywords?: string[] | null
+          name: string
+          sort_order?: number | null
+          type: string
+          user_id?: string | null
+          vendor_patterns?: string[] | null
+        }
+        Update: {
+          affects_partner_account?: boolean | null
+          code?: string
+          color?: string | null
+          created_at?: string | null
+          icon?: string | null
+          id?: string
+          is_active?: boolean | null
+          is_excluded?: boolean | null
+          is_financing?: boolean | null
+          is_system?: boolean | null
+          keywords?: string[] | null
+          name?: string
+          sort_order?: number | null
+          type?: string
+          user_id?: string | null
+          vendor_patterns?: string[] | null
+        }
+        Relationships: []
+      }
+      uploaded_bank_files: {
+        Row: {
+          bank_name: string | null
+          created_at: string | null
+          file_name: string
+          file_size: number | null
+          file_type: string
+          file_url: string | null
+          id: string
+          period_end: string | null
+          period_start: string | null
+          processing_error: string | null
+          processing_status: string | null
+          total_transactions: number | null
+          user_id: string | null
+        }
+        Insert: {
+          bank_name?: string | null
+          created_at?: string | null
+          file_name: string
+          file_size?: number | null
+          file_type: string
+          file_url?: string | null
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          processing_error?: string | null
+          processing_status?: string | null
+          total_transactions?: number | null
+          user_id?: string | null
+        }
+        Update: {
+          bank_name?: string | null
+          created_at?: string | null
+          file_name?: string
+          file_size?: number | null
+          file_type?: string
+          file_url?: string | null
+          id?: string
+          period_end?: string | null
+          period_start?: string | null
+          processing_error?: string | null
+          processing_status?: string | null
+          total_transactions?: number | null
+          user_id?: string | null
         }
         Relationships: []
       }

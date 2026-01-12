@@ -1,5 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
-import { Calendar, CalendarDays } from 'lucide-react';
+import { Calendar, CalendarDays, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TabItem {
@@ -21,6 +21,12 @@ const tabs: TabItem[] = [
     label: 'Hafta',
     icon: <CalendarDays className="h-5 w-5" />,
     matchPaths: ['/week'],
+  },
+  {
+    path: '/finance',
+    label: 'Finans',
+    icon: <Wallet className="h-5 w-5" />,
+    matchPaths: ['/finance'],
   },
 ];
 
