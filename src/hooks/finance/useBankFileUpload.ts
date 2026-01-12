@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useCategories } from './useCategories';
 import { parseFile } from '@/lib/fileParser';
@@ -33,7 +33,7 @@ const ESTIMATED_SECONDS_PER_PARSE_BATCH = 5; // Paralel işleme ile daha hızlı
 const ESTIMATED_SECONDS_PER_CATEGORIZE_GROUP = 4; // Paralel gruplar için
 
 export function useBankFileUpload() {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { categories } = useCategories();

@@ -1,12 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Receipt, DocumentType } from '@/types/finance';
 import { useState, useCallback } from 'react';
 
 export function useReceipts(year?: number, month?: number) {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [uploadProgress, setUploadProgress] = useState(0);

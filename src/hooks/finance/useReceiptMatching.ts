@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 
 export interface ReceiptMatch {
@@ -34,7 +34,7 @@ export interface MatchCandidate {
 }
 
 export function useReceiptMatching(receiptId: string | undefined) {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
