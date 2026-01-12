@@ -78,36 +78,48 @@ export default function FinanceDashboard() {
           </Link>
         </div>
 
+        {/* Revenue & VAT Summary - Net vs Gross */}
+        <Card className="border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/10">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 text-muted-foreground mb-3">
+              <TrendingUp className="h-4 w-4 text-green-600" />
+              <span className="text-sm font-medium">Ciro Özeti</span>
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Brüt Ciro (KDV Dahil)</p>
+                <p className="text-lg font-bold text-green-600">{formatCurrency(calc.totalIncome)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Net Ciro (KDV Hariç)</p>
+                <p className="text-lg font-bold text-green-700">{formatCurrency(calc.netRevenue)}</p>
+              </div>
+            </div>
+            <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-800 grid grid-cols-2 gap-4">
+              <div>
+                <p className="text-xs text-muted-foreground">Brüt Gider (KDV Dahil)</p>
+                <p className="text-lg font-bold text-red-600">{formatCurrency(calc.totalExpenses)}</p>
+              </div>
+              <div>
+                <p className="text-xs text-muted-foreground">Net Gider (KDV Hariç)</p>
+                <p className="text-lg font-bold text-red-700">{formatCurrency(calc.netCost)}</p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* KPI Cards */}
         <div className="grid grid-cols-2 gap-3">
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
                 <TrendingUp className="h-4 w-4" />
-                <span className="text-xs">Gelir</span>
-              </div>
-              <p className="text-lg font-bold text-green-600">{formatCurrency(calc.totalIncome)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <TrendingDown className="h-4 w-4" />
-                <span className="text-xs">Gider</span>
-              </div>
-              <p className="text-lg font-bold text-red-600">{formatCurrency(calc.totalExpenses)}</p>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardContent className="p-4">
-              <div className="flex items-center gap-2 text-muted-foreground mb-1">
-                <TrendingUp className="h-4 w-4" />
-                <span className="text-xs">Kâr</span>
+                <span className="text-xs">Net Kâr</span>
               </div>
               <p className={`text-lg font-bold ${calc.operatingProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {formatCurrency(calc.operatingProfit)}
               </p>
-              <p className="text-xs text-muted-foreground">{calc.profitMargin.toFixed(1)}%</p>
+              <p className="text-xs text-muted-foreground">Marj: {calc.profitMargin.toFixed(1)}%</p>
             </CardContent>
           </Card>
           <Card>
@@ -127,22 +139,33 @@ export default function FinanceDashboard() {
           </Card>
         </div>
 
-        {/* VAT Summary Card */}
-        {!vat.isLoading && (vat.totalCalculatedVat > 0 || vat.totalDeductibleVat > 0) && (
+        {/* VAT Summary Card - Enhanced */}
+        {!vat.isLoading && (
           <Link to="/finance/vat-report">
             <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20 hover:bg-purple-100/50 dark:hover:bg-purple-950/30 transition-colors">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    <Receipt className="h-5 w-5 text-purple-600" />
-                    <div>
-                      <p className="text-sm font-medium">Net KDV {vat.netVatPayable >= 0 ? 'Borcu' : 'Alacağı'}</p>
-                      <p className={`text-lg font-bold ${vat.netVatPayable >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                        {formatCurrency(Math.abs(vat.netVatPayable))}
-                      </p>
-                    </div>
+                <div className="flex items-center gap-2 text-muted-foreground mb-3">
+                  <Receipt className="h-4 w-4 text-purple-600" />
+                  <span className="text-sm font-medium">KDV Özeti</span>
+                  <ArrowLeft className="h-4 w-4 rotate-180 ml-auto" />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <p className="text-xs text-muted-foreground">Hesaplanan</p>
+                    <p className="text-sm font-bold text-red-600">{formatCurrency(vat.totalCalculatedVat)}</p>
+                    <p className="text-[10px] text-muted-foreground">{vat.issuedCount + vat.bankIncomeCount} işlem</p>
                   </div>
-                  <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground" />
+                  <div>
+                    <p className="text-xs text-muted-foreground">İndirilecek</p>
+                    <p className="text-sm font-bold text-blue-600">{formatCurrency(vat.totalDeductibleVat)}</p>
+                    <p className="text-[10px] text-muted-foreground">{vat.receivedCount + vat.bankExpenseCount} işlem</p>
+                  </div>
+                  <div className="border-l border-purple-200 dark:border-purple-800 pl-3">
+                    <p className="text-xs text-muted-foreground">Net {vat.netVatPayable >= 0 ? 'Borç' : 'Alacak'}</p>
+                    <p className={`text-sm font-bold ${vat.netVatPayable >= 0 ? 'text-red-600' : 'text-green-600'}`}>
+                      {formatCurrency(Math.abs(vat.netVatPayable))}
+                    </p>
+                  </div>
                 </div>
               </CardContent>
             </Card>
