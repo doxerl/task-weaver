@@ -105,9 +105,9 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY not configured');
+    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!ANTHROPIC_API_KEY) {
+      console.error('ANTHROPIC_API_KEY not configured');
       return new Response(JSON.stringify({ error: 'AI service not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -152,21 +152,22 @@ Bu GEÇMİŞ GÜN için aktivite kaydı.
 - TÜM SAATLERİ ${timezone} timezone'unda döndür!
 - Format: ${date}T14:00:00${offsetString}`;
 
-    console.log('Calling AI gateway...');
+    console.log('Calling Anthropic Claude API...');
     
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2048,
+        system: SYSTEM_PROMPT,
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.3,
       }),
     });
 
@@ -178,15 +179,16 @@ Bu GEÇMİŞ GÜN için aktivite kaydı.
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      if (aiResponse.status === 402) {
-        console.error('AI credits exhausted');
-        return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add funds.' }), {
-          status: 402,
+      if (aiResponse.status === 400) {
+        const errorData = await aiResponse.json();
+        console.error('Anthropic API error:', errorData);
+        return new Response(JSON.stringify({ error: 'AI service error' }), {
+          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       const errorText = await aiResponse.text();
-      console.error('AI gateway error:', aiResponse.status, errorText);
+      console.error('Anthropic API error:', aiResponse.status, errorText);
       return new Response(JSON.stringify({ error: 'AI service error' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -194,7 +196,7 @@ Bu GEÇMİŞ GÜN için aktivite kaydı.
     }
 
     const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content;
+    const content = aiData.content?.[0]?.text;
     console.log('AI response received:', content?.substring(0, 200));
 
     if (!content) {

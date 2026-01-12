@@ -185,9 +185,9 @@ serve(async (req) => {
       });
     }
 
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      console.error('LOVABLE_API_KEY not configured');
+    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!ANTHROPIC_API_KEY) {
+      console.error('ANTHROPIC_API_KEY not configured');
       return new Response(JSON.stringify({ error: 'AI service not configured' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -261,21 +261,22 @@ Kullanıcı komutu: "${text}"
 
 Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında döndür. Çakışma varsa mevcut planları güncelle/sil.`;
 
-    console.log('Calling AI gateway...');
+    console.log('Calling Anthropic Claude API...');
 
-    const aiResponse = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const aiResponse = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 4096,
+        system: SYSTEM_PROMPT,
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: userPrompt }
         ],
-        temperature: 0.3,
       }),
     });
 
@@ -287,15 +288,16 @@ Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
-      if (aiResponse.status === 402) {
-        console.error('AI credits exhausted');
-        return new Response(JSON.stringify({ error: 'AI credits exhausted. Please add funds.' }), {
-          status: 402,
+      if (aiResponse.status === 400) {
+        const errorData = await aiResponse.json();
+        console.error('Anthropic API error:', errorData);
+        return new Response(JSON.stringify({ error: 'AI service error' }), {
+          status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       const errorText = await aiResponse.text();
-      console.error('AI gateway error:', aiResponse.status, errorText);
+      console.error('Anthropic API error:', aiResponse.status, errorText);
       return new Response(JSON.stringify({ error: 'AI service error' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -303,7 +305,7 @@ Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında
     }
 
     const aiData = await aiResponse.json();
-    const content = aiData.choices?.[0]?.message?.content;
+    const content = aiData.content?.[0]?.text;
     console.log('AI response received:', content?.substring(0, 500));
 
     if (!content) {
@@ -449,43 +451,7 @@ Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında
             console.log('Removed plan item:', op.id);
           }
         }
-      } else if (op.op === 'move') {
-        // Move plan (update both start and end)
-        if (op.id && op.startAt && op.endAt) {
-          const { data, error } = await supabaseAdmin
-            .from('plan_items')
-            .update({ start_at: op.startAt, end_at: op.endAt })
-            .eq('id', op.id)
-            .eq('user_id', user.id)
-            .select()
-            .single();
-
-          if (error) {
-            console.error('Move error:', error);
-          } else {
-            results.updated.push(data);
-            console.log('Moved plan item:', op.id);
-          }
-        }
       }
-    }
-
-    // Build summary message
-    const totalChanges = results.added.length + results.updated.length + results.removed.length;
-    let message = '';
-    if (results.added.length > 0) {
-      message += `${results.added.length} plan eklendi`;
-    }
-    if (results.updated.length > 0) {
-      message += message ? ', ' : '';
-      message += `${results.updated.length} plan güncellendi`;
-    }
-    if (results.removed.length > 0) {
-      message += message ? ', ' : '';
-      message += `${results.removed.length} plan silindi`;
-    }
-    if (!message) {
-      message = 'İşlem tamamlandı';
     }
 
     // Log command event
@@ -498,19 +464,25 @@ Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında
       ai_json_output: parsedPatch,
       ai_parse_ok: true,
       apply_status: 'applied',
-      diff_summary: { 
-        added: results.added.length, 
+      diff_summary: {
+        added: results.added.length,
         updated: results.updated.length,
-        removed: results.removed.length 
+        removed: results.removed.length
       },
+      warnings: parsedPatch.warnings || [],
+      clarifying_questions: parsedPatch.clarifyingQuestions || [],
     });
 
-    console.log('Successfully processed:', totalChanges, 'operations');
+    console.log('Successfully processed:', {
+      added: results.added.length,
+      updated: results.updated.length,
+      removed: results.removed.length
+    });
 
     return new Response(JSON.stringify({
       success: true,
-      message,
-      items: results.added,
+      message: `${results.added.length} plan eklendi, ${results.updated.length} güncellendi, ${results.removed.length} silindi`,
+      added: results.added,
       updated: results.updated,
       removed: results.removed,
       warnings: parsedPatch.warnings || [],
