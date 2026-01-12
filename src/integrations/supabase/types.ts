@@ -131,6 +131,201 @@ export type Database = {
         }
         Relationships: []
       }
+      bank_import_sessions: {
+        Row: {
+          ai_cost_usd: number | null
+          ai_tokens_used: number | null
+          approved_at: string | null
+          categorized_count: number | null
+          created_at: string | null
+          date_range_end: string | null
+          date_range_start: string | null
+          detected_bank: string | null
+          file_hash: string | null
+          file_id: string | null
+          file_name: string
+          id: string
+          low_confidence_count: number | null
+          status: string
+          total_expense: number | null
+          total_income: number | null
+          total_transactions: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          ai_cost_usd?: number | null
+          ai_tokens_used?: number | null
+          approved_at?: string | null
+          categorized_count?: number | null
+          created_at?: string | null
+          date_range_end?: string | null
+          date_range_start?: string | null
+          detected_bank?: string | null
+          file_hash?: string | null
+          file_id?: string | null
+          file_name: string
+          id?: string
+          low_confidence_count?: number | null
+          status?: string
+          total_expense?: number | null
+          total_income?: number | null
+          total_transactions?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          ai_cost_usd?: number | null
+          ai_tokens_used?: number | null
+          approved_at?: string | null
+          categorized_count?: number | null
+          created_at?: string | null
+          date_range_end?: string | null
+          date_range_start?: string | null
+          detected_bank?: string | null
+          file_hash?: string | null
+          file_id?: string | null
+          file_name?: string
+          id?: string
+          low_confidence_count?: number | null
+          status?: string
+          total_expense?: number | null
+          total_income?: number | null
+          total_transactions?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_import_sessions_file_id_fkey"
+            columns: ["file_id"]
+            isOneToOne: false
+            referencedRelation: "uploaded_bank_files"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      bank_import_transactions: {
+        Row: {
+          ai_affects_pnl: boolean | null
+          ai_balance_impact: string | null
+          ai_category_code: string | null
+          ai_category_type: string | null
+          ai_confidence: number | null
+          ai_counterparty: string | null
+          ai_reasoning: string | null
+          amount: number
+          balance: number | null
+          channel: string | null
+          counterparty: string | null
+          created_at: string | null
+          description: string
+          final_category_id: string | null
+          id: string
+          needs_review: boolean | null
+          original_amount: string | null
+          original_date: string | null
+          reference: string | null
+          reviewed: boolean | null
+          reviewed_at: string | null
+          row_number: number
+          session_id: string
+          transaction_date: string
+          transaction_type: string | null
+          updated_at: string | null
+          user_category_id: string | null
+          user_id: string
+          user_modified: boolean | null
+          user_notes: string | null
+        }
+        Insert: {
+          ai_affects_pnl?: boolean | null
+          ai_balance_impact?: string | null
+          ai_category_code?: string | null
+          ai_category_type?: string | null
+          ai_confidence?: number | null
+          ai_counterparty?: string | null
+          ai_reasoning?: string | null
+          amount: number
+          balance?: number | null
+          channel?: string | null
+          counterparty?: string | null
+          created_at?: string | null
+          description: string
+          final_category_id?: string | null
+          id?: string
+          needs_review?: boolean | null
+          original_amount?: string | null
+          original_date?: string | null
+          reference?: string | null
+          reviewed?: boolean | null
+          reviewed_at?: string | null
+          row_number: number
+          session_id: string
+          transaction_date: string
+          transaction_type?: string | null
+          updated_at?: string | null
+          user_category_id?: string | null
+          user_id: string
+          user_modified?: boolean | null
+          user_notes?: string | null
+        }
+        Update: {
+          ai_affects_pnl?: boolean | null
+          ai_balance_impact?: string | null
+          ai_category_code?: string | null
+          ai_category_type?: string | null
+          ai_confidence?: number | null
+          ai_counterparty?: string | null
+          ai_reasoning?: string | null
+          amount?: number
+          balance?: number | null
+          channel?: string | null
+          counterparty?: string | null
+          created_at?: string | null
+          description?: string
+          final_category_id?: string | null
+          id?: string
+          needs_review?: boolean | null
+          original_amount?: string | null
+          original_date?: string | null
+          reference?: string | null
+          reviewed?: boolean | null
+          reviewed_at?: string | null
+          row_number?: number
+          session_id?: string
+          transaction_date?: string
+          transaction_type?: string | null
+          updated_at?: string | null
+          user_category_id?: string | null
+          user_id?: string
+          user_modified?: boolean | null
+          user_notes?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "bank_import_transactions_final_category_id_fkey"
+            columns: ["final_category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_import_transactions_session_id_fkey"
+            columns: ["session_id"]
+            isOneToOne: false
+            referencedRelation: "bank_import_sessions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "bank_import_transactions_user_category_id_fkey"
+            columns: ["user_category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       bank_transactions: {
         Row: {
           ai_confidence: number | null

@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useCategories } from './useCategories';
+import { useBankImportSession, SaveTransactionParams, SaveCategorizationParams } from './useBankImportSession';
 import { parseFile } from '@/lib/fileParser';
 import { ParsedTransaction, ParseResult, ParseSummary, BankInfo, CategorizationResult, BalanceImpact } from '@/types/finance';
 import { EditableTransaction } from '@/components/finance/TransactionEditor';
@@ -33,11 +34,23 @@ const CATEGORIZE_BATCH_SIZE = 25;
 const ESTIMATED_SECONDS_PER_PARSE_BATCH = 5; // Paralel işleme ile daha hızlı
 const ESTIMATED_SECONDS_PER_CATEGORIZE_GROUP = 4; // Paralel gruplar için
 
+// Hash function for file content
+async function computeFileHash(file: File): Promise<string> {
+  const buffer = await file.arrayBuffer();
+  const hashBuffer = await crypto.subtle.digest('SHA-256', buffer);
+  const hashArray = Array.from(new Uint8Array(hashBuffer));
+  return hashArray.map(b => b.toString(16).padStart(2, '0')).join('').substring(0, 32);
+}
+
 export function useBankFileUpload() {
   const { user } = useAuthContext();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { categories } = useCategories();
+  
+  // Bank import session hook for persistence
+  const bankImportSession = useBankImportSession();
+  
   const [progress, setProgress] = useState(0);
   const [status, setStatus] = useState<UploadStatus>('idle');
   const [parsedTransactions, setParsedTransactions] = useState<ParsedTransaction[]>([]);
@@ -56,6 +69,7 @@ export function useBankFileUpload() {
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const abortRef = useRef<boolean>(false);
   const resumeStateRef = useRef<ResumeState | null>(null);
+  const currentSessionIdRef = useRef<string | null>(null);
 
   const clearProgressInterval = useCallback(() => {
     if (progressIntervalRef.current) {
@@ -262,7 +276,7 @@ export function useBankFileUpload() {
     return allTransactions;
   };
 
-  // Categorize transactions
+  // Categorize transactions and save to DB
   const categorizeTransactions = async (parsed: ParsedTransaction[]): Promise<ParsedTransaction[]> => {
     const totalCatBatches = Math.ceil(parsed.length / CATEGORIZE_BATCH_SIZE);
     const totalParallelGroups = Math.ceil(totalCatBatches / PARALLEL_BATCH_COUNT);
@@ -314,7 +328,7 @@ export function useBankFileUpload() {
         console.log(`AI categorized ${catData.results.length} transactions`);
 
         // Map AI suggestions to transactions with new fields
-        return parsed.map((tx, i) => {
+        const categorized = parsed.map((tx, i) => {
           const suggestion = catData.results.find((r: CategorizationResult) => r.index === i);
           if (suggestion) {
             const cat = categories.find(c => c.code === suggestion.categoryCode);
@@ -332,6 +346,28 @@ export function useBankFileUpload() {
           }
           return tx;
         });
+
+        // Save categorization results to DB if we have an active session
+        if (currentSessionIdRef.current) {
+          try {
+            const categorizationParams: SaveCategorizationParams[] = catData.results.map((r: CategorizationResult) => ({
+              row_number: parsed[r.index]?.row_number || r.index + 1,
+              category_code: r.categoryCode,
+              category_type: r.categoryType,
+              confidence: r.confidence,
+              reasoning: r.reasoning || '',
+              counterparty: r.counterparty,
+              affects_pnl: r.affects_pnl,
+              balance_impact: r.balance_impact
+            }));
+            await bankImportSession.saveCategorizations(categorizationParams);
+            console.log('Categorization results saved to DB');
+          } catch (saveErr) {
+            console.warn('Failed to save categorizations to DB:', saveErr);
+          }
+        }
+
+        return categorized;
       } else {
         console.warn('AI kategorilendirme atlandı:', catError?.message);
         return parsed;
@@ -428,12 +464,41 @@ export function useBankFileUpload() {
       abortRef.current = false;
       setCanResume(false);
       resumeStateRef.current = null;
+      currentSessionIdRef.current = null;
+      setCanResume(false);
+      resumeStateRef.current = null;
 
       try {
         setStatus('uploading');
         setProgress(5);
 
-        // Check for existing file with same name
+        // Compute file hash for duplicate detection
+        const fileHash = await computeFileHash(file);
+        console.log('File hash:', fileHash);
+
+        // Create import session first
+        try {
+          const sessionResult = await bankImportSession.createSession({
+            fileName: file.name,
+            fileHash
+          });
+          currentSessionIdRef.current = sessionResult.id;
+          
+          // If existing session found, load transactions from DB
+          if (sessionResult.isExisting && sessionResult.status === 'review') {
+            await bankImportSession.refetchTransactions();
+            const existingTransactions = bankImportSession.parsedTransactions;
+            if (existingTransactions.length > 0) {
+              setParsedTransactions(existingTransactions);
+              setProgress(100);
+              return existingTransactions;
+            }
+          }
+        } catch (sessionErr) {
+          console.warn('Session creation failed, continuing without persistence:', sessionErr);
+        }
+
+        // Check for existing file with same name in bank_files
         const { data: existingFile } = await supabase
           .from('uploaded_bank_files')
           .select('id, file_name, processing_status')
@@ -457,8 +522,8 @@ export function useBankFileUpload() {
         setProgress(10);
 
         // 1. Upload to Storage
-        const ext = file.name.split('.').pop()?.toLowerCase() || 'pdf';
-        const path = `${user.id}/bank/${Date.now()}.${ext}`;
+        const fileExt = file.name.split('.').pop()?.toLowerCase() || 'xlsx';
+        const path = `${user.id}/bank/${Date.now()}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from('finance-files')
@@ -478,7 +543,7 @@ export function useBankFileUpload() {
           .insert({
             user_id: user.id,
             file_name: file.name,
-            file_type: ext,
+            file_type: fileExt,
             file_size: file.size,
             file_url: publicUrl,
             processing_status: 'processing'
@@ -514,10 +579,33 @@ export function useBankFileUpload() {
         console.log(`Created ${batches.length} parse batches`);
 
         // 5. Process batches
-        const allTransactions = await processBatches(batches, 0, ext, file.name, []);
+        const allTransactions = await processBatches(batches, 0, fileExt, file.name, []);
 
         if (allTransactions.length === 0) {
           throw new Error('Dosyadan işlem çıkarılamadı. Lütfen farklı bir format deneyin.');
+        }
+
+        // Save parsed transactions to DB (before AI categorization)
+        if (currentSessionIdRef.current) {
+          try {
+            const saveParams: SaveTransactionParams[] = allTransactions.map(tx => ({
+              row_number: tx.row_number,
+              transaction_date: tx.date,
+              original_date: tx.original_date,
+              description: tx.description,
+              amount: tx.amount,
+              original_amount: tx.original_amount,
+              balance: tx.balance,
+              reference: tx.reference,
+              counterparty: tx.counterparty,
+              transaction_type: tx.transaction_type,
+              channel: tx.channel
+            }));
+            await bankImportSession.saveTransactions(saveParams);
+            console.log('Parsed transactions saved to DB');
+          } catch (saveErr) {
+            console.warn('Failed to save transactions to DB:', saveErr);
+          }
         }
 
         // Calculate summary from transactions
