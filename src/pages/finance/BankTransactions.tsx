@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, TrendingUp, TrendingDown, X, Trash2 } from 'lucide-react';
@@ -20,7 +20,7 @@ import { useBankTransactions } from '@/hooks/finance/useBankTransactions';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
-import { BankTransaction } from '@/types/finance';
+import { BankTransaction, TransactionCategory } from '@/types/finance';
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR').format(Math.abs(n));
 const formatDate = (d: string) => new Date(d).toLocaleDateString('tr-TR');
@@ -30,14 +30,25 @@ const monthNames = [
   'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'
 ];
 
+interface GroupedCategories {
+  income: TransactionCategory[];
+  expense: TransactionCategory[];
+  partner: TransactionCategory[];
+  financing: TransactionCategory[];
+  investment: TransactionCategory[];
+  excluded: TransactionCategory[];
+}
+
 interface TransactionCardProps {
   tx: BankTransaction;
-  categories: { id: string; icon: string; name: string }[];
+  grouped: GroupedCategories;
   onCategoryChange: (id: string, categoryId: string | null) => void;
   onDelete: (id: string) => void;
 }
 
-function TransactionCard({ tx, categories, onCategoryChange, onDelete }: TransactionCardProps) {
+function TransactionCard({ tx, grouped, onCategoryChange, onDelete }: TransactionCardProps) {
+  const isIncome = tx.amount > 0;
+
   return (
     <Card className={cn(!tx.category_id && "ring-2 ring-amber-400")}>
       <CardContent className="p-3">
@@ -94,14 +105,78 @@ function TransactionCard({ tx, categories, onCategoryChange, onDelete }: Transac
             <SelectValue placeholder="Kategori seç..." />
           </SelectTrigger>
           <SelectContent>
-            {categories.map(cat => (
-              <SelectItem key={cat.id} value={cat.id}>
-                <span className="flex items-center gap-2">
-                  <span>{cat.icon}</span>
-                  <span>{cat.name}</span>
-                </span>
-              </SelectItem>
-            ))}
+            {/* Ana Kategori - Gelir veya Gider */}
+            <SelectGroup>
+              <SelectLabel>{isIncome ? '📥 Gelir' : '📤 Gider'}</SelectLabel>
+              {(isIncome ? grouped.income : grouped.expense).map(cat => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  <span className="flex items-center gap-2">
+                    <span>{cat.icon}</span>
+                    <span>{cat.name}</span>
+                  </span>
+                </SelectItem>
+              ))}
+            </SelectGroup>
+
+            {/* Ortak İşlemleri */}
+            {grouped.partner.length > 0 && (
+              <SelectGroup>
+                <SelectLabel>{isIncome ? '🤝 Ortaktan Alınan' : '🤝 Ortağa Verilen'}</SelectLabel>
+                {grouped.partner.map(cat => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    <span className="flex items-center gap-2">
+                      <span>{cat.icon}</span>
+                      <span>{cat.name}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
+
+            {/* Finansman - Sadece gelir için */}
+            {isIncome && grouped.financing.length > 0 && (
+              <SelectGroup>
+                <SelectLabel>🏦 Finansman</SelectLabel>
+                {grouped.financing.map(cat => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    <span className="flex items-center gap-2">
+                      <span>{cat.icon}</span>
+                      <span>{cat.name}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
+
+            {/* Mevduat/Yatırım */}
+            {grouped.investment.length > 0 && (
+              <SelectGroup>
+                <SelectLabel>💰 Mevduat/Yatırım</SelectLabel>
+                {grouped.investment.map(cat => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    <span className="flex items-center gap-2">
+                      <span>{cat.icon}</span>
+                      <span>{cat.name}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
+
+            {/* Hariç Tut */}
+            {grouped.excluded.length > 0 && (
+              <SelectGroup>
+                <SelectLabel>🚫 Hariç Tut</SelectLabel>
+                {grouped.excluded.map(cat => (
+                  <SelectItem key={cat.id} value={cat.id}>
+                    <span className="flex items-center gap-2">
+                      <span>{cat.icon}</span>
+                      <span>{cat.name}</span>
+                    </span>
+                  </SelectItem>
+                ))}
+              </SelectGroup>
+            )}
           </SelectContent>
         </Select>
       </CardContent>
@@ -396,7 +471,7 @@ export default function BankTransactions() {
                     <TransactionCard 
                       key={tx.id} 
                       tx={tx} 
-                      categories={grouped.all}
+                      grouped={grouped}
                       onCategoryChange={handleCategoryChange}
                       onDelete={handleDelete}
                     />
@@ -424,7 +499,7 @@ export default function BankTransactions() {
                     <TransactionCard 
                       key={tx.id} 
                       tx={tx} 
-                      categories={grouped.all}
+                      grouped={grouped}
                       onCategoryChange={handleCategoryChange}
                       onDelete={handleDelete}
                     />
