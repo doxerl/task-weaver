@@ -5,7 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const BATCH_SIZE = 50;
+const BATCH_SIZE = 25;
+const TIMEOUT_MS = 30000; // 30 second timeout per batch
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -67,14 +68,19 @@ Her işlem için en uygun kategori kodunu ve güven skorunu (0.0-1.0) belirle.`;
       ).join('\n');
 
       try {
+        // Timeout protection for each batch
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+        
         const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
           method: 'POST',
+          signal: controller.signal,
           headers: {
             'Authorization': `Bearer ${LOVABLE_API_KEY}`,
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            model: 'google/gemini-2.5-pro',
+            model: 'google/gemini-2.5-flash',
             messages: [
               { role: 'system', content: systemPrompt },
               { role: 'user', content: `İŞLEMLER (${startIdx}-${endIdx - 1}):\n${txList}\n\nHer işlem için kategori öner.` }
@@ -112,6 +118,8 @@ Her işlem için en uygun kategori kodunu ve güven skorunu (0.0-1.0) belirle.`;
           })
         });
 
+        clearTimeout(timeoutId);
+        
         if (!response.ok) {
           if (response.status === 429) {
             console.error(`Batch ${batchIndex + 1}: Rate limit hit, waiting...`);
@@ -149,7 +157,11 @@ Her işlem için en uygun kategori kodunu ve güven skorunu (0.0-1.0) belirle.`;
         }
 
       } catch (batchError) {
-        console.error(`Batch ${batchIndex + 1} failed:`, batchError);
+        if (batchError instanceof Error && batchError.name === 'AbortError') {
+          console.error(`Batch ${batchIndex + 1}: Timeout after ${TIMEOUT_MS}ms, skipping...`);
+        } else {
+          console.error(`Batch ${batchIndex + 1} failed:`, batchError);
+        }
         // Continue with next batch
       }
     }
