@@ -86,14 +86,48 @@ export function useBankFileUpload() {
           throw new Error(parseData?.error || 'Dosyadan işlem çıkarılamadı');
         }
         
-        const parsed: ParsedTransaction[] = parseData?.transactions || [];
+        let parsed: ParsedTransaction[] = parseData?.transactions || [];
         
         if (parsed.length === 0) {
           throw new Error('Dosyadan işlem çıkarılamadı');
         }
         
         console.log(`Parsed ${parsed.length} transactions from file`);
-        setProgress(75);
+        setProgress(65);
+
+        // Step 4: AI Kategorilendirme
+        setStatus('categorizing');
+        
+        try {
+          const { data: catData, error: catError } = await supabase.functions.invoke('categorize-transactions', {
+            body: { transactions: parsed, categories }
+          });
+          
+          if (!catError && catData?.results) {
+            console.log(`AI categorized ${catData.results.length} transactions`);
+            
+            // Map AI suggestions to transactions
+            parsed = parsed.map((tx, i) => {
+              const suggestion = catData.results.find((r: any) => r.index === i);
+              if (suggestion) {
+                const cat = categories.find(c => c.code === suggestion.categoryCode);
+                return {
+                  ...tx,
+                  suggestedCategoryId: cat?.id || null,
+                  aiConfidence: suggestion.confidence || 0
+                };
+              }
+              return tx;
+            });
+          } else {
+            console.warn('AI kategorilendirme atlandı:', catError?.message);
+          }
+        } catch (catErr) {
+          console.warn('AI kategorilendirme hatası:', catErr);
+          // Continue without AI suggestions
+        }
+        
+        setProgress(85);
         setParsedTransactions(parsed);
         
         return parsed;
