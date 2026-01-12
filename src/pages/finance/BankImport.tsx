@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle, PlayCircle } from 'lucide-react';
 import { useBankFileUpload } from '@/hooks/finance/useBankFileUpload';
 import { TransactionEditor, ParsedTransaction, EditableTransaction } from '@/components/finance/TransactionEditor';
 import { cn } from '@/lib/utils';
@@ -14,7 +14,21 @@ type ViewMode = 'upload' | 'preview' | 'completed';
 
 export default function BankImport() {
   const navigate = useNavigate();
-  const { uploadAndParse, saveTransactions, progress, status, isUploading, isSaving, reset, parsedTransactions, batchProgress, stopProcessing } = useBankFileUpload();
+  const { 
+    uploadAndParse, 
+    saveTransactions, 
+    resumeProcessing,
+    progress, 
+    status, 
+    isUploading, 
+    isSaving, 
+    isResuming,
+    reset, 
+    parsedTransactions, 
+    batchProgress, 
+    canResume,
+    stopProcessing 
+  } = useBankFileUpload();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('upload');
   const [error, setError] = useState<string | null>(null);
@@ -32,10 +46,28 @@ export default function BankImport() {
     setError(null);
     
     try {
-      await uploadAndParse.mutateAsync(selectedFile);
-      setViewMode('preview');
+      const result = await uploadAndParse.mutateAsync(selectedFile);
+      if (result.length > 0) {
+        setViewMode('preview');
+      }
     } catch (err: any) {
-      setError(err.message);
+      if (err.message !== 'PAUSED') {
+        setError(err.message);
+      }
+    }
+  };
+
+  const handleResume = async () => {
+    setError(null);
+    try {
+      const result = await resumeProcessing.mutateAsync();
+      if (result.length > 0) {
+        setViewMode('preview');
+      }
+    } catch (err: any) {
+      if (err.message !== 'PAUSED') {
+        setError(err.message);
+      }
     }
   };
 
@@ -62,9 +94,12 @@ export default function BankImport() {
     categorizing: 'Kategorize ediliyor...',
     saving: 'Kaydediliyor...',
     completed: 'Tamamlandı!',
-    cancelled: 'İşlem durduruldu',
+    paused: 'Duraklatıldı - Devam edebilirsiniz',
+    cancelled: 'İşlem iptal edildi',
     error: 'Hata oluştu'
   };
+
+  const isProcessing = isUploading || isResuming;
 
   // Preview mode - show transaction editor
   if (viewMode === 'preview' && parsedTransactions.length > 0) {
@@ -158,19 +193,21 @@ export default function BankImport() {
           <CardContent className="p-6 space-y-4">
             <label className={cn(
               "flex flex-col items-center justify-center gap-4 p-8 border-2 border-dashed rounded-lg cursor-pointer transition-colors",
-              isUploading ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
+              isProcessing ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
             )}>
               <input
                 type="file"
                 accept=".pdf,.xlsx,.xls"
                 onChange={handleFileSelect}
-                disabled={isUploading}
+                disabled={isProcessing}
                 className="hidden"
               />
               
               {status === 'completed' ? (
                 <CheckCircle className="h-12 w-12 text-green-500" />
-              ) : isUploading ? (
+              ) : status === 'paused' ? (
+                <PlayCircle className="h-12 w-12 text-amber-500" />
+              ) : isProcessing ? (
                 <Loader2 className="h-12 w-12 text-primary animate-spin" />
               ) : (
                 <Upload className="h-12 w-12 text-muted-foreground" />
@@ -181,7 +218,7 @@ export default function BankImport() {
             </label>
 
             {/* Selected file info */}
-            {selectedFile && !isUploading && (
+            {selectedFile && !isProcessing && status !== 'paused' && (
               <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
                 <div className="flex items-center gap-3">
                   <FileSpreadsheet className="h-8 w-8 text-primary" />
@@ -201,8 +238,43 @@ export default function BankImport() {
               </div>
             )}
 
+            {/* Paused state - show resume info */}
+            {status === 'paused' && canResume && (
+              <div className="p-4 bg-amber-500/10 rounded-lg border border-amber-500/20 space-y-3">
+                <div className="flex items-center gap-2">
+                  <PlayCircle className="h-5 w-5 text-amber-500" />
+                  <span className="font-medium text-amber-600 dark:text-amber-400">İşlem Duraklatıldı</span>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  {batchProgress.processedTransactions} işlem çıkarıldı. 
+                  Kalan {batchProgress.total - batchProgress.current} batch işlenecek.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    onClick={handleResume}
+                    className="flex-1"
+                    disabled={isResuming}
+                  >
+                    {isResuming ? (
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                    ) : (
+                      <PlayCircle className="h-4 w-4 mr-2" />
+                    )}
+                    Devam Et
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={handleClear}
+                    disabled={isResuming}
+                  >
+                    İptal
+                  </Button>
+                </div>
+              </div>
+            )}
+
             {/* Progress */}
-            {isUploading && (
+            {isProcessing && (
               <div className="space-y-3">
                 <Progress value={progress} />
                 
@@ -218,7 +290,7 @@ export default function BankImport() {
                         className="h-6 px-2 text-xs"
                       >
                         <StopCircle className="h-3 w-3 mr-1" />
-                        Durdur
+                        Duraklat
                       </Button>
                     </div>
                     
@@ -236,9 +308,16 @@ export default function BankImport() {
                       </span>
                     </div>
                     
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <div className="h-1.5 w-1.5 bg-blue-500 rounded-full animate-pulse" />
-                      <span>gemini-2.5-pro ile 10'ar satır işleniyor</span>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 bg-blue-500 rounded-full animate-pulse" />
+                        <span>gemini-2.5-pro ile 10'ar satır işleniyor</span>
+                      </div>
+                      <span>
+                        {batchProgress.estimatedTimeLeft > 0 
+                          ? `~${Math.ceil(batchProgress.estimatedTimeLeft / 60)}dk`
+                          : ''}
+                      </span>
                     </div>
                   </div>
                 )}
@@ -255,7 +334,7 @@ export default function BankImport() {
                         className="h-6 px-2 text-xs"
                       >
                         <StopCircle className="h-3 w-3 mr-1" />
-                        Durdur
+                        Duraklat
                       </Button>
                     </div>
                     
@@ -298,11 +377,11 @@ export default function BankImport() {
             )}
 
             {/* Parse button */}
-            {selectedFile && !isUploading && status !== 'completed' && (
+            {selectedFile && !isProcessing && status !== 'completed' && status !== 'paused' && (
               <Button
                 onClick={handleParse}
                 className="w-full"
-                disabled={isUploading}
+                disabled={isProcessing}
               >
                 <Upload className="h-4 w-4 mr-2" />
                 AI ile Analiz Et
