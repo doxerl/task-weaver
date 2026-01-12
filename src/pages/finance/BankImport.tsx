@@ -10,6 +10,7 @@ import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ParsedTransactionList } from '@/components/finance/ParsedTransactionList';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 type ViewMode = 'upload' | 'preview' | 'completed';
 
@@ -126,7 +127,7 @@ export default function BankImport() {
 
   const isProcessing = isUploading || isResuming || isCategorizing;
 
-  // Preview mode - show transaction editor
+  // Preview mode - show transaction editor with tabs
   if (viewMode === 'preview' && parsedTransactions.length > 0) {
     return (
       <div className="min-h-screen bg-background pb-20">
@@ -150,16 +151,26 @@ export default function BankImport() {
             </Alert>
           )}
 
-          {/* Show ParsedTransactionList summary if available */}
-          {parseResult && (
-            <ParsedTransactionList result={parseResult} />
-          )}
-
-          <TransactionEditor
-            transactions={parsedTransactions}
-            onSave={handleSave}
-            isSaving={isSaving}
-          />
+          <Tabs defaultValue="categorize" className="w-full">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="categorize">📋 İşlemleri Etiketle</TabsTrigger>
+              <TabsTrigger value="raw">📄 Ham Veriler</TabsTrigger>
+            </TabsList>
+            
+            <TabsContent value="categorize" className="mt-4">
+              <TransactionEditor
+                transactions={parsedTransactions}
+                onSave={handleSave}
+                isSaving={isSaving}
+              />
+            </TabsContent>
+            
+            <TabsContent value="raw" className="mt-4">
+              {parseResult && (
+                <ParsedTransactionList result={parseResult} />
+              )}
+            </TabsContent>
+          </Tabs>
         </div>
         <BottomTabBar />
       </div>
