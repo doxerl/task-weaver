@@ -44,11 +44,16 @@ Sadece JSON array döndür, başka metin yok.
       headers: {
         'x-api-key': ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
+        'anthropic-beta': 'interleaved-thinking-2025-05-14',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
-        max_tokens: 8000,
+        max_tokens: 16000,
+        thinking: {
+          type: 'enabled',
+          budget_tokens: 10000
+        },
         messages: [
           { 
             role: 'user', 
@@ -76,7 +81,9 @@ Sadece JSON array döndür, başka metin yok.
     }
 
     const data = await response.json();
-    const text = data.content?.[0]?.text || '';
+    // Extended Thinking: thinking bloklarını atla, sadece text content'i al
+    const textContent = data.content?.find((c: any) => c.type === 'text');
+    const text = textContent?.text || '';
     
     // Extract JSON array from response
     const jsonMatch = text.match(/\[[\s\S]*\]/);
