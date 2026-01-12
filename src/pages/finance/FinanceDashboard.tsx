@@ -3,7 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft, PenLine, Building2 } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/finance/useFinancialCalculations';
 import { BottomTabBar } from '@/components/BottomTabBar';
 
@@ -29,27 +29,35 @@ export default function FinanceDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-3 gap-3">
+        <div className="grid grid-cols-4 gap-2">
           <Link to="/finance/bank-import">
             <Card className="hover:bg-accent transition-colors cursor-pointer">
-              <CardContent className="p-4 flex flex-col items-center gap-2">
-                <FileSpreadsheet className="h-6 w-6 text-primary" />
+              <CardContent className="p-3 flex flex-col items-center gap-1">
+                <FileSpreadsheet className="h-5 w-5 text-primary" />
                 <span className="text-xs font-medium text-center">Banka</span>
               </CardContent>
             </Card>
           </Link>
           <Link to="/finance/receipts/upload">
             <Card className="hover:bg-accent transition-colors cursor-pointer">
-              <CardContent className="p-4 flex flex-col items-center gap-2">
-                <Camera className="h-6 w-6 text-primary" />
+              <CardContent className="p-3 flex flex-col items-center gap-1">
+                <Camera className="h-5 w-5 text-primary" />
                 <span className="text-xs font-medium text-center">Fiş</span>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/finance/manual-entry">
+            <Card className="hover:bg-accent transition-colors cursor-pointer border-primary/50">
+              <CardContent className="p-3 flex flex-col items-center gap-1">
+                <PenLine className="h-5 w-5 text-primary" />
+                <span className="text-xs font-medium text-center">Manuel</span>
               </CardContent>
             </Card>
           </Link>
           <Link to="/finance/reports">
             <Card className="hover:bg-accent transition-colors cursor-pointer">
-              <CardContent className="p-4 flex flex-col items-center gap-2">
-                <FileText className="h-6 w-6 text-primary" />
+              <CardContent className="p-3 flex flex-col items-center gap-1">
+                <FileText className="h-5 w-5 text-primary" />
                 <span className="text-xs font-medium text-center">Rapor</span>
               </CardContent>
             </Card>
@@ -97,9 +105,28 @@ export default function FinanceDashboard() {
               <p className={`text-lg font-bold ${calc.netPartnerBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {formatCurrency(calc.netPartnerBalance)}
               </p>
+              <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                <p>Verilen: {formatCurrency(calc.partnerOut)}</p>
+                <p>Alınan: {formatCurrency(calc.partnerIn)}</p>
+              </div>
             </CardContent>
           </Card>
         </div>
+
+        {/* Financing Info - Shown separately */}
+        {calc.financingIn > 0 && (
+          <Card className="border-dashed border-blue-300 bg-blue-50/50 dark:bg-blue-950/20">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2">
+                <Building2 className="h-5 w-5 text-blue-600" />
+                <div>
+                  <p className="text-sm font-medium">Finansman: {formatCurrency(calc.financingIn)}</p>
+                  <p className="text-xs text-muted-foreground italic">* Toplama dahil değildir</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
 
         {/* Warning */}
         {calc.uncategorizedCount > 0 && (

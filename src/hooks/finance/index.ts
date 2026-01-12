@@ -3,3 +3,4 @@ export { useBankFileUpload } from './useBankFileUpload';
 export { useBankTransactions } from './useBankTransactions';
 export { useReceipts } from './useReceipts';
 export { useFinancialCalculations } from './useFinancialCalculations';
+export { useManualEntry } from './useManualEntry';
