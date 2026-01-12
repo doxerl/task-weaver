@@ -311,7 +311,7 @@ export default function BankImport() {
                     <div className="flex items-center justify-between text-xs text-muted-foreground">
                       <div className="flex items-center gap-2">
                         <div className="h-1.5 w-1.5 bg-blue-500 rounded-full animate-pulse" />
-                        <span>gemini-2.5-pro ile 10'ar satır işleniyor</span>
+                        <span>3x paralel • gemini-2.5-pro</span>
                       </div>
                       <span>
                         {batchProgress.estimatedTimeLeft > 0 
