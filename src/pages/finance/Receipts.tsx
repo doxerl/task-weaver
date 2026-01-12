@@ -10,6 +10,7 @@ import { useCategories } from '@/hooks/finance/useCategories';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { DocumentType, Receipt } from '@/types/finance';
+import { MissingVatAlert } from '@/components/finance/MissingVatAlert';
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
 
@@ -127,7 +128,20 @@ function ReceiptCard({ receipt, categories, onCategoryChange, onToggleReport }: 
 export default function Receipts() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [activeTab, setActiveTab] = useState<DocumentType>('received');
-  const { receipts, isLoading, updateCategory, toggleIncludeInReport, stats } = useReceipts(year);
+  const [isReprocessingAll, setIsReprocessingAll] = useState(false);
+  
+  const { 
+    receipts, 
+    isLoading, 
+    updateCategory, 
+    toggleIncludeInReport, 
+    missingVatReceipts,
+    reprocessMultiple,
+    reprocessProgress,
+    reprocessedCount,
+    reprocessResults,
+  } = useReceipts(year);
+  
   const { grouped } = useCategories();
 
   const filteredReceipts = receipts.filter(r => 
@@ -151,6 +165,15 @@ export default function Receipts() {
 
   const categories = activeTab === 'received' ? grouped.expense : grouped.income;
 
+  const handleReprocessAll = async () => {
+    setIsReprocessingAll(true);
+    try {
+      await reprocessMultiple(missingVatReceipts.map(r => r.id));
+    } finally {
+      setIsReprocessingAll(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="p-4 space-y-4">
@@ -169,6 +192,16 @@ export default function Receipts() {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Missing VAT Alert */}
+        <MissingVatAlert
+          receipts={missingVatReceipts}
+          onReprocess={handleReprocessAll}
+          isProcessing={isReprocessingAll}
+          progress={reprocessProgress}
+          processedCount={reprocessedCount}
+          results={reprocessResults}
+        />
 
         {/* Tabs */}
         <Tabs value={activeTab} onValueChange={v => setActiveTab(v as DocumentType)}>

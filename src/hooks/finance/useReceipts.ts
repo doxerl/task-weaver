@@ -3,13 +3,18 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { Receipt, DocumentType } from '@/types/finance';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 
 export function useReceipts(year?: number, month?: number) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // Reprocess state
+  const [reprocessProgress, setReprocessProgress] = useState(0);
+  const [reprocessedCount, setReprocessedCount] = useState(0);
+  const [reprocessResults, setReprocessResults] = useState<Array<{ id: string; success: boolean; vatAmount?: number }>>([]);
 
   const { data: receipts = [], isLoading, error } = useQuery({
     queryKey: ['receipts', user?.id, year, month],
@@ -26,7 +31,6 @@ export function useReceipts(year?: number, month?: number) {
       const { data, error } = await query;
       if (error) throw error;
       
-      // Map data to include default values for new fields
       return (data || []).map(r => ({
         ...r,
         document_type: r.document_type || 'received',
@@ -43,7 +47,6 @@ export function useReceipts(year?: number, month?: number) {
       
       setUploadProgress(20);
       
-      // 1. Upload to Storage
       const isImage = file.type.startsWith('image/');
       const ext = file.name.split('.').pop() || (isImage ? 'jpg' : 'pdf');
       const path = `${user.id}/receipts/${Date.now()}.${ext}`;
@@ -60,7 +63,6 @@ export function useReceipts(year?: number, month?: number) {
       
       setUploadProgress(50);
 
-      // 2. OCR with AI
       const { data: ocrData, error: ocrError } = await supabase.functions.invoke('parse-receipt', {
         body: { imageUrl: publicUrl, documentType }
       });
@@ -70,7 +72,6 @@ export function useReceipts(year?: number, month?: number) {
       
       setUploadProgress(80);
 
-      // 3. Parse date and save
       let receiptDate = null;
       let receiptMonth = new Date().getMonth() + 1;
       let receiptYear = new Date().getFullYear();
@@ -95,36 +96,24 @@ export function useReceipts(year?: number, month?: number) {
           file_url: publicUrl,
           thumbnail_url: isImage ? publicUrl : null,
           document_type: documentType,
-          
-          // Seller info
           seller_name: ocr.sellerName || null,
           seller_tax_no: ocr.sellerTaxNo || null,
           seller_address: ocr.sellerAddress || null,
-          
-          // Buyer info
           buyer_name: ocr.buyerName || null,
           buyer_tax_no: ocr.buyerTaxNo || null,
           buyer_address: ocr.buyerAddress || null,
-          
-          // Legacy compatibility
           vendor_name: ocr.sellerName || ocr.vendorName || null,
           vendor_tax_no: ocr.sellerTaxNo || ocr.vendorTaxNo || null,
-          
           receipt_date: receiptDate,
           receipt_no: ocr.receiptNo || null,
-          
-          // Amounts
           subtotal: ocr.subtotal || null,
           total_amount: ocr.totalAmount || null,
           tax_amount: ocr.vatAmount || ocr.taxAmount || null,
-          
-          // Tax breakdown
           vat_rate: ocr.vatRate || null,
           vat_amount: ocr.vatAmount || null,
           withholding_tax_rate: ocr.withholdingTaxRate || null,
           withholding_tax_amount: ocr.withholdingTaxAmount || null,
           stamp_tax_amount: ocr.stampTaxAmount || null,
-          
           currency: ocr.currency || 'TRY',
           ocr_confidence: ocr.confidence || 0,
           month: receiptMonth,
@@ -150,6 +139,72 @@ export function useReceipts(year?: number, month?: number) {
       setUploadProgress(0);
     }
   });
+
+  // Reprocess single receipt OCR
+  const reprocessReceipt = useMutation({
+    mutationFn: async (receiptId: string) => {
+      const receipt = receipts.find(r => r.id === receiptId);
+      if (!receipt?.file_url) throw new Error('Dosya bulunamadı');
+      
+      const { data: ocrData, error } = await supabase.functions.invoke('parse-receipt', {
+        body: { imageUrl: receipt.file_url, documentType: receipt.document_type }
+      });
+      
+      if (error) throw error;
+      const ocr = ocrData?.result || {};
+      
+      const { error: updateError } = await supabase
+        .from('receipts')
+        .update({
+          seller_name: ocr.sellerName || receipt.seller_name,
+          seller_tax_no: ocr.sellerTaxNo || receipt.seller_tax_no,
+          buyer_name: ocr.buyerName || receipt.buyer_name,
+          subtotal: ocr.subtotal ?? receipt.subtotal,
+          vat_rate: ocr.vatRate ?? receipt.vat_rate,
+          vat_amount: ocr.vatAmount ?? receipt.vat_amount,
+          total_amount: ocr.totalAmount ?? receipt.total_amount,
+          ocr_confidence: ocr.confidence ?? receipt.ocr_confidence,
+        })
+        .eq('id', receiptId);
+      
+      if (updateError) throw updateError;
+      
+      return { vatAmount: ocr.vatAmount };
+    }
+  });
+
+  // Reprocess multiple receipts
+  const reprocessMultiple = useCallback(async (receiptIds: string[]) => {
+    setReprocessProgress(0);
+    setReprocessedCount(0);
+    setReprocessResults([]);
+    
+    const results: Array<{ id: string; success: boolean; vatAmount?: number }> = [];
+    
+    for (let i = 0; i < receiptIds.length; i++) {
+      const id = receiptIds[i];
+      try {
+        const result = await reprocessReceipt.mutateAsync(id);
+        results.push({ id, success: true, vatAmount: result.vatAmount });
+      } catch {
+        results.push({ id, success: false });
+      }
+      
+      setReprocessedCount(i + 1);
+      setReprocessProgress(((i + 1) / receiptIds.length) * 100);
+      setReprocessResults([...results]);
+    }
+    
+    queryClient.invalidateQueries({ queryKey: ['receipts'] });
+    
+    const found = results.filter(r => r.success && r.vatAmount).length;
+    toast({ 
+      title: 'OCR tamamlandı',
+      description: `${found}/${receiptIds.length} belgede KDV bilgisi bulundu`
+    });
+    
+    return results;
+  }, [reprocessReceipt, queryClient, toast]);
 
   const updateCategory = useMutation({
     mutationFn: async ({ id, categoryId }: { id: string; categoryId: string | null }) => {
@@ -197,10 +252,17 @@ export function useReceipts(year?: number, month?: number) {
     }
   });
 
+  // Missing VAT receipts
+  const missingVatReceipts = receipts.filter(r => 
+    r.is_included_in_report && 
+    (r.vat_amount === null || r.vat_amount === 0)
+  );
+
   const stats = {
     total: receipts.length,
     includedInReport: receipts.filter(r => r.is_included_in_report).length,
     totalAmount: receipts.filter(r => r.is_included_in_report).reduce((sum, r) => sum + (r.total_amount || 0), 0),
+    missingVatCount: missingVatReceipts.length,
   };
 
   return { 
@@ -212,6 +274,14 @@ export function useReceipts(year?: number, month?: number) {
     uploadReceipt, 
     updateCategory,
     toggleIncludeInReport,
-    deleteReceipt
+    deleteReceipt,
+    // Reprocess exports
+    missingVatReceipts,
+    reprocessReceipt,
+    reprocessMultiple,
+    reprocessProgress,
+    reprocessedCount,
+    reprocessResults,
+    isReprocessing: reprocessReceipt.isPending,
   };
 }
