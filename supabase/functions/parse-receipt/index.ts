@@ -13,9 +13,9 @@ serve(async (req) => {
   try {
     const { imageUrl } = await req.json();
     
-    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-    if (!LOVABLE_API_KEY) {
-      throw new Error('LOVABLE_API_KEY is not configured');
+    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
+    if (!ANTHROPIC_API_KEY) {
+      throw new Error('ANTHROPIC_API_KEY is not configured');
     }
 
     const systemPrompt = `Sen Türk fiş/fatura OCR uzmanısın.
@@ -43,25 +43,34 @@ Sadece JSON object döndür:
 
 Okunamayan alanlar için null kullan.`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+        'x-api-key': ANTHROPIC_API_KEY,
+        'anthropic-version': '2023-06-01',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-flash',
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 2048,
         messages: [
-          { role: 'system', content: systemPrompt },
           { 
             role: 'user', 
             content: [
-              { type: 'image_url', image_url: { url: imageUrl } },
-              { type: 'text', text: 'Bu fiş/faturayı analiz et.' }
+              { 
+                type: 'image', 
+                source: { 
+                  type: 'url', 
+                  url: imageUrl 
+                } 
+              },
+              { 
+                type: 'text', 
+                text: `${systemPrompt}\n\nBu fiş/faturayı analiz et.` 
+              }
             ]
           }
         ],
-        temperature: 0.1,
       })
     });
 
@@ -72,19 +81,18 @@ Okunamayan alanlar için null kullan.`;
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: 'Kredi yetersiz, lütfen hesabınızı kontrol edin.' }), {
-          status: 402,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
+      if (response.status === 400) {
+        const errorData = await response.json();
+        console.error('Anthropic API error:', errorData);
+        throw new Error(errorData.error?.message || 'Anthropic API error');
       }
       const errorText = await response.text();
-      console.error('AI gateway error:', response.status, errorText);
-      throw new Error('AI gateway error');
+      console.error('Anthropic API error:', response.status, errorText);
+      throw new Error('Anthropic API error');
     }
 
     const data = await response.json();
-    const text = data.choices?.[0]?.message?.content || '';
+    const text = data.content?.[0]?.text || '';
     
     // Extract JSON object from response
     const jsonMatch = text.match(/\{[\s\S]*\}/);
