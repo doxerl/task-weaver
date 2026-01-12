@@ -50,6 +50,7 @@ export function useBankFileUpload() {
     stage: 'parsing',
   });
   const [canResume, setCanResume] = useState(false);
+  const [pausedTransactionCount, setPausedTransactionCount] = useState(0);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const abortRef = useRef<boolean>(false);
   const resumeStateRef = useRef<ResumeState | null>(null);
@@ -66,6 +67,7 @@ export function useBankFileUpload() {
     abortRef.current = true;
     clearProgressInterval();
     // Don't set status here - let processBatches handle it after PAUSED error
+    // pausedTransactionCount will be set when status becomes 'paused'
   }, [clearProgressInterval]);
 
   const reset = useCallback(() => {
@@ -76,6 +78,7 @@ export function useBankFileUpload() {
     setParsedTransactions([]);
     setCurrentFileId(null);
     setCanResume(false);
+    setPausedTransactionCount(0);
     resumeStateRef.current = null;
     setBatchProgress({
       current: 0,
@@ -178,6 +181,7 @@ export function useBankFileUpload() {
           collectedTransactions,
         };
         setCanResume(true);
+        setPausedTransactionCount(collectedTransactions.length);
         setStatus('paused');
         console.log(`Saved resume state: batch ${i}, collected ${collectedTransactions.length} transactions`);
         break;
@@ -585,18 +589,56 @@ export function useBankFileUpload() {
     }
   });
 
+  // Categorize and show paused transactions
+  const categorizeAndShowPaused = useMutation({
+    mutationFn: async (): Promise<ParsedTransaction[]> => {
+      const resumeState = resumeStateRef.current;
+      if (!resumeState || resumeState.collectedTransactions.length === 0) {
+        throw new Error('Kategorilendecek işlem bulunamadı');
+      }
+
+      const transactions = resumeState.collectedTransactions;
+      console.log(`Categorizing ${transactions.length} paused transactions`);
+      
+      setStatus('categorizing');
+      setProgress(65);
+
+      const categorized = await categorizeTransactions(transactions);
+
+      setProgress(85);
+      setParsedTransactions(categorized);
+      
+      // Clear resume state since we're now showing the transactions
+      resumeStateRef.current = null;
+      setCanResume(false);
+      setPausedTransactionCount(0);
+
+      return categorized;
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Hata',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+
   return {
     uploadAndParse,
     saveTransactions,
     resumeProcessing,
+    categorizeAndShowPaused,
     progress,
     status,
     isUploading: uploadAndParse.isPending,
     isSaving: saveTransactions.isPending,
     isResuming: resumeProcessing.isPending,
+    isCategorizing: categorizeAndShowPaused.isPending,
     parsedTransactions,
     batchProgress,
     canResume,
+    pausedTransactionCount,
     reset,
     stopProcessing
   };

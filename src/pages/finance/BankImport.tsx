@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle, PlayCircle } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle, PlayCircle, Eye } from 'lucide-react';
 import { useBankFileUpload } from '@/hooks/finance/useBankFileUpload';
 import { TransactionEditor, ParsedTransaction, EditableTransaction } from '@/components/finance/TransactionEditor';
 import { cn } from '@/lib/utils';
@@ -18,15 +18,18 @@ export default function BankImport() {
     uploadAndParse, 
     saveTransactions, 
     resumeProcessing,
+    categorizeAndShowPaused,
     progress, 
     status, 
     isUploading, 
     isSaving, 
     isResuming,
+    isCategorizing,
     reset, 
     parsedTransactions, 
     batchProgress, 
     canResume,
+    pausedTransactionCount,
     stopProcessing 
   } = useBankFileUpload();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -72,6 +75,18 @@ export default function BankImport() {
     }
   };
 
+  const handleCategorizeAndShow = async () => {
+    setError(null);
+    try {
+      const result = await categorizeAndShowPaused.mutateAsync();
+      if (result.length > 0) {
+        setViewMode('preview');
+      }
+    } catch (err: any) {
+      setError(err.message);
+    }
+  };
+
   // Watch for successful completion after resume
   useEffect(() => {
     if (parsedTransactions.length > 0 && status !== 'parsing' && status !== 'categorizing' && status !== 'paused' && !isResuming) {
@@ -107,7 +122,7 @@ export default function BankImport() {
     error: 'Hata oluştu'
   };
 
-  const isProcessing = isUploading || isResuming;
+  const isProcessing = isUploading || isResuming || isCategorizing;
 
   // Preview mode - show transaction editor
   if (viewMode === 'preview' && parsedTransactions.length > 0) {
@@ -253,30 +268,51 @@ export default function BankImport() {
                   <PlayCircle className="h-5 w-5 text-amber-500" />
                   <span className="font-medium text-amber-600 dark:text-amber-400">İşlem Duraklatıldı</span>
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  {batchProgress.processedTransactions} işlem çıkarıldı. 
-                  Kalan {batchProgress.total - batchProgress.current} batch işlenecek.
-                </p>
-                <div className="flex gap-2">
-                  <Button
-                    onClick={handleResume}
-                    className="flex-1"
-                    disabled={isResuming}
-                  >
-                    {isResuming ? (
-                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                    ) : (
-                      <PlayCircle className="h-4 w-4 mr-2" />
-                    )}
-                    Devam Et
-                  </Button>
-                  <Button
-                    variant="outline"
-                    onClick={handleClear}
-                    disabled={isResuming}
-                  >
-                    İptal
-                  </Button>
+                <div className="space-y-1">
+                  <p className="text-sm font-medium">
+                    {pausedTransactionCount} işlem çıkarıldı
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Kalan {batchProgress.total - batchProgress.current} batch işlenecek
+                  </p>
+                </div>
+                <div className="flex flex-col gap-2">
+                  <div className="flex gap-2">
+                    <Button
+                      onClick={handleResume}
+                      className="flex-1"
+                      disabled={isResuming || isCategorizing}
+                    >
+                      {isResuming ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <PlayCircle className="h-4 w-4 mr-2" />
+                      )}
+                      Devam Et
+                    </Button>
+                    <Button
+                      variant="outline"
+                      onClick={handleClear}
+                      disabled={isResuming || isCategorizing}
+                    >
+                      İptal
+                    </Button>
+                  </div>
+                  {pausedTransactionCount > 0 && (
+                    <Button
+                      variant="secondary"
+                      onClick={handleCategorizeAndShow}
+                      disabled={isResuming || isCategorizing}
+                      className="w-full"
+                    >
+                      {isCategorizing ? (
+                        <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      ) : (
+                        <Eye className="h-4 w-4 mr-2" />
+                      )}
+                      Mevcut {pausedTransactionCount} İşlemi Görüntüle & Kategorile
+                    </Button>
+                  )}
                 </div>
               </div>
             )}
