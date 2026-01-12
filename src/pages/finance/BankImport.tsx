@@ -1,4 +1,4 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
@@ -61,6 +61,7 @@ export default function BankImport() {
     setError(null);
     try {
       const result = await resumeProcessing.mutateAsync();
+      // Only go to preview if we completed successfully (not paused again)
       if (result.length > 0) {
         setViewMode('preview');
       }
@@ -70,6 +71,13 @@ export default function BankImport() {
       }
     }
   };
+
+  // Watch for successful completion after resume
+  useEffect(() => {
+    if (parsedTransactions.length > 0 && status !== 'parsing' && status !== 'categorizing' && status !== 'paused' && !isResuming) {
+      // Processing completed, can go to preview
+    }
+  }, [parsedTransactions, status, isResuming]);
 
   const handleSave = async (transactions: EditableTransaction[]) => {
     try {
