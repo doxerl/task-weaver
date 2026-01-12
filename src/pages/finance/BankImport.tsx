@@ -14,7 +14,7 @@ type ViewMode = 'upload' | 'preview' | 'completed';
 
 export default function BankImport() {
   const navigate = useNavigate();
-  const { uploadAndParse, saveTransactions, progress, status, isUploading, isSaving, reset, parsedTransactions } = useBankFileUpload();
+  const { uploadAndParse, saveTransactions, progress, status, isUploading, isSaving, reset, parsedTransactions, batchProgress } = useBankFileUpload();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('upload');
   const [error, setError] = useState<string | null>(null);
@@ -202,13 +202,49 @@ export default function BankImport() {
 
             {/* Progress */}
             {isUploading && (
-              <div className="space-y-2">
+              <div className="space-y-3">
                 <Progress value={progress} />
-                <p className="text-xs text-center text-muted-foreground">
-                  {status === 'uploading' && 'Dosya yükleniyor...'}
-                  {status === 'parsing' && 'Claude AI ile analiz ediliyor (Extended Thinking aktif)...'}
-                  {status === 'categorizing' && 'Kategoriler öneriliyor...'}
-                </p>
+                
+                {/* Batch Progress for Categorization */}
+                {status === 'categorizing' && batchProgress.total > 0 && (
+                  <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="font-medium text-primary">AI Kategorilendirme</span>
+                      <span className="text-muted-foreground">
+                        {batchProgress.estimatedTimeLeft > 0 
+                          ? `~${batchProgress.estimatedTimeLeft}sn kaldı`
+                          : 'Tamamlanıyor...'}
+                      </span>
+                    </div>
+                    
+                    <Progress 
+                      value={(batchProgress.current / batchProgress.total) * 100} 
+                      className="h-2"
+                    />
+                    
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <span>
+                        Batch {batchProgress.current}/{batchProgress.total}
+                      </span>
+                      <span>
+                        {batchProgress.processedTransactions}/{batchProgress.totalTransactions} işlem
+                      </span>
+                    </div>
+                    
+                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                      <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />
+                      <span>gemini-2.5-pro ile analiz ediliyor</span>
+                    </div>
+                  </div>
+                )}
+                
+                {/* Status text for non-categorizing steps */}
+                {status !== 'categorizing' && (
+                  <p className="text-xs text-center text-muted-foreground">
+                    {status === 'uploading' && 'Dosya yükleniyor...'}
+                    {status === 'parsing' && 'AI ile analiz ediliyor (Extended Thinking aktif)...'}
+                  </p>
+                )}
               </div>
             )}
 
