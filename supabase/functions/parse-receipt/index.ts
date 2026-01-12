@@ -5,6 +5,30 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Convert file to base64 data URL
+async function fetchAsBase64(url: string): Promise<{ dataUrl: string; mimeType: string }> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Failed to fetch file: ${response.status}`);
+  }
+  
+  const contentType = response.headers.get('content-type') || 'application/octet-stream';
+  const arrayBuffer = await response.arrayBuffer();
+  const uint8Array = new Uint8Array(arrayBuffer);
+  
+  // Convert to base64
+  let binary = '';
+  for (let i = 0; i < uint8Array.length; i++) {
+    binary += String.fromCharCode(uint8Array[i]);
+  }
+  const base64 = btoa(binary);
+  
+  return {
+    dataUrl: `data:${contentType};base64,${base64}`,
+    mimeType: contentType
+  };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -16,6 +40,37 @@ serve(async (req) => {
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
       throw new Error('LOVABLE_API_KEY is not configured');
+    }
+
+    // Check file type
+    const isPdf = imageUrl.toLowerCase().includes('.pdf');
+    
+    if (isPdf) {
+      // For PDF files, we need to inform the user that only images are supported
+      // Gemini doesn't support PDF in image_url, only in file uploads which requires different API
+      return new Response(JSON.stringify({ 
+        error: 'PDF dosyaları desteklenmiyor. Lütfen fiş/faturanın fotoğrafını (JPG, PNG) yükleyin.',
+        supportedFormats: ['image/jpeg', 'image/png', 'image/webp', 'image/gif']
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
+    }
+
+    // Fetch image and convert to base64 data URL for better compatibility
+    console.log('Fetching image and converting to base64...');
+    const { dataUrl, mimeType } = await fetchAsBase64(imageUrl);
+    
+    // Validate mime type
+    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif'];
+    if (!supportedTypes.some(t => mimeType.includes(t.split('/')[1]))) {
+      return new Response(JSON.stringify({ 
+        error: `Desteklenmeyen dosya formatı: ${mimeType}. Lütfen JPG, PNG, WebP veya GIF yükleyin.`,
+        supportedFormats: supportedTypes
+      }), {
+        status: 400,
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+      });
     }
 
     const systemPrompt = `Sen Türk fiş/fatura OCR uzmanısın.
@@ -59,7 +114,7 @@ Okunamayan alanlar için null kullan.`;
             content: [
               { 
                 type: 'image_url', 
-                image_url: { url: imageUrl } 
+                image_url: { url: dataUrl } 
               },
               { 
                 type: 'text', 
