@@ -220,7 +220,7 @@ export default function BankImport() {
             )}>
               <input
                 type="file"
-                accept=".pdf,.xlsx,.xls"
+                accept=".xlsx,.xls"
                 onChange={handleFileSelect}
                 disabled={isProcessing}
                 className="hidden"
@@ -237,7 +237,7 @@ export default function BankImport() {
               )}
               
               <p className="text-sm font-medium">{statusText[status]}</p>
-              <p className="text-xs text-muted-foreground">Excel (.xlsx, .xls) veya PDF</p>
+              <p className="text-xs text-muted-foreground">Excel formatı (.xlsx, .xls)</p>
             </label>
 
             {/* Selected file info */}

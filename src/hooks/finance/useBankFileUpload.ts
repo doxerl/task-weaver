@@ -400,6 +400,16 @@ export function useBankFileUpload() {
   const uploadAndParse = useMutation({
     mutationFn: async (file: File): Promise<ParsedTransaction[]> => {
       if (!user?.id) throw new Error('Giriş yapmalısınız');
+      
+      // Validate file type - only Excel allowed
+      const ext = file.name.split('.').pop()?.toLowerCase();
+      if (ext === 'pdf') {
+        throw new Error('PDF formatı desteklenmiyor. Lütfen Excel (.xlsx veya .xls) dosyası yükleyin.');
+      }
+      if (!['xlsx', 'xls'].includes(ext || '')) {
+        throw new Error('Desteklenmeyen dosya formatı. Lütfen Excel (.xlsx veya .xls) dosyası yükleyin.');
+      }
+      
       abortRef.current = false;
       setCanResume(false);
       resumeStateRef.current = null;
