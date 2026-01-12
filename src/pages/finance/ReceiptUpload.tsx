@@ -27,7 +27,10 @@ export default function ReceiptUpload() {
   const [searchParams] = useSearchParams();
   const initialType = (searchParams.get('type') as DocumentType) || 'received';
   
+  // Fetch recent receipts from DB (last 20)
   const { 
+    receipts: dbReceipts,
+    isLoading: isLoadingReceipts,
     uploadReceipt, 
     uploadProgress, 
     deleteReceipt, 
@@ -43,8 +46,11 @@ export default function ReceiptUpload() {
   const [uploading, setUploading] = useState(false);
   const [completed, setCompleted] = useState(0);
   
-  // Uploaded receipts to show in page
-  const [uploadedReceipts, setUploadedReceipts] = useState<Receipt[]>([]);
+  // Uploaded receipts - start with empty, then merge with newly uploaded
+  const [sessionUploadedIds, setSessionUploadedIds] = useState<Set<string>>(new Set());
+  
+  // Show recent receipts from DB (limit to last 20 for this session view)
+  const recentReceipts = dbReceipts.slice(0, 20);
   
   // Edit sheet state
   const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
@@ -77,15 +83,15 @@ export default function ReceiptUpload() {
   const handleUpload = async () => {
     setUploading(true);
     setCompleted(0);
-    const uploaded: Receipt[] = [];
+    const uploadedIds: string[] = [];
     
     for (const file of files) {
       const result = await uploadReceipt.mutateAsync({ file, documentType });
       // Handle both single receipt and array (from ZIP)
       if (Array.isArray(result)) {
-        uploaded.push(...result);
+        uploadedIds.push(...result.map(r => r.id));
       } else if (result) {
-        uploaded.push(result as Receipt);
+        uploadedIds.push((result as Receipt).id);
       }
       setCompleted(prev => prev + 1);
     }
@@ -96,17 +102,21 @@ export default function ReceiptUpload() {
     setPreviews([]);
     setUploading(false);
     
-    // Add to uploaded receipts list
-    setUploadedReceipts(prev => [...prev, ...uploaded]);
+    // Track which receipts were uploaded in this session
+    setSessionUploadedIds(prev => new Set([...prev, ...uploadedIds]));
   };
 
   const handleDelete = async (id: string) => {
     await deleteReceipt.mutateAsync(id);
-    setUploadedReceipts(prev => prev.filter(r => r.id !== id));
+    setSessionUploadedIds(prev => {
+      const next = new Set(prev);
+      next.delete(id);
+      return next;
+    });
   };
 
   const handleEdit = (id: string) => {
-    const receipt = uploadedReceipts.find(r => r.id === id);
+    const receipt = recentReceipts.find(r => r.id === id);
     if (receipt) {
       setEditingReceipt(receipt);
       setEditSheetOpen(true);
@@ -121,16 +131,10 @@ export default function ReceiptUpload() {
 
   const handleToggleInclude = async (id: string, include: boolean) => {
     await toggleIncludeInReport.mutateAsync({ id, include });
-    setUploadedReceipts(prev => 
-      prev.map(r => r.id === id ? { ...r, is_included_in_report: include } : r)
-    );
   };
 
   const handleSaveEdit = async (id: string, data: Partial<Receipt>) => {
     await updateReceipt.mutateAsync({ id, data });
-    setUploadedReceipts(prev => 
-      prev.map(r => r.id === id ? { ...r, ...data } : r)
-    );
   };
 
   return (
@@ -341,17 +345,27 @@ export default function ReceiptUpload() {
           </>
         )}
 
-        {/* Uploaded Receipts - After Upload */}
-        {uploadedReceipts.length > 0 && (
+        {/* Recent Receipts - Persisted from DB */}
+        {isLoadingReceipts ? (
+          <div className="flex items-center justify-center py-8">
+            <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+          </div>
+        ) : recentReceipts.length > 0 ? (
           <div className="space-y-4">
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">
-                📋 Yüklenen Belgeler ({uploadedReceipts.length})
+                📋 Son Yüklenen Belgeler ({recentReceipts.length})
               </h2>
+              <Link 
+                to="/finance/receipts" 
+                className="text-sm text-primary hover:underline"
+              >
+                Tümünü Gör →
+              </Link>
             </div>
             
             <div className="space-y-3">
-              {uploadedReceipts.map((receipt) => (
+              {recentReceipts.map((receipt) => (
                 <UploadedReceiptCard
                   key={receipt.id}
                   receipt={receipt}
@@ -397,7 +411,7 @@ export default function ReceiptUpload() {
               </CardContent>
             </Card>
           </div>
-        )}
+        ) : null}
       </div>
 
       {/* Edit Sheet */}
