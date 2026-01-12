@@ -11,33 +11,50 @@ serve(async (req) => {
   }
 
   try {
-    const { fileContent, fileType } = await req.json();
+    const { fileContent, fileType, fileName } = await req.json();
+    
+    console.log('Step 1: Request received');
+    console.log(`File: ${fileName}, Type: ${fileType}, Content length: ${fileContent?.length || 0}`);
     
     const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
     if (!ANTHROPIC_API_KEY) {
       throw new Error('ANTHROPIC_API_KEY is not configured');
     }
 
-    const systemPrompt = `Sen Türk bankası hesap ekstresi analiz uzmanısın.
+    const systemPrompt = `Sen bir Türk bankası hesap ekstresi analiz uzmanısın. Görevin verilen banka hesap hareketlerini analiz edip JSON formatında çıkarmak.
 
-GÖREV: Verilen banka ekstresinden TÜM işlemleri çıkar.
+ÇIKTI FORMATI:
+Her işlem için şu alanları çıkar:
+- date: İşlem tarihi (DD.MM.YYYY formatında koru)
+- description: İşlem açıklaması (tam metin, kısaltma yapma)
+- amount: Tutar (sayı olarak, pozitif=gelir/alacak, negatif=gider/borç)
+- balance: Bakiye (varsa, sayı olarak, yoksa null)
+- reference: Referans/dekont numarası (varsa, yoksa null)
+- counterparty: Karşı taraf ismi (EFT/Havale/FAST işlemlerinden çıkar, yoksa null)
 
-FORMAT KURALLARI:
-- Tarih: DD.MM.YYYY formatında
-- Binlik ayracı: nokta (1.234.567)
-- Ondalık ayracı: virgül (1.234,56)
-- Pozitif tutar: gelir/yatırım (+)
-- Negatif tutar: gider/çekim (-)
+TÜRK BANKASI FORMAT KURALLARI:
+- Tarih formatları: DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY
+- Binlik ayracı: nokta (.) → 1.234.567 = 1234567
+- Ondalık ayracı: virgül (,) → 1.234,56 = 1234.56
+- Negatif gösterimi: - işareti veya parantez ()
+- "Borç" veya çıkış kolonundaki tutar → negatif
+- "Alacak" veya giriş kolonundaki tutar → pozitif
+
+ÖZEL İŞLEM TİPLERİ (açıklamadan tespit et):
+- EFT/FAST/Havale işlemleri → Karşı taraf ismini counterparty alanına yaz
+- Banka içi transferler → BANKA İÇİ olarak işaretle
+- Kredi/Taksit → Açıklamadan al
 
 ÖNEMLİ:
-- Her satırı ayrı bir işlem olarak değerlendir
-- Açıklama kolonunu olduğu gibi al
-- Tutar işaretini doğru belirle (alacak=pozitif, borç=negatif)
-- Bakiye varsa ekle, yoksa null
+- Tüm işlemleri çıkar, hiçbirini atlama
+- Tutarları sayı olarak döndür (string değil)
+- Açıklamaları olduğu gibi koru, kısaltma yapma
+- Emin olmadığın alanlar için null döndür
 
-ÇIKTI FORMAT:
-Sadece JSON array döndür, başka metin yok.
-[{"date":"15.03.2025","description":"AÇIKLAMA","amount":1234.56,"balance":5678.90}]`;
+SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
+[{"date":"15.03.2025","description":"AÇIKLAMA","amount":1234.56,"balance":5678.90,"reference":"123456","counterparty":"ŞIRKET ADI"}]`;
+
+    console.log('Step 2: Calling Claude API with Extended Thinking...');
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
@@ -81,39 +98,74 @@ Sadece JSON array döndür, başka metin yok.
     }
 
     const data = await response.json();
+    console.log('Step 3: Claude API response received');
+    
     // Extended Thinking: thinking bloklarını atla, sadece text content'i al
     const textContent = data.content?.find((c: any) => c.type === 'text');
     const text = textContent?.text || '';
     
-    // Extract JSON array from response
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
+    console.log('Step 4: Raw result length:', text.length);
+    
+    // Extract JSON array from response (handle markdown code blocks)
+    let jsonString = text;
+    
+    // ```json ... ``` bloğunu temizle
+    const jsonBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonBlockMatch) {
+      jsonString = jsonBlockMatch[1].trim();
+    }
+    
+    // JSON array'i bul
+    const jsonMatch = jsonString.match(/\[[\s\S]*\]/);
     let transactions = [];
     
     if (jsonMatch) {
       try {
         transactions = JSON.parse(jsonMatch[0]);
+        console.log('Step 5: Parsed', transactions.length, 'transactions');
       } catch (parseError) {
-        console.error('JSON parse error:', parseError, 'Raw text:', text);
+        console.error('JSON parse error:', parseError);
+        console.error('Raw JSON string:', jsonString.substring(0, 500));
       }
     }
 
     // Normalize amounts (handle Turkish number format)
-    transactions = transactions.map((t: any) => ({
-      ...t,
+    transactions = transactions.map((t: any, index: number) => ({
+      index,
+      date: t.date || null,
+      description: t.description || '',
       amount: typeof t.amount === 'string' 
         ? parseFloat(t.amount.replace(/\./g, '').replace(',', '.'))
-        : t.amount,
-      balance: t.balance && typeof t.balance === 'string'
+        : (typeof t.amount === 'number' ? t.amount : 0),
+      balance: t.balance != null ? (typeof t.balance === 'string'
         ? parseFloat(t.balance.replace(/\./g, '').replace(',', '.'))
-        : t.balance
+        : t.balance) : null,
+      reference: t.reference || null,
+      counterparty: t.counterparty || null
     }));
 
-    return new Response(JSON.stringify({ transactions, count: transactions.length }), {
+    console.log('Step 6: Returning', transactions.length, 'normalized transactions');
+
+    return new Response(JSON.stringify({ 
+      success: true,
+      transactions, 
+      count: transactions.length,
+      metadata: {
+        fileName: fileName || 'unknown',
+        fileType: fileType || 'unknown',
+        transactionCount: transactions.length,
+        processedAt: new Date().toISOString()
+      }
+    }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   } catch (error) {
     console.error('parse-bank-statement error:', error);
-    return new Response(JSON.stringify({ error: error instanceof Error ? error.message : 'Unknown error' }), {
+    return new Response(JSON.stringify({ 
+      success: false,
+      error: error instanceof Error ? error.message : 'Unknown error',
+      transactions: [] 
+    }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });

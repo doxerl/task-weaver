@@ -21,8 +21,11 @@ export async function parseXLSX(file: File): Promise<string> {
 /**
  * Parse PDF file - extract text using basic approach
  * Note: For complex PDFs, XLSX format is recommended
+ * WARNING: Basic PDF parsing may miss some content. Use XLSX for best results.
  */
 export async function parsePDF(file: File): Promise<string> {
+  console.warn('PDF parsing basit modda çalışıyor. En iyi sonuç için XLSX formatını kullanın.');
+  
   // Try to read as text (works for some PDFs with embedded text)
   const text = await file.text();
   
