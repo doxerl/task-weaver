@@ -101,33 +101,75 @@ SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
     console.log('Step 3: Claude API response received');
     
     // Extended Thinking: thinking bloklarını atla, sadece text content'i al
-    const textContent = data.content?.find((c: any) => c.type === 'text');
-    const text = textContent?.text || '';
+    console.log('Step 4: Content blocks count:', data.content?.length || 0);
     
-    console.log('Step 4: Raw result length:', text.length);
-    
-    // Extract JSON array from response (handle markdown code blocks)
-    let jsonString = text;
-    
-    // ```json ... ``` bloğunu temizle
-    const jsonBlockMatch = text.match(/```(?:json)?\s*([\s\S]*?)```/);
-    if (jsonBlockMatch) {
-      jsonString = jsonBlockMatch[1].trim();
-    }
-    
-    // JSON array'i bul
-    const jsonMatch = jsonString.match(/\[[\s\S]*\]/);
-    let transactions = [];
-    
-    if (jsonMatch) {
-      try {
-        transactions = JSON.parse(jsonMatch[0]);
-        console.log('Step 5: Parsed', transactions.length, 'transactions');
-      } catch (parseError) {
-        console.error('JSON parse error:', parseError);
-        console.error('Raw JSON string:', jsonString.substring(0, 500));
+    // Tüm text bloklarını birleştir (bazen birden fazla olabilir)
+    let fullText = '';
+    if (data.content && Array.isArray(data.content)) {
+      for (const block of data.content) {
+        console.log('Block type:', block.type);
+        if (block.type === 'text') {
+          fullText += block.text;
+        }
       }
     }
+    
+    console.log('Step 5: Full text length:', fullText.length);
+    console.log('Step 5b: Text preview (first 500 chars):', fullText.substring(0, 500));
+    console.log('Step 5c: Text preview (last 500 chars):', fullText.substring(Math.max(0, fullText.length - 500)));
+    
+    // Extract JSON array from response
+    let transactions = [];
+    
+    // Yöntem 1: ```json ... ``` bloğunu ara
+    const jsonBlockMatch = fullText.match(/```(?:json)?\s*([\s\S]*?)```/);
+    if (jsonBlockMatch) {
+      console.log('Step 6a: Found markdown code block');
+      try {
+        const jsonContent = jsonBlockMatch[1].trim();
+        // JSON array'i bul
+        const arrayMatch = jsonContent.match(/\[[\s\S]*\]/);
+        if (arrayMatch) {
+          transactions = JSON.parse(arrayMatch[0]);
+          console.log('Step 6b: Parsed from code block:', transactions.length, 'transactions');
+        }
+      } catch (e) {
+        console.error('Step 6c: Code block parse error:', e);
+      }
+    }
+    
+    // Yöntem 2: Direkt JSON array bul (code block yoksa)
+    if (transactions.length === 0) {
+      console.log('Step 7a: Trying direct JSON array match');
+      const jsonMatch = fullText.match(/\[\s*\{[\s\S]*?\}\s*\]/);
+      if (jsonMatch) {
+        try {
+          transactions = JSON.parse(jsonMatch[0]);
+          console.log('Step 7b: Parsed direct JSON:', transactions.length, 'transactions');
+        } catch (e) {
+          console.error('Step 7c: Direct parse error:', e);
+        }
+      }
+    }
+    
+    // Yöntem 3: İlk [ ve son ] arasını al
+    if (transactions.length === 0) {
+      console.log('Step 8a: Trying bracket extraction');
+      const firstBracket = fullText.indexOf('[');
+      const lastBracket = fullText.lastIndexOf(']');
+      if (firstBracket !== -1 && lastBracket > firstBracket) {
+        try {
+          const jsonString = fullText.substring(firstBracket, lastBracket + 1);
+          transactions = JSON.parse(jsonString);
+          console.log('Step 8b: Parsed from brackets:', transactions.length, 'transactions');
+        } catch (e) {
+          console.error('Step 8c: Bracket parse error:', e);
+          console.error('Attempted JSON (first 300):', fullText.substring(firstBracket, firstBracket + 300));
+        }
+      }
+    }
+    
+    console.log('Step 9: Total transactions found:', transactions.length);
 
     // Normalize amounts (handle Turkish number format)
     transactions = transactions.map((t: any, index: number) => ({
