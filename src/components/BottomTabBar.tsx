@@ -11,6 +11,12 @@ interface TabItem {
 
 const tabs: TabItem[] = [
   {
+    path: '/finance',
+    label: 'Finans',
+    icon: <Wallet className="h-5 w-5" />,
+    matchPaths: ['/finance'],
+  },
+  {
     path: '/today',
     label: 'Bugün',
     icon: <Calendar className="h-5 w-5" />,
@@ -21,12 +27,6 @@ const tabs: TabItem[] = [
     label: 'Hafta',
     icon: <CalendarDays className="h-5 w-5" />,
     matchPaths: ['/week'],
-  },
-  {
-    path: '/finance',
-    label: 'Finans',
-    icon: <Wallet className="h-5 w-5" />,
-    matchPaths: ['/finance'],
   },
 ];
 
