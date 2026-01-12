@@ -1,16 +1,20 @@
-import { useCallback, useState } from 'react';
+import { useCallback, useState, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus } from 'lucide-react';
+import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon } from 'lucide-react';
 import { useReceipts } from '@/hooks/finance/useReceipts';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { DocumentType, Receipt } from '@/types/finance';
 import { UploadedReceiptCard } from '@/components/finance/UploadedReceiptCard';
 import { ReceiptEditSheet } from '@/components/finance/ReceiptEditSheet';
+import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function ReceiptUpload() {
+  const isMobile = useIsMobile();
+  const cameraInputRef = useRef<HTMLInputElement>(null);
+  const galleryInputRef = useRef<HTMLInputElement>(null);
   const [searchParams] = useSearchParams();
   const initialType = (searchParams.get('type') as DocumentType) || 'received';
   
@@ -170,34 +174,72 @@ export default function ReceiptUpload() {
 
         {/* File Upload Area */}
         <Card>
-          <CardContent className="p-4">
-            <label className={cn(
-              "flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors",
-              uploading ? "border-primary bg-primary/5" : "border-muted-foreground/25 hover:border-primary/50"
-            )}>
-              <input
-                type="file"
-                accept="image/*,.pdf"
-                multiple
-                onChange={handleFileSelect}
-                disabled={uploading}
-                className="hidden"
-              />
-              
-              {uploading ? (
-                <Loader2 className="h-10 w-10 text-primary animate-spin" />
-              ) : (
-                <Upload className="h-10 w-10 text-muted-foreground" />
-              )}
-              
-              <p className="text-sm font-medium">
-                {uploading ? `Yükleniyor ${completed}/${files.length}` : 'Fiş/Fatura seçin'}
-              </p>
-              <p className="text-xs text-muted-foreground">JPG, PNG, PDF</p>
-            </label>
+          <CardContent className="p-4 space-y-4">
+            {/* Hidden inputs */}
+            <input
+              ref={cameraInputRef}
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={handleFileSelect}
+              disabled={uploading}
+              className="hidden"
+            />
+            <input
+              ref={galleryInputRef}
+              type="file"
+              accept="image/*,.pdf"
+              multiple
+              onChange={handleFileSelect}
+              disabled={uploading}
+              className="hidden"
+            />
 
-            {uploading && (
-              <Progress value={(completed / files.length) * 100} className="mt-4" />
+            {uploading ? (
+              <div className="flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg border-primary bg-primary/5">
+                <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                <p className="text-sm font-medium">Yükleniyor {completed}/{files.length}</p>
+                <Progress value={(completed / files.length) * 100} className="w-full" />
+              </div>
+            ) : (
+              <>
+                {/* Mobile: Camera + Gallery buttons */}
+                {isMobile ? (
+                  <div className="grid grid-cols-2 gap-3">
+                    <button
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg transition-colors border-primary bg-primary/5 hover:bg-primary/10"
+                    >
+                      <Camera className="h-10 w-10 text-primary" />
+                      <div className="text-center">
+                        <p className="text-sm font-medium">Kamera ile Çek</p>
+                        <p className="text-xs text-muted-foreground">Fotoğraf çek</p>
+                      </div>
+                    </button>
+                    
+                    <button
+                      onClick={() => galleryInputRef.current?.click()}
+                      className="flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg transition-colors border-muted-foreground/25 hover:border-primary/50"
+                    >
+                      <ImageIcon className="h-10 w-10 text-muted-foreground" />
+                      <div className="text-center">
+                        <p className="text-sm font-medium">Galeriden Seç</p>
+                        <p className="text-xs text-muted-foreground">JPG, PNG, PDF</p>
+                      </div>
+                    </button>
+                  </div>
+                ) : (
+                  /* Desktop: Single drop zone */
+                  <button
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="w-full flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors border-muted-foreground/25 hover:border-primary/50"
+                  >
+                    <Upload className="h-10 w-10 text-muted-foreground" />
+                    <p className="text-sm font-medium">Fiş/Fatura seçin</p>
+                    <p className="text-xs text-muted-foreground">JPG, PNG, PDF</p>
+                  </button>
+                )}
+              </>
             )}
           </CardContent>
         </Card>
@@ -291,17 +333,33 @@ export default function ReceiptUpload() {
             {/* Add More Button */}
             <Card className="border-dashed">
               <CardContent className="p-4">
-                <label className="flex items-center justify-center gap-2 cursor-pointer py-2">
-                  <input
-                    type="file"
-                    accept="image/*,.pdf"
-                    multiple
-                    onChange={handleFileSelect}
-                    className="hidden"
-                  />
-                  <Plus className="h-5 w-5 text-muted-foreground" />
-                  <span className="text-sm text-muted-foreground">Başka Belge Ekle</span>
-                </label>
+                {isMobile ? (
+                  <div className="flex items-center justify-center gap-4">
+                    <button
+                      onClick={() => cameraInputRef.current?.click()}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-accent"
+                    >
+                      <Camera className="h-5 w-5 text-primary" />
+                      <span className="text-sm">Kamera</span>
+                    </button>
+                    <div className="h-6 w-px bg-border" />
+                    <button
+                      onClick={() => galleryInputRef.current?.click()}
+                      className="flex items-center gap-2 px-4 py-2 rounded-lg hover:bg-accent"
+                    >
+                      <Plus className="h-5 w-5 text-muted-foreground" />
+                      <span className="text-sm text-muted-foreground">Galeri</span>
+                    </button>
+                  </div>
+                ) : (
+                  <button
+                    onClick={() => galleryInputRef.current?.click()}
+                    className="w-full flex items-center justify-center gap-2 py-2"
+                  >
+                    <Plus className="h-5 w-5 text-muted-foreground" />
+                    <span className="text-sm text-muted-foreground">Başka Belge Ekle</span>
+                  </button>
+                )}
               </CardContent>
             </Card>
           </div>
