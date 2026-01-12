@@ -406,6 +406,29 @@ export function useBankFileUpload() {
 
       try {
         setStatus('uploading');
+        setProgress(5);
+
+        // Check for existing file with same name
+        const { data: existingFile } = await supabase
+          .from('uploaded_bank_files')
+          .select('id, file_name, processing_status')
+          .eq('user_id', user.id)
+          .eq('file_name', file.name)
+          .eq('processing_status', 'completed')
+          .maybeSingle();
+
+        if (existingFile) {
+          const confirmReupload = window.confirm(
+            `"${file.name}" daha önce yüklenmiş. Mevcut verileri silip yeniden yüklemek ister misiniz?`
+          );
+          if (!confirmReupload) {
+            throw new Error('Yükleme iptal edildi');
+          }
+          // Delete existing data
+          await supabase.from('bank_transactions').delete().eq('file_id', existingFile.id);
+          await supabase.from('uploaded_bank_files').delete().eq('id', existingFile.id);
+        }
+
         setProgress(10);
 
         // 1. Upload to Storage
@@ -520,7 +543,8 @@ export function useBankFileUpload() {
         throw new Error('En az bir işlem kategorize edilmeli');
       }
 
-      const toInsert = categorizedTx.map((t, i) => {
+      // Parse transactions and check for duplicates
+      const parsedItems = categorizedTx.map((t) => {
         // Parse Turkish date format DD.MM.YYYY
         let transactionDate = t.date;
         if (t.date && t.date.includes('.')) {
@@ -531,28 +555,67 @@ export function useBankFileUpload() {
             transactionDate = `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
           }
         }
-
-        return {
-          file_id: currentFileId,
-          user_id: user.id,
-          row_number: t.index + 1,
-          raw_date: t.date,
-          raw_description: t.description,
-          raw_amount: String(t.amount),
-          transaction_date: transactionDate,
-          description: t.description,
-          amount: t.amount,
-          balance: t.balance || null,
-          counterparty: t.counterparty || null,
-          reference_no: t.reference || null,
-          category_id: t.categoryId,
-          ai_suggested_category_id: null,
-          ai_confidence: 0,
-          is_income: t.amount > 0,
-          is_excluded: false,
-          is_manually_categorized: true
-        };
+        return { ...t, parsedDate: transactionDate };
       });
+
+      // Get existing transactions for duplicate check
+      const dates = parsedItems.map(t => t.parsedDate).filter(Boolean);
+      const minDate = dates.length > 0 ? dates.reduce((a, b) => a < b ? a : b) : null;
+      const maxDate = dates.length > 0 ? dates.reduce((a, b) => a > b ? a : b) : null;
+
+      let existingSet = new Set<string>();
+      if (minDate && maxDate) {
+        const { data: existingTxs } = await supabase
+          .from('bank_transactions')
+          .select('transaction_date, description, amount')
+          .eq('user_id', user.id)
+          .gte('transaction_date', minDate)
+          .lte('transaction_date', maxDate);
+
+        existingSet = new Set(
+          (existingTxs || []).map(t => 
+            `${t.transaction_date}|${t.description}|${t.amount}`
+          )
+        );
+      }
+
+      // Filter out duplicates
+      const uniqueItems = parsedItems.filter(t => 
+        !existingSet.has(`${t.parsedDate}|${t.description}|${t.amount}`)
+      );
+
+      const skippedCount = parsedItems.length - uniqueItems.length;
+      if (skippedCount > 0) {
+        toast({
+          title: 'Bilgi',
+          description: `${skippedCount} duplicate işlem atlandı`
+        });
+      }
+
+      if (uniqueItems.length === 0) {
+        throw new Error('Tüm işlemler zaten kayıtlı');
+      }
+
+      const toInsert = uniqueItems.map((t) => ({
+        file_id: currentFileId,
+        user_id: user.id,
+        row_number: t.index + 1,
+        raw_date: t.date,
+        raw_description: t.description,
+        raw_amount: String(t.amount),
+        transaction_date: t.parsedDate,
+        description: t.description,
+        amount: t.amount,
+        balance: t.balance || null,
+        counterparty: t.counterparty || null,
+        reference_no: t.reference || null,
+        category_id: t.categoryId,
+        ai_suggested_category_id: null,
+        ai_confidence: 0,
+        is_income: t.amount > 0,
+        is_excluded: false,
+        is_manually_categorized: true
+      }));
 
       const { error: insertError } = await supabase
         .from('bank_transactions')
