@@ -3,8 +3,7 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
-import { ArrowLeft, Loader2, ChevronDown, TrendingUp, TrendingDown } from 'lucide-react';
+import { ArrowLeft, Loader2, TrendingUp, TrendingDown, X } from 'lucide-react';
 import { useBankTransactions } from '@/hooks/finance/useBankTransactions';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { cn } from '@/lib/utils';
@@ -71,55 +70,61 @@ function TransactionCard({ tx, categories, onCategoryChange }: TransactionCardPr
 
 export default function BankTransactions() {
   const [year, setYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState<string>('all');
+  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  
   const { transactions, isLoading, updateCategory, stats } = useBankTransactions(year);
   const { grouped } = useCategories();
-  const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
 
-  // Group transactions by month
-  const groupedByMonth = useMemo(() => {
-    const months: Record<string, { 
-      income: BankTransaction[]; 
-      expense: BankTransaction[];
-      incomeTotal: number;
-      expenseTotal: number;
-    }> = {};
-    
+  // Get available months from transactions
+  const availableMonths = useMemo(() => {
+    const months = new Set<string>();
     transactions.forEach(tx => {
       const date = new Date(tx.transaction_date);
       const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-      
-      if (!months[monthKey]) {
-        months[monthKey] = { income: [], expense: [], incomeTotal: 0, expenseTotal: 0 };
-      }
-      
-      if (tx.amount > 0) {
-        months[monthKey].income.push(tx);
-        months[monthKey].incomeTotal += tx.amount;
-      } else {
-        months[monthKey].expense.push(tx);
-        months[monthKey].expenseTotal += Math.abs(tx.amount);
-      }
+      months.add(monthKey);
     });
-    
-    return Object.entries(months).sort((a, b) => b[0].localeCompare(a[0]));
+    return Array.from(months).sort((a, b) => b.localeCompare(a));
   }, [transactions]);
 
-  // Initialize open state for all months
-  useMemo(() => {
-    const initial: Record<string, boolean> = {};
-    groupedByMonth.forEach(([key]) => {
-      if (openMonths[key] === undefined) {
-        initial[key] = true; // Default open
-      }
-    });
-    if (Object.keys(initial).length > 0) {
-      setOpenMonths(prev => ({ ...prev, ...initial }));
+  // Filter transactions by month and category
+  const filteredTransactions = useMemo(() => {
+    let result = transactions;
+    
+    if (selectedMonth !== 'all') {
+      result = result.filter(tx => {
+        const date = new Date(tx.transaction_date);
+        const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+        return monthKey === selectedMonth;
+      });
     }
-  }, [groupedByMonth]);
+    
+    if (categoryFilter === 'uncategorized') {
+      result = result.filter(tx => !tx.category_id);
+    } else if (categoryFilter !== 'all') {
+      result = result.filter(tx => tx.category_id === categoryFilter);
+    }
+    
+    return result;
+  }, [transactions, selectedMonth, categoryFilter]);
 
-  const toggleMonth = (key: string) => {
-    setOpenMonths(prev => ({ ...prev, [key]: !prev[key] }));
-  };
+  // Calculate summary for filtered transactions
+  const summary = useMemo(() => {
+    const income = filteredTransactions.filter(tx => tx.amount > 0);
+    const expense = filteredTransactions.filter(tx => tx.amount < 0);
+    const incomeTotal = income.reduce((sum, tx) => sum + tx.amount, 0);
+    const expenseTotal = expense.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+    const uncategorized = filteredTransactions.filter(tx => !tx.category_id).length;
+    
+    return {
+      income,
+      expense,
+      incomeTotal,
+      expenseTotal,
+      net: incomeTotal - expenseTotal,
+      uncategorized
+    };
+  }, [filteredTransactions]);
 
   const getMonthLabel = (key: string) => {
     const [yearStr, monthStr] = key.split('-');
@@ -131,14 +136,56 @@ export default function BankTransactions() {
     updateCategory.mutate({ id, categoryId });
   };
 
+  const clearFilters = () => {
+    setSelectedMonth('all');
+    setCategoryFilter('all');
+  };
+
+  const hasActiveFilters = selectedMonth !== 'all' || categoryFilter !== 'all';
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="p-4 space-y-4">
+        {/* Header */}
         <div className="flex items-center gap-3">
           <Link to="/finance" className="p-2 hover:bg-accent rounded-lg">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold flex-1">Banka İşlemleri</h1>
+        </div>
+
+        {/* Filters Row */}
+        <div className="flex flex-wrap gap-2">
+          {/* Month Selector */}
+          <Select value={selectedMonth} onValueChange={setSelectedMonth}>
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Tüm Aylar" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tüm Aylar</SelectItem>
+              {availableMonths.map(m => (
+                <SelectItem key={m} value={m}>{getMonthLabel(m)}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Category Filter */}
+          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
+            <SelectTrigger className="w-[160px]">
+              <SelectValue placeholder="Tüm Kategoriler" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tüm Kategoriler</SelectItem>
+              <SelectItem value="uncategorized">⚠️ Kategorisiz</SelectItem>
+              {grouped.all.map(cat => (
+                <SelectItem key={cat.id} value={cat.id}>
+                  {cat.icon} {cat.name}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+
+          {/* Year Selector */}
           <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
             <SelectTrigger className="w-20">
               <SelectValue />
@@ -149,11 +196,45 @@ export default function BankTransactions() {
           </Select>
         </div>
 
-        {/* Stats */}
+        {/* Active Filters */}
+        {hasActiveFilters && (
+          <div className="flex flex-wrap items-center gap-2">
+            <span className="text-xs text-muted-foreground">Aktif:</span>
+            {selectedMonth !== 'all' && (
+              <Badge variant="secondary" className="gap-1">
+                {getMonthLabel(selectedMonth)}
+                <X 
+                  className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                  onClick={() => setSelectedMonth('all')}
+                />
+              </Badge>
+            )}
+            {categoryFilter !== 'all' && (
+              <Badge variant="secondary" className="gap-1">
+                {categoryFilter === 'uncategorized' 
+                  ? 'Kategorisiz' 
+                  : grouped.all.find(c => c.id === categoryFilter)?.name || categoryFilter
+                }
+                <X 
+                  className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                  onClick={() => setCategoryFilter('all')}
+                />
+              </Badge>
+            )}
+            <button 
+              className="text-xs text-muted-foreground hover:text-foreground underline"
+              onClick={clearFilters}
+            >
+              Temizle
+            </button>
+          </div>
+        )}
+
+        {/* Stats Badge */}
         <div className="flex gap-2 text-sm">
-          <Badge variant="outline">{stats.total} işlem</Badge>
-          {stats.uncategorized > 0 && (
-            <Badge variant="destructive">{stats.uncategorized} kategorisiz</Badge>
+          <Badge variant="outline">{filteredTransactions.length} işlem</Badge>
+          {summary.uncategorized > 0 && (
+            <Badge variant="destructive">{summary.uncategorized} kategorisiz</Badge>
           )}
         </div>
 
@@ -161,97 +242,111 @@ export default function BankTransactions() {
           <div className="flex justify-center py-8">
             <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
           </div>
-        ) : transactions.length === 0 ? (
+        ) : filteredTransactions.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center text-muted-foreground">
-              Henüz işlem yok.
-              <Link to="/finance/bank-import" className="block mt-2 text-primary underline">
-                Banka ekstresi yükle
-              </Link>
+              {hasActiveFilters ? (
+                <>
+                  Filtrelere uygun işlem bulunamadı.
+                  <button 
+                    className="block mt-2 text-primary underline mx-auto"
+                    onClick={clearFilters}
+                  >
+                    Filtreleri temizle
+                  </button>
+                </>
+              ) : (
+                <>
+                  Henüz işlem yok.
+                  <Link to="/finance/bank-import" className="block mt-2 text-primary underline">
+                    Banka ekstresi yükle
+                  </Link>
+                </>
+              )}
             </CardContent>
           </Card>
         ) : (
           <div className="space-y-4">
-            {groupedByMonth.map(([monthKey, data]) => (
-              <Collapsible 
-                key={monthKey} 
-                open={openMonths[monthKey] !== false}
-                onOpenChange={() => toggleMonth(monthKey)}
-              >
-                <CollapsibleTrigger className="w-full">
-                  <Card className="hover:bg-accent/50 transition-colors">
-                    <CardContent className="p-3 flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        <span className="text-lg font-bold">{getMonthLabel(monthKey)}</span>
-                        <Badge variant="secondary" className="text-xs">
-                          {data.income.length + data.expense.length} işlem
-                        </Badge>
-                      </div>
-                      <ChevronDown className={cn(
-                        "h-5 w-5 transition-transform",
-                        openMonths[monthKey] !== false && "rotate-180"
-                      )} />
-                    </CardContent>
-                  </Card>
-                </CollapsibleTrigger>
-                
-                <CollapsibleContent className="mt-2 space-y-3">
-                  {/* Income Section */}
-                  {data.income.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between p-2 rounded-lg bg-green-50 dark:bg-green-950/30 border-l-4 border-green-500">
-                        <div className="flex items-center gap-2">
-                          <TrendingUp className="h-4 w-4 text-green-600" />
-                          <span className="font-medium text-green-700 dark:text-green-400">
-                            Gelir ({data.income.length})
-                          </span>
-                        </div>
-                        <span className="font-bold text-green-600">
-                          +{formatCurrency(data.incomeTotal)} ₺
-                        </span>
-                      </div>
-                      <div className="space-y-2 pl-2">
-                        {data.income.map(tx => (
-                          <TransactionCard 
-                            key={tx.id} 
-                            tx={tx} 
-                            categories={grouped.all}
-                            onCategoryChange={handleCategoryChange}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                  
-                  {/* Expense Section */}
-                  {data.expense.length > 0 && (
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between p-2 rounded-lg bg-red-50 dark:bg-red-950/30 border-l-4 border-red-500">
-                        <div className="flex items-center gap-2">
-                          <TrendingDown className="h-4 w-4 text-red-600" />
-                          <span className="font-medium text-red-700 dark:text-red-400">
-                            Gider ({data.expense.length})
-                          </span>
-                        </div>
-                        <span className="font-bold text-red-600">
-                          -{formatCurrency(data.expenseTotal)} ₺
-                        </span>
-                      </div>
-                      <div className="space-y-2 pl-2">
-                        {data.expense.map(tx => (
-                          <TransactionCard 
-                            key={tx.id} 
-                            tx={tx} 
-                            categories={grouped.all}
-                            onCategoryChange={handleCategoryChange}
-                          />
-                        ))}
-                      </div>
-                    </div>
-                  )}
-                </CollapsibleContent>
-              </Collapsible>
-            ))}
+            {/* Monthly Summary Card */}
+            <Card className="bg-gradient-to-r from-muted/50 to-muted/30">
+              <CardContent className="p-4">
+                <h3 className="text-sm font-medium text-muted-foreground mb-3">
+                  📊 {selectedMonth !== 'all' ? getMonthLabel(selectedMonth) : year} Özeti
+                </h3>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground mb-1">💰 Gelir</p>
+                    <p className="font-bold text-green-600">+{formatCurrency(summary.incomeTotal)} ₺</p>
+                    <p className="text-xs text-muted-foreground">{summary.income.length} işlem</p>
+                  </div>
+                  <div className="text-center border-x border-border">
+                    <p className="text-xs text-muted-foreground mb-1">💸 Gider</p>
+                    <p className="font-bold text-red-600">-{formatCurrency(summary.expenseTotal)} ₺</p>
+                    <p className="text-xs text-muted-foreground">{summary.expense.length} işlem</p>
+                  </div>
+                  <div className="text-center">
+                    <p className="text-xs text-muted-foreground mb-1">📈 Net</p>
+                    <p className={cn("font-bold", summary.net >= 0 ? "text-emerald-600" : "text-red-600")}>
+                      {summary.net >= 0 ? '+' : '-'}{formatCurrency(Math.abs(summary.net))} ₺
+                    </p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Income Section */}
+            {summary.income.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-2 rounded-lg bg-green-50 dark:bg-green-950/30 border-l-4 border-green-500">
+                  <div className="flex items-center gap-2">
+                    <TrendingUp className="h-4 w-4 text-green-600" />
+                    <span className="font-medium text-green-700 dark:text-green-400">
+                      Gelir ({summary.income.length})
+                    </span>
+                  </div>
+                  <span className="font-bold text-green-600">
+                    +{formatCurrency(summary.incomeTotal)} ₺
+                  </span>
+                </div>
+                <div className="space-y-2 pl-2">
+                  {summary.income.map(tx => (
+                    <TransactionCard 
+                      key={tx.id} 
+                      tx={tx} 
+                      categories={grouped.all}
+                      onCategoryChange={handleCategoryChange}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
+            
+            {/* Expense Section */}
+            {summary.expense.length > 0 && (
+              <div className="space-y-2">
+                <div className="flex items-center justify-between p-2 rounded-lg bg-red-50 dark:bg-red-950/30 border-l-4 border-red-500">
+                  <div className="flex items-center gap-2">
+                    <TrendingDown className="h-4 w-4 text-red-600" />
+                    <span className="font-medium text-red-700 dark:text-red-400">
+                      Gider ({summary.expense.length})
+                    </span>
+                  </div>
+                  <span className="font-bold text-red-600">
+                    -{formatCurrency(summary.expenseTotal)} ₺
+                  </span>
+                </div>
+                <div className="space-y-2 pl-2">
+                  {summary.expense.map(tx => (
+                    <TransactionCard 
+                      key={tx.id} 
+                      tx={tx} 
+                      categories={grouped.all}
+                      onCategoryChange={handleCategoryChange}
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </div>
