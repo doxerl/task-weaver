@@ -54,27 +54,23 @@ TÜRK BANKASI FORMAT KURALLARI:
 SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
 [{"date":"15.03.2025","description":"AÇIKLAMA","amount":1234.56,"balance":5678.90,"reference":"123456","counterparty":"ŞIRKET ADI"}]`;
 
-    console.log('Step 2: Calling Claude API with Extended Thinking...');
+    console.log('Step 2: Calling Claude API (standard mode for speed)...');
 
     const response = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
         'x-api-key': ANTHROPIC_API_KEY,
         'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'interleaved-thinking-2025-05-14',
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
         model: 'claude-sonnet-4-20250514',
         max_tokens: 16000,
-        thinking: {
-          type: 'enabled',
-          budget_tokens: 10000
-        },
+        system: systemPrompt,
         messages: [
           { 
             role: 'user', 
-            content: `${systemPrompt}\n\nDosya tipi: ${fileType}\n\nİçerik:\n${fileContent}` 
+            content: `Dosya tipi: ${fileType}\n\nİçerik:\n${fileContent}` 
           }
         ],
       })
