@@ -13,9 +13,9 @@ serve(async (req) => {
   try {
     const { imageUrl } = await req.json();
     
-    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!ANTHROPIC_API_KEY) {
-      throw new Error('ANTHROPIC_API_KEY is not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY is not configured');
     }
 
     const systemPrompt = `Sen Türk fiş/fatura OCR uzmanısın.
@@ -43,31 +43,23 @@ Sadece JSON object döndür:
 
 Okunamayan alanlar için null kullan.`;
 
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    console.log('Calling Lovable AI Gateway with Gemini 2.5 Pro...');
+
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'interleaved-thinking-2025-05-14',
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 8000,
-        thinking: {
-          type: 'enabled',
-          budget_tokens: 5000
-        },
+        model: 'google/gemini-2.5-pro',
         messages: [
           { 
             role: 'user', 
             content: [
               { 
-                type: 'image', 
-                source: { 
-                  type: 'url', 
-                  url: imageUrl 
-                } 
+                type: 'image_url', 
+                image_url: { url: imageUrl } 
               },
               { 
                 type: 'text', 
@@ -86,23 +78,26 @@ Okunamayan alanlar için null kullan.`;
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
-      if (response.status === 400) {
-        const errorData = await response.json();
-        console.error('Anthropic API error:', errorData);
-        throw new Error(errorData.error?.message || 'Anthropic API error');
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: 'Kredi yetersiz, lütfen Lovable hesabınıza kredi ekleyin.' }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
       const errorText = await response.text();
-      console.error('Anthropic API error:', response.status, errorText);
-      throw new Error('Anthropic API error');
+      console.error('Lovable AI Gateway error:', response.status, errorText);
+      throw new Error(`AI Gateway error: ${response.status}`);
     }
 
     const data = await response.json();
-    // Extended Thinking: thinking bloklarını atla, sadece text content'i al
-    const textContent = data.content?.find((c: any) => c.type === 'text');
-    const text = textContent?.text || '';
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error('No content in AI response');
+    }
     
     // Extract JSON object from response
-    const jsonMatch = text.match(/\{[\s\S]*\}/);
+    const jsonMatch = content.match(/\{[\s\S]*\}/);
     let result = null;
     
     if (jsonMatch) {
@@ -117,7 +112,7 @@ Okunamayan alanlar için null kullan.`;
           result.taxAmount = parseFloat(result.taxAmount.replace(/\./g, '').replace(',', '.'));
         }
       } catch (parseError) {
-        console.error('JSON parse error:', parseError, 'Raw text:', text);
+        console.error('JSON parse error:', parseError, 'Raw text:', content);
       }
     }
 
