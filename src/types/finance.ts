@@ -58,6 +58,23 @@ export interface BankTransaction {
   counterparty?: string;
   notes?: string;
   created_at: string;
+  // VAT separation fields
+  net_amount?: number;
+  vat_amount?: number;
+  vat_rate?: number;
+  is_commercial?: boolean;
+}
+
+export interface ReceiptTransactionMatch {
+  id: string;
+  receipt_id: string;
+  bank_transaction_id: string;
+  match_type: 'full' | 'partial' | 'vat_only';
+  matched_amount: number;
+  is_auto_suggested: boolean;
+  is_confirmed: boolean;
+  created_at: string;
+  user_id: string;
 }
 
 export type DocumentType = 'received' | 'issued';
@@ -161,6 +178,12 @@ export interface FinancialCalculations {
   byMonth: Record<number, { income: number; expense: number }>;
   byInvestmentType: Record<string, { amount: number; name: string; code: string }>;
   uncategorizedCount: number;
+  // VAT calculations
+  calculatedVat: number;
+  deductibleVat: number;
+  netVatPayable: number;
+  netRevenue: number;
+  netCost: number;
 }
 
 export interface ParsedTransaction {

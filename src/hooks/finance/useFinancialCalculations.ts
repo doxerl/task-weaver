@@ -29,6 +29,11 @@ export function useFinancialCalculations(year: number): FinancialCalculations & 
         byMonth: {},
         byInvestmentType: {},
         uncategorizedCount: 0,
+        calculatedVat: 0,
+        deductibleVat: 0,
+        netVatPayable: 0,
+        netRevenue: 0,
+        netCost: 0,
         isLoading
       };
     }
@@ -57,14 +62,63 @@ export function useFinancialCalculations(year: number): FinancialCalculations & 
     const skipIds = [...financingIds, ...partnerIds, ...excludedIds, ...investmentIds];
 
     // Calculate income (positive amounts, excluding special categories)
+    // Use net_amount if available (VAT separated), otherwise calculate from amount
     const totalIncome = activeTx
       .filter(t => t.amount > 0 && !skipIds.includes(t.category_id || ''))
       .reduce((sum, t) => sum + t.amount, 0);
+
+    // Net revenue (KDV hariç ciro)
+    const netRevenue = activeTx
+      .filter(t => t.amount > 0 && !skipIds.includes(t.category_id || ''))
+      .reduce((sum, t) => {
+        // Use net_amount if available, otherwise calculate (amount / 1.20 for commercial)
+        if (t.net_amount !== undefined && t.net_amount !== null) {
+          return sum + t.net_amount;
+        }
+        // Fallback: assume 20% VAT for commercial transactions
+        return sum + (t.is_commercial !== false ? t.amount / 1.20 : t.amount);
+      }, 0);
 
     // Calculate expenses from bank (negative amounts, excluding special categories)
     const expenseFromBank = activeTx
       .filter(t => t.amount < 0 && !skipIds.includes(t.category_id || ''))
       .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+    // Net cost (KDV hariç gider)
+    const netCost = activeTx
+      .filter(t => t.amount < 0 && !skipIds.includes(t.category_id || ''))
+      .reduce((sum, t) => {
+        const absAmount = Math.abs(t.amount);
+        if (t.net_amount !== undefined && t.net_amount !== null) {
+          return sum + Math.abs(t.net_amount);
+        }
+        return sum + (t.is_commercial !== false ? absAmount / 1.20 : absAmount);
+      }, 0);
+
+    // Calculated VAT (from commercial income transactions)
+    const calculatedVat = activeTx
+      .filter(t => t.amount > 0 && t.is_commercial !== false && !skipIds.includes(t.category_id || ''))
+      .reduce((sum, t) => {
+        if (t.vat_amount !== undefined && t.vat_amount !== null) {
+          return sum + t.vat_amount;
+        }
+        // Fallback calculation
+        return sum + (t.amount - t.amount / 1.20);
+      }, 0);
+
+    // Deductible VAT (from commercial expense transactions)
+    const deductibleVat = activeTx
+      .filter(t => t.amount < 0 && t.is_commercial !== false && !skipIds.includes(t.category_id || ''))
+      .reduce((sum, t) => {
+        if (t.vat_amount !== undefined && t.vat_amount !== null) {
+          return sum + t.vat_amount;
+        }
+        // Fallback calculation
+        const absAmount = Math.abs(t.amount);
+        return sum + (absAmount - absAmount / 1.20);
+      }, 0);
+
+    const netVatPayable = calculatedVat - deductibleVat;
 
     // Calculate expenses from receipts (unlinked to bank transactions)
     const receiptExpense = activeReceipts
@@ -187,6 +241,11 @@ export function useFinancialCalculations(year: number): FinancialCalculations & 
       byMonth,
       byInvestmentType,
       uncategorizedCount,
+      calculatedVat,
+      deductibleVat,
+      netVatPayable,
+      netRevenue,
+      netCost,
       isLoading
     };
   }, [transactions, receipts, categories, isLoading]);

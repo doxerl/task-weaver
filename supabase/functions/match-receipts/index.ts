@@ -83,11 +83,11 @@ serve(async (req) => {
       };
     }> = [];
 
-    // Simple matching algorithm
+    // Simple matching algorithm - GROSS AMOUNT MATCHING (KDV dahil)
     for (const receipt of receipts) {
       if (!receipt.total_amount) continue;
       
-      const receiptAmount = Math.abs(receipt.total_amount);
+      const receiptAmount = Math.abs(receipt.total_amount); // Brüt tutar
       const receiptDate = receipt.receipt_date ? new Date(receipt.receipt_date) : null;
       const vendorName = (receipt.seller_name || receipt.vendor_name || '').toLowerCase();
       
@@ -96,11 +96,12 @@ serve(async (req) => {
       for (const tx of transactions || []) {
         if (!tx.amount) continue;
         
-        const txAmount = Math.abs(tx.amount);
+        const txAmount = Math.abs(tx.amount); // Brüt tutar
         const txDate = tx.transaction_date ? new Date(tx.transaction_date) : null;
         const txDesc = (tx.description || '').toLowerCase();
+        const txCounterparty = (tx.counterparty || '').toLowerCase();
         
-        // Amount matching (within 2% tolerance)
+        // Amount matching - BRÜT TUTAR ÜZERİNDEN (within 2% tolerance)
         const amountDiff = Math.abs(receiptAmount - txAmount) / receiptAmount;
         const amountMatch = amountDiff <= 0.02;
         
@@ -114,11 +115,12 @@ serve(async (req) => {
         
         if (dateProximity > 7) continue;
         
-        // Vendor similarity
+        // Vendor similarity - check both description and counterparty
         let vendorSimilarity = 0;
-        if (vendorName && txDesc) {
+        if (vendorName) {
           const vendorWords = vendorName.split(/\s+/).filter((w: string) => w.length > 2);
-          const matchingWords = vendorWords.filter((word: string) => txDesc.includes(word));
+          const searchText = `${txDesc} ${txCounterparty}`;
+          const matchingWords = vendorWords.filter((word: string) => searchText.includes(word));
           vendorSimilarity = vendorWords.length > 0 ? matchingWords.length / vendorWords.length : 0;
         }
         
@@ -146,11 +148,23 @@ serve(async (req) => {
       if (bestMatch && bestMatch.confidence >= 0.5) {
         matches.push(bestMatch);
         
-        // Update receipt with suggested match
+        // Insert into receipt_transaction_matches as AUTO SUGGESTED (not confirmed)
+        await supabase
+          .from('receipt_transaction_matches')
+          .upsert({
+            receipt_id: receipt.id,
+            bank_transaction_id: bestMatch.transactionId,
+            match_type: 'full',
+            matched_amount: receiptAmount,
+            is_auto_suggested: true,
+            is_confirmed: false,
+            user_id: user.id
+          }, { onConflict: 'receipt_id,bank_transaction_id' });
+        
+        // Update receipt with suggested match status
         await supabase
           .from('receipts')
           .update({
-            linked_bank_transaction_id: bestMatch.transactionId,
             match_status: 'suggested',
             match_confidence: bestMatch.confidence
           })
