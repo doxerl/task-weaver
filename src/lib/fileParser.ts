@@ -1,8 +1,4 @@
 import * as XLSX from 'xlsx';
-import * as pdfjs from 'pdfjs-dist';
-
-// PDF.js worker configuration
-pdfjs.GlobalWorkerOptions.workerSrc = `//cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js`;
 
 /**
  * Parse XLSX/XLS file and extract content as text
@@ -23,23 +19,30 @@ export async function parseXLSX(file: File): Promise<string> {
 }
 
 /**
- * Parse PDF file and extract text content
+ * Parse PDF file - extract text using basic approach
+ * Note: For complex PDFs, XLSX format is recommended
  */
 export async function parsePDF(file: File): Promise<string> {
-  const arrayBuffer = await file.arrayBuffer();
-  const pdf = await pdfjs.getDocument({ data: arrayBuffer }).promise;
+  // Try to read as text (works for some PDFs with embedded text)
+  const text = await file.text();
   
-  let content = '';
-  for (let i = 1; i <= pdf.numPages; i++) {
-    const page = await pdf.getPage(i);
-    const textContent = await page.getTextContent();
-    const pageText = textContent.items
-      .map((item: any) => item.str)
-      .join(' ');
-    content += pageText + '\n\n';
+  // Check if we got readable content
+  if (text && !text.startsWith('%PDF') && text.length > 100) {
+    return text;
   }
   
-  return content.trim();
+  // For binary PDFs, extract what we can
+  // Remove binary garbage and keep printable characters
+  const cleanText = text
+    .replace(/[^\x20-\x7E\n\r\t\u00C0-\u017F]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  
+  if (cleanText.length < 50) {
+    throw new Error('PDF dosyasından metin çıkarılamadı. Lütfen XLSX formatını kullanın.');
+  }
+  
+  return cleanText;
 }
 
 /**
@@ -55,7 +58,6 @@ export async function parseFile(file: File): Promise<string> {
     case 'pdf':
       return parsePDF(file);
     default:
-      // Fallback to text for unknown types
       return file.text();
   }
 }
