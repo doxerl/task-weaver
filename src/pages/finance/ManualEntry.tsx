@@ -14,13 +14,31 @@ import { BottomTabBar } from '@/components/BottomTabBar';
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR').format(Math.abs(n)) + ' ₺';
 
+const MONTHS = [
+  { value: '1', label: 'Ocak' },
+  { value: '2', label: 'Şubat' },
+  { value: '3', label: 'Mart' },
+  { value: '4', label: 'Nisan' },
+  { value: '5', label: 'Mayıs' },
+  { value: '6', label: 'Haziran' },
+  { value: '7', label: 'Temmuz' },
+  { value: '8', label: 'Ağustos' },
+  { value: '9', label: 'Eylül' },
+  { value: '10', label: 'Ekim' },
+  { value: '11', label: 'Kasım' },
+  { value: '12', label: 'Aralık' },
+];
+
+const YEARS = ['2024', '2025', '2026'];
+
 export default function ManualEntry() {
-  const [year] = useState(new Date().getFullYear());
+  const currentDate = new Date();
+  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
   const { grouped, isLoading: catLoading } = useCategories();
-  const { addTransaction, addPartnerTransaction, recentTransactions, isLoading } = useManualEntry(year);
+  const { addTransaction, addPartnerTransaction, recentTransactions, isLoading } = useManualEntry(selectedYear);
 
   const [transactionType, setTransactionType] = useState<'income' | 'expense' | 'partner'>('income');
-  const [date, setDate] = useState(new Date().toISOString().split('T')[0]);
+  const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
@@ -30,9 +48,12 @@ export default function ManualEntry() {
     e.preventDefault();
     if (!amount) return;
 
+    // Ayın 15'ini default olarak kullan (ayın ortası)
+    const transactionDate = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-15`;
+
     if (transactionType === 'partner') {
       await addPartnerTransaction.mutateAsync({
-        transaction_date: date,
+        transaction_date: transactionDate,
         transaction_type: partnerType,
         amount: parseFloat(amount),
         description
@@ -40,7 +61,7 @@ export default function ManualEntry() {
     } else {
       if (!categoryId) return;
       await addTransaction.mutateAsync({
-        transaction_date: date,
+        transaction_date: transactionDate,
         description,
         amount: parseFloat(amount),
         category_id: categoryId,
@@ -130,14 +151,34 @@ export default function ManualEntry() {
           </CardHeader>
           <CardContent>
             <form onSubmit={handleSubmit} className="space-y-4">
-              {/* Date */}
-              <div className="space-y-2">
-                <Label>Tarih</Label>
-                <Input 
-                  type="date" 
-                  value={date} 
-                  onChange={e => setDate(e.target.value)} 
-                />
+              {/* Month & Year */}
+              <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <Label>Ay</Label>
+                  <Select value={String(selectedMonth)} onValueChange={v => setSelectedMonth(Number(v))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {MONTHS.map(m => (
+                        <SelectItem key={m.value} value={m.value}>{m.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-2">
+                  <Label>Yıl</Label>
+                  <Select value={String(selectedYear)} onValueChange={v => setSelectedYear(Number(v))}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {YEARS.map(y => (
+                        <SelectItem key={y} value={y}>{y}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
               </div>
 
               {/* Partner Type (only for partner transactions) */}
@@ -236,7 +277,7 @@ export default function ManualEntry() {
                       <div>
                         <p className="text-sm font-medium">{tx.description || tx.category?.name || 'İşlem'}</p>
                         <p className="text-xs text-muted-foreground">
-                          {new Date(tx.transaction_date).toLocaleDateString('tr-TR')}
+                          {new Date(tx.transaction_date).toLocaleDateString('tr-TR', { month: 'long', year: 'numeric' })}
                         </p>
                       </div>
                     </div>
