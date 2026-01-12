@@ -5,7 +5,7 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useCategories } from './useCategories';
 import { parseFile } from '@/lib/fileParser';
-import { ParsedTransaction, ParseResult, ParseSummary, BankInfo } from '@/types/finance';
+import { ParsedTransaction, ParseResult, ParseSummary, BankInfo, CategorizationResult, BalanceImpact } from '@/types/finance';
 import { EditableTransaction } from '@/components/finance/TransactionEditor';
 
 export type UploadStatus = 'idle' | 'uploading' | 'parsing' | 'categorizing' | 'saving' | 'completed' | 'error' | 'cancelled' | 'paused';
@@ -313,15 +313,21 @@ export function useBankFileUpload() {
       if (!catError && catData?.results) {
         console.log(`AI categorized ${catData.results.length} transactions`);
 
-        // Map AI suggestions to transactions
+        // Map AI suggestions to transactions with new fields
         return parsed.map((tx, i) => {
-          const suggestion = catData.results.find((r: any) => r.index === i);
+          const suggestion = catData.results.find((r: CategorizationResult) => r.index === i);
           if (suggestion) {
             const cat = categories.find(c => c.code === suggestion.categoryCode);
             return {
               ...tx,
               suggestedCategoryId: cat?.id || null,
-              aiConfidence: suggestion.confidence || 0
+              aiConfidence: suggestion.confidence || 0,
+              // New AI categorization fields
+              aiReasoning: suggestion.reasoning || undefined,
+              affectsPnl: suggestion.affects_pnl,
+              balanceImpact: suggestion.balance_impact as BalanceImpact,
+              // Update counterparty if AI found a better one
+              counterparty: suggestion.counterparty || tx.counterparty
             };
           }
           return tx;
