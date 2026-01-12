@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
@@ -9,6 +9,17 @@ import { ParsedTransaction, EditableTransaction } from '@/components/finance/Tra
 
 export type UploadStatus = 'idle' | 'uploading' | 'parsing' | 'categorizing' | 'saving' | 'completed' | 'error';
 
+export interface BatchProgress {
+  current: number;
+  total: number;
+  processedTransactions: number;
+  totalTransactions: number;
+  estimatedTimeLeft: number;
+}
+
+const BATCH_SIZE = 50;
+const ESTIMATED_SECONDS_PER_BATCH = 4;
+
 export function useBankFileUpload() {
   const { user } = useAuth();
   const { toast } = useToast();
@@ -18,13 +29,36 @@ export function useBankFileUpload() {
   const [status, setStatus] = useState<UploadStatus>('idle');
   const [parsedTransactions, setParsedTransactions] = useState<ParsedTransaction[]>([]);
   const [currentFileId, setCurrentFileId] = useState<string | null>(null);
+  const [batchProgress, setBatchProgress] = useState<BatchProgress>({
+    current: 0,
+    total: 0,
+    processedTransactions: 0,
+    totalTransactions: 0,
+    estimatedTimeLeft: 0,
+  });
+  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
-  const reset = () => {
+  const clearProgressInterval = useCallback(() => {
+    if (progressIntervalRef.current) {
+      clearInterval(progressIntervalRef.current);
+      progressIntervalRef.current = null;
+    }
+  }, []);
+
+  const reset = useCallback(() => {
+    clearProgressInterval();
     setProgress(0);
     setStatus('idle');
     setParsedTransactions([]);
     setCurrentFileId(null);
-  };
+    setBatchProgress({
+      current: 0,
+      total: 0,
+      processedTransactions: 0,
+      totalTransactions: 0,
+      estimatedTimeLeft: 0,
+    });
+  }, [clearProgressInterval]);
 
   // Step 1: Upload file and parse with AI (returns transactions for preview)
   const uploadAndParse = useMutation({
@@ -95,13 +129,50 @@ export function useBankFileUpload() {
         console.log(`Parsed ${parsed.length} transactions from file`);
         setProgress(65);
 
-        // Step 4: AI Kategorilendirme
+        // Step 4: AI Kategorilendirme with batch progress
         setStatus('categorizing');
+        
+        const totalBatches = Math.ceil(parsed.length / BATCH_SIZE);
+        const totalTransactions = parsed.length;
+        
+        // Initialize batch progress
+        setBatchProgress({
+          current: 0,
+          total: totalBatches,
+          processedTransactions: 0,
+          totalTransactions,
+          estimatedTimeLeft: totalBatches * ESTIMATED_SECONDS_PER_BATCH,
+        });
+
+        // Start simulated progress interval
+        let simulatedBatch = 0;
+        clearProgressInterval();
+        progressIntervalRef.current = setInterval(() => {
+          simulatedBatch += 1;
+          if (simulatedBatch >= totalBatches) {
+            clearProgressInterval();
+          }
+          setBatchProgress(prev => ({
+            ...prev,
+            current: Math.min(simulatedBatch, prev.total),
+            processedTransactions: Math.min(simulatedBatch * BATCH_SIZE, totalTransactions),
+            estimatedTimeLeft: Math.max(0, (prev.total - simulatedBatch) * ESTIMATED_SECONDS_PER_BATCH),
+          }));
+        }, ESTIMATED_SECONDS_PER_BATCH * 1000);
         
         try {
           const { data: catData, error: catError } = await supabase.functions.invoke('categorize-transactions', {
             body: { transactions: parsed, categories }
           });
+          
+          // Kategorilendirme tamamlandı - batch progress'i tamamla
+          clearProgressInterval();
+          setBatchProgress(prev => ({
+            ...prev,
+            current: prev.total,
+            processedTransactions: totalTransactions,
+            estimatedTimeLeft: 0,
+          }));
           
           if (!catError && catData?.results) {
             console.log(`AI categorized ${catData.results.length} transactions`);
@@ -123,6 +194,7 @@ export function useBankFileUpload() {
             console.warn('AI kategorilendirme atlandı:', catError?.message);
           }
         } catch (catErr) {
+          clearProgressInterval();
           console.warn('AI kategorilendirme hatası:', catErr);
           // Continue without AI suggestions
         }
@@ -132,6 +204,7 @@ export function useBankFileUpload() {
         
         return parsed;
       } catch (error) {
+        clearProgressInterval();
         setStatus('error');
         throw error;
       }
@@ -240,6 +313,7 @@ export function useBankFileUpload() {
     isUploading: uploadAndParse.isPending,
     isSaving: saveTransactions.isPending,
     parsedTransactions,
+    batchProgress,
     reset 
   };
 }
