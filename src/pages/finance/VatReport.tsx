@@ -5,7 +5,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { ArrowLeft, Receipt, TrendingUp, TrendingDown, AlertTriangle, FileDown, Calculator } from 'lucide-react';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, Receipt, TrendingUp, TrendingDown, AlertTriangle, FileDown, Calculator, Building2, CreditCard } from 'lucide-react';
 import { useVatCalculations } from '@/hooks/finance/useVatCalculations';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -67,7 +69,11 @@ export default function VatReport() {
                 <span className="text-xs">Hesaplanan KDV</span>
               </div>
               <p className="text-lg font-bold text-purple-600">{formatCurrency(vat.totalCalculatedVat)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{vat.issuedCount} kesilen fatura</p>
+              <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
+                <span>{vat.issuedCount} fatura</span>
+                <span>•</span>
+                <span>{vat.bankIncomeCount} banka</span>
+              </div>
             </CardContent>
           </Card>
           
@@ -78,7 +84,11 @@ export default function VatReport() {
                 <span className="text-xs">İndirilecek KDV</span>
               </div>
               <p className="text-lg font-bold text-green-600">{formatCurrency(vat.totalDeductibleVat)}</p>
-              <p className="text-xs text-muted-foreground mt-1">{vat.receivedCount} alınan fiş/fatura</p>
+              <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
+                <span>{vat.receivedCount} fatura</span>
+                <span>•</span>
+                <span>{vat.bankExpenseCount} banka</span>
+              </div>
             </CardContent>
           </Card>
         </div>
@@ -101,6 +111,71 @@ export default function VatReport() {
           </CardContent>
         </Card>
 
+        {/* Source Breakdown */}
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-base">Kaynak Bazlı KDV Dağılımı</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3">
+            {/* Receipts/Invoices */}
+            <div className="p-3 bg-muted/30 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Receipt className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Faturalar</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {vat.bySource.receipts.count} belge
+                  </Badge>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Hesaplanan:</span>
+                  <span className="ml-2 font-medium text-purple-600">
+                    {formatCurrency(vat.receiptCalculatedVat)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">İndirilecek:</span>
+                  <span className="ml-2 font-medium text-green-600">
+                    {formatCurrency(vat.receiptDeductibleVat)}
+                  </span>
+                </div>
+              </div>
+            </div>
+            
+            {/* Bank Transactions */}
+            <div className="p-3 bg-muted/30 rounded-lg">
+              <div className="flex items-center justify-between mb-2">
+                <div className="flex items-center gap-2">
+                  <Building2 className="h-4 w-4 text-muted-foreground" />
+                  <span className="text-sm font-medium">Banka İşlemleri</span>
+                  <Badge variant="secondary" className="text-xs">
+                    {vat.bySource.bank.count} işlem
+                  </Badge>
+                </div>
+              </div>
+              <div className="grid grid-cols-2 gap-4 text-sm">
+                <div>
+                  <span className="text-muted-foreground">Hesaplanan:</span>
+                  <span className="ml-2 font-medium text-purple-600">
+                    {formatCurrency(vat.bankCalculatedVat)}
+                  </span>
+                </div>
+                <div>
+                  <span className="text-muted-foreground">İndirilecek:</span>
+                  <span className="ml-2 font-medium text-green-600">
+                    {formatCurrency(vat.bankDeductibleVat)}
+                  </span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground mt-2">
+                * Banka işlemleri %20 KDV oranı ile hesaplanmıştır (brüt ÷ 1.20)
+              </p>
+            </div>
+          </CardContent>
+        </Card>
+
         {/* Missing VAT Warning */}
         {vat.missingVatCount > 0 && (
           <Alert variant="destructive">
@@ -117,63 +192,184 @@ export default function VatReport() {
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
-              <Receipt className="h-4 w-4" />
+              <CreditCard className="h-4 w-4" />
               Aylık KDV Detayı
             </CardTitle>
           </CardHeader>
           <CardContent className="p-0">
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead className="w-16">Ay</TableHead>
-                    <TableHead className="text-right">Hesaplanan</TableHead>
-                    <TableHead className="text-right">İndirilecek</TableHead>
-                    <TableHead className="text-right">Net</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {months.map((month, idx) => {
-                    const data = vat.byMonth[idx + 1];
-                    if (!data || (data.calculatedVat === 0 && data.deductibleVat === 0)) return null;
-                    return (
-                      <TableRow key={idx}>
-                        <TableCell className="font-medium">{month}</TableCell>
+            <Tabs defaultValue="combined" className="w-full">
+              <div className="px-4 pt-2">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="combined" className="text-xs">Toplam</TabsTrigger>
+                  <TabsTrigger value="receipts" className="text-xs">Faturalar</TabsTrigger>
+                  <TabsTrigger value="bank" className="text-xs">Banka</TabsTrigger>
+                </TabsList>
+              </div>
+              
+              {/* Combined View */}
+              <TabsContent value="combined" className="m-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16">Ay</TableHead>
+                        <TableHead className="text-right">Hesaplanan</TableHead>
+                        <TableHead className="text-right">İndirilecek</TableHead>
+                        <TableHead className="text-right">Net</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {months.map((month, idx) => {
+                        const data = vat.byMonth[idx + 1];
+                        if (!data || (data.calculatedVat === 0 && data.deductibleVat === 0)) return null;
+                        return (
+                          <TableRow key={idx}>
+                            <TableCell className="font-medium">{month}</TableCell>
+                            <TableCell className="text-right text-purple-600">
+                              {formatCurrency(data.calculatedVat)}
+                            </TableCell>
+                            <TableCell className="text-right text-green-600">
+                              {formatCurrency(data.deductibleVat)}
+                            </TableCell>
+                            <TableCell className={`text-right font-medium ${data.netVat >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                              {formatCurrency(data.netVat)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      {/* Total Row */}
+                      <TableRow className="bg-muted/50 font-bold">
+                        <TableCell>TOPLAM</TableCell>
                         <TableCell className="text-right text-purple-600">
-                          {formatCurrency(data.calculatedVat)}
+                          {formatCurrency(vat.totalCalculatedVat)}
                         </TableCell>
                         <TableCell className="text-right text-green-600">
-                          {formatCurrency(data.deductibleVat)}
+                          {formatCurrency(vat.totalDeductibleVat)}
                         </TableCell>
-                        <TableCell className={`text-right font-medium ${data.netVat >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                          {formatCurrency(data.netVat)}
+                        <TableCell className={`text-right ${vat.netVatPayable >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                          {formatCurrency(vat.netVatPayable)}
                         </TableCell>
                       </TableRow>
-                    );
-                  })}
-                  {/* Total Row */}
-                  <TableRow className="bg-muted/50 font-bold">
-                    <TableCell>TOPLAM</TableCell>
-                    <TableCell className="text-right text-purple-600">
-                      {formatCurrency(vat.totalCalculatedVat)}
-                    </TableCell>
-                    <TableCell className="text-right text-green-600">
-                      {formatCurrency(vat.totalDeductibleVat)}
-                    </TableCell>
-                    <TableCell className={`text-right ${vat.netVatPayable >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                      {formatCurrency(vat.netVatPayable)}
-                    </TableCell>
-                  </TableRow>
-                </TableBody>
-              </Table>
-            </div>
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+              
+              {/* Receipts Only View */}
+              <TabsContent value="receipts" className="m-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16">Ay</TableHead>
+                        <TableHead className="text-right">Kesilen</TableHead>
+                        <TableHead className="text-right">Alınan</TableHead>
+                        <TableHead className="text-right">Net</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {months.map((month, idx) => {
+                        const data = vat.byMonth[idx + 1];
+                        const receiptCalc = (data?.calculatedVat || 0) - (data?.bankCalculatedVat || 0);
+                        const receiptDed = (data?.deductibleVat || 0) - (data?.bankDeductibleVat || 0);
+                        if (!data || (receiptCalc === 0 && receiptDed === 0)) return null;
+                        return (
+                          <TableRow key={idx}>
+                            <TableCell className="font-medium">
+                              {month}
+                              <span className="text-xs text-muted-foreground ml-1">
+                                ({data.issuedCount + data.receivedCount})
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right text-purple-600">
+                              {formatCurrency(receiptCalc)}
+                            </TableCell>
+                            <TableCell className="text-right text-green-600">
+                              {formatCurrency(receiptDed)}
+                            </TableCell>
+                            <TableCell className={`text-right font-medium ${receiptCalc - receiptDed >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                              {formatCurrency(receiptCalc - receiptDed)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      <TableRow className="bg-muted/50 font-bold">
+                        <TableCell>TOPLAM</TableCell>
+                        <TableCell className="text-right text-purple-600">
+                          {formatCurrency(vat.receiptCalculatedVat)}
+                        </TableCell>
+                        <TableCell className="text-right text-green-600">
+                          {formatCurrency(vat.receiptDeductibleVat)}
+                        </TableCell>
+                        <TableCell className={`text-right ${vat.receiptCalculatedVat - vat.receiptDeductibleVat >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                          {formatCurrency(vat.receiptCalculatedVat - vat.receiptDeductibleVat)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+              
+              {/* Bank Only View */}
+              <TabsContent value="bank" className="m-0">
+                <div className="overflow-x-auto">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-16">Ay</TableHead>
+                        <TableHead className="text-right">Gelirden</TableHead>
+                        <TableHead className="text-right">Giderden</TableHead>
+                        <TableHead className="text-right">Net</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {months.map((month, idx) => {
+                        const data = vat.byMonth[idx + 1];
+                        if (!data || (data.bankCalculatedVat === 0 && data.bankDeductibleVat === 0)) return null;
+                        return (
+                          <TableRow key={idx}>
+                            <TableCell className="font-medium">
+                              {month}
+                              <span className="text-xs text-muted-foreground ml-1">
+                                ({data.bankIncomeCount + data.bankExpenseCount})
+                              </span>
+                            </TableCell>
+                            <TableCell className="text-right text-purple-600">
+                              {formatCurrency(data.bankCalculatedVat)}
+                            </TableCell>
+                            <TableCell className="text-right text-green-600">
+                              {formatCurrency(data.bankDeductibleVat)}
+                            </TableCell>
+                            <TableCell className={`text-right font-medium ${data.bankCalculatedVat - data.bankDeductibleVat >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                              {formatCurrency(data.bankCalculatedVat - data.bankDeductibleVat)}
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                      <TableRow className="bg-muted/50 font-bold">
+                        <TableCell>TOPLAM</TableCell>
+                        <TableCell className="text-right text-purple-600">
+                          {formatCurrency(vat.bankCalculatedVat)}
+                        </TableCell>
+                        <TableCell className="text-right text-green-600">
+                          {formatCurrency(vat.bankDeductibleVat)}
+                        </TableCell>
+                        <TableCell className={`text-right ${vat.bankCalculatedVat - vat.bankDeductibleVat >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                          {formatCurrency(vat.bankCalculatedVat - vat.bankDeductibleVat)}
+                        </TableCell>
+                      </TableRow>
+                    </TableBody>
+                  </Table>
+                </div>
+              </TabsContent>
+            </Tabs>
           </CardContent>
         </Card>
 
         {/* VAT Rate Breakdown */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">KDV Oran Dağılımı</CardTitle>
+            <CardTitle className="text-base">Fatura KDV Oran Dağılımı</CardTitle>
           </CardHeader>
           <CardContent className="space-y-3">
             {[20, 10, 1].map(rate => {
