@@ -5,6 +5,8 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+const BATCH_SIZE = 50;
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -21,11 +23,6 @@ serve(async (req) => {
     // Build category list for prompt
     const categoryList = categories.map((c: any) => 
       `${c.code}: ${c.name} [${c.type}] - Keywords: ${c.keywords?.join(', ') || '-'}, Vendors: ${c.vendor_patterns?.join(', ') || '-'}`
-    ).join('\n');
-
-    // Build transaction list
-    const txList = transactions.map((t: any, i: number) =>
-      `${i}|${t.amount > 0 ? '+' : ''}${t.amount}|${t.description}|${t.counterparty || '-'}`
     ).join('\n');
 
     const systemPrompt = `Sen Türk banka işlemleri kategorize uzmanısın.
@@ -53,87 +50,113 @@ EŞLEŞME ÖNCELİĞİ:
 
 Her işlem için en uygun kategori kodunu ve güven skorunu (0.0-1.0) belirle.`;
 
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'google/gemini-3-flash-preview',
-        messages: [
-          { role: 'system', content: systemPrompt },
-          { role: 'user', content: `İŞLEMLER:\n${txList}\n\nHer işlem için kategori öner.` }
-        ],
-        tools: [
-          {
-            type: 'function',
-            function: {
-              name: 'categorize_transactions',
-              description: 'Her banka işlemi için kategori kodu ve güven skoru döndür',
-              parameters: {
-                type: 'object',
-                properties: {
-                  results: {
-                    type: 'array',
-                    items: {
-                      type: 'object',
-                      properties: {
-                        index: { type: 'number', description: 'İşlem index numarası' },
-                        categoryCode: { type: 'string', description: 'Kategori kodu (örn: SBT, DANIS, ORTAK_OUT)' },
-                        confidence: { type: 'number', description: 'Güven skoru 0.0-1.0 arası' }
-                      },
-                      required: ['index', 'categoryCode', 'confidence'],
-                      additionalProperties: false
-                    }
-                  }
-                },
-                required: ['results'],
-                additionalProperties: false
-              }
-            }
-          }
-        ],
-        tool_choice: { type: 'function', function: { name: 'categorize_transactions' } }
-      })
-    });
+    let allResults: any[] = [];
+    const totalBatches = Math.ceil(transactions.length / BATCH_SIZE);
 
-    if (!response.ok) {
-      if (response.status === 429) {
-        return new Response(JSON.stringify({ error: 'Rate limit aşıldı, lütfen biraz bekleyin.' }), {
-          status: 429,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      if (response.status === 402) {
-        return new Response(JSON.stringify({ error: 'Kredi yetersiz, lütfen hesabınızı kontrol edin.' }), {
-          status: 402,
-          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
-        });
-      }
-      const errorText = await response.text();
-      console.error('Lovable AI error:', response.status, errorText);
-      throw new Error('AI kategorilendirme hatası');
-    }
+    console.log(`Starting categorization: ${transactions.length} transactions in ${totalBatches} batches`);
 
-    const data = await response.json();
-    
-    // Extract tool call results
-    let results: any[] = [];
-    
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
-    if (toolCall?.function?.arguments) {
+    // Process transactions in batches
+    for (let batchIndex = 0; batchIndex < totalBatches; batchIndex++) {
+      const startIdx = batchIndex * BATCH_SIZE;
+      const endIdx = Math.min(startIdx + BATCH_SIZE, transactions.length);
+      const batch = transactions.slice(startIdx, endIdx);
+
+      // Build transaction list for this batch
+      const txList = batch.map((t: any, idx: number) =>
+        `${startIdx + idx}|${t.amount > 0 ? '+' : ''}${t.amount}|${t.description}|${t.counterparty || '-'}`
+      ).join('\n');
+
       try {
-        const parsed = JSON.parse(toolCall.function.arguments);
-        results = parsed.results || [];
-      } catch (parseError) {
-        console.error('Tool call parse error:', parseError);
+        const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            model: 'google/gemini-3-flash-preview',
+            messages: [
+              { role: 'system', content: systemPrompt },
+              { role: 'user', content: `İŞLEMLER (${startIdx}-${endIdx - 1}):\n${txList}\n\nHer işlem için kategori öner.` }
+            ],
+            tools: [
+              {
+                type: 'function',
+                function: {
+                  name: 'categorize_transactions',
+                  description: 'Her banka işlemi için kategori kodu ve güven skoru döndür',
+                  parameters: {
+                    type: 'object',
+                    properties: {
+                      results: {
+                        type: 'array',
+                        items: {
+                          type: 'object',
+                          properties: {
+                            index: { type: 'number', description: 'İşlem index numarası' },
+                            categoryCode: { type: 'string', description: 'Kategori kodu (örn: SBT, DANIS, ORTAK_OUT)' },
+                            confidence: { type: 'number', description: 'Güven skoru 0.0-1.0 arası' }
+                          },
+                          required: ['index', 'categoryCode', 'confidence'],
+                          additionalProperties: false
+                        }
+                      }
+                    },
+                    required: ['results'],
+                    additionalProperties: false
+                  }
+                }
+              }
+            ],
+            tool_choice: { type: 'function', function: { name: 'categorize_transactions' } }
+          })
+        });
+
+        if (!response.ok) {
+          if (response.status === 429) {
+            console.error(`Batch ${batchIndex + 1}: Rate limit hit, waiting...`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            continue; // Skip this batch but continue with others
+          }
+          if (response.status === 402) {
+            console.error(`Batch ${batchIndex + 1}: Credit limit reached`);
+            break; // Stop processing
+          }
+          const errorText = await response.text();
+          console.error(`Batch ${batchIndex + 1} error:`, response.status, errorText);
+          continue; // Skip failed batch but continue with others
+        }
+
+        const data = await response.json();
+        
+        // Extract tool call results
+        const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+        if (toolCall?.function?.arguments) {
+          try {
+            const parsed = JSON.parse(toolCall.function.arguments);
+            if (parsed.results && Array.isArray(parsed.results)) {
+              allResults = [...allResults, ...parsed.results];
+              console.log(`Batch ${batchIndex + 1}/${totalBatches}: Categorized ${parsed.results.length} transactions`);
+            }
+          } catch (parseError) {
+            console.error(`Batch ${batchIndex + 1} parse error:`, parseError);
+          }
+        }
+
+        // Rate limit protection: wait between batches
+        if (batchIndex < totalBatches - 1) {
+          await new Promise(resolve => setTimeout(resolve, 500));
+        }
+
+      } catch (batchError) {
+        console.error(`Batch ${batchIndex + 1} failed:`, batchError);
+        // Continue with next batch
       }
     }
 
-    console.log(`Categorized ${results.length} transactions`);
+    console.log(`Categorization complete: ${allResults.length}/${transactions.length} transactions categorized`);
 
-    return new Response(JSON.stringify({ results }), {
+    return new Response(JSON.stringify({ results: allResults }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   } catch (error) {
