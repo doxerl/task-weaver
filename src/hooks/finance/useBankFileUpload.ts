@@ -7,7 +7,7 @@ import { useCategories } from './useCategories';
 import { parseFile } from '@/lib/fileParser';
 import { ParsedTransaction, EditableTransaction } from '@/components/finance/TransactionEditor';
 
-export type UploadStatus = 'idle' | 'uploading' | 'parsing' | 'categorizing' | 'saving' | 'completed' | 'error';
+export type UploadStatus = 'idle' | 'uploading' | 'parsing' | 'categorizing' | 'saving' | 'completed' | 'error' | 'cancelled';
 
 export interface BatchProgress {
   current: number;
@@ -41,6 +41,7 @@ export function useBankFileUpload() {
     stage: 'parsing',
   });
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const abortRef = useRef<boolean>(false);
 
   const clearProgressInterval = useCallback(() => {
     if (progressIntervalRef.current) {
@@ -49,7 +50,18 @@ export function useBankFileUpload() {
     }
   }, []);
 
+  const stopProcessing = useCallback(() => {
+    abortRef.current = true;
+    clearProgressInterval();
+    setStatus('cancelled');
+    toast({
+      title: 'İşlem Durduruldu',
+      description: 'Batch işleme kullanıcı tarafından durduruldu.',
+    });
+  }, [clearProgressInterval, toast]);
+
   const reset = useCallback(() => {
+    abortRef.current = false;
     clearProgressInterval();
     setProgress(0);
     setStatus('idle');
@@ -69,6 +81,7 @@ export function useBankFileUpload() {
   const uploadAndParse = useMutation({
     mutationFn: async (file: File): Promise<ParsedTransaction[]> => {
       if (!user?.id) throw new Error('Giriş yapmalısınız');
+      abortRef.current = false; // Reset abort flag
       
       try {
         setStatus('uploading');
@@ -147,6 +160,12 @@ export function useBankFileUpload() {
         let failedBatches = 0;
         
         for (let i = 0; i < batches.length; i++) {
+          // Check if processing was stopped
+          if (abortRef.current) {
+            console.log('Processing stopped by user at batch', i + 1);
+            break;
+          }
+          
           const batchContent = batches[i];
           
           // Update progress before each batch
@@ -199,16 +218,29 @@ export function useBankFileUpload() {
           setProgress(parseProgress);
         }
         
-        // Parsing complete
+        // Parsing complete or stopped
         setBatchProgress(prev => ({
           ...prev,
-          current: totalParseBatches,
+          current: abortRef.current ? prev.current : totalParseBatches,
           processedTransactions: allTransactions.length,
           estimatedTimeLeft: 0,
           stage: 'parsing',
         }));
         
-        console.log(`Parsing complete: ${allTransactions.length} transactions from ${totalParseBatches - failedBatches}/${totalParseBatches} batches`);
+        // If stopped by user but we have some transactions, continue with what we have
+        if (abortRef.current) {
+          if (allTransactions.length > 0) {
+            console.log(`Processing stopped with ${allTransactions.length} transactions collected`);
+            toast({
+              title: 'Kısmi İşlem',
+              description: `${allTransactions.length} işlem çıkarıldı (durduruldu)`,
+            });
+          } else {
+            throw new Error('İşlem kullanıcı tarafından durduruldu.');
+          }
+        } else {
+          console.log(`Parsing complete: ${allTransactions.length} transactions from ${totalParseBatches - failedBatches}/${totalParseBatches} batches`);
+        }
         
         if (allTransactions.length === 0) {
           throw new Error('Dosyadan işlem çıkarılamadı. Lütfen farklı bir format deneyin.');
@@ -404,6 +436,7 @@ export function useBankFileUpload() {
     isSaving: saveTransactions.isPending,
     parsedTransactions,
     batchProgress,
-    reset 
+    reset,
+    stopProcessing
   };
 }
