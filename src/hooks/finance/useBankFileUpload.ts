@@ -5,6 +5,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
 import { useCategories } from './useCategories';
 import { ParsedTransaction, CategoryResult } from '@/types/finance';
+import { parseFile } from '@/lib/fileParser';
 
 export type UploadStatus = 'idle' | 'uploading' | 'parsing' | 'categorizing' | 'saving' | 'completed' | 'error';
 
@@ -62,8 +63,8 @@ export function useBankFileUpload() {
         if (dbError) throw dbError;
         setProgress(35);
 
-        // 3. Read file content
-        const fileContent = await file.text();
+        // 3. Read file content (parse XLSX/PDF to text)
+        const fileContent = await parseFile(file);
         
         // 4. Parse with AI
         setStatus('parsing');
