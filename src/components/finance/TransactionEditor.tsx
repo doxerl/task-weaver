@@ -12,22 +12,11 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, CheckCircle, ArrowUpCircle, ArrowDownCircle, Sparkles, PenLine, Settings2 } from 'lucide-react';
+import { Save, CheckCircle, ArrowUpCircle, ArrowDownCircle, Sparkles, PenLine, Settings2, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { cn } from '@/lib/utils';
-
-export interface ParsedTransaction {
-  index: number;
-  date: string | null;
-  description: string;
-  amount: number;
-  balance: number | null;
-  reference: string | null;
-  counterparty: string | null;
-  suggestedCategoryId?: string | null;
-  aiConfidence?: number;
-}
+import { ParsedTransaction } from '@/types/finance';
 
 export interface EditableTransaction extends ParsedTransaction {
   categoryId: string | null;

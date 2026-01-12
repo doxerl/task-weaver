@@ -24,38 +24,89 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    const systemPrompt = `Sen bir Türk bankası hesap ekstresi analiz uzmanısın. Görevin verilen banka hesap hareketlerini analiz edip JSON formatında çıkarmak.
+    const systemPrompt = `Sen bir Türk bankası hesap ekstresi analiz uzmanısın. Excel dosyasından çıkarılan ham metin verisini analiz edip, TÜM işlem satırlarını JSON formatında döndüreceksin.
+
+═══════════════════════════════════════════════════════════════════
+⚠️ EN ÖNEMLİ KURAL - ASLA İHLAL ETME:
+═══════════════════════════════════════════════════════════════════
+1. HİÇBİR İŞLEM SATIRI ES GEÇİLMEYECEK
+2. Para hareketi içeren HER SATIR çıktıda olmalı
+3. Şüpheli satırları da dahil et, "needs_review": true işaretle
+4. Toplam işlem sayısını doğrulama için raporla
+═══════════════════════════════════════════════════════════════════
 
 ÇIKTI FORMATI:
-Her işlem için şu alanları çıkar:
-- date: İşlem tarihi (DD.MM.YYYY formatında koru)
-- description: İşlem açıklaması (tam metin, kısaltma yapma)
-- amount: Tutar (sayı olarak, pozitif=gelir/alacak, negatif=gider/borç)
-- balance: Bakiye (varsa, sayı olarak, yoksa null)
-- reference: Referans/dekont numarası (varsa, yoksa null)
-- counterparty: Karşı taraf ismi (EFT/Havale/FAST işlemlerinden çıkar, yoksa null)
+{
+  "transactions": [
+    {
+      "row_number": number,
+      "date": "YYYY-MM-DD",
+      "original_date": "string",
+      "description": "string",
+      "amount": number,
+      "original_amount": "string",
+      "balance": number | null,
+      "reference": "string | null",
+      "counterparty": "string | null",
+      "transaction_type": "string",
+      "channel": "string | null",
+      "needs_review": boolean,
+      "confidence": number
+    }
+  ],
+  "summary": {
+    "total_rows_in_file": number,
+    "header_rows_skipped": number,
+    "footer_rows_skipped": number,
+    "empty_rows_skipped": number,
+    "transaction_count": number,
+    "needs_review_count": number,
+    "total_income": number,
+    "total_expense": number,
+    "date_range": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }
+  },
+  "bank_info": {
+    "detected_bank": "string | null",
+    "account_number": "string | null",
+    "iban": "string | null",
+    "currency": "TRY"
+  }
+}
 
 TÜRK BANKASI FORMAT KURALLARI:
-- Tarih formatları: DD.MM.YYYY, DD/MM/YYYY, DD-MM-YYYY
 - Binlik ayracı: nokta (.) → 1.234.567 = 1234567
 - Ondalık ayracı: virgül (,) → 1.234,56 = 1234.56
-- Negatif gösterimi: - işareti veya parantez ()
-- "Borç" veya çıkış kolonundaki tutar → negatif
-- "Alacak" veya giriş kolonundaki tutar → pozitif
+- "Borç", "Çıkış", "Çekilen" → amount NEGATİF
+- "Alacak", "Giriş", "Yatırılan" → amount POZİTİF
 
-ÖZEL İŞLEM TİPLERİ (açıklamadan tespit et):
-- EFT/FAST/Havale işlemleri → Karşı taraf ismini counterparty alanına yaz
-- Banka içi transferler → BANKA İÇİ olarak işaretle
-- Kredi/Taksit → Açıklamadan al
+İŞLEM TÜRLERİ: EFT, HAVALE, FAST, POS, ATM, VIRMAN, FAIZ, KOMISYON, MAAS, KIRA, FATURA, VERGI, KREDI, OTHER
 
-ÖNEMLİ:
-- Tüm işlemleri çıkar, hiçbirini atlama
-- Tutarları sayı olarak döndür (string değil)
-- Açıklamaları olduğu gibi koru, kısaltma yapma
-- Emin olmadığın alanlar için null döndür
+KARŞI TARAF ÇIKARIMI:
+- "EFT GÖNDERİM-AHMET YILMAZ" → counterparty: "AHMET YILMAZ"
+- "GELEN EFT-ABC LTD.ŞTİ." → counterparty: "ABC LTD.ŞTİ."
+- IBAN'dan sonra gelen isim
 
-SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
-[{"date":"15.03.2025","description":"AÇIKLAMA","amount":1234.56,"balance":5678.90,"reference":"123456","counterparty":"ŞIRKET ADI"}]`;
+BANKA TESPİTİ (Sütun yapısından):
+- GARANTİ: Tarih | Açıklama | Tutar | Bakiye
+- İŞ BANKASI: Tarih | Valör | Açıklama | Borç | Alacak | Bakiye
+- ZİRAAT: Tarih | Açıklama | Çekilen | Yatırılan | Bakiye
+- AKBANK: Tarih | Valör | Açıklama | Borç | Alacak | Bakiye
+
+ATLAMA KURALLARI:
+- ATLA: Başlıklar, sütun isimleri, toplam satırları, boş satırlar
+- ATLAMA: Para hareketi içeren HER satır dahil edilmeli
+
+[ROW X] formatındaki satırları dikkate al. row_number alanına X değerini yaz.
+
+ŞÜPHE DURUMUNDA:
+- needs_review: true işaretle
+- confidence: 0.0-1.0 (1.0=kesin, 0.2=çok belirsiz)
+
+DOĞRULAMA:
+- total_income = tüm pozitif tutarların toplamı
+- total_expense = tüm negatif tutarların mutlak değer toplamı
+
+SADECE JSON döndür, markdown code block kullanma, Türkçe karakterleri koru.`;
 
     console.log('Step 2: Calling Lovable AI Gateway (Gemini 2.5 Pro)...');
 
@@ -76,7 +127,7 @@ SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Dosya tipi: ${fileType}\nDosya adı: ${fileName}\n\nİçerik:\n${fileContent}` }
         ],
-        max_tokens: 100000, // Geniş output limiti
+        max_tokens: 100000,
       })
     });
 
@@ -88,7 +139,9 @@ SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
           success: false,
           error: 'Rate limit aşıldı, lütfen biraz bekleyin.',
           retryAfter: 60,
-          transactions: []
+          transactions: [],
+          summary: null,
+          bank_info: null
         }), {
           status: 429,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -98,7 +151,9 @@ SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
         return new Response(JSON.stringify({ 
           success: false,
           error: 'Kredi yetersiz, lütfen Lovable hesabınıza kredi ekleyin.',
-          transactions: []
+          transactions: [],
+          summary: null,
+          bank_info: null
         }), {
           status: 402,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -112,113 +167,138 @@ SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
     const data = await response.json();
     console.log('Step 3: Lovable AI response received');
     
-    // OpenAI uyumlu format: choices[0].message.content
     const fullText = data.choices?.[0]?.message?.content || '';
     
     console.log('Step 4: Full text length:', fullText.length);
     console.log('Step 4b: Text preview (first 500 chars):', fullText.substring(0, 500));
-    console.log('Step 4c: Text preview (last 500 chars):', fullText.substring(Math.max(0, fullText.length - 500)));
     
-    // Extract JSON array from response
-    let transactions = [];
+    // Parse the JSON response
+    let result = {
+      transactions: [] as any[],
+      summary: null as any,
+      bank_info: null as any
+    };
     
-    // Clean up response text - daha agresif temizlik
+    // Clean up response text
     let cleanedText = fullText;
-    
-    // Remove markdown code blocks (multiple patterns)
     cleanedText = cleanedText.replace(/^```json\s*/gi, '');
     cleanedText = cleanedText.replace(/^```\s*/gm, '');
     cleanedText = cleanedText.replace(/```\s*$/gm, '');
     cleanedText = cleanedText.trim();
     
-    // Find first [ and last ]
-    const firstBracket = cleanedText.indexOf('[');
-    const lastBracket = cleanedText.lastIndexOf(']');
+    // Find the JSON object
+    const firstBrace = cleanedText.indexOf('{');
+    const lastBrace = cleanedText.lastIndexOf('}');
     
-    if (firstBracket !== -1 && lastBracket > firstBracket) {
-      let jsonString = cleanedText.substring(firstBracket, lastBracket + 1);
+    if (firstBrace !== -1 && lastBrace > firstBrace) {
+      let jsonString = cleanedText.substring(firstBrace, lastBrace + 1);
       console.log('Step 5a: Extracted JSON length:', jsonString.length);
       
       try {
-        transactions = JSON.parse(jsonString);
-        console.log('Step 5b: Parsed successfully:', transactions.length, 'transactions');
+        const parsed = JSON.parse(jsonString);
+        result.transactions = parsed.transactions || [];
+        result.summary = parsed.summary || null;
+        result.bank_info = parsed.bank_info || null;
+        console.log('Step 5b: Parsed successfully:', result.transactions.length, 'transactions');
       } catch (e) {
-        console.log('Step 5c: Initial parse failed, trying to fix truncated JSON');
+        console.log('Step 5c: JSON parse failed, trying array extraction');
         
-        // Try to fix truncated JSON by finding last complete object
-        // Look for the last valid },{  or }] pattern
-        const lastCompletePattern = jsonString.lastIndexOf('},');
-        const lastObjectEnd = jsonString.lastIndexOf('}]');
+        // Fallback: Try to extract just the transactions array
+        const firstBracket = cleanedText.indexOf('[');
+        const lastBracket = cleanedText.lastIndexOf(']');
         
-        if (lastCompletePattern > lastObjectEnd && lastCompletePattern > 0) {
-          // JSON was truncated mid-object, cut at last complete object
-          jsonString = jsonString.substring(0, lastCompletePattern + 1) + ']';
-          console.log('Step 5d: Fixed truncated JSON, new length:', jsonString.length);
+        if (firstBracket !== -1 && lastBracket > firstBracket) {
+          let arrayString = cleanedText.substring(firstBracket, lastBracket + 1);
           try {
-            transactions = JSON.parse(jsonString);
-            console.log('Step 5e: Parsed fixed JSON:', transactions.length, 'transactions');
+            result.transactions = JSON.parse(arrayString);
+            console.log('Step 5d: Parsed array:', result.transactions.length, 'transactions');
           } catch (e2) {
-            console.error('Step 5f: Fixed JSON still failed:', e2);
-          }
-        } else if (lastObjectEnd === -1 && lastCompletePattern > 0) {
-          // No proper ending found
-          jsonString = jsonString.substring(0, lastCompletePattern + 1) + ']';
-          try {
-            transactions = JSON.parse(jsonString);
-            console.log('Step 5g: Parsed with forced closure:', transactions.length, 'transactions');
-          } catch (e3) {
-            console.error('Step 5h: Forced closure failed:', e3);
-          }
-        }
-        
-        // If still no transactions, try more aggressive cleanup
-        if (transactions.length === 0) {
-          console.log('Step 6a: Trying aggressive cleanup');
-          // Remove any trailing incomplete object
-          const aggressiveClean = jsonString.replace(/,\s*\{[^}]*$/, ']');
-          try {
-            transactions = JSON.parse(aggressiveClean);
-            console.log('Step 6b: Aggressive cleanup worked:', transactions.length, 'transactions');
-          } catch (e4) {
-            console.error('Step 6c: All parse attempts failed');
-            console.error('First 500 chars:', jsonString.substring(0, 500));
-            console.error('Last 500 chars:', jsonString.substring(Math.max(0, jsonString.length - 500)));
+            // Try to fix truncated JSON
+            const lastCompletePattern = arrayString.lastIndexOf('},');
+            if (lastCompletePattern > 0) {
+              arrayString = arrayString.substring(0, lastCompletePattern + 1) + ']';
+              try {
+                result.transactions = JSON.parse(arrayString);
+                console.log('Step 5e: Parsed fixed array:', result.transactions.length, 'transactions');
+              } catch (e3) {
+                console.error('Step 5f: All parse attempts failed');
+              }
+            }
           }
         }
       }
-    } else {
-      console.error('Step 5x: No JSON array brackets found in response');
-      console.error('Cleaned text preview:', cleanedText.substring(0, 1000));
     }
     
-    console.log('Step 7: Total transactions found:', transactions.length);
+    console.log('Step 6: Total transactions found:', result.transactions.length);
 
-    // Normalize amounts (handle Turkish number format)
-    transactions = transactions.map((t: any, index: number) => ({
-      index,
-      date: t.date || null,
-      description: t.description || '',
-      amount: typeof t.amount === 'string' 
-        ? parseFloat(t.amount.replace(/\./g, '').replace(',', '.'))
-        : (typeof t.amount === 'number' ? t.amount : 0),
-      balance: t.balance != null ? (typeof t.balance === 'string'
-        ? parseFloat(t.balance.replace(/\./g, '').replace(',', '.'))
-        : t.balance) : null,
-      reference: t.reference || null,
-      counterparty: t.counterparty || null
-    }));
+    // Normalize transactions
+    const normalizedTransactions = result.transactions.map((t: any, index: number) => {
+      // Parse amount
+      let amount = t.amount;
+      if (typeof amount === 'string') {
+        amount = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
+      }
+      
+      // Parse balance
+      let balance = t.balance;
+      if (typeof balance === 'string') {
+        balance = parseFloat(balance.replace(/\./g, '').replace(',', '.'));
+      }
+      
+      return {
+        index,
+        row_number: t.row_number || index + 1,
+        date: t.date || null,
+        original_date: t.original_date || t.date || '',
+        description: t.description || '',
+        amount: typeof amount === 'number' ? amount : 0,
+        original_amount: t.original_amount || String(t.amount) || '',
+        balance: typeof balance === 'number' ? balance : null,
+        reference: t.reference || null,
+        counterparty: t.counterparty || null,
+        transaction_type: t.transaction_type || 'OTHER',
+        channel: t.channel || null,
+        needs_review: t.needs_review || false,
+        confidence: t.confidence || 0.8
+      };
+    });
 
-    console.log('Step 8: Returning', transactions.length, 'normalized transactions');
+    // Calculate summary if not provided
+    const summary = result.summary || {
+      total_rows_in_file: normalizedTransactions.length,
+      header_rows_skipped: 0,
+      footer_rows_skipped: 0,
+      empty_rows_skipped: 0,
+      transaction_count: normalizedTransactions.length,
+      needs_review_count: normalizedTransactions.filter((t: any) => t.needs_review).length,
+      total_income: normalizedTransactions.filter((t: any) => t.amount > 0).reduce((s: number, t: any) => s + t.amount, 0),
+      total_expense: normalizedTransactions.filter((t: any) => t.amount < 0).reduce((s: number, t: any) => s + Math.abs(t.amount), 0),
+      date_range: {
+        start: normalizedTransactions.length > 0 ? normalizedTransactions[0].date : null,
+        end: normalizedTransactions.length > 0 ? normalizedTransactions[normalizedTransactions.length - 1].date : null
+      }
+    };
+
+    const bank_info = result.bank_info || {
+      detected_bank: null,
+      account_number: null,
+      iban: null,
+      currency: 'TRY'
+    };
+
+    console.log('Step 7: Returning', normalizedTransactions.length, 'normalized transactions');
 
     return new Response(JSON.stringify({ 
       success: true,
-      transactions, 
-      count: transactions.length,
+      transactions: normalizedTransactions,
+      summary,
+      bank_info,
+      count: normalizedTransactions.length,
       batchIndex: isBatchMode ? batchIndex : undefined,
       metadata: {
         fileName: fileName || 'unknown',
         fileType: fileType || 'unknown',
-        transactionCount: transactions.length,
+        transactionCount: normalizedTransactions.length,
         processedAt: new Date().toISOString(),
         model: 'google/gemini-2.5-pro'
       }
@@ -226,13 +306,14 @@ SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }
     });
   } catch (error) {
-    // Timeout hatasını özel olarak handle et
     if (error instanceof Error && error.name === 'AbortError') {
       console.error('parse-bank-statement timeout after', TIMEOUT_MS, 'ms');
       return new Response(JSON.stringify({ 
         success: false,
         error: 'İşlem zaman aşımına uğradı (5 dakika). Lütfen daha küçük bir dosya deneyin.',
-        transactions: [] 
+        transactions: [],
+        summary: null,
+        bank_info: null
       }), {
         status: 504,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -243,7 +324,9 @@ SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
     return new Response(JSON.stringify({ 
       success: false,
       error: error instanceof Error ? error.message : 'Unknown error',
-      transactions: [] 
+      transactions: [],
+      summary: null,
+      bank_info: null
     }), {
       status: 500,
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

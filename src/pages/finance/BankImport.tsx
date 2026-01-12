@@ -5,10 +5,11 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle, PlayCircle, Eye } from 'lucide-react';
 import { useBankFileUpload } from '@/hooks/finance/useBankFileUpload';
-import { TransactionEditor, ParsedTransaction, EditableTransaction } from '@/components/finance/TransactionEditor';
+import { TransactionEditor, EditableTransaction } from '@/components/finance/TransactionEditor';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ParsedTransactionList } from '@/components/finance/ParsedTransactionList';
 
 type ViewMode = 'upload' | 'preview' | 'completed';
 
@@ -26,7 +27,8 @@ export default function BankImport() {
     isResuming,
     isCategorizing,
     reset, 
-    parsedTransactions, 
+    parsedTransactions,
+    parseResult,
     batchProgress, 
     canResume,
     pausedTransactionCount,
@@ -146,6 +148,11 @@ export default function BankImport() {
               <AlertCircle className="h-4 w-4" />
               <AlertDescription>{error}</AlertDescription>
             </Alert>
+          )}
+
+          {/* Show ParsedTransactionList summary if available */}
+          {parseResult && (
+            <ParsedTransactionList result={parseResult} />
           )}
 
           <TransactionEditor

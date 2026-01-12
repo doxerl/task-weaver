@@ -187,10 +187,47 @@ export interface FinancialCalculations {
 }
 
 export interface ParsedTransaction {
+  index: number;
+  row_number: number;
   date: string;
+  original_date: string;
   description: string;
   amount: number;
-  balance?: number;
+  original_amount: string;
+  balance: number | null;
+  reference: string | null;
+  counterparty: string | null;
+  transaction_type: string;
+  channel: string | null;
+  needs_review: boolean;
+  confidence: number;
+  suggestedCategoryId?: string | null;
+  aiConfidence?: number;
+}
+
+export interface ParseSummary {
+  total_rows_in_file: number;
+  header_rows_skipped: number;
+  footer_rows_skipped: number;
+  empty_rows_skipped: number;
+  transaction_count: number;
+  needs_review_count: number;
+  total_income: number;
+  total_expense: number;
+  date_range: { start: string; end: string };
+}
+
+export interface BankInfo {
+  detected_bank: string | null;
+  account_number: string | null;
+  iban: string | null;
+  currency: string;
+}
+
+export interface ParseResult {
+  transactions: ParsedTransaction[];
+  summary: ParseSummary;
+  bank_info: BankInfo;
 }
 
 export interface CategoryResult {
