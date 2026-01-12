@@ -288,14 +288,14 @@ Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında
       }
       if (aiResponse.status === 400) {
         const errorData = await aiResponse.json();
-        console.error('Anthropic API error:', errorData);
+        console.error('Lovable AI error:', errorData);
         return new Response(JSON.stringify({ error: 'AI service error' }), {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
         });
       }
       const errorText = await aiResponse.text();
-      console.error('Anthropic API error:', aiResponse.status, errorText);
+      console.error('Lovable AI error:', aiResponse.status, errorText);
       return new Response(JSON.stringify({ error: 'AI service error' }), {
         status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -303,7 +303,7 @@ Bu komutu analiz et ve ${date} tarihi için plan öğesi olarak JSON formatında
     }
 
     const aiData = await aiResponse.json();
-    const content = aiData.content?.[0]?.text;
+    const content = aiData.choices?.[0]?.message?.content;
     console.log('AI response received:', content?.substring(0, 500));
 
     if (!content) {
