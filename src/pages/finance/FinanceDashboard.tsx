@@ -3,8 +3,9 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft, PenLine, Building2 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft, PenLine, Building2, Receipt } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/finance/useFinancialCalculations';
+import { useVatCalculations } from '@/hooks/finance/useVatCalculations';
 import { BottomTabBar } from '@/components/BottomTabBar';
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
@@ -12,6 +13,7 @@ const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'c
 export default function FinanceDashboard() {
   const [year, setYear] = useState(new Date().getFullYear());
   const calc = useFinancialCalculations(year);
+  const vat = useVatCalculations(year);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -29,7 +31,7 @@ export default function FinanceDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-4 gap-2">
+        <div className="grid grid-cols-5 gap-2">
           <Link to="/finance/bank-import">
             <Card className="hover:bg-accent transition-colors cursor-pointer">
               <CardContent className="p-3 flex flex-col items-center gap-1">
@@ -51,6 +53,14 @@ export default function FinanceDashboard() {
               <CardContent className="p-3 flex flex-col items-center gap-1">
                 <PenLine className="h-5 w-5 text-primary" />
                 <span className="text-xs font-medium text-center">Manuel</span>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/finance/vat-report">
+            <Card className="hover:bg-accent transition-colors cursor-pointer">
+              <CardContent className="p-3 flex flex-col items-center gap-1">
+                <Receipt className="h-5 w-5 text-purple-500" />
+                <span className="text-xs font-medium text-center">KDV</span>
               </CardContent>
             </Card>
           </Link>
@@ -112,6 +122,28 @@ export default function FinanceDashboard() {
             </CardContent>
           </Card>
         </div>
+
+        {/* VAT Summary Card */}
+        {!vat.isLoading && (vat.totalCalculatedVat > 0 || vat.totalDeductibleVat > 0) && (
+          <Link to="/finance/vat-report">
+            <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20 hover:bg-purple-100/50 dark:hover:bg-purple-950/30 transition-colors">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-2">
+                    <Receipt className="h-5 w-5 text-purple-600" />
+                    <div>
+                      <p className="text-sm font-medium">Net KDV {vat.netVatPayable >= 0 ? 'Borcu' : 'Alacağı'}</p>
+                      <p className={`text-lg font-bold ${vat.netVatPayable >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
+                        {formatCurrency(Math.abs(vat.netVatPayable))}
+                      </p>
+                    </div>
+                  </div>
+                  <ArrowLeft className="h-4 w-4 rotate-180 text-muted-foreground" />
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
 
         {/* Financing Info - Shown separately */}
         {calc.financingIn > 0 && (
