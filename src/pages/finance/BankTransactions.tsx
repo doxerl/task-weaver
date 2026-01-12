@@ -49,6 +49,10 @@ interface TransactionCardProps {
 function TransactionCard({ tx, grouped, onCategoryChange, onDelete }: TransactionCardProps) {
   const isIncome = tx.amount > 0;
   
+  // Calculate VAT if not stored
+  const vatAmount = tx.vat_amount ?? (tx.is_commercial !== false ? Math.abs(tx.amount) - Math.abs(tx.amount) / 1.20 : 0);
+  const netAmount = tx.net_amount ?? (tx.is_commercial !== false ? Math.abs(tx.amount) / 1.20 : Math.abs(tx.amount));
+  
   // Ortak kategorilerini gelir/gider durumuna göre filtrele
   const filteredPartner = grouped.partner.filter(cat => {
     const nameLower = cat.name.toLowerCase();
@@ -66,7 +70,14 @@ function TransactionCard({ tx, grouped, onCategoryChange, onDelete }: Transactio
       <CardContent className="p-3">
         <div className="flex justify-between items-start gap-2 mb-2">
           <div className="flex-1 min-w-0">
-            <p className="text-xs text-muted-foreground">{formatDate(tx.transaction_date)}</p>
+            <div className="flex items-center gap-2">
+              <p className="text-xs text-muted-foreground">{formatDate(tx.transaction_date)}</p>
+              {tx.is_commercial === false && (
+                <Badge variant="outline" className="text-[10px] px-1 py-0 text-muted-foreground">
+                  Ticari Dışı
+                </Badge>
+              )}
+            </div>
             <p className="text-sm truncate">{tx.description}</p>
           </div>
           <div className="flex items-start gap-2">
@@ -74,8 +85,15 @@ function TransactionCard({ tx, grouped, onCategoryChange, onDelete }: Transactio
               <p className={cn("font-bold", tx.amount > 0 ? "text-green-600" : "text-red-600")}>
                 {tx.amount > 0 ? '+' : '-'}{formatCurrency(tx.amount)} ₺
               </p>
+              {tx.is_commercial !== false && (
+                <div className="text-[10px] text-muted-foreground">
+                  <span className="text-purple-600">KDV: {formatCurrency(vatAmount)} ₺</span>
+                  <span className="mx-1">|</span>
+                  <span>Net: {formatCurrency(netAmount)} ₺</span>
+                </div>
+              )}
               {tx.ai_confidence > 0 && (
-                <Badge variant="secondary" className="text-xs">
+                <Badge variant="secondary" className="text-xs mt-1">
                   AI {Math.round(tx.ai_confidence * 100)}%
                 </Badge>
               )}
@@ -200,6 +218,7 @@ export default function BankTransactions() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [commercialFilter, setCommercialFilter] = useState<string>('all');
   
   const { transactions, isLoading, updateCategory, deleteTransaction, deleteAllTransactions, stats } = useBankTransactions(year);
   const { grouped } = useCategories();
@@ -215,7 +234,7 @@ export default function BankTransactions() {
     return Array.from(months).sort((a, b) => b.localeCompare(a));
   }, [transactions]);
 
-  // Filter transactions by month and category
+  // Filter transactions by month, category, and commercial status
   const filteredTransactions = useMemo(() => {
     let result = transactions;
     
@@ -233,8 +252,14 @@ export default function BankTransactions() {
       result = result.filter(tx => tx.category_id === categoryFilter);
     }
     
+    if (commercialFilter === 'commercial') {
+      result = result.filter(tx => tx.is_commercial !== false);
+    } else if (commercialFilter === 'non-commercial') {
+      result = result.filter(tx => tx.is_commercial === false);
+    }
+    
     return result;
-  }, [transactions, selectedMonth, categoryFilter]);
+  }, [transactions, selectedMonth, categoryFilter, commercialFilter]);
 
   // Calculate summary for filtered transactions
   const summary = useMemo(() => {
@@ -244,13 +269,27 @@ export default function BankTransactions() {
     const expenseTotal = expense.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
     const uncategorized = filteredTransactions.filter(tx => !tx.category_id).length;
     
+    // VAT totals
+    const commercialIncome = income.filter(tx => tx.is_commercial !== false);
+    const commercialExpense = expense.filter(tx => tx.is_commercial !== false);
+    const vatCalculated = commercialIncome.reduce((sum, tx) => {
+      return sum + (tx.vat_amount ?? (tx.amount - tx.amount / 1.20));
+    }, 0);
+    const vatDeductible = commercialExpense.reduce((sum, tx) => {
+      const absAmount = Math.abs(tx.amount);
+      return sum + (tx.vat_amount ?? (absAmount - absAmount / 1.20));
+    }, 0);
+    
     return {
       income,
       expense,
       incomeTotal,
       expenseTotal,
       net: incomeTotal - expenseTotal,
-      uncategorized
+      uncategorized,
+      vatCalculated,
+      vatDeductible,
+      vatNet: vatCalculated - vatDeductible
     };
   }, [filteredTransactions]);
 
@@ -275,9 +314,10 @@ export default function BankTransactions() {
   const clearFilters = () => {
     setSelectedMonth('all');
     setCategoryFilter('all');
+    setCommercialFilter('all');
   };
 
-  const hasActiveFilters = selectedMonth !== 'all' || categoryFilter !== 'all';
+  const hasActiveFilters = selectedMonth !== 'all' || categoryFilter !== 'all' || commercialFilter !== 'all';
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -328,7 +368,7 @@ export default function BankTransactions() {
         <div className="flex flex-wrap gap-2">
           {/* Month Selector */}
           <Select value={selectedMonth} onValueChange={setSelectedMonth}>
-            <SelectTrigger className="w-[140px]">
+            <SelectTrigger className="w-[130px]">
               <SelectValue placeholder="Tüm Aylar" />
             </SelectTrigger>
             <SelectContent>
@@ -341,8 +381,8 @@ export default function BankTransactions() {
 
           {/* Category Filter */}
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[160px]">
-              <SelectValue placeholder="Tüm Kategoriler" />
+            <SelectTrigger className="w-[140px]">
+              <SelectValue placeholder="Kategori" />
             </SelectTrigger>
             <SelectContent>
               <SelectItem value="all">Tüm Kategoriler</SelectItem>
@@ -352,6 +392,18 @@ export default function BankTransactions() {
                   {cat.icon} {cat.name}
                 </SelectItem>
               ))}
+            </SelectContent>
+          </Select>
+
+          {/* Commercial Filter */}
+          <Select value={commercialFilter} onValueChange={setCommercialFilter}>
+            <SelectTrigger className="w-[120px]">
+              <SelectValue placeholder="Ticari" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tümü</SelectItem>
+              <SelectItem value="commercial">🏢 Ticari</SelectItem>
+              <SelectItem value="non-commercial">👤 Ticari Dışı</SelectItem>
             </SelectContent>
           </Select>
 
@@ -388,6 +440,15 @@ export default function BankTransactions() {
                 <X 
                   className="h-3 w-3 cursor-pointer hover:text-destructive" 
                   onClick={() => setCategoryFilter('all')}
+                />
+              </Badge>
+            )}
+            {commercialFilter !== 'all' && (
+              <Badge variant="secondary" className="gap-1">
+                {commercialFilter === 'commercial' ? '🏢 Ticari' : '👤 Ticari Dışı'}
+                <X 
+                  className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                  onClick={() => setCommercialFilter('all')}
                 />
               </Badge>
             )}
@@ -461,6 +522,29 @@ export default function BankTransactions() {
                     </p>
                   </div>
                 </div>
+                
+                {/* VAT Summary */}
+                {(summary.vatCalculated > 0 || summary.vatDeductible > 0) && (
+                  <div className="mt-3 pt-3 border-t border-border">
+                    <p className="text-xs text-muted-foreground mb-2">🧾 KDV Özeti (Ticari İşlemler)</p>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground">Hesaplanan</p>
+                        <p className="text-sm font-semibold text-red-500">{formatCurrency(summary.vatCalculated)} ₺</p>
+                      </div>
+                      <div className="text-center border-x border-border">
+                        <p className="text-[10px] text-muted-foreground">İndirilecek</p>
+                        <p className="text-sm font-semibold text-blue-500">{formatCurrency(summary.vatDeductible)} ₺</p>
+                      </div>
+                      <div className="text-center">
+                        <p className="text-[10px] text-muted-foreground">Net KDV</p>
+                        <p className={cn("text-sm font-semibold", summary.vatNet >= 0 ? "text-red-600" : "text-green-600")}>
+                          {formatCurrency(Math.abs(summary.vatNet))} ₺
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                )}
               </CardContent>
             </Card>
 
