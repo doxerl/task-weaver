@@ -319,3 +319,64 @@ export interface BalanceSheet {
   isBalanced: boolean;
   difference: number;
 }
+
+// =====================================================
+// BANK IMPORT SESSION TYPES
+// =====================================================
+
+export type ImportSessionStatus = 'parsing' | 'categorizing' | 'review' | 'approved' | 'cancelled';
+
+export interface BankImportSession {
+  id: string;
+  user_id: string;
+  file_name: string;
+  file_hash: string | null;
+  file_id: string | null;
+  status: ImportSessionStatus;
+  total_transactions: number;
+  categorized_count: number;
+  low_confidence_count: number;
+  total_income: number;
+  total_expense: number;
+  detected_bank: string | null;
+  date_range_start: string | null;
+  date_range_end: string | null;
+  ai_tokens_used: number;
+  ai_cost_usd: number;
+  created_at: string;
+  updated_at: string;
+  approved_at: string | null;
+}
+
+export interface BankImportTransaction {
+  id: string;
+  session_id: string;
+  user_id: string;
+  row_number: number;
+  transaction_date: string;
+  original_date: string | null;
+  description: string;
+  amount: number;
+  original_amount: string | null;
+  balance: number | null;
+  reference: string | null;
+  counterparty: string | null;
+  transaction_type: string | null;
+  channel: string | null;
+  ai_category_code: string | null;
+  ai_category_type: string | null;
+  ai_confidence: number;
+  ai_reasoning: string | null;
+  ai_affects_pnl: boolean | null;
+  ai_balance_impact: string | null;
+  ai_counterparty: string | null;
+  user_category_id: string | null;
+  user_modified: boolean;
+  user_notes: string | null;
+  final_category_id: string | null;
+  needs_review: boolean;
+  reviewed: boolean;
+  reviewed_at: string | null;
+  created_at: string;
+  updated_at: string;
+}

@@ -8,3 +8,4 @@ export { useManualEntry } from './useManualEntry';
 export { useVatCalculations } from './useVatCalculations';
 export { useFinancialSettings } from './useFinancialSettings';
 export { useBalanceSheet } from './useBalanceSheet';
+export { useBankImportSession } from './useBankImportSession';
