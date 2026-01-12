@@ -396,9 +396,16 @@ export default function BankImport() {
                       </span>
                     </div>
                     
-                    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-                      <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />
-                      <span>gemini-2.5-flash ile kategorileniyor</span>
+                    <div className="flex items-center justify-between text-xs text-muted-foreground">
+                      <div className="flex items-center gap-2">
+                        <div className="h-1.5 w-1.5 bg-primary rounded-full animate-pulse" />
+                        <span>3x paralel • gemini-2.5-flash</span>
+                      </div>
+                      <span>
+                        {batchProgress.estimatedTimeLeft > 0 
+                          ? `~${Math.ceil(batchProgress.estimatedTimeLeft / 60)}dk`
+                          : ''}
+                      </span>
                     </div>
                   </div>
                 )}
