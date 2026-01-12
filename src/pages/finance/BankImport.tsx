@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle } from 'lucide-react';
 import { useBankFileUpload } from '@/hooks/finance/useBankFileUpload';
 import { TransactionEditor, ParsedTransaction, EditableTransaction } from '@/components/finance/TransactionEditor';
 import { cn } from '@/lib/utils';
@@ -14,7 +14,7 @@ type ViewMode = 'upload' | 'preview' | 'completed';
 
 export default function BankImport() {
   const navigate = useNavigate();
-  const { uploadAndParse, saveTransactions, progress, status, isUploading, isSaving, reset, parsedTransactions, batchProgress } = useBankFileUpload();
+  const { uploadAndParse, saveTransactions, progress, status, isUploading, isSaving, reset, parsedTransactions, batchProgress, stopProcessing } = useBankFileUpload();
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('upload');
   const [error, setError] = useState<string | null>(null);
@@ -62,6 +62,7 @@ export default function BankImport() {
     categorizing: 'Kategorize ediliyor...',
     saving: 'Kaydediliyor...',
     completed: 'Tamamlandı!',
+    cancelled: 'İşlem durduruldu',
     error: 'Hata oluştu'
   };
 
@@ -210,11 +211,15 @@ export default function BankImport() {
                   <div className="space-y-2 p-3 bg-blue-500/10 rounded-lg border border-blue-500/20">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-medium text-blue-600 dark:text-blue-400">İşlemler Çıkarılıyor</span>
-                      <span className="text-muted-foreground">
-                        {batchProgress.estimatedTimeLeft > 0 
-                          ? `~${Math.ceil(batchProgress.estimatedTimeLeft / 60)}dk kaldı`
-                          : 'Tamamlanıyor...'}
-                      </span>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={stopProcessing}
+                        className="h-6 px-2 text-xs"
+                      >
+                        <StopCircle className="h-3 w-3 mr-1" />
+                        Durdur
+                      </Button>
                     </div>
                     
                     <Progress 
@@ -243,11 +248,15 @@ export default function BankImport() {
                   <div className="space-y-2 p-3 bg-primary/5 rounded-lg border border-primary/20">
                     <div className="flex items-center justify-between text-xs">
                       <span className="font-medium text-primary">AI Kategorilendirme</span>
-                      <span className="text-muted-foreground">
-                        {batchProgress.estimatedTimeLeft > 0 
-                          ? `~${batchProgress.estimatedTimeLeft}sn kaldı`
-                          : 'Tamamlanıyor...'}
-                      </span>
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={stopProcessing}
+                        className="h-6 px-2 text-xs"
+                      >
+                        <StopCircle className="h-3 w-3 mr-1" />
+                        Durdur
+                      </Button>
                     </div>
                     
                     <Progress 
