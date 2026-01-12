@@ -357,8 +357,8 @@ export default function ReceiptDetail() {
         receipt={receipt}
         open={editOpen}
         onOpenChange={setEditOpen}
-        onSave={(updates) => {
-          updateReceipt.mutate({ id: receipt.id, updates });
+        onSave={async (id, data) => {
+          await updateReceipt.mutateAsync({ id, data });
           setEditOpen(false);
         }}
       />

@@ -172,3 +172,69 @@ export interface CategoryResult {
   categoryCode: string;
   confidence: number;
 }
+
+// Financial Settings
+export interface FinancialSettings {
+  id: string;
+  user_id: string;
+  paid_capital: number;
+  retained_earnings: number;
+  fiscal_year_start: number;
+  cash_on_hand: number;
+  inventory_value: number;
+  equipment_value: number;
+  vehicles_value: number;
+  accumulated_depreciation: number;
+  bank_loans: number;
+  notes: string | null;
+  created_at: string | null;
+  updated_at: string | null;
+}
+
+// Balance Sheet calculated structure
+export interface BalanceSheet {
+  asOfDate: string;
+  year: number;
+  
+  // Aktif (Assets)
+  currentAssets: {
+    cash: number;
+    banks: number;
+    receivables: number;
+    partnerReceivables: number;
+    inventory: number;
+    prepaidExpenses: number;
+    total: number;
+  };
+  fixedAssets: {
+    equipment: number;
+    vehicles: number;
+    depreciation: number;
+    total: number;
+  };
+  totalAssets: number;
+  
+  // Pasif (Liabilities + Equity)
+  shortTermLiabilities: {
+    payables: number;
+    vatPayable: number;
+    taxPayable: number;
+    partnerPayables: number;
+    total: number;
+  };
+  longTermLiabilities: {
+    bankLoans: number;
+    total: number;
+  };
+  equity: {
+    paidCapital: number;
+    retainedEarnings: number;
+    currentProfit: number;
+    total: number;
+  };
+  totalLiabilities: number;
+  
+  // Balance check
+  isBalanced: boolean;
+  difference: number;
+}

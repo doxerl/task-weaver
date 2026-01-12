@@ -4,24 +4,30 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, Loader2, Plus, Receipt as ReceiptIcon, FileText, Building2, ArrowRightLeft } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { ArrowLeft, Loader2, Plus, Receipt as ReceiptIcon, FileText, Building2, ArrowRightLeft, Trash2, Eye, LayoutGrid, Table as TableIcon } from 'lucide-react';
 import { useReceipts } from '@/hooks/finance/useReceipts';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { DocumentType, Receipt } from '@/types/finance';
 import { MissingVatAlert } from '@/components/finance/MissingVatAlert';
+import { ReceiptTable } from '@/components/finance/ReceiptTable';
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
+
+type ViewMode = 'card' | 'table';
 
 interface ReceiptCardProps {
   receipt: Receipt;
   categories: { id: string; name: string; icon: string }[];
   onCategoryChange: (id: string, categoryId: string | null) => void;
   onToggleReport: (id: string, include: boolean) => void;
+  onDelete: (id: string) => void;
 }
 
-function ReceiptCard({ receipt, categories, onCategoryChange, onToggleReport }: ReceiptCardProps) {
+function ReceiptCard({ receipt, categories, onCategoryChange, onToggleReport, onDelete }: ReceiptCardProps) {
   const isReceived = receipt.document_type !== 'issued';
   const displayName = isReceived 
     ? (receipt.seller_name || receipt.vendor_name || 'Bilinmiyor')
@@ -35,29 +41,33 @@ function ReceiptCard({ receipt, categories, onCategoryChange, onToggleReport }: 
       <CardContent className="p-3 space-y-2">
         {/* Thumbnail */}
         {receipt.thumbnail_url ? (
-          <div className="h-20 bg-muted rounded overflow-hidden relative">
-            <img src={receipt.thumbnail_url} alt="" className="w-full h-full object-cover" />
-            {receipt.match_status === 'matched' && (
-              <div className="absolute top-1 right-1 bg-blue-500 text-white rounded-full p-1">
-                <ArrowRightLeft className="h-3 w-3" />
-              </div>
-            )}
-          </div>
+          <Link to={`/finance/receipts/${receipt.id}`}>
+            <div className="h-20 bg-muted rounded overflow-hidden relative cursor-pointer hover:opacity-90">
+              <img src={receipt.thumbnail_url} alt="" className="w-full h-full object-cover" />
+              {receipt.match_status === 'matched' && (
+                <div className="absolute top-1 right-1 bg-blue-500 text-white rounded-full p-1">
+                  <ArrowRightLeft className="h-3 w-3" />
+                </div>
+              )}
+            </div>
+          </Link>
         ) : (
-          <div className="h-20 bg-muted rounded flex items-center justify-center text-muted-foreground text-xs relative">
-            <FileText className="h-6 w-6" />
-            {receipt.match_status === 'matched' && (
-              <div className="absolute top-1 right-1 bg-blue-500 text-white rounded-full p-1">
-                <ArrowRightLeft className="h-3 w-3" />
-              </div>
-            )}
-          </div>
+          <Link to={`/finance/receipts/${receipt.id}`}>
+            <div className="h-20 bg-muted rounded flex items-center justify-center text-muted-foreground text-xs relative cursor-pointer hover:bg-muted/80">
+              <FileText className="h-6 w-6" />
+              {receipt.match_status === 'matched' && (
+                <div className="absolute top-1 right-1 bg-blue-500 text-white rounded-full p-1">
+                  <ArrowRightLeft className="h-3 w-3" />
+                </div>
+              )}
+            </div>
+          </Link>
         )}
         
         {/* Vendor/Buyer Info */}
         <div className="flex items-start gap-2">
           <Building2 className="h-4 w-4 text-muted-foreground flex-shrink-0 mt-0.5" />
-          <div className="min-w-0">
+          <div className="min-w-0 flex-1">
             <p className="text-sm font-medium truncate">{displayName}</p>
             {(receipt.seller_tax_no || receipt.vendor_tax_no) && (
               <p className="text-xs text-muted-foreground">
@@ -112,13 +122,46 @@ function ReceiptCard({ receipt, categories, onCategoryChange, onToggleReport }: 
           </SelectContent>
         </Select>
         
-        {/* Include in Report */}
-        <div className="flex items-center gap-2">
-          <Checkbox
-            checked={receipt.is_included_in_report}
-            onCheckedChange={checked => onToggleReport(receipt.id, !!checked)}
-          />
-          <span className="text-xs">Rapora dahil</span>
+        {/* Actions Row */}
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <Checkbox
+              checked={receipt.is_included_in_report}
+              onCheckedChange={checked => onToggleReport(receipt.id, !!checked)}
+            />
+            <span className="text-xs">Rapora dahil</span>
+          </div>
+          <div className="flex items-center gap-1">
+            <Link to={`/finance/receipts/${receipt.id}`}>
+              <Button variant="ghost" size="icon" className="h-7 w-7">
+                <Eye className="h-3.5 w-3.5" />
+              </Button>
+            </Link>
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <Button variant="ghost" size="icon" className="h-7 w-7 text-destructive hover:text-destructive">
+                  <Trash2 className="h-3.5 w-3.5" />
+                </Button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Faturayı Sil</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Bu faturayı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>İptal</AlertDialogCancel>
+                  <AlertDialogAction 
+                    onClick={() => onDelete(receipt.id)}
+                    className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                  >
+                    Sil
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
+          </div>
         </div>
       </CardContent>
     </Card>
@@ -128,6 +171,7 @@ function ReceiptCard({ receipt, categories, onCategoryChange, onToggleReport }: 
 export default function Receipts() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [activeTab, setActiveTab] = useState<DocumentType>('received');
+  const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [isReprocessingAll, setIsReprocessingAll] = useState(false);
   
   const { 
@@ -135,6 +179,7 @@ export default function Receipts() {
     isLoading, 
     updateCategory, 
     toggleIncludeInReport, 
+    deleteReceipt,
     missingVatReceipts,
     reprocessMultiple,
     reprocessProgress,
@@ -172,6 +217,10 @@ export default function Receipts() {
     } finally {
       setIsReprocessingAll(false);
     }
+  };
+
+  const handleDelete = (id: string) => {
+    deleteReceipt.mutate(id);
   };
 
   return (
@@ -221,12 +270,33 @@ export default function Receipts() {
               <p className="text-sm text-muted-foreground">
                 Gider: {formatCurrency(tabStats.received.total)}
               </p>
-              <Link to="/finance/receipts/upload?type=received">
-                <button className="flex items-center gap-1 bg-primary text-primary-foreground px-3 py-1.5 rounded-lg text-sm">
-                  <Plus className="h-4 w-4" />
-                  Yükle
-                </button>
-              </Link>
+              <div className="flex items-center gap-2">
+                {/* View Toggle */}
+                <div className="flex items-center border rounded-lg">
+                  <Button 
+                    variant={viewMode === 'card' ? 'secondary' : 'ghost'} 
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={() => setViewMode('card')}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant={viewMode === 'table' ? 'secondary' : 'ghost'} 
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={() => setViewMode('table')}
+                  >
+                    <TableIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Link to="/finance/receipts/upload?type=received">
+                  <Button size="sm" className="gap-1">
+                    <Plus className="h-4 w-4" />
+                    Yükle
+                  </Button>
+                </Link>
+              </div>
             </div>
           </TabsContent>
 
@@ -235,12 +305,33 @@ export default function Receipts() {
               <p className="text-sm text-muted-foreground">
                 Gelir: {formatCurrency(tabStats.issued.total)}
               </p>
-              <Link to="/finance/receipts/upload?type=issued">
-                <button className="flex items-center gap-1 bg-green-600 text-white px-3 py-1.5 rounded-lg text-sm">
-                  <Plus className="h-4 w-4" />
-                  Yükle
-                </button>
-              </Link>
+              <div className="flex items-center gap-2">
+                {/* View Toggle */}
+                <div className="flex items-center border rounded-lg">
+                  <Button 
+                    variant={viewMode === 'card' ? 'secondary' : 'ghost'} 
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={() => setViewMode('card')}
+                  >
+                    <LayoutGrid className="h-4 w-4" />
+                  </Button>
+                  <Button 
+                    variant={viewMode === 'table' ? 'secondary' : 'ghost'} 
+                    size="sm"
+                    className="h-8 px-2"
+                    onClick={() => setViewMode('table')}
+                  >
+                    <TableIcon className="h-4 w-4" />
+                  </Button>
+                </div>
+                <Link to="/finance/receipts/upload?type=issued">
+                  <Button size="sm" className="gap-1 bg-green-600 hover:bg-green-700">
+                    <Plus className="h-4 w-4" />
+                    Yükle
+                  </Button>
+                </Link>
+              </div>
             </div>
           </TabsContent>
         </Tabs>
@@ -262,6 +353,15 @@ export default function Receipts() {
               </Link>
             </CardContent>
           </Card>
+        ) : viewMode === 'table' ? (
+          <ReceiptTable
+            receipts={filteredReceipts}
+            categories={categories}
+            onCategoryChange={(id, categoryId) => updateCategory.mutate({ id, categoryId })}
+            onToggleReport={(id, include) => toggleIncludeInReport.mutate({ id, include })}
+            onDelete={handleDelete}
+            isReceived={activeTab === 'received'}
+          />
         ) : (
           <div className="grid grid-cols-2 gap-3">
             {filteredReceipts.map(receipt => (
@@ -271,6 +371,7 @@ export default function Receipts() {
                 categories={categories}
                 onCategoryChange={(id, categoryId) => updateCategory.mutate({ id, categoryId })}
                 onToggleReport={(id, include) => toggleIncludeInReport.mutate({ id, include })}
+                onDelete={handleDelete}
               />
             ))}
           </div>

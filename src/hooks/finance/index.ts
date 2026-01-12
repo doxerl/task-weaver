@@ -4,3 +4,6 @@ export { useBankTransactions } from './useBankTransactions';
 export { useReceipts } from './useReceipts';
 export { useFinancialCalculations } from './useFinancialCalculations';
 export { useManualEntry } from './useManualEntry';
+export { useVatCalculations } from './useVatCalculations';
+export { useFinancialSettings } from './useFinancialSettings';
+export { useBalanceSheet } from './useBalanceSheet';

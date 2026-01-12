@@ -19,6 +19,8 @@ import Categories from "./pages/finance/Categories";
 import Reports from "./pages/finance/Reports";
 import ManualEntry from "./pages/finance/ManualEntry";
 import VatReport from "./pages/finance/VatReport";
+import ReceiptDetail from "./pages/finance/ReceiptDetail";
+import BalanceSheet from "./pages/finance/BalanceSheet";
 
 const queryClient = new QueryClient();
 
@@ -44,6 +46,8 @@ const App = () => (
             <Route path="/finance/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
             <Route path="/finance/vat-report" element={<ProtectedRoute><VatReport /></ProtectedRoute>} />
             <Route path="/finance/manual-entry" element={<ProtectedRoute><ManualEntry /></ProtectedRoute>} />
+            <Route path="/finance/receipts/:id" element={<ProtectedRoute><ReceiptDetail /></ProtectedRoute>} />
+            <Route path="/finance/balance-sheet" element={<ProtectedRoute><BalanceSheet /></ProtectedRoute>} />
             <Route path="*" element={<NotFound />} />
           </Routes>
         </BrowserRouter>
