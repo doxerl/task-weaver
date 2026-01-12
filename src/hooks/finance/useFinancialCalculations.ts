@@ -22,9 +22,12 @@ export function useFinancialCalculations(year: number): FinancialCalculations & 
         partnerIn: 0,
         netPartnerBalance: 0,
         financingIn: 0,
+        financingOut: 0,
+        investmentOut: 0,
         receiptTotal: 0,
         byCategory: {},
         byMonth: {},
+        byInvestmentType: {},
         uncategorizedCount: 0,
         isLoading
       };
@@ -39,6 +42,10 @@ export function useFinancialCalculations(year: number): FinancialCalculations & 
       .filter(c => c.type === 'FINANCING' || c.is_financing)
       .map(c => c.id);
     
+    const investmentIds = categories
+      .filter(c => c.type === 'INVESTMENT')
+      .map(c => c.id);
+    
     const partnerIds = categories
       .filter(c => c.type === 'PARTNER' || c.affects_partner_account)
       .map(c => c.id);
@@ -47,7 +54,7 @@ export function useFinancialCalculations(year: number): FinancialCalculations & 
       .filter(c => c.type === 'EXCLUDED' || c.is_excluded)
       .map(c => c.id);
     
-    const skipIds = [...financingIds, ...partnerIds, ...excludedIds];
+    const skipIds = [...financingIds, ...partnerIds, ...excludedIds, ...investmentIds];
 
     // Calculate income (positive amounts, excluding special categories)
     const totalIncome = activeTx
@@ -81,6 +88,33 @@ export function useFinancialCalculations(year: number): FinancialCalculations & 
     const financingIn = activeTx
       .filter(t => t.amount > 0 && financingIds.includes(t.category_id || ''))
       .reduce((sum, t) => sum + t.amount, 0);
+    
+    const financingOut = activeTx
+      .filter(t => t.amount < 0 && financingIds.includes(t.category_id || ''))
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+    // Investment calculations
+    const investmentOut = activeTx
+      .filter(t => t.amount < 0 && investmentIds.includes(t.category_id || ''))
+      .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+    // Investment breakdown by type
+    const byInvestmentType: Record<string, { amount: number; name: string; code: string }> = {};
+    activeTx
+      .filter(t => t.amount < 0 && investmentIds.includes(t.category_id || ''))
+      .forEach(t => {
+        const category = categories.find(c => c.id === t.category_id);
+        if (!category) return;
+        
+        if (!byInvestmentType[t.category_id!]) {
+          byInvestmentType[t.category_id!] = { 
+            amount: 0, 
+            name: category.name,
+            code: category.code 
+          };
+        }
+        byInvestmentType[t.category_id!].amount += Math.abs(t.amount);
+      });
 
     // Category breakdown
     const byCategory: Record<string, { income: number; expense: number; name: string; color: string }> = {};
@@ -146,9 +180,12 @@ export function useFinancialCalculations(year: number): FinancialCalculations & 
       partnerIn,
       netPartnerBalance: partnerIn - partnerOut,
       financingIn,
+      financingOut,
+      investmentOut,
       receiptTotal: receiptExpense,
       byCategory,
       byMonth,
+      byInvestmentType,
       uncategorizedCount,
       isLoading
     };

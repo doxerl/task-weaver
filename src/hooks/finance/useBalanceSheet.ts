@@ -4,6 +4,7 @@ import { useFinancialCalculations } from './useFinancialCalculations';
 import { useVatCalculations } from './useVatCalculations';
 import { useBankTransactions } from './useBankTransactions';
 import { useReceipts } from './useReceipts';
+import { useCategories } from './useCategories';
 import { BalanceSheet } from '@/types/finance';
 
 export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isLoading: boolean } {
@@ -12,8 +13,9 @@ export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isL
   const vat = useVatCalculations(year);
   const { transactions, isLoading: txLoading } = useBankTransactions(year);
   const { receipts, isLoading: receiptsLoading } = useReceipts(year);
+  const { categories, isLoading: catLoading } = useCategories();
 
-  const isLoading = settingsLoading || financials.isLoading || vat.isLoading || txLoading || receiptsLoading;
+  const isLoading = settingsLoading || financials.isLoading || vat.isLoading || txLoading || receiptsLoading || catLoading;
 
   return useMemo(() => {
     if (isLoading) {
@@ -75,9 +77,21 @@ export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isL
     currentAssets.total = currentAssets.cash + currentAssets.banks + currentAssets.receivables + 
                           currentAssets.partnerReceivables + currentAssets.inventory + currentAssets.prepaidExpenses;
 
+    // Calculate investment purchases from transactions
+    const investmentCategories = categories.filter(c => c.type === 'INVESTMENT');
+    const equipmentCat = investmentCategories.find(c => c.code === 'EKIPMAN');
+    const vehicleCat = investmentCategories.find(c => c.code === 'ARAC');
+    
+    const equipmentPurchases = equipmentCat 
+      ? (financials.byInvestmentType[equipmentCat.id]?.amount || 0)
+      : 0;
+    const vehiclePurchases = vehicleCat 
+      ? (financials.byInvestmentType[vehicleCat.id]?.amount || 0)
+      : 0;
+
     const fixedAssets = {
-      equipment: settings.equipment_value || 0,
-      vehicles: settings.vehicles_value || 0,
+      equipment: (settings.equipment_value || 0) + equipmentPurchases,
+      vehicles: (settings.vehicles_value || 0) + vehiclePurchases,
       depreciation: settings.accumulated_depreciation || 0,
       total: 0,
     };
@@ -95,9 +109,17 @@ export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isL
     shortTermLiabilities.total = shortTermLiabilities.payables + shortTermLiabilities.vatPayable + 
                                   shortTermLiabilities.taxPayable + shortTermLiabilities.partnerPayables;
 
+    // Add leasing to long term liabilities
+    const leasingCat = categories.find(c => c.code === 'LEASING');
+    const leasingPayments = leasingCat 
+      ? transactions
+          .filter(t => t.category_id === leasingCat.id && t.amount < 0)
+          .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+      : 0;
+
     const longTermLiabilities = {
-      bankLoans: settings.bank_loans || 0,
-      total: settings.bank_loans || 0,
+      bankLoans: (settings.bank_loans || 0) + leasingPayments,
+      total: (settings.bank_loans || 0) + leasingPayments,
     };
 
     const equity = {
@@ -128,5 +150,5 @@ export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isL
     };
 
     return { balanceSheet, isLoading: false };
-  }, [isLoading, settings, financials, vat, transactions, receipts, year]);
+  }, [isLoading, settings, financials, vat, transactions, receipts, categories, year]);
 }

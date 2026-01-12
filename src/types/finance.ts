@@ -154,9 +154,12 @@ export interface FinancialCalculations {
   partnerIn: number;
   netPartnerBalance: number;
   financingIn: number;
+  financingOut: number;
+  investmentOut: number;
   receiptTotal: number;
   byCategory: Record<string, { income: number; expense: number; name: string; color: string }>;
   byMonth: Record<number, { income: number; expense: number }>;
+  byInvestmentType: Record<string, { amount: number; name: string; code: string }>;
   uncategorizedCount: number;
 }
 
