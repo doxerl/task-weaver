@@ -7,6 +7,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ArrowLeft, Plus, TrendingUp, TrendingDown, Users } from 'lucide-react';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { useManualEntry } from '@/hooks/finance/useManualEntry';
@@ -31,10 +32,12 @@ const MONTHS = [
 
 const YEARS = ['2024', '2025', '2026'];
 
+const ICON_OPTIONS = ['💰', '📊', '🔍', '💼', '✅', '🏪', '🚗', '✈️', '📱', '🛡️', '📝', '💱', '🏠', '💳', '📦', '🎯'];
+
 export default function ManualEntry() {
   const currentDate = new Date();
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
-  const { grouped, isLoading: catLoading } = useCategories();
+  const { grouped, isLoading: catLoading, createCategory } = useCategories();
   const { addTransaction, addPartnerTransaction, recentTransactions, isLoading } = useManualEntry(selectedYear);
 
   const [transactionType, setTransactionType] = useState<'income' | 'expense' | 'partner'>('income');
@@ -43,6 +46,30 @@ export default function ManualEntry() {
   const [description, setDescription] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [partnerType, setPartnerType] = useState<'OUT' | 'IN'>('OUT');
+
+  // New category dialog state
+  const [showNewCategoryDialog, setShowNewCategoryDialog] = useState(false);
+  const [newCategory, setNewCategory] = useState({
+    name: '',
+    code: '',
+    icon: '💰',
+    color: '#6b7280'
+  });
+
+  const handleCreateCategory = async () => {
+    if (!newCategory.name || !newCategory.code) return;
+    
+    await createCategory.mutateAsync({
+      name: newCategory.name,
+      code: newCategory.code,
+      icon: newCategory.icon,
+      color: newCategory.color,
+      type: transactionType === 'income' ? 'INCOME' : 'EXPENSE'
+    });
+    
+    setShowNewCategoryDialog(false);
+    setNewCategory({ name: '', code: '', icon: '💰', color: '#6b7280' });
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -206,7 +233,16 @@ export default function ManualEntry() {
               {transactionType !== 'partner' && (
                 <div className="space-y-2">
                   <Label>Kategori</Label>
-                  <Select value={categoryId} onValueChange={setCategoryId}>
+                  <Select 
+                    value={categoryId} 
+                    onValueChange={(v) => {
+                      if (v === 'NEW') {
+                        setShowNewCategoryDialog(true);
+                      } else {
+                        setCategoryId(v);
+                      }
+                    }}
+                  >
                     <SelectTrigger>
                       <SelectValue placeholder="Kategori seçin" />
                     </SelectTrigger>
@@ -217,6 +253,9 @@ export default function ManualEntry() {
                           {c.is_financing && <span className="text-muted-foreground ml-2">(Finansman)</span>}
                         </SelectItem>
                       ))}
+                      <SelectItem value="NEW" className="text-primary font-medium border-t mt-2 pt-2">
+                        ➕ Yeni Kategori Ekle
+                      </SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -291,6 +330,78 @@ export default function ManualEntry() {
           </CardContent>
         </Card>
       </div>
+
+      {/* New Category Dialog */}
+      <Dialog open={showNewCategoryDialog} onOpenChange={setShowNewCategoryDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Yeni Kategori Ekle</DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-4">
+            <div className="space-y-2">
+              <Label>Kategori Adı</Label>
+              <Input 
+                placeholder="Örn: Yazılım Hizmeti"
+                value={newCategory.name}
+                onChange={e => setNewCategory({...newCategory, name: e.target.value})}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Kısa Kod</Label>
+              <Input 
+                placeholder="Örn: YAZILIM"
+                value={newCategory.code}
+                onChange={e => setNewCategory({...newCategory, code: e.target.value.toUpperCase()})}
+              />
+            </div>
+            
+            <div className="space-y-2">
+              <Label>İkon</Label>
+              <div className="flex gap-2 flex-wrap">
+                {ICON_OPTIONS.map(icon => (
+                  <button
+                    key={icon}
+                    type="button"
+                    onClick={() => setNewCategory({...newCategory, icon})}
+                    className={`p-2 rounded border transition-colors ${
+                      newCategory.icon === icon 
+                        ? 'border-primary bg-primary/10' 
+                        : 'border-border hover:border-primary/50'
+                    }`}
+                  >
+                    {icon}
+                  </button>
+                ))}
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label>Renk</Label>
+              <Input 
+                type="color" 
+                value={newCategory.color}
+                onChange={e => setNewCategory({...newCategory, color: e.target.value})}
+                className="h-10 w-20"
+              />
+            </div>
+          </div>
+          
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setShowNewCategoryDialog(false)}>
+              İptal
+            </Button>
+            <Button 
+              onClick={handleCreateCategory} 
+              disabled={!newCategory.name || !newCategory.code || createCategory.isPending}
+            >
+              {createCategory.isPending ? 'Oluşturuluyor...' : 'Kategori Oluştur'}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
       <BottomTabBar />
     </div>
   );
