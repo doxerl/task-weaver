@@ -41,16 +41,84 @@ export function useReceipts(year?: number, month?: number) {
     enabled: !!user?.id
   });
 
+  // Helper to save a single receipt from parsed data
+  const saveReceiptFromOCR = async (
+    ocr: Record<string, any>,
+    fileUrl: string,
+    fileName: string,
+    fileType: string,
+    documentType: DocumentType
+  ) => {
+    let receiptDate = null;
+    let receiptMonth = new Date().getMonth() + 1;
+    let receiptYear = new Date().getFullYear();
+    
+    if (ocr.receiptDate) {
+      const parts = ocr.receiptDate.split('.');
+      if (parts.length === 3) {
+        const [d, m, y] = parts;
+        const year = y.length === 2 ? `20${y}` : y;
+        receiptDate = `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
+        receiptMonth = parseInt(m);
+        receiptYear = parseInt(year);
+      }
+    }
+
+    const { data: receipt, error: insertError } = await supabase
+      .from('receipts')
+      .insert({
+        user_id: user!.id,
+        file_name: fileName,
+        file_type: fileType,
+        file_url: fileUrl,
+        thumbnail_url: fileType === 'image' ? fileUrl : null,
+        document_type: documentType,
+        seller_name: ocr.sellerName || null,
+        seller_tax_no: ocr.sellerTaxNo || null,
+        seller_address: ocr.sellerAddress || null,
+        buyer_name: ocr.buyerName || null,
+        buyer_tax_no: ocr.buyerTaxNo || null,
+        buyer_address: ocr.buyerAddress || null,
+        vendor_name: ocr.sellerName || ocr.vendorName || null,
+        vendor_tax_no: ocr.sellerTaxNo || ocr.vendorTaxNo || null,
+        receipt_date: receiptDate,
+        receipt_no: ocr.receiptNo || null,
+        subtotal: ocr.subtotal || null,
+        total_amount: ocr.totalAmount || null,
+        tax_amount: ocr.vatAmount || ocr.taxAmount || null,
+        vat_rate: ocr.vatRate || null,
+        vat_amount: ocr.vatAmount || null,
+        withholding_tax_rate: ocr.withholdingTaxRate || null,
+        withholding_tax_amount: ocr.withholdingTaxAmount || null,
+        stamp_tax_amount: ocr.stampTaxAmount || null,
+        currency: ocr.currency || 'TRY',
+        ocr_confidence: ocr.confidence || 0,
+        month: receiptMonth,
+        year: receiptYear,
+        processing_status: 'completed',
+        match_status: 'unmatched'
+      })
+      .select()
+      .single();
+    
+    if (insertError) throw insertError;
+    return receipt;
+  };
+
   const uploadReceipt = useMutation({
-    mutationFn: async ({ file, documentType = 'received' }: { file: File; documentType?: DocumentType }) => {
+    mutationFn: async ({ file, documentType = 'received' }: { file: File; documentType?: DocumentType }): Promise<Receipt | Receipt[]> => {
       if (!user?.id) throw new Error('Giriş yapmalısınız');
       
-      setUploadProgress(20);
+      setUploadProgress(10);
       
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      const isZip = ext === 'zip';
+      const isXml = ext === 'xml';
       const isImage = file.type.startsWith('image/');
-      const ext = file.name.split('.').pop() || (isImage ? 'jpg' : 'pdf');
-      const path = `${user.id}/receipts/${Date.now()}.${ext}`;
+      const fileExt = ext || (isImage ? 'jpg' : 'pdf');
+      const path = `${user.id}/receipts/${Date.now()}.${fileExt}`;
       
+      // Upload file to storage
       const { error: uploadError } = await supabase.storage
         .from('finance-files')
         .upload(path, file);
@@ -61,6 +129,63 @@ export function useReceipts(year?: number, month?: number) {
         .from('finance-files')
         .getPublicUrl(path);
       
+      setUploadProgress(30);
+
+      // Handle ZIP files
+      if (isZip) {
+        const { data: zipData, error: zipError } = await supabase.functions.invoke('parse-zip-receipts', {
+          body: { zipUrl: publicUrl, documentType }
+        });
+        
+        if (zipError) throw zipError;
+        
+        const results = zipData?.results || [];
+        const savedReceipts: Receipt[] = [];
+        
+        for (let i = 0; i < results.length; i++) {
+          const result = results[i];
+          if (result.success && result.result) {
+            try {
+              const receipt = await saveReceiptFromOCR(
+                result.result,
+                publicUrl, // Use ZIP URL as reference
+                result.fileName,
+                result.fileType,
+                documentType
+              );
+              if (receipt) savedReceipts.push(receipt as Receipt);
+            } catch (e) {
+              console.warn('Failed to save receipt from ZIP:', result.fileName, e);
+            }
+          }
+          setUploadProgress(30 + ((i + 1) / results.length) * 60);
+        }
+        
+        setUploadProgress(100);
+        return savedReceipts;
+      }
+
+      // Handle XML e-Fatura
+      if (isXml) {
+        // Read XML content
+        const xmlContent = await file.text();
+        
+        const { data: xmlData, error: xmlError } = await supabase.functions.invoke('parse-xml-invoice', {
+          body: { xmlContent, documentType }
+        });
+        
+        if (xmlError) throw xmlError;
+        
+        setUploadProgress(80);
+        
+        const ocr = xmlData?.result || {};
+        const receipt = await saveReceiptFromOCR(ocr, publicUrl, file.name, 'xml', documentType);
+        
+        setUploadProgress(100);
+        return receipt as Receipt;
+      }
+
+      // Handle images and PDFs (existing logic)
       setUploadProgress(50);
 
       const { data: ocrData, error: ocrError } = await supabase.functions.invoke('parse-receipt', {
@@ -72,77 +197,42 @@ export function useReceipts(year?: number, month?: number) {
       
       setUploadProgress(80);
 
-      let receiptDate = null;
-      let receiptMonth = new Date().getMonth() + 1;
-      let receiptYear = new Date().getFullYear();
-      
-      if (ocr.receiptDate) {
-        const parts = ocr.receiptDate.split('.');
-        if (parts.length === 3) {
-          const [d, m, y] = parts;
-          const year = y.length === 2 ? `20${y}` : y;
-          receiptDate = `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
-          receiptMonth = parseInt(m);
-          receiptYear = parseInt(year);
-        }
-      }
-
-      const { data: receipt, error: insertError } = await supabase
-        .from('receipts')
-        .insert({
-          user_id: user.id,
-          file_name: file.name,
-          file_type: isImage ? 'image' : 'pdf',
-          file_url: publicUrl,
-          thumbnail_url: isImage ? publicUrl : null,
-          document_type: documentType,
-          seller_name: ocr.sellerName || null,
-          seller_tax_no: ocr.sellerTaxNo || null,
-          seller_address: ocr.sellerAddress || null,
-          buyer_name: ocr.buyerName || null,
-          buyer_tax_no: ocr.buyerTaxNo || null,
-          buyer_address: ocr.buyerAddress || null,
-          vendor_name: ocr.sellerName || ocr.vendorName || null,
-          vendor_tax_no: ocr.sellerTaxNo || ocr.vendorTaxNo || null,
-          receipt_date: receiptDate,
-          receipt_no: ocr.receiptNo || null,
-          subtotal: ocr.subtotal || null,
-          total_amount: ocr.totalAmount || null,
-          tax_amount: ocr.vatAmount || ocr.taxAmount || null,
-          vat_rate: ocr.vatRate || null,
-          vat_amount: ocr.vatAmount || null,
-          withholding_tax_rate: ocr.withholdingTaxRate || null,
-          withholding_tax_amount: ocr.withholdingTaxAmount || null,
-          stamp_tax_amount: ocr.stampTaxAmount || null,
-          currency: ocr.currency || 'TRY',
-          ocr_confidence: ocr.confidence || 0,
-          month: receiptMonth,
-          year: receiptYear,
-          processing_status: 'completed',
-          match_status: 'unmatched'
-        })
-        .select()
-        .single();
-      
-      if (insertError) throw insertError;
+      const receipt = await saveReceiptFromOCR(
+        ocr,
+        publicUrl,
+        file.name,
+        isImage ? 'image' : 'pdf',
+        documentType
+      );
       
       setUploadProgress(100);
-      return receipt;
+      return receipt as Receipt;
     },
-    onSuccess: async (receipt) => {
+    onSuccess: async (result) => {
       queryClient.invalidateQueries({ queryKey: ['receipts'] });
-      toast({ title: 'Fiş yüklendi ve analiz edildi' });
+      
+      const receipts = Array.isArray(result) ? result : [result];
+      const count = receipts.length;
+      
+      if (count > 1) {
+        toast({ title: `${count} belge yüklendi ve analiz edildi` });
+      } else {
+        toast({ title: 'Fiş yüklendi ve analiz edildi' });
+      }
+      
       setUploadProgress(0);
       
-      // Trigger auto-matching after upload
-      if (receipt?.id) {
-        try {
-          await supabase.functions.invoke('match-receipts', {
-            body: { receiptId: receipt.id }
-          });
-          queryClient.invalidateQueries({ queryKey: ['receipt-matches', receipt.id] });
-        } catch (e) {
-          console.warn('Auto-match failed:', e);
+      // Trigger auto-matching for each receipt
+      for (const receipt of receipts) {
+        if (receipt?.id) {
+          try {
+            await supabase.functions.invoke('match-receipts', {
+              body: { receiptId: receipt.id }
+            });
+            queryClient.invalidateQueries({ queryKey: ['receipt-matches', receipt.id] });
+          } catch (e) {
+            console.warn('Auto-match failed:', e);
+          }
         }
       }
     },
