@@ -15,10 +15,13 @@ export interface BatchProgress {
   processedTransactions: number;
   totalTransactions: number;
   estimatedTimeLeft: number;
+  stage: 'parsing' | 'categorizing';
 }
 
-const BATCH_SIZE = 25;
-const ESTIMATED_SECONDS_PER_BATCH = 6;
+const PARSE_BATCH_SIZE = 10; // 10 satır per parse batch
+const CATEGORIZE_BATCH_SIZE = 25;
+const ESTIMATED_SECONDS_PER_PARSE_BATCH = 15;
+const ESTIMATED_SECONDS_PER_CATEGORIZE_BATCH = 6;
 
 export function useBankFileUpload() {
   const { user } = useAuth();
@@ -35,6 +38,7 @@ export function useBankFileUpload() {
     processedTransactions: 0,
     totalTransactions: 0,
     estimatedTimeLeft: 0,
+    stage: 'parsing',
   });
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -57,6 +61,7 @@ export function useBankFileUpload() {
       processedTransactions: 0,
       totalTransactions: 0,
       estimatedTimeLeft: 0,
+      stage: 'parsing',
     });
   }, [clearProgressInterval]);
 
@@ -83,7 +88,7 @@ export function useBankFileUpload() {
           .from('finance-files')
           .getPublicUrl(path);
         
-        setProgress(25);
+        setProgress(20);
 
         // 2. Create DB record
         const { data: bankFile, error: dbError } = await supabase
@@ -101,64 +106,148 @@ export function useBankFileUpload() {
         
         if (dbError) throw dbError;
         setCurrentFileId(bankFile.id);
-        setProgress(35);
+        setProgress(25);
 
         // 3. Read file content (parse XLSX/PDF to text)
         const fileContent = await parseFile(file);
+        console.log('File content length:', fileContent.length);
         
-        // 4. Parse with AI (Extended Thinking enabled)
+        // 4. Split into batches (10 lines each)
         setStatus('parsing');
-        setProgress(50);
+        setProgress(30);
         
-        const { data: parseData, error: parseError } = await supabase.functions.invoke('parse-bank-statement', {
-          body: { fileContent, fileType: ext, fileName: file.name }
-        });
+        const lines = fileContent.split('\n').filter(line => line.trim());
+        const headerLine = lines[0] || ''; // First line is header
+        const dataLines = lines.slice(1); // Data lines
         
-        if (parseError) throw parseError;
+        console.log(`Total lines: ${lines.length}, Data lines: ${dataLines.length}`);
         
-        if (!parseData?.success) {
-          throw new Error(parseData?.error || 'Dosyadan işlem çıkarılamadı');
+        // Create batches of 10 data lines
+        const batches: string[] = [];
+        for (let i = 0; i < dataLines.length; i += PARSE_BATCH_SIZE) {
+          const batchLines = dataLines.slice(i, i + PARSE_BATCH_SIZE);
+          batches.push([headerLine, ...batchLines].join('\n'));
         }
         
-        let parsed: ParsedTransaction[] = parseData?.transactions || [];
+        const totalParseBatches = batches.length;
+        console.log(`Created ${totalParseBatches} parse batches`);
         
-        if (parsed.length === 0) {
-          throw new Error('Dosyadan işlem çıkarılamadı');
-        }
-        
-        console.log(`Parsed ${parsed.length} transactions from file`);
-        setProgress(65);
-
-        // Step 4: AI Kategorilendirme with batch progress
-        setStatus('categorizing');
-        
-        const totalBatches = Math.ceil(parsed.length / BATCH_SIZE);
-        const totalTransactions = parsed.length;
-        
-        // Initialize batch progress
+        // Initialize batch progress for parsing
         setBatchProgress({
           current: 0,
-          total: totalBatches,
+          total: totalParseBatches,
           processedTransactions: 0,
-          totalTransactions,
-          estimatedTimeLeft: totalBatches * ESTIMATED_SECONDS_PER_BATCH,
+          totalTransactions: dataLines.length,
+          estimatedTimeLeft: totalParseBatches * ESTIMATED_SECONDS_PER_PARSE_BATCH,
+          stage: 'parsing',
         });
 
-        // Start simulated progress interval
+        // 5. Process each batch sequentially
+        const allTransactions: ParsedTransaction[] = [];
+        let failedBatches = 0;
+        
+        for (let i = 0; i < batches.length; i++) {
+          const batchContent = batches[i];
+          
+          // Update progress before each batch
+          setBatchProgress(prev => ({
+            ...prev,
+            current: i,
+            processedTransactions: allTransactions.length,
+            estimatedTimeLeft: Math.max(0, (totalParseBatches - i) * ESTIMATED_SECONDS_PER_PARSE_BATCH),
+            stage: 'parsing',
+          }));
+          
+          try {
+            console.log(`Processing parse batch ${i + 1}/${totalParseBatches}`);
+            
+            const { data: parseData, error: parseError } = await supabase.functions.invoke('parse-bank-statement', {
+              body: { 
+                fileContent: batchContent, 
+                fileType: ext, 
+                fileName: file.name,
+                batchIndex: i,
+                totalBatches: totalParseBatches
+              }
+            });
+            
+            if (parseError) {
+              console.warn(`Batch ${i + 1} error:`, parseError.message);
+              failedBatches++;
+              continue;
+            }
+            
+            if (parseData?.success && parseData?.transactions?.length > 0) {
+              // Add offset to index based on batch position
+              const offsetTransactions = parseData.transactions.map((t: any, idx: number) => ({
+                ...t,
+                index: (i * PARSE_BATCH_SIZE) + idx
+              }));
+              allTransactions.push(...offsetTransactions);
+              console.log(`Batch ${i + 1}: Got ${parseData.transactions.length} transactions`);
+            } else {
+              console.warn(`Batch ${i + 1}: No transactions returned`);
+              failedBatches++;
+            }
+          } catch (batchErr) {
+            console.error(`Batch ${i + 1} exception:`, batchErr);
+            failedBatches++;
+          }
+          
+          // Update overall progress
+          const parseProgress = 30 + ((i + 1) / totalParseBatches) * 35;
+          setProgress(parseProgress);
+        }
+        
+        // Parsing complete
+        setBatchProgress(prev => ({
+          ...prev,
+          current: totalParseBatches,
+          processedTransactions: allTransactions.length,
+          estimatedTimeLeft: 0,
+          stage: 'parsing',
+        }));
+        
+        console.log(`Parsing complete: ${allTransactions.length} transactions from ${totalParseBatches - failedBatches}/${totalParseBatches} batches`);
+        
+        if (allTransactions.length === 0) {
+          throw new Error('Dosyadan işlem çıkarılamadı. Lütfen farklı bir format deneyin.');
+        }
+        
+        let parsed = allTransactions;
+        setProgress(65);
+
+        // Step 6: AI Kategorilendirme with batch progress
+        setStatus('categorizing');
+        
+        const totalCatBatches = Math.ceil(parsed.length / CATEGORIZE_BATCH_SIZE);
+        
+        // Initialize batch progress for categorization
+        setBatchProgress({
+          current: 0,
+          total: totalCatBatches,
+          processedTransactions: 0,
+          totalTransactions: parsed.length,
+          estimatedTimeLeft: totalCatBatches * ESTIMATED_SECONDS_PER_CATEGORIZE_BATCH,
+          stage: 'categorizing',
+        });
+
+        // Start simulated progress interval for categorization
         let simulatedBatch = 0;
         clearProgressInterval();
         progressIntervalRef.current = setInterval(() => {
           simulatedBatch += 1;
-          if (simulatedBatch >= totalBatches) {
+          if (simulatedBatch >= totalCatBatches) {
             clearProgressInterval();
           }
           setBatchProgress(prev => ({
             ...prev,
             current: Math.min(simulatedBatch, prev.total),
-            processedTransactions: Math.min(simulatedBatch * BATCH_SIZE, totalTransactions),
-            estimatedTimeLeft: Math.max(0, (prev.total - simulatedBatch) * ESTIMATED_SECONDS_PER_BATCH),
+            processedTransactions: Math.min(simulatedBatch * CATEGORIZE_BATCH_SIZE, parsed.length),
+            estimatedTimeLeft: Math.max(0, (prev.total - simulatedBatch) * ESTIMATED_SECONDS_PER_CATEGORIZE_BATCH),
+            stage: 'categorizing',
           }));
-        }, ESTIMATED_SECONDS_PER_BATCH * 1000);
+        }, ESTIMATED_SECONDS_PER_CATEGORIZE_BATCH * 1000);
         
         try {
           const { data: catData, error: catError } = await supabase.functions.invoke('categorize-transactions', {
@@ -170,8 +259,9 @@ export function useBankFileUpload() {
           setBatchProgress(prev => ({
             ...prev,
             current: prev.total,
-            processedTransactions: totalTransactions,
+            processedTransactions: parsed.length,
             estimatedTimeLeft: 0,
+            stage: 'categorizing',
           }));
           
           if (!catError && catData?.results) {

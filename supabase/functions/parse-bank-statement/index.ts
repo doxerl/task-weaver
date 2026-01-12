@@ -5,7 +5,7 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const TIMEOUT_MS = 120000; // 2 dakika timeout
+const TIMEOUT_MS = 300000; // 5 dakika timeout
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -13,9 +13,10 @@ serve(async (req) => {
   }
 
   try {
-    const { fileContent, fileType, fileName } = await req.json();
+    const { fileContent, fileType, fileName, batchIndex, totalBatches } = await req.json();
     
-    console.log('Step 1: Request received');
+    const isBatchMode = typeof batchIndex === 'number' && typeof totalBatches === 'number';
+    console.log(`Step 1: Request received ${isBatchMode ? `(Batch ${batchIndex + 1}/${totalBatches})` : ''}`);
     console.log(`File: ${fileName}, Type: ${fileType}, Content length: ${fileContent?.length || 0}`);
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
@@ -84,8 +85,10 @@ SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
     if (!response.ok) {
       if (response.status === 429) {
         return new Response(JSON.stringify({ 
+          success: false,
           error: 'Rate limit aşıldı, lütfen biraz bekleyin.',
-          retryAfter: 60 
+          retryAfter: 60,
+          transactions: []
         }), {
           status: 429,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -93,7 +96,9 @@ SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
       }
       if (response.status === 402) {
         return new Response(JSON.stringify({ 
-          error: 'Kredi yetersiz, lütfen Lovable hesabınıza kredi ekleyin.' 
+          success: false,
+          error: 'Kredi yetersiz, lütfen Lovable hesabınıza kredi ekleyin.',
+          transactions: []
         }), {
           status: 402,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -209,6 +214,7 @@ SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
       success: true,
       transactions, 
       count: transactions.length,
+      batchIndex: isBatchMode ? batchIndex : undefined,
       metadata: {
         fileName: fileName || 'unknown',
         fileType: fileType || 'unknown',
@@ -225,7 +231,7 @@ SADECE JSON ARRAY DÖNDÜR, başka açıklama ekleme.
       console.error('parse-bank-statement timeout after', TIMEOUT_MS, 'ms');
       return new Response(JSON.stringify({ 
         success: false,
-        error: 'İşlem zaman aşımına uğradı. Lütfen daha küçük bir dosya deneyin.',
+        error: 'İşlem zaman aşımına uğradı (5 dakika). Lütfen daha küçük bir dosya deneyin.',
         transactions: [] 
       }), {
         status: 504,
