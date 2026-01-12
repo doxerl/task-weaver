@@ -13,9 +13,9 @@ serve(async (req) => {
   try {
     const { transactions, categories } = await req.json();
     
-    const ANTHROPIC_API_KEY = Deno.env.get('ANTHROPIC_API_KEY');
-    if (!ANTHROPIC_API_KEY) {
-      throw new Error('ANTHROPIC_API_KEY is not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY is not configured');
     }
 
     // Build category list for prompt
@@ -25,7 +25,7 @@ serve(async (req) => {
 
     // Build transaction list
     const txList = transactions.map((t: any, i: number) =>
-      `${i}|${t.amount > 0 ? '+' : ''}${t.amount}|${t.description}`
+      `${i}|${t.amount > 0 ? '+' : ''}${t.amount}|${t.description}|${t.counterparty || '-'}`
     ).join('\n');
 
     const systemPrompt = `Sen Türk banka işlemleri kategorize uzmanısın.
@@ -42,40 +42,59 @@ ${categoryList}
 6. "KREDİ" + negatif → KREDI_OUT
 7. "DÖVİZ SATIŞ" → DOVIZ_IN
 8. "DÖVİZ ALIŞ" → DOVIZ_OUT
-9. "VİRMAN", "HAVALe EFT GELEN" → genellikle EXCLUDED
+9. "VİRMAN", "HAVALE EFT GELEN" → genellikle EXCLUDED
+10. "KESİNTİ VE EKLERİ", "MASRAF" → BANKA
+11. "HGS", "OGS" → ULASIM
 
 EŞLEŞME ÖNCELİĞİ:
 1. vendor_patterns ile tam eşleşme
 2. keywords ile kısmi eşleşme
 3. Tutar işaretine göre tip belirleme
 
-ÇIKTI FORMAT:
-Sadece JSON array döndür:
-[{"index":0,"categoryCode":"SBT","confidence":0.95}]
+Her işlem için en uygun kategori kodunu ve güven skorunu (0.0-1.0) belirle.`;
 
-confidence: 0.0-1.0 arası, eşleşme kalitesi`;
-
-    const response = await fetch('https://api.anthropic.com/v1/messages', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'x-api-key': ANTHROPIC_API_KEY,
-        'anthropic-version': '2023-06-01',
-        'anthropic-beta': 'interleaved-thinking-2025-05-14',
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-sonnet-4-20250514',
-        max_tokens: 8000,
-        thinking: {
-          type: 'enabled',
-          budget_tokens: 8000
-        },
+        model: 'google/gemini-3-flash-preview',
         messages: [
-          { 
-            role: 'user', 
-            content: `${systemPrompt}\n\nİŞLEMLER:\n${txList}` 
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: `İŞLEMLER:\n${txList}\n\nHer işlem için kategori öner.` }
+        ],
+        tools: [
+          {
+            type: 'function',
+            function: {
+              name: 'categorize_transactions',
+              description: 'Her banka işlemi için kategori kodu ve güven skoru döndür',
+              parameters: {
+                type: 'object',
+                properties: {
+                  results: {
+                    type: 'array',
+                    items: {
+                      type: 'object',
+                      properties: {
+                        index: { type: 'number', description: 'İşlem index numarası' },
+                        categoryCode: { type: 'string', description: 'Kategori kodu (örn: SBT, DANIS, ORTAK_OUT)' },
+                        confidence: { type: 'number', description: 'Güven skoru 0.0-1.0 arası' }
+                      },
+                      required: ['index', 'categoryCode', 'confidence'],
+                      additionalProperties: false
+                    }
+                  }
+                },
+                required: ['results'],
+                additionalProperties: false
+              }
+            }
           }
         ],
+        tool_choice: { type: 'function', function: { name: 'categorize_transactions' } }
       })
     });
 
@@ -86,32 +105,33 @@ confidence: 0.0-1.0 arası, eşleşme kalitesi`;
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         });
       }
-      if (response.status === 400) {
-        const errorData = await response.json();
-        console.error('Anthropic API error:', errorData);
-        throw new Error(errorData.error?.message || 'Anthropic API error');
+      if (response.status === 402) {
+        return new Response(JSON.stringify({ error: 'Kredi yetersiz, lütfen hesabınızı kontrol edin.' }), {
+          status: 402,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        });
       }
       const errorText = await response.text();
-      console.error('Anthropic API error:', response.status, errorText);
-      throw new Error('Anthropic API error');
+      console.error('Lovable AI error:', response.status, errorText);
+      throw new Error('AI kategorilendirme hatası');
     }
 
     const data = await response.json();
-    // Extended Thinking: thinking bloklarını atla, sadece text content'i al
-    const textContent = data.content?.find((c: any) => c.type === 'text');
-    const text = textContent?.text || '';
     
-    // Extract JSON array from response
-    const jsonMatch = text.match(/\[[\s\S]*\]/);
-    let results = [];
+    // Extract tool call results
+    let results: any[] = [];
     
-    if (jsonMatch) {
+    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    if (toolCall?.function?.arguments) {
       try {
-        results = JSON.parse(jsonMatch[0]);
+        const parsed = JSON.parse(toolCall.function.arguments);
+        results = parsed.results || [];
       } catch (parseError) {
-        console.error('JSON parse error:', parseError, 'Raw text:', text);
+        console.error('Tool call parse error:', parseError);
       }
     }
+
+    console.log(`Categorized ${results.length} transactions`);
 
     return new Response(JSON.stringify({ results }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

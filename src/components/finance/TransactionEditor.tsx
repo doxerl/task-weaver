@@ -12,7 +12,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, CheckCircle, ArrowUpCircle, ArrowDownCircle } from 'lucide-react';
+import { Save, CheckCircle, ArrowUpCircle, ArrowDownCircle, Sparkles, PenLine } from 'lucide-react';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { cn } from '@/lib/utils';
 
@@ -24,11 +24,14 @@ export interface ParsedTransaction {
   balance: number | null;
   reference: string | null;
   counterparty: string | null;
+  suggestedCategoryId?: string | null;
+  aiConfidence?: number;
 }
 
 export interface EditableTransaction extends ParsedTransaction {
   categoryId: string | null;
   isSelected: boolean;
+  isManuallyChanged?: boolean;
 }
 
 interface TransactionEditorProps {
@@ -55,13 +58,18 @@ const formatDate = (d: string | null) => {
 export function TransactionEditor({ transactions, onSave, isSaving }: TransactionEditorProps) {
   const { grouped, categories } = useCategories();
   const [editableTransactions, setEditableTransactions] = useState<EditableTransaction[]>(
-    transactions.map(t => ({ ...t, categoryId: null, isSelected: false }))
+    transactions.map(t => ({ 
+      ...t, 
+      categoryId: t.suggestedCategoryId || null, // AI önerisini varsayılan yap
+      isSelected: false,
+      isManuallyChanged: false
+    }))
   );
   const [selectAll, setSelectAll] = useState(false);
 
   const handleCategoryChange = (index: number, categoryId: string) => {
     setEditableTransactions(prev => 
-      prev.map((t, i) => i === index ? { ...t, categoryId } : t)
+      prev.map((t, i) => i === index ? { ...t, categoryId, isManuallyChanged: true } : t)
     );
   };
 
@@ -259,13 +267,27 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
                 </SelectContent>
               </Select>
 
-              {tx.categoryId && (
-                <CheckCircle className="h-4 w-4 text-green-500 shrink-0" />
-              )}
+              {/* AI/Manual indicator */}
+              <div className="flex items-center gap-1 shrink-0">
+                {tx.categoryId && tx.aiConfidence && tx.aiConfidence > 0 && !tx.isManuallyChanged && (
+                  <Badge variant="secondary" className="text-xs gap-1 bg-primary/10 text-primary">
+                    <Sparkles className="h-3 w-3" />
+                    {Math.round(tx.aiConfidence * 100)}%
+                  </Badge>
+                )}
+                {tx.isManuallyChanged && (
+                  <Badge variant="outline" className="text-xs gap-1">
+                    <PenLine className="h-3 w-3" />
+                    Manuel
+                  </Badge>
+                )}
+                {tx.categoryId && (
+                  <CheckCircle className="h-4 w-4 text-green-500" />
+                )}
+              </div>
             </div>
           ))}
         </div>
-
         {/* Save button */}
         <Button
           onClick={() => onSave(editableTransactions)}
