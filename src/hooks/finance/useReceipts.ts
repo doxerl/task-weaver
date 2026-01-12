@@ -252,6 +252,24 @@ export function useReceipts(year?: number, month?: number) {
     }
   });
 
+  // Update receipt fields
+  const updateReceipt = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: Partial<Receipt> }) => {
+      const { error } = await supabase
+        .from('receipts')
+        .update(data)
+        .eq('id', id);
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['receipts'] });
+      toast({ title: 'Fiş güncellendi' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Hata', description: error.message, variant: 'destructive' });
+    }
+  });
+
   // Missing VAT receipts
   const missingVatReceipts = receipts.filter(r => 
     r.is_included_in_report && 
@@ -275,6 +293,7 @@ export function useReceipts(year?: number, month?: number) {
     updateCategory,
     toggleIncludeInReport,
     deleteReceipt,
+    updateReceipt,
     // Reprocess exports
     missingVatReceipts,
     reprocessReceipt,
