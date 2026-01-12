@@ -596,26 +596,51 @@ export function useBankFileUpload() {
         throw new Error('Tüm işlemler zaten kayıtlı');
       }
 
-      const toInsert = uniqueItems.map((t) => ({
-        file_id: currentFileId,
-        user_id: user.id,
-        row_number: t.index + 1,
-        raw_date: t.date,
-        raw_description: t.description,
-        raw_amount: String(t.amount),
-        transaction_date: t.parsedDate,
-        description: t.description,
-        amount: t.amount,
-        balance: t.balance || null,
-        counterparty: t.counterparty || null,
-        reference_no: t.reference || null,
-        category_id: t.categoryId,
-        ai_suggested_category_id: null,
-        ai_confidence: 0,
-        is_income: t.amount > 0,
-        is_excluded: false,
-        is_manually_categorized: true
-      }));
+      // Get category info for VAT separation
+      const categoryMap = new Map(categories.map(c => [c.id, c]));
+      
+      // VAT separation logic - categories that don't have VAT
+      const noVatTypes = ['PARTNER', 'FINANCING', 'EXCLUDED'];
+      const noVatCodes = ['FAIZ_IN', 'FAIZ_OUT', 'VERGI', 'SSK', 'BANKA_MASRAF', 'KREDI', 'KREDI_IN', 'KREDI_OUT', 'LEASING', 'FAKTORING'];
+
+      const toInsert = uniqueItems.map((t) => {
+        const category = categoryMap.get(t.categoryId || '');
+        const isCommercial = category ? 
+          !noVatTypes.includes(category.type) && !noVatCodes.includes(category.code) : 
+          true;
+        
+        // Calculate VAT separation for commercial transactions
+        const grossAmount = Math.abs(t.amount);
+        const netAmount = isCommercial ? grossAmount / 1.20 : grossAmount;
+        const vatAmount = isCommercial ? grossAmount - netAmount : 0;
+        const vatRate = isCommercial ? 20 : 0;
+        
+        return {
+          file_id: currentFileId,
+          user_id: user.id,
+          row_number: t.index + 1,
+          raw_date: t.date,
+          raw_description: t.description,
+          raw_amount: String(t.amount),
+          transaction_date: t.parsedDate,
+          description: t.description,
+          amount: t.amount,
+          balance: t.balance || null,
+          counterparty: t.counterparty || null,
+          reference_no: t.reference || null,
+          category_id: t.categoryId,
+          ai_suggested_category_id: null,
+          ai_confidence: 0,
+          is_income: t.amount > 0,
+          is_excluded: false,
+          is_manually_categorized: true,
+          // VAT separation fields
+          net_amount: t.amount > 0 ? netAmount : -netAmount,
+          vat_amount: vatAmount,
+          vat_rate: vatRate,
+          is_commercial: isCommercial
+        };
+      });
 
       const { error: insertError } = await supabase
         .from('bank_transactions')

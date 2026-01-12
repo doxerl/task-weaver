@@ -129,10 +129,22 @@ export function useReceipts(year?: number, month?: number) {
       setUploadProgress(100);
       return receipt;
     },
-    onSuccess: () => {
+    onSuccess: async (receipt) => {
       queryClient.invalidateQueries({ queryKey: ['receipts'] });
       toast({ title: 'Fiş yüklendi ve analiz edildi' });
       setUploadProgress(0);
+      
+      // Trigger auto-matching after upload
+      if (receipt?.id) {
+        try {
+          await supabase.functions.invoke('match-receipts', {
+            body: { receiptId: receipt.id }
+          });
+          queryClient.invalidateQueries({ queryKey: ['receipt-matches', receipt.id] });
+        } catch (e) {
+          console.warn('Auto-match failed:', e);
+        }
+      }
     },
     onError: (error: Error) => {
       toast({ title: 'Hata', description: error.message, variant: 'destructive' });
