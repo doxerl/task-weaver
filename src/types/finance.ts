@@ -186,6 +186,8 @@ export interface FinancialCalculations {
   netCost: number;
 }
 
+export type BalanceImpact = 'equity_increase' | 'equity_decrease' | 'asset_increase' | 'liability_increase' | 'none';
+
 export interface ParsedTransaction {
   index: number;
   row_number: number;
@@ -203,6 +205,10 @@ export interface ParsedTransaction {
   confidence: number;
   suggestedCategoryId?: string | null;
   aiConfidence?: number;
+  // New AI categorization fields
+  aiReasoning?: string;
+  affectsPnl?: boolean;
+  balanceImpact?: BalanceImpact;
 }
 
 export interface ParseSummary {
@@ -230,6 +236,18 @@ export interface ParseResult {
   bank_info: BankInfo;
 }
 
+export interface CategorizationResult {
+  index: number;
+  categoryCode: string;
+  categoryType: CategoryType;
+  confidence: number;
+  reasoning: string;
+  counterparty: string | null;
+  affects_pnl: boolean;
+  balance_impact: BalanceImpact;
+}
+
+// Legacy interface for backwards compatibility
 export interface CategoryResult {
   index: number;
   categoryCode: string;

@@ -6,14 +6,184 @@ const corsHeaders = {
 };
 
 const BATCH_SIZE = 25;
-const PARALLEL_BATCH_COUNT = 3; // 3 batch aynı anda işlenecek
-const TIMEOUT_MS = 30000; // 30 second timeout per batch
+const PARALLEL_BATCH_COUNT = 3;
+const TIMEOUT_MS = 30000;
 
 interface CategoryResult {
   index: number;
   categoryCode: string;
+  categoryType: string;
   confidence: number;
+  reasoning: string;
+  counterparty: string | null;
+  affects_pnl: boolean;
+  balance_impact: string;
 }
+
+const SYSTEM_PROMPT = `Sen bir Türk şirketi için uzman finansal işlem kategorileme asistanısın.
+
+═══════════════════════════════════════════════════════════════════
+⚠️ KRİTİK KURALLAR:
+═══════════════════════════════════════════════════════════════════
+1. HER İŞLEM MUTLAKA KATEGORİLENMELİ - Atlama yok
+2. Şüpheli işlemlerde en yakın kategoriyi seç + confidence düşür
+3. Tool calling ile categorize_transactions fonksiyonunu kullan
+4. Batch'teki TÜM işlemleri tek seferde kategorile
+
+═══════════════════════════════════════════════════════════════════
+KATEGORİ TÜRLERİ VE BİLANÇO ETKİSİ:
+═══════════════════════════════════════════════════════════════════
+
+| TÜR        | affects_pnl | balance_impact      | Açıklama              |
+|------------|-------------|---------------------|----------------------|
+| INCOME     | true        | equity_increase     | Gelir → Özsermaye ↑  |
+| EXPENSE    | true        | equity_decrease     | Gider → Özsermaye ↓  |
+| PARTNER    | false       | asset/liability     | Ortak cari hesabı    |
+| INVESTMENT | false       | asset_increase      | Duran varlık alımı   |
+| FINANCING  | false       | liability_increase  | Kredi/Leasing        |
+| EXCLUDED   | false       | none                | Hesaplama dışı       |
+
+═══════════════════════════════════════════════════════════════════
+GELİR KATEGORİLERİ (INCOME) - POZİTİF TUTARLAR:
+═══════════════════════════════════════════════════════════════════
+
+| KOD       | Anahtar Kelimeler                                    |
+|-----------|-----------------------------------------------------|
+| SBT       | SBT, KARBON, TRACKER, CARBON, AYAK İZİ, EMİSYON    |
+| L&S       | LEADERSHIP, DENETİM, AUDIT, L&S, ASSESSMENT         |
+| DANIS     | DANIŞMANLIK, CONSULTING, MÜŞAVIR, CONSULTANCY      |
+| ZDHC      | ZDHC, INCHECK, MRSL, GATEWAY, KİMYASAL             |
+| MASRAF    | MASRAF İADE, EXPENSE REFUND, MASRAF GERİ           |
+| BAYI      | BAYİ, KOMİSYON GELİR, DISTRIBUT, DEALER            |
+| EGITIM_IN | EĞİTİM, SEMİNER, TRAINING, WORKSHOP, KURS          |
+| RAPOR     | RAPOR, REPORT, BELGE, SERTİFİKA, DOKÜMAN           |
+| FAIZ_IN   | FAİZ GELİRİ, INTEREST INCOME, MEVDUAT FAİZ         |
+| KIRA_IN   | KİRA GELİR, RENT INCOME, KİRA TAHSİL               |
+| DOVIZ_IN  | DÖVİZ SAT, FX SELL, USD SAT, EUR SAT, DÖVİZ GELİR  |
+| DIGER_IN  | (Yukarıdakilere uymayan diğer pozitif işlemler)    |
+
+═══════════════════════════════════════════════════════════════════
+GİDER KATEGORİLERİ (EXPENSE) - NEGATİF TUTARLAR:
+═══════════════════════════════════════════════════════════════════
+
+| KOD       | Anahtar Kelimeler                                    |
+|-----------|-----------------------------------------------------|
+| SEYAHAT   | UÇAK, OTEL, HOTEL, BOOKING, THY, PEGASUS, KONAKLAMA, SANTA TUR, TRANSFERİ |
+| FUAR      | FUAR, STAND, REKLAM, ADVERTISING, GOOGLE ADS, META, KARTVİZİT, PATENT, MARKA |
+| HGS       | HGS, OGS, YAKIT, PETROL, SHELL, BP, OPET, BENZİN, MOTORİN, OTOPARK, KÖPRÜ |
+| SIGORTA   | SİGORTA, KASKO, TRAFİK, ALLIANZ, AXA, ANADOLU SİGORTA, POLİÇE |
+| TELEKOM   | TURKCELL, VODAFONE, TÜRK TELEKOM, TURK TELEKOM, INTERNET FATURA |
+| BANKA     | KOMİSYON, MASRAF, EFT MASRAF, HAVALE MASRAF, KART AİDAT, HESAP İŞLETİM |
+| OFIS      | KIRTASİYE, OFİS, OFFICE, TONER, KAĞIT, DOSYA, POSTA |
+| YEMEK     | YEMEK, RESTAURANT, CAFE, STARBUCKS, GETİR, YEMEKSEPETİ, İKRAM, CATERING |
+| PERSONEL  | MAAŞ, BORDRO, SGK, SSK, PRİM, PERSONEL, İŞÇİ, ÇALIŞAN |
+| YAZILIM   | YAZILIM, SOFTWARE, ADOBE, MICROSOFT, GOOGLE WORKSPACE, ZOOM, AWS, SUBSCRIPTION |
+| MUHASEBE  | MUHASEBE, MALİ MÜŞAVİR, YMM, SMMM, BEYANNAME, DEFTER |
+| HUKUK     | AVUKAT, HUKUK, NOTER, DAVA, MAHKEME, VEKİL |
+| VERGI     | VERGİ, KDV, GEÇİCİ VERGİ, STOPAJ, MTV, DAMGA, VERGİ DAİRESİ, GİB |
+| KIRA_OUT  | KİRA, RENT, KİRA ÖDEME, OFİS KİRA, DEPO KİRA |
+| KARGO     | KARGO, NAKLİYE, ARAS, MNG, YURTIÇI, UPS, DHL, FEDEX, PTT |
+| HARICI    | HARİCİ DANIŞMAN, DIŞ HİZMET, YÖNLENDİRME, SUB-CONTRACT, TAŞERON |
+| IADE      | İADE, REFUND, RETURN, İPTAL, GERİ ÖDEME |
+| DOVIZ_OUT | DÖVİZ AL, FX BUY, USD AL, EUR AL, DÖVİZ ALIŞ |
+| KREDI_OUT | KREDİ TAKSİT, LOAN PAYMENT, KREDİ ÖDEME, TAKSİT, BANKA KREDİ TAKSİT |
+| DIGER_OUT | (Yukarıdakilere uymayan diğer negatif işlemler) |
+
+═══════════════════════════════════════════════════════════════════
+ORTAK CARİ (PARTNER) - KAR/ZARAR ETKİLEMEZ:
+═══════════════════════════════════════════════════════════════════
+
+| KOD       | Yön     | balance_impact     | Anahtar Kelimeler          |
+|-----------|---------|--------------------|-----------------------------|
+| ORTAK_OUT | Negatif | liability_increase | ORTAK, NAKİT ÇEKİM (ortak), ŞAHSİ, KİŞİSEL HARCAMA |
+| ORTAK_IN  | Pozitif | asset_increase     | ORTAK YATIRMA, SERMAYE, ORTAK KATKISI |
+
+⚠️ ORTAK TESPİTİ: Açıklamada şirket sahibinin adı varsa + ATM/NAKİT → ORTAK_OUT
+
+═══════════════════════════════════════════════════════════════════
+YATIRIM (INVESTMENT) - GİDER DEĞİL, AKTİF ARTIŞ:
+═══════════════════════════════════════════════════════════════════
+
+| KOD     | Anahtar Kelimeler                                      |
+|---------|-------------------------------------------------------|
+| EKIPMAN | EKİPMAN, MAKİNE, CİHAZ, BİLGİSAYAR, LAPTOP, SERVER, MOBİLYA, DEMİRBAŞ |
+| ARAC    | ARAÇ, OTOMOBİL, TOGG, BMW, MERCEDES, VOLKSWAGEN, ARABA, TAŞIT |
+
+⚠️ >50.000 TL tutarlı alımlar genellikle yatırımdır
+
+═══════════════════════════════════════════════════════════════════
+FİNANSMAN (FINANCING) - KAR/ZARAR ETKİLEMEZ:
+═══════════════════════════════════════════════════════════════════
+
+| KOD      | Yön     | Anahtar Kelimeler                           |
+|----------|---------|---------------------------------------------|
+| KREDI_IN | Pozitif | KREDİ KULLANIM, LOAN DISBURSEMENT, TİCARİ KREDİ (giriş) |
+| LEASING  | Negatif | LEASING, KİRALAMA, FİNANSAL KİRALAMA       |
+| FAIZ_OUT | Negatif | FAİZ GİDERİ, INTEREST EXPENSE, KREDİ FAİZ  |
+
+═══════════════════════════════════════════════════════════════════
+HARİÇ (EXCLUDED) - BİLANÇO ETKİSİ YOK:
+═══════════════════════════════════════════════════════════════════
+
+| KOD         | Anahtar Kelimeler                                   |
+|-------------|-----------------------------------------------------|
+| IC_TRANSFER | HESAPLAR ARASI, VİRMAN, İÇ TRANSFER, KENDİ HESABIMA |
+| NAKIT_CEKME | ATM, NAKİT ÇEKİM, BANKAMATİK (ortak değilse)       |
+| EXCLUDED    | HATA DÜZELTME, TEST, İPTAL, TERS KAYIT             |
+
+═══════════════════════════════════════════════════════════════════
+KATEGORİLEME KARAR AĞACI:
+═══════════════════════════════════════════════════════════════════
+
+1. TUTAR POZİTİF (+) Mİ?
+   ├─ Müşteriden tahsilat? → INCOME (SBT, L&S, DANIS, vb.)
+   ├─ Ortaktan para? → ORTAK_IN (PARTNER)
+   ├─ Kredi kullanımı? → KREDI_IN (FINANCING)
+   ├─ Faiz geliri? → FAIZ_IN (INCOME)
+   └─ Belirsiz? → DIGER_IN (INCOME)
+
+2. TUTAR NEGATİF (-) Mİ?
+   ├─ Fatura/hizmet ödemesi? → İlgili EXPENSE kategorisi
+   ├─ Ortağa ödeme/çekim? → ORTAK_OUT (PARTNER)
+   ├─ Araç/Ekipman (>50K)? → ARAC/EKIPMAN (INVESTMENT)
+   ├─ Kredi taksiti? → KREDI_OUT (EXPENSE)
+   ├─ İç transfer/virman? → IC_TRANSFER (EXCLUDED)
+   └─ Belirsiz? → DIGER_OUT (EXPENSE)
+
+3. ÖZEL DURUMLAR:
+   ├─ "VİRMAN" + aynı tutar giriş/çıkış → IC_TRANSFER
+   ├─ ATM + ortak ismi → ORTAK_OUT
+   ├─ FAİZ + pozitif → FAIZ_IN
+   ├─ FAİZ + negatif → FAIZ_OUT
+   └─ KOMİSYON/MASRAF (düşük tutar) → BANKA
+
+═══════════════════════════════════════════════════════════════════
+CONFIDENCE SKORU KRİTERLERİ:
+═══════════════════════════════════════════════════════════════════
+
+1.0 → Kesin eşleşme (anahtar kelime + tutar yönü tutarlı)
+0.9 → Çok yüksek güven (açıklama net, belirsizlik yok)
+0.8 → Yüksek güven (muhtemelen doğru)
+0.7 → Orta-yüksek güven (küçük belirsizlik)
+0.6 → Orta güven (birkaç kategori olabilir)
+0.5 → Düşük-orta güven (tahmin ağırlıklı)
+0.4 → Düşük güven (manuel kontrol önerilir)
+<0.4 → Çok düşük (kesinlikle kontrol gerek)
+
+═══════════════════════════════════════════════════════════════════
+COUNTERPARTY (KARŞI TARAF) ÇIKARIMI:
+═══════════════════════════════════════════════════════════════════
+
+EFT/HAVALE açıklamalarından karşı taraf ismini çıkar:
+- "EFT GÖNDERİM-AHMET YILMAZ" → counterparty: "AHMET YILMAZ"
+- "GELEN EFT-ABC LTD.ŞTİ." → counterparty: "ABC LTD.ŞTİ."
+- "FAST GÖNDERİM/MEHMET KAYA" → counterparty: "MEHMET KAYA"
+- IBAN'dan sonra gelen isim
+- "ALICI:", "GÖNDERİCİ:" sonrası
+
+Bulunamazsa → counterparty: null
+
+Batch'teki TÜM işlemleri kategorile!`;
 
 // Process a single batch of transactions
 async function processSingleBatch(
@@ -21,7 +191,6 @@ async function processSingleBatch(
   startIdx: number,
   batchIndex: number,
   totalBatches: number,
-  systemPrompt: string,
   apiKey: string
 ): Promise<{ batchIndex: number; results: CategoryResult[]; success: boolean }> {
   const txList = batch.map((t: any, idx: number) =>
@@ -42,7 +211,7 @@ async function processSingleBatch(
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: systemPrompt },
+          { role: 'system', content: SYSTEM_PROMPT },
           { role: 'user', content: `İŞLEMLER (${startIdx}-${startIdx + batch.length - 1}):\n${txList}\n\nHer işlem için kategori öner.` }
         ],
         tools: [
@@ -50,7 +219,7 @@ async function processSingleBatch(
             type: 'function',
             function: {
               name: 'categorize_transactions',
-              description: 'Her banka işlemi için kategori kodu ve güven skoru döndür',
+              description: 'Banka işlemlerini kategorile ve bilanço etkisini belirle',
               parameters: {
                 type: 'object',
                 properties: {
@@ -59,11 +228,59 @@ async function processSingleBatch(
                     items: {
                       type: 'object',
                       properties: {
-                        index: { type: 'number', description: 'İşlem index numarası' },
-                        categoryCode: { type: 'string', description: 'Kategori kodu (örn: SBT, DANIS, ORTAK_OUT)' },
-                        confidence: { type: 'number', description: 'Güven skoru 0.0-1.0 arası' }
+                        index: { 
+                          type: 'number',
+                          description: 'İşlemin batch içindeki sırası (0-indexed)'
+                        },
+                        categoryCode: { 
+                          type: 'string',
+                          description: 'Kategori kodu',
+                          enum: [
+                            // INCOME
+                            'SBT', 'L&S', 'DANIS', 'ZDHC', 'MASRAF', 'BAYI', 'EGITIM_IN', 'RAPOR', 'FAIZ_IN', 'KIRA_IN', 'DOVIZ_IN', 'DIGER_IN',
+                            // EXPENSE
+                            'SEYAHAT', 'FUAR', 'HGS', 'SIGORTA', 'TELEKOM', 'BANKA', 'OFIS', 'YEMEK', 'PERSONEL', 'YAZILIM', 'MUHASEBE', 'HUKUK', 'VERGI', 'KIRA_OUT', 'KARGO', 'HARICI', 'IADE', 'DOVIZ_OUT', 'KREDI_OUT', 'DIGER_OUT',
+                            // PARTNER
+                            'ORTAK_OUT', 'ORTAK_IN',
+                            // INVESTMENT
+                            'EKIPMAN', 'ARAC',
+                            // FINANCING
+                            'KREDI_IN', 'LEASING', 'FAIZ_OUT',
+                            // EXCLUDED
+                            'IC_TRANSFER', 'NAKIT_CEKME', 'EXCLUDED'
+                          ]
+                        },
+                        categoryType: {
+                          type: 'string',
+                          description: 'Kategori türü',
+                          enum: ['INCOME', 'EXPENSE', 'PARTNER', 'INVESTMENT', 'FINANCING', 'EXCLUDED']
+                        },
+                        confidence: { 
+                          type: 'number',
+                          description: 'Güven skoru (0.0 - 1.0)',
+                          minimum: 0,
+                          maximum: 1
+                        },
+                        reasoning: { 
+                          type: 'string',
+                          description: 'Kategori seçim gerekçesi (max 50 karakter)',
+                          maxLength: 50
+                        },
+                        counterparty: { 
+                          type: ['string', 'null'],
+                          description: 'Karşı taraf ismi (tespit edildiyse)'
+                        },
+                        affects_pnl: { 
+                          type: 'boolean',
+                          description: 'Kar/Zarar hesabını etkiler mi?'
+                        },
+                        balance_impact: { 
+                          type: 'string',
+                          description: 'Bilanço etkisi türü',
+                          enum: ['equity_increase', 'equity_decrease', 'asset_increase', 'liability_increase', 'none']
+                        }
                       },
-                      required: ['index', 'categoryCode', 'confidence'],
+                      required: ['index', 'categoryCode', 'categoryType', 'confidence', 'reasoning', 'affects_pnl', 'balance_impact'],
                       additionalProperties: false
                     }
                   }
@@ -135,69 +352,6 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY is not configured');
     }
 
-    // Build category list for prompt
-    const categoryList = categories.map((c: any) => 
-      `${c.code}: ${c.name} [${c.type}] - Keywords: ${c.keywords?.join(', ') || '-'}, Vendors: ${c.vendor_patterns?.join(', ') || '-'}`
-    ).join('\n');
-
-    const systemPrompt = `Sen Türk banka işlemleri kategorize uzmanısın.
-
-KATEGORİLER:
-${categoryList}
-
-ÖZEL KURALLAR (öncelikli):
-1. Pozitif tutar (+) → Gelir (INCOME) kategorileri
-2. Negatif tutar (-) → Gider (EXPENSE) kategorileri
-3. "EMRE AKÇAOĞLU" veya benzer kişi adı + negatif → ORTAK_OUT
-4. "EMRE AKÇAOĞLU" veya benzer kişi adı + pozitif → ORTAK_IN
-5. "KREDİ" + pozitif → KREDI_IN (Financing)
-6. "KREDİ" + negatif → KREDI_OUT
-7. "DÖVİZ SATIŞ" → DOVIZ_IN
-8. "DÖVİZ ALIŞ" → DOVIZ_OUT
-9. "VİRMAN", "HAVALE EFT GELEN" → genellikle EXCLUDED
-10. "KESİNTİ VE EKLERİ", "MASRAF" → BANKA
-11. "HGS", "OGS" → ULASIM
-12. "FAİZ GELİRİ", "REPO GELİRİ", "MEVDUAT FAİZ" → FAIZ_IN (Income)
-13. "FAİZ GİDERİ", "GECİKME FAİZİ", "TEMERRÜT" → FAIZ_OUT (Financing)
-14. "MAAŞ", "SSK", "SGK", "BORDRO", "PRİM" → PERSONEL
-15. "MUHASEBE", "SMMM", "YMM", "MALİ MÜŞAVİR" → MUHASEBE
-16. "AVUKAT", "NOTER", "HUKUK", "VEKİL" → HUKUK
-17. "VERGİ", "KDV", "STOPAJ", "MTV", "GELİR VERGİSİ" → VERGI
-18. "KİRA" + negatif → KIRA_OUT
-19. "KİRA" + pozitif → KIRA_IN
-20. "EĞİTİM", "KURS", "SERTİFİKA" + negatif → EGITIM_OUT
-21. "EĞİTİM", "SEMİNER", "WORKSHOP" + pozitif → EGITIM_IN
-22. "LEASİNG", "FİNANSAL KİRALAMA" → LEASING (Financing)
-23. "FAKTORİNG" → FAKTORING (Financing)
-24. "MAKİNE", "EKİPMAN", "DEMİRBAŞ", "CİHAZ" alımı (büyük tutar, negatif) → EKIPMAN (Investment)
-25. "ARAÇ", "OTOMOBİL", "TAŞIT" alımı → ARAC (Investment)
-26. "OFİS", "DEPO", "ARSA", "BİNA", "GAYRİMENKUL" alımı → GAYRIMENKUL (Investment)
-27. "HİSSE", "ORTAKLIK", "ŞİRKET" yatırımı → HISSE (Investment)
-28. "KARGO", "NAKLİYE", "KURYE", "GÖNDERİM" → KARGO
-29. "MICROSOFT", "GOOGLE", "ZOOM", "SLACK", "ADOBE", "SaaS" → YAZILIM
-30. "AİDAT", "ÜYELİK", "ODA", "DERNEK" → AIDAT
-31. "TAMİR", "BAKIM", "SERVİS", "ONARIM" → BAKIM
-32. "HEDİYE", "ÇELENK", "TEMSİL", "AĞIRLAMA" → TEMSIL
-33. "LİSANS", "TELİF", "ROYALTY" + pozitif → LISANS (Income)
-34. "RAPOR", "BELGE" + pozitif → RAPOR (Income)
-
-YATIRIM (INVESTMENT) KURALI:
-- INVESTMENT türündeki kategoriler genellikle büyük tutarlı, tek seferlik alımlardır
-- Tutar > 10.000 TL ve "ALIŞ", "SATIN ALMA", "YATIRIM" içeriyorsa yatırım olabilir
-- Yatırım kategorileri: EKIPMAN, ARAC, GAYRIMENKUL, HISSE
-
-FİNANSMAN (FINANCING) KURALI:
-- Kredi, leasing, faktoring işlemleri finansman kategorisindedir
-- Faiz gelirleri FAIZ_IN, faiz giderleri FAIZ_OUT
-
-EŞLEŞME ÖNCELİĞİ:
-1. vendor_patterns ile tam eşleşme
-2. keywords ile kısmi eşleşme  
-3. Özel kurallar kontrolü
-4. Tutar işaretine göre tip belirleme
-
-Her işlem için en uygun kategori kodunu ve güven skorunu (0.0-1.0) belirle.`;
-
     // Create all batches
     const batches: { batch: any[]; startIdx: number; batchIndex: number }[] = [];
     for (let i = 0; i < transactions.length; i += BATCH_SIZE) {
@@ -221,7 +375,7 @@ Her işlem için en uygun kategori kodunu ve güven skorunu (0.0-1.0) belirle.`;
 
       // Process batches in parallel
       const parallelPromises = parallelBatches.map(({ batch, startIdx, batchIndex }) =>
-        processSingleBatch(batch, startIdx, batchIndex, totalBatches, systemPrompt, LOVABLE_API_KEY)
+        processSingleBatch(batch, startIdx, batchIndex, totalBatches, LOVABLE_API_KEY)
       );
 
       const results = await Promise.all(parallelPromises);

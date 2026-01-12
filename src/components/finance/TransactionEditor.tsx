@@ -1,8 +1,9 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
+import { Alert, AlertDescription } from '@/components/ui/alert';
 import {
   Select,
   SelectContent,
@@ -12,16 +13,23 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, CheckCircle, ArrowUpCircle, ArrowDownCircle, Sparkles, PenLine, Settings2, AlertTriangle } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
+import { Save, CheckCircle, ArrowUpCircle, ArrowDownCircle, Sparkles, PenLine, Settings2, AlertTriangle, Info, BarChart3, FileText } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { cn } from '@/lib/utils';
-import { ParsedTransaction } from '@/types/finance';
+import { ParsedTransaction, BalanceImpact } from '@/types/finance';
 
 export interface EditableTransaction extends ParsedTransaction {
   categoryId: string | null;
   isSelected: boolean;
   isManuallyChanged?: boolean;
+  // AI fields inherited from ParsedTransaction
 }
 
 interface TransactionEditorProps {
@@ -136,6 +144,26 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
   const categorizedCount = editableTransactions.filter(t => t.categoryId).length;
   const totalIncome = editableTransactions.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const totalExpense = editableTransactions.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
+  
+  // Calculate stats for summary card
+  const pnlIncomeCount = editableTransactions.filter(t => t.affectsPnl && t.amount > 0).length;
+  const pnlExpenseCount = editableTransactions.filter(t => t.affectsPnl && t.amount < 0).length;
+  const balanceOnlyCount = editableTransactions.filter(t => t.affectsPnl === false).length;
+  const lowConfidenceCount = editableTransactions.filter(t => (t.aiConfidence || 0) < 0.7).length;
+
+  // Sort transactions: low confidence first
+  const sortedTransactions = useMemo(() => {
+    return [...editableTransactions].sort((a, b) => {
+      const aConf = a.aiConfidence || 1;
+      const bConf = b.aiConfidence || 1;
+      return aConf - bConf; // Low confidence at top
+    });
+  }, [editableTransactions]);
+
+  // Get original index for a transaction
+  const getOriginalIndex = (tx: EditableTransaction) => {
+    return editableTransactions.findIndex(t => t.index === tx.index);
+  };
 
   const getCategoryName = (categoryId: string | null) => {
     if (!categoryId) return null;
@@ -170,6 +198,55 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
+        {/* Summary Card */}
+        <Card className="bg-muted/30 border-muted">
+          <CardContent className="p-4">
+            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+              <div>
+                <p className="text-muted-foreground">Toplam</p>
+                <p className="text-xl font-bold">{editableTransactions.length}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground flex items-center gap-1">
+                  <BarChart3 className="h-3 w-3" /> Gelir (K/Z ↑)
+                </p>
+                <p className="text-xl font-bold text-green-600">{pnlIncomeCount}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground flex items-center gap-1">
+                  <BarChart3 className="h-3 w-3" /> Gider (K/Z ↓)
+                </p>
+                <p className="text-xl font-bold text-red-600">{pnlExpenseCount}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground flex items-center gap-1">
+                  <FileText className="h-3 w-3" /> Bilanço
+                </p>
+                <p className="text-xl font-bold text-blue-600">{balanceOnlyCount}</p>
+              </div>
+              <div>
+                <p className="text-muted-foreground">Kontrol Gereken</p>
+                <p className={cn(
+                  "text-xl font-bold",
+                  lowConfidenceCount > 0 ? "text-amber-600" : "text-green-600"
+                )}>
+                  {lowConfidenceCount}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Low confidence warning */}
+        {lowConfidenceCount > 0 && (
+          <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/20">
+            <AlertTriangle className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-800 dark:text-amber-200">
+              {lowConfidenceCount} işlem düşük güvenle kategorilendi. Sarı ile işaretli satırları kontrol edin.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Bulk actions */}
         <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
           <Checkbox
@@ -266,20 +343,24 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
           )}
         </div>
 
-        {/* Transaction list */}
+        {/* Transaction list - sorted by confidence (low first) */}
         <div className="space-y-2 max-h-[60vh] overflow-y-auto">
-          {editableTransactions.map((tx, index) => (
+          {sortedTransactions.map((tx) => {
+            const originalIndex = getOriginalIndex(tx);
+            const isLowConfidence = (tx.aiConfidence || 0) < 0.7;
+            return (
             <div
               key={tx.index}
               className={cn(
                 "flex items-center gap-3 p-3 border rounded-lg transition-colors",
                 tx.isSelected && "bg-muted/50 border-primary/50",
-                tx.categoryId && "border-green-500/30"
+                tx.categoryId && "border-green-500/30",
+                isLowConfidence && "bg-amber-50 dark:bg-amber-950/20 border-amber-300"
               )}
             >
               <Checkbox
                 checked={tx.isSelected}
-                onCheckedChange={(checked) => handleSelectChange(index, checked as boolean)}
+                onCheckedChange={(checked) => handleSelectChange(originalIndex, checked as boolean)}
               />
               
               <div className="flex-1 min-w-0">
@@ -313,7 +394,7 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
                 return (
                   <Select
                     value={tx.categoryId || undefined}
-                    onValueChange={(value) => handleCategoryChange(index, value)}
+                    onValueChange={(value) => handleCategoryChange(originalIndex, value)}
                   >
                     <SelectTrigger className="w-40 h-8 shrink-0">
                       <SelectValue placeholder="Kategori seç">
@@ -391,14 +472,47 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
                 );
               })()}
 
-              {/* AI/Manual indicator */}
+              {/* AI/Manual indicator with reasoning tooltip */}
               <div className="flex items-center gap-1 shrink-0">
-                {tx.categoryId && tx.aiConfidence && tx.aiConfidence > 0 && !tx.isManuallyChanged && (
-                  <Badge variant="secondary" className="text-xs gap-1 bg-primary/10 text-primary">
-                    <Sparkles className="h-3 w-3" />
-                    {Math.round(tx.aiConfidence * 100)}%
+                {/* Balance impact badge */}
+                {tx.affectsPnl !== undefined && (
+                  <Badge 
+                    variant="outline" 
+                    className={cn(
+                      "text-xs",
+                      tx.affectsPnl ? "border-blue-300 text-blue-700 dark:border-blue-600 dark:text-blue-400" : "border-muted-foreground/30 text-muted-foreground"
+                    )}
+                  >
+                    {tx.affectsPnl ? '📊 K/Z' : '📋 Bilanço'}
                   </Badge>
                 )}
+                
+                {/* Confidence with reasoning tooltip */}
+                {tx.categoryId && tx.aiConfidence && tx.aiConfidence > 0 && !tx.isManuallyChanged && (
+                  <TooltipProvider>
+                    <Tooltip>
+                      <TooltipTrigger asChild>
+                        <Badge 
+                          variant="secondary" 
+                          className={cn(
+                            "text-xs gap-1 cursor-help",
+                            tx.aiConfidence >= 0.8 && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                            tx.aiConfidence >= 0.5 && tx.aiConfidence < 0.8 && "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+                            tx.aiConfidence < 0.5 && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                          )}
+                        >
+                          <Sparkles className="h-3 w-3" />
+                          {Math.round(tx.aiConfidence * 100)}%
+                        </Badge>
+                      </TooltipTrigger>
+                      <TooltipContent side="left" className="max-w-xs">
+                        <p className="text-xs font-medium">AI Gerekçesi</p>
+                        <p className="text-xs text-muted-foreground">{tx.aiReasoning || 'Gerekçe belirtilmedi'}</p>
+                      </TooltipContent>
+                    </Tooltip>
+                  </TooltipProvider>
+                )}
+                
                 {tx.isManuallyChanged && (
                   <Badge variant="outline" className="text-xs gap-1">
                     <PenLine className="h-3 w-3" />
@@ -410,7 +524,8 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
                 )}
               </div>
             </div>
-          ))}
+          );
+          })}
         </div>
         {/* Save button */}
         <Button
