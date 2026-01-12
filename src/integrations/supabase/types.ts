@@ -143,9 +143,11 @@ export type Database = {
           description: string | null
           file_id: string | null
           id: string
+          is_commercial: boolean | null
           is_excluded: boolean | null
           is_income: boolean | null
           is_manually_categorized: boolean | null
+          net_amount: number | null
           notes: string | null
           raw_amount: string | null
           raw_date: string | null
@@ -154,6 +156,8 @@ export type Database = {
           row_number: number | null
           transaction_date: string | null
           user_id: string | null
+          vat_amount: number | null
+          vat_rate: number | null
         }
         Insert: {
           ai_confidence?: number | null
@@ -166,9 +170,11 @@ export type Database = {
           description?: string | null
           file_id?: string | null
           id?: string
+          is_commercial?: boolean | null
           is_excluded?: boolean | null
           is_income?: boolean | null
           is_manually_categorized?: boolean | null
+          net_amount?: number | null
           notes?: string | null
           raw_amount?: string | null
           raw_date?: string | null
@@ -177,6 +183,8 @@ export type Database = {
           row_number?: number | null
           transaction_date?: string | null
           user_id?: string | null
+          vat_amount?: number | null
+          vat_rate?: number | null
         }
         Update: {
           ai_confidence?: number | null
@@ -189,9 +197,11 @@ export type Database = {
           description?: string | null
           file_id?: string | null
           id?: string
+          is_commercial?: boolean | null
           is_excluded?: boolean | null
           is_income?: boolean | null
           is_manually_categorized?: boolean | null
+          net_amount?: number | null
           notes?: string | null
           raw_amount?: string | null
           raw_date?: string | null
@@ -200,6 +210,8 @@ export type Database = {
           row_number?: number | null
           transaction_date?: string | null
           user_id?: string | null
+          vat_amount?: number | null
+          vat_rate?: number | null
         }
         Relationships: [
           {
@@ -797,6 +809,57 @@ export type Database = {
           working_hours_start?: string | null
         }
         Relationships: []
+      }
+      receipt_transaction_matches: {
+        Row: {
+          bank_transaction_id: string | null
+          created_at: string | null
+          id: string
+          is_auto_suggested: boolean | null
+          is_confirmed: boolean | null
+          match_type: string | null
+          matched_amount: number
+          receipt_id: string | null
+          user_id: string
+        }
+        Insert: {
+          bank_transaction_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_auto_suggested?: boolean | null
+          is_confirmed?: boolean | null
+          match_type?: string | null
+          matched_amount: number
+          receipt_id?: string | null
+          user_id: string
+        }
+        Update: {
+          bank_transaction_id?: string | null
+          created_at?: string | null
+          id?: string
+          is_auto_suggested?: boolean | null
+          is_confirmed?: boolean | null
+          match_type?: string | null
+          matched_amount?: number
+          receipt_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "receipt_transaction_matches_bank_transaction_id_fkey"
+            columns: ["bank_transaction_id"]
+            isOneToOne: false
+            referencedRelation: "bank_transactions"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "receipt_transaction_matches_receipt_id_fkey"
+            columns: ["receipt_id"]
+            isOneToOne: false
+            referencedRelation: "receipts"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       receipts: {
         Row: {
