@@ -2,22 +2,40 @@ import { useCallback, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Loader2, ArrowLeft, X, FileText, Receipt } from 'lucide-react';
+import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus } from 'lucide-react';
 import { useReceipts } from '@/hooks/finance/useReceipts';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
-import { DocumentType } from '@/types/finance';
+import { DocumentType, Receipt } from '@/types/finance';
+import { UploadedReceiptCard } from '@/components/finance/UploadedReceiptCard';
+import { ReceiptEditSheet } from '@/components/finance/ReceiptEditSheet';
 
 export default function ReceiptUpload() {
   const [searchParams] = useSearchParams();
   const initialType = (searchParams.get('type') as DocumentType) || 'received';
   
-  const { uploadReceipt, uploadProgress } = useReceipts();
+  const { 
+    uploadReceipt, 
+    uploadProgress, 
+    deleteReceipt, 
+    updateReceipt,
+    reprocessReceipt,
+    toggleIncludeInReport,
+    isReprocessing
+  } = useReceipts();
+  
   const [documentType, setDocumentType] = useState<DocumentType>(initialType);
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [completed, setCompleted] = useState(0);
+  
+  // Uploaded receipts to show in page
+  const [uploadedReceipts, setUploadedReceipts] = useState<Receipt[]>([]);
+  
+  // Edit sheet state
+  const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
+  const [editSheetOpen, setEditSheetOpen] = useState(false);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
@@ -46,9 +64,13 @@ export default function ReceiptUpload() {
   const handleUpload = async () => {
     setUploading(true);
     setCompleted(0);
+    const uploaded: Receipt[] = [];
     
     for (const file of files) {
-      await uploadReceipt.mutateAsync({ file, documentType });
+      const receipt = await uploadReceipt.mutateAsync({ file, documentType });
+      if (receipt) {
+        uploaded.push(receipt as Receipt);
+      }
       setCompleted(prev => prev + 1);
     }
     
@@ -57,6 +79,42 @@ export default function ReceiptUpload() {
     setFiles([]);
     setPreviews([]);
     setUploading(false);
+    
+    // Add to uploaded receipts list
+    setUploadedReceipts(prev => [...prev, ...uploaded]);
+  };
+
+  const handleDelete = async (id: string) => {
+    await deleteReceipt.mutateAsync(id);
+    setUploadedReceipts(prev => prev.filter(r => r.id !== id));
+  };
+
+  const handleEdit = (id: string) => {
+    const receipt = uploadedReceipts.find(r => r.id === id);
+    if (receipt) {
+      setEditingReceipt(receipt);
+      setEditSheetOpen(true);
+    }
+  };
+
+  const handleReprocess = async (id: string) => {
+    await reprocessReceipt.mutateAsync(id);
+    // Refresh the receipt data
+    // For now, we'll just leave it as is - the user can refresh or the query will update
+  };
+
+  const handleToggleInclude = async (id: string, include: boolean) => {
+    await toggleIncludeInReport.mutateAsync({ id, include });
+    setUploadedReceipts(prev => 
+      prev.map(r => r.id === id ? { ...r, is_included_in_report: include } : r)
+    );
+  };
+
+  const handleSaveEdit = async (id: string, data: Partial<Receipt>) => {
+    await updateReceipt.mutateAsync({ id, data });
+    setUploadedReceipts(prev => 
+      prev.map(r => r.id === id ? { ...r, ...data } : r)
+    );
   };
 
   return (
@@ -82,7 +140,7 @@ export default function ReceiptUpload() {
             )}
           >
             <div className="flex items-center gap-2 mb-2">
-              <Receipt className="h-5 w-5 text-primary" />
+              <ReceiptIcon className="h-5 w-5 text-primary" />
               <span className="font-semibold">Alınan</span>
             </div>
             <p className="text-xs text-muted-foreground">
@@ -144,7 +202,7 @@ export default function ReceiptUpload() {
           </CardContent>
         </Card>
 
-        {/* File Previews */}
+        {/* File Previews - Before Upload */}
         {files.length > 0 && !uploading && (
           <>
             <div className="space-y-3">
@@ -206,7 +264,58 @@ export default function ReceiptUpload() {
             </button>
           </>
         )}
+
+        {/* Uploaded Receipts - After Upload */}
+        {uploadedReceipts.length > 0 && (
+          <div className="space-y-4">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold">
+                📋 Yüklenen Belgeler ({uploadedReceipts.length})
+              </h2>
+            </div>
+            
+            <div className="space-y-3">
+              {uploadedReceipts.map((receipt) => (
+                <UploadedReceiptCard
+                  key={receipt.id}
+                  receipt={receipt}
+                  onDelete={handleDelete}
+                  onEdit={handleEdit}
+                  onReprocess={handleReprocess}
+                  onToggleInclude={handleToggleInclude}
+                  isReprocessing={isReprocessing}
+                />
+              ))}
+            </div>
+
+            {/* Add More Button */}
+            <Card className="border-dashed">
+              <CardContent className="p-4">
+                <label className="flex items-center justify-center gap-2 cursor-pointer py-2">
+                  <input
+                    type="file"
+                    accept="image/*,.pdf"
+                    multiple
+                    onChange={handleFileSelect}
+                    className="hidden"
+                  />
+                  <Plus className="h-5 w-5 text-muted-foreground" />
+                  <span className="text-sm text-muted-foreground">Başka Belge Ekle</span>
+                </label>
+              </CardContent>
+            </Card>
+          </div>
+        )}
       </div>
+
+      {/* Edit Sheet */}
+      <ReceiptEditSheet
+        receipt={editingReceipt}
+        open={editSheetOpen}
+        onOpenChange={setEditSheetOpen}
+        onSave={handleSaveEdit}
+      />
+
       <BottomTabBar />
     </div>
   );
