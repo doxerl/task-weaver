@@ -2,7 +2,7 @@ import { useCallback, useState, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon } from 'lucide-react';
+import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code } from 'lucide-react';
 import { useReceipts } from '@/hooks/finance/useReceipts';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
@@ -10,6 +10,15 @@ import { DocumentType, Receipt } from '@/types/finance';
 import { UploadedReceiptCard } from '@/components/finance/UploadedReceiptCard';
 import { ReceiptEditSheet } from '@/components/finance/ReceiptEditSheet';
 import { useIsMobile } from '@/hooks/use-mobile';
+
+// Helper to get file type info
+function getFileTypeInfo(file: File) {
+  const ext = file.name.split('.').pop()?.toLowerCase() || '';
+  if (ext === 'zip') return { type: 'zip', label: 'ZIP Arşiv', icon: Archive, color: 'text-amber-500' };
+  if (ext === 'xml') return { type: 'xml', label: 'e-Fatura', icon: Code, color: 'text-green-500' };
+  if (file.type === 'application/pdf' || ext === 'pdf') return { type: 'pdf', label: 'PDF', icon: FileText, color: 'text-red-500' };
+  return { type: 'image', label: 'Görsel', icon: ImageIcon, color: 'text-blue-500' };
+}
 
 export default function ReceiptUpload() {
   const isMobile = useIsMobile();
@@ -71,9 +80,12 @@ export default function ReceiptUpload() {
     const uploaded: Receipt[] = [];
     
     for (const file of files) {
-      const receipt = await uploadReceipt.mutateAsync({ file, documentType });
-      if (receipt) {
-        uploaded.push(receipt as Receipt);
+      const result = await uploadReceipt.mutateAsync({ file, documentType });
+      // Handle both single receipt and array (from ZIP)
+      if (Array.isArray(result)) {
+        uploaded.push(...result);
+      } else if (result) {
+        uploaded.push(result as Receipt);
       }
       setCompleted(prev => prev + 1);
     }
@@ -188,7 +200,7 @@ export default function ReceiptUpload() {
             <input
               ref={galleryInputRef}
               type="file"
-              accept="image/*,.pdf"
+              accept="image/*,.pdf,.xml,.zip"
               multiple
               onChange={handleFileSelect}
               disabled={uploading}
@@ -224,7 +236,7 @@ export default function ReceiptUpload() {
                       <ImageIcon className="h-10 w-10 text-muted-foreground" />
                       <div className="text-center">
                         <p className="text-sm font-medium">Galeriden Seç</p>
-                        <p className="text-xs text-muted-foreground">JPG, PNG, PDF</p>
+                        <p className="text-xs text-muted-foreground">JPG, PDF, XML, ZIP</p>
                       </div>
                     </button>
                   </div>
@@ -236,7 +248,7 @@ export default function ReceiptUpload() {
                   >
                     <Upload className="h-10 w-10 text-muted-foreground" />
                     <p className="text-sm font-medium">Fiş/Fatura seçin</p>
-                    <p className="text-xs text-muted-foreground">JPG, PNG, PDF</p>
+                    <p className="text-xs text-muted-foreground">JPG, PNG, PDF, XML, ZIP</p>
                   </button>
                 )}
               </>
@@ -253,37 +265,59 @@ export default function ReceiptUpload() {
                   <CardContent className="p-0">
                     <div className="flex gap-3">
                       {/* Preview */}
-                      <div className="w-24 h-24 flex-shrink-0 bg-muted">
-                        {previews[i] ? (
-                          <img 
-                            src={previews[i]} 
-                            alt="" 
-                            className="w-full h-full object-cover" 
-                          />
-                        ) : (
-                          <div className="w-full h-full flex items-center justify-center">
-                            <FileText className="h-8 w-8 text-muted-foreground" />
+                      {(() => {
+                        const fileInfo = getFileTypeInfo(file);
+                        const FileIcon = fileInfo.icon;
+                        return (
+                          <div className="w-24 h-24 flex-shrink-0 bg-muted">
+                            {previews[i] ? (
+                              <img 
+                                src={previews[i]} 
+                                alt="" 
+                                className="w-full h-full object-cover" 
+                              />
+                            ) : (
+                              <div className="w-full h-full flex flex-col items-center justify-center gap-1">
+                                <FileIcon className={cn("h-8 w-8", fileInfo.color)} />
+                                <span className={cn("text-[10px] font-medium", fileInfo.color)}>{fileInfo.label}</span>
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
+                        );
+                      })()}
                       
                       {/* File Info */}
-                      <div className="flex-1 py-3 pr-3">
-                        <p className="font-medium text-sm truncate">{file.name}</p>
-                        <p className="text-xs text-muted-foreground mt-1">
-                          {(file.size / 1024).toFixed(0)} KB • {file.type.split('/')[1].toUpperCase()}
-                        </p>
-                        <div className="flex items-center gap-1 mt-2">
-                          <span className={cn(
-                            "text-xs px-2 py-0.5 rounded-full",
-                            documentType === 'received' 
-                              ? "bg-primary/10 text-primary" 
-                              : "bg-green-500/10 text-green-600"
-                          )}>
-                            {documentType === 'received' ? '📥 Alınan' : '📤 Kesilen'}
-                          </span>
-                        </div>
-                      </div>
+                      {(() => {
+                        const fileInfo = getFileTypeInfo(file);
+                        return (
+                          <div className="flex-1 py-3 pr-3">
+                            <p className="font-medium text-sm truncate">{file.name}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {(file.size / 1024).toFixed(0)} KB • {fileInfo.label}
+                            </p>
+                            <div className="flex items-center gap-1 mt-2 flex-wrap">
+                              <span className={cn(
+                                "text-xs px-2 py-0.5 rounded-full",
+                                documentType === 'received' 
+                                  ? "bg-primary/10 text-primary" 
+                                  : "bg-green-500/10 text-green-600"
+                              )}>
+                                {documentType === 'received' ? '📥 Alınan' : '📤 Kesilen'}
+                              </span>
+                              {fileInfo.type === 'zip' && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600">
+                                  📦 Çoklu dosya
+                                </span>
+                              )}
+                              {fileInfo.type === 'xml' && (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600">
+                                  ✓ %100 doğruluk
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })()}
                       
                       {/* Remove Button */}
                       <button
