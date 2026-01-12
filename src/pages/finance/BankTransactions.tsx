@@ -48,6 +48,18 @@ interface TransactionCardProps {
 
 function TransactionCard({ tx, grouped, onCategoryChange, onDelete }: TransactionCardProps) {
   const isIncome = tx.amount > 0;
+  
+  // Ortak kategorilerini gelir/gider durumuna göre filtrele
+  const filteredPartner = grouped.partner.filter(cat => {
+    const nameLower = cat.name.toLowerCase();
+    if (isIncome) {
+      // Gelir için: Tahsilat, Alınan, İade gibi kelimeler
+      return nameLower.includes('tahsilat') || nameLower.includes('alınan') || nameLower.includes('iade');
+    } else {
+      // Gider için: Ödeme, Verilen gibi kelimeler
+      return nameLower.includes('ödeme') || nameLower.includes('verilen');
+    }
+  });
 
   return (
     <Card className={cn(!tx.category_id && "ring-2 ring-amber-400")}>
@@ -118,11 +130,11 @@ function TransactionCard({ tx, grouped, onCategoryChange, onDelete }: Transactio
               ))}
             </SelectGroup>
 
-            {/* Ortak İşlemleri */}
-            {grouped.partner.length > 0 && (
+            {/* Ortak İşlemleri - Filtrelenmiş */}
+            {filteredPartner.length > 0 && (
               <SelectGroup>
                 <SelectLabel>{isIncome ? '🤝 Ortaktan Alınan' : '🤝 Ortağa Verilen'}</SelectLabel>
-                {grouped.partner.map(cat => (
+                {filteredPartner.map(cat => (
                   <SelectItem key={cat.id} value={cat.id}>
                     <span className="flex items-center gap-2">
                       <span>{cat.icon}</span>
