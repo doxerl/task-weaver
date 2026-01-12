@@ -264,14 +264,6 @@ export default function FinanceDashboard() {
               </CardContent>
             </Card>
           </Link>
-          <Link to="/finance/categories">
-            <Card className="hover:bg-accent transition-colors">
-              <CardContent className="p-4 flex items-center justify-between">
-                <span>Kategoriler</span>
-                <ArrowLeft className="h-4 w-4 rotate-180" />
-              </CardContent>
-            </Card>
-          </Link>
         </div>
       </div>
       <BottomTabBar />

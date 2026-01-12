@@ -12,7 +12,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Save, CheckCircle, ArrowUpCircle, ArrowDownCircle, Sparkles, PenLine } from 'lucide-react';
+import { Save, CheckCircle, ArrowUpCircle, ArrowDownCircle, Sparkles, PenLine, Settings2 } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { cn } from '@/lib/utils';
 
@@ -158,7 +159,14 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
     <Card>
       <CardHeader className="pb-3">
         <div className="flex items-center justify-between">
-          <CardTitle className="text-lg">İşlemleri Etiketle</CardTitle>
+          <div className="flex items-center gap-2">
+            <CardTitle className="text-lg">İşlemleri Etiketle</CardTitle>
+            <Link to="/finance/categories">
+              <Button variant="ghost" size="icon" className="h-6 w-6" title="Kategorileri Yönet">
+                <Settings2 className="h-4 w-4" />
+              </Button>
+            </Link>
+          </div>
           <div className="flex items-center gap-2 text-sm">
             <Badge variant="outline">{categorizedCount}/{editableTransactions.length} etiketli</Badge>
             <Badge variant="outline" className="text-green-600">

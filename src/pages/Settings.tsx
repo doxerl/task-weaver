@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { GitHubIntegration } from '@/components/GitHubIntegration';
-import { ArrowLeft, Loader2, Save, User, Globe, Clock } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, User, Globe, Clock, Wallet } from 'lucide-react';
 import { toast } from 'sonner';
 
 const TIMEZONES = [
@@ -210,6 +210,27 @@ export default function Settings() {
             </>
           )}
         </Button>
+
+        <Separator />
+
+        {/* Financial Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Wallet className="h-5 w-5" />
+              Finans Ayarları
+            </CardTitle>
+            <CardDescription>
+              Finansal kategorileri ve ayarları yönetin
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Button variant="outline" className="w-full justify-between" onClick={() => navigate('/finance/categories')}>
+              <span>Kategorileri Yönet</span>
+              <ArrowLeft className="h-4 w-4 rotate-180" />
+            </Button>
+          </CardContent>
+        </Card>
 
         <Separator />
 
