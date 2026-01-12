@@ -35,7 +35,7 @@ serve(async (req) => {
   }
 
   try {
-    const { imageUrl } = await req.json();
+    const { imageUrl, documentType = 'received' } = await req.json();
     
     const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
     if (!LOVABLE_API_KEY) {
@@ -70,26 +70,66 @@ serve(async (req) => {
 
     const systemPrompt = `Sen Türk fiş/fatura OCR uzmanısın.
 
-GÖREV: Verilen fiş/fatura görüntüsünden bilgileri çıkar.
+GÖREV: Verilen fiş/fatura görüntüsünden detaylı bilgileri çıkar.
 
 ÇIKARILACAK ALANLAR:
-- vendorName: Mağaza/Firma adı (üst kısımda genellikle)
-- vendorTaxNo: Vergi numarası (VKN/TCKN, 10-11 hane)
+
+SATICI BİLGİLERİ (Faturayı Kesen):
+- sellerName: Satıcı firma adı (genellikle üst kısımda)
+- sellerTaxNo: Satıcı VKN/TCKN (10-11 hane)
+- sellerAddress: Satıcı adresi
+
+ALICI BİLGİLERİ (Faturayı Alan):
+- buyerName: Alıcı firma/kişi adı (varsa)
+- buyerTaxNo: Alıcı VKN/TCKN (varsa)
+- buyerAddress: Alıcı adresi (varsa)
+
+BELGE BİLGİLERİ:
 - receiptDate: Tarih (DD.MM.YYYY formatında)
 - receiptNo: Fiş/Fatura numarası
-- totalAmount: Toplam tutar (sayı olarak)
-- taxAmount: KDV tutarı (sayı olarak)
+
+TUTAR BİLGİLERİ:
+- subtotal: Ara toplam (KDV hariç, sayı)
+- vatRate: KDV oranı (%, örn: 20)
+- vatAmount: KDV tutarı (sayı)
+- withholdingTaxRate: Stopaj oranı (varsa, %)
+- withholdingTaxAmount: Stopaj tutarı (varsa, sayı)
+- stampTaxAmount: Damga vergisi (varsa, sayı)
+- totalAmount: Genel toplam (sayı)
+
+DİĞER:
 - currency: Para birimi (varsayılan TRY)
+- confidence: Güven skoru (0-1 arası)
 
 İPUÇLARI:
 - "TOPLAM", "GENEL TOPLAM", "ÖDENECEK" → totalAmount
-- "KDV", "VERGİ" → taxAmount
+- "ARA TOPLAM", "MAL HİZMET" → subtotal
+- "KDV", "%8 KDV", "%20 KDV" → vatRate ve vatAmount
+- "STOPAJ", "TEVKİFAT" → withholdingTaxRate/Amount
+- "DAMGA VERGİSİ" → stampTaxAmount
 - VKN: Vergi Kimlik No (10-11 hane)
-- Üst kısımdaki büyük yazı genellikle firma adı
 
 ÇIKTI FORMAT:
 Sadece JSON object döndür:
-{"vendorName":"X","vendorTaxNo":"Y","receiptDate":"01.01.2025","receiptNo":"Z","totalAmount":123.45,"taxAmount":20.57,"currency":"TRY","confidence":0.9}
+{
+  "sellerName": "X Şirketi",
+  "sellerTaxNo": "1234567890",
+  "sellerAddress": "İstanbul",
+  "buyerName": null,
+  "buyerTaxNo": null,
+  "buyerAddress": null,
+  "receiptDate": "01.01.2025",
+  "receiptNo": "A-123",
+  "subtotal": 1000.00,
+  "vatRate": 20,
+  "vatAmount": 200.00,
+  "withholdingTaxRate": null,
+  "withholdingTaxAmount": null,
+  "stampTaxAmount": null,
+  "totalAmount": 1200.00,
+  "currency": "TRY",
+  "confidence": 0.9
+}
 
 Okunamayan alanlar için null kullan.`;
 
@@ -113,7 +153,7 @@ Okunamayan alanlar için null kullan.`;
               },
               { 
                 type: 'text', 
-                text: `${systemPrompt}\n\nBu fiş/faturayı analiz et.` 
+                text: `${systemPrompt}\n\nBu ${documentType === 'issued' ? 'kesilen faturayı' : 'fiş/faturayı'} analiz et.` 
               }
             ]
           }
@@ -154,13 +194,31 @@ Okunamayan alanlar için null kullan.`;
       try {
         result = JSON.parse(jsonMatch[0]);
         
-        // Normalize amounts
-        if (result.totalAmount && typeof result.totalAmount === 'string') {
-          result.totalAmount = parseFloat(result.totalAmount.replace(/\./g, '').replace(',', '.'));
+        // Normalize amounts - handle Turkish number format
+        const normalizeAmount = (val: any) => {
+          if (val === null || val === undefined) return null;
+          if (typeof val === 'number') return val;
+          if (typeof val === 'string') {
+            // Handle Turkish format: 1.234,56 -> 1234.56
+            return parseFloat(val.replace(/\./g, '').replace(',', '.'));
+          }
+          return null;
+        };
+        
+        result.subtotal = normalizeAmount(result.subtotal);
+        result.totalAmount = normalizeAmount(result.totalAmount);
+        result.vatAmount = normalizeAmount(result.vatAmount);
+        result.withholdingTaxAmount = normalizeAmount(result.withholdingTaxAmount);
+        result.stampTaxAmount = normalizeAmount(result.stampTaxAmount);
+        
+        // Normalize rates
+        if (result.vatRate && typeof result.vatRate === 'string') {
+          result.vatRate = parseFloat(result.vatRate.replace('%', ''));
         }
-        if (result.taxAmount && typeof result.taxAmount === 'string') {
-          result.taxAmount = parseFloat(result.taxAmount.replace(/\./g, '').replace(',', '.'));
+        if (result.withholdingTaxRate && typeof result.withholdingTaxRate === 'string') {
+          result.withholdingTaxRate = parseFloat(result.withholdingTaxRate.replace('%', ''));
         }
+        
       } catch (parseError) {
         console.error('JSON parse error:', parseError, 'Raw text:', content);
       }

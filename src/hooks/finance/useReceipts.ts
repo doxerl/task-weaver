@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { useToast } from '@/hooks/use-toast';
-import { Receipt } from '@/types/finance';
+import { Receipt, DocumentType } from '@/types/finance';
 import { useState } from 'react';
 
 export function useReceipts(year?: number, month?: number) {
@@ -25,13 +25,20 @@ export function useReceipts(year?: number, month?: number) {
 
       const { data, error } = await query;
       if (error) throw error;
-      return data as Receipt[];
+      
+      // Map data to include default values for new fields
+      return (data || []).map(r => ({
+        ...r,
+        document_type: r.document_type || 'received',
+        match_status: r.match_status || 'unmatched',
+        match_confidence: r.match_confidence || 0,
+      })) as Receipt[];
     },
     enabled: !!user?.id
   });
 
   const uploadReceipt = useMutation({
-    mutationFn: async (file: File) => {
+    mutationFn: async ({ file, documentType = 'received' }: { file: File; documentType?: DocumentType }) => {
       if (!user?.id) throw new Error('Giriş yapmalısınız');
       
       setUploadProgress(20);
@@ -55,7 +62,7 @@ export function useReceipts(year?: number, month?: number) {
 
       // 2. OCR with AI
       const { data: ocrData, error: ocrError } = await supabase.functions.invoke('parse-receipt', {
-        body: { imageUrl: publicUrl }
+        body: { imageUrl: publicUrl, documentType }
       });
       
       if (ocrError) throw ocrError;
@@ -87,17 +94,43 @@ export function useReceipts(year?: number, month?: number) {
           file_type: isImage ? 'image' : 'pdf',
           file_url: publicUrl,
           thumbnail_url: isImage ? publicUrl : null,
-          vendor_name: ocr.vendorName || null,
-          vendor_tax_no: ocr.vendorTaxNo || null,
+          document_type: documentType,
+          
+          // Seller info
+          seller_name: ocr.sellerName || null,
+          seller_tax_no: ocr.sellerTaxNo || null,
+          seller_address: ocr.sellerAddress || null,
+          
+          // Buyer info
+          buyer_name: ocr.buyerName || null,
+          buyer_tax_no: ocr.buyerTaxNo || null,
+          buyer_address: ocr.buyerAddress || null,
+          
+          // Legacy compatibility
+          vendor_name: ocr.sellerName || ocr.vendorName || null,
+          vendor_tax_no: ocr.sellerTaxNo || ocr.vendorTaxNo || null,
+          
           receipt_date: receiptDate,
           receipt_no: ocr.receiptNo || null,
+          
+          // Amounts
+          subtotal: ocr.subtotal || null,
           total_amount: ocr.totalAmount || null,
-          tax_amount: ocr.taxAmount || null,
+          tax_amount: ocr.vatAmount || ocr.taxAmount || null,
+          
+          // Tax breakdown
+          vat_rate: ocr.vatRate || null,
+          vat_amount: ocr.vatAmount || null,
+          withholding_tax_rate: ocr.withholdingTaxRate || null,
+          withholding_tax_amount: ocr.withholdingTaxAmount || null,
+          stamp_tax_amount: ocr.stampTaxAmount || null,
+          
           currency: ocr.currency || 'TRY',
           ocr_confidence: ocr.confidence || 0,
           month: receiptMonth,
           year: receiptYear,
-          processing_status: 'completed'
+          processing_status: 'completed',
+          match_status: 'unmatched'
         })
         .select()
         .single();
