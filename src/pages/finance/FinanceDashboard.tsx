@@ -3,19 +3,34 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft, PenLine, Building2, Receipt, Scale } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft, PenLine, Building2, Receipt, Scale, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/finance/useFinancialCalculations';
 import { useVatCalculations } from '@/hooks/finance/useVatCalculations';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { BottomTabBar } from '@/components/BottomTabBar';
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
+const formatCompact = (n: number) => new Intl.NumberFormat('tr-TR', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
+
+const ChangeIndicator = ({ current, previous, inverse = false }: { current: number; previous: number; inverse?: boolean }) => {
+  if (previous === 0) return null;
+  const change = ((current - previous) / Math.abs(previous)) * 100;
+  const isPositive = inverse ? change < 0 : change > 0;
+  
+  return (
+    <span className={`inline-flex items-center text-[10px] ${isPositive ? 'text-green-600' : 'text-red-600'}`}>
+      {change > 0 ? <ArrowUpRight className="h-3 w-3" /> : <ArrowDownRight className="h-3 w-3" />}
+      {Math.abs(change).toFixed(0)}%
+    </span>
+  );
+};
 
 export default function FinanceDashboard() {
   const [year, setYear] = useState(new Date().getFullYear());
   const calc = useFinancialCalculations(year);
   const vat = useVatCalculations(year);
   const { balanceSheet, isLoading: balanceLoading } = useBalanceSheet(year);
+  const { balanceSheet: prevBalanceSheet } = useBalanceSheet(year - 1);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -170,22 +185,44 @@ export default function FinanceDashboard() {
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-3">
                     <Scale className="h-5 w-5 text-blue-600" />
-                    <div>
-                      <p className="text-sm font-medium">Bilanço Özeti</p>
+                    <div className="flex-1">
+                      <div className="flex items-center gap-2">
+                        <p className="text-sm font-medium">Bilanço Özeti</p>
+                        {prevBalanceSheet && (
+                          <span className="text-[10px] text-muted-foreground bg-muted px-1.5 py-0.5 rounded">
+                            vs {year - 1}
+                          </span>
+                        )}
+                      </div>
                       <div className="flex gap-4 mt-1">
                         <div>
                           <p className="text-xs text-muted-foreground">Varlıklar</p>
-                          <p className="text-sm font-semibold text-green-600">{formatCurrency(balanceSheet.totalAssets)}</p>
+                          <div className="flex items-center gap-1">
+                            <p className="text-sm font-semibold text-green-600">{formatCompact(balanceSheet.totalAssets)}</p>
+                            {prevBalanceSheet && (
+                              <ChangeIndicator current={balanceSheet.totalAssets} previous={prevBalanceSheet.totalAssets} />
+                            )}
+                          </div>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Borçlar</p>
-                          <p className="text-sm font-semibold text-red-600">{formatCurrency(balanceSheet.totalLiabilities)}</p>
+                          <div className="flex items-center gap-1">
+                            <p className="text-sm font-semibold text-red-600">{formatCompact(balanceSheet.totalLiabilities)}</p>
+                            {prevBalanceSheet && (
+                              <ChangeIndicator current={balanceSheet.totalLiabilities} previous={prevBalanceSheet.totalLiabilities} inverse />
+                            )}
+                          </div>
                         </div>
                         <div>
                           <p className="text-xs text-muted-foreground">Özkaynak</p>
-                          <p className={`text-sm font-semibold ${balanceSheet.equity.total >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
-                            {formatCurrency(balanceSheet.equity.total)}
-                          </p>
+                          <div className="flex items-center gap-1">
+                            <p className={`text-sm font-semibold ${balanceSheet.equity.total >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
+                              {formatCompact(balanceSheet.equity.total)}
+                            </p>
+                            {prevBalanceSheet && (
+                              <ChangeIndicator current={balanceSheet.equity.total} previous={prevBalanceSheet.equity.total} />
+                            )}
+                          </div>
                         </div>
                       </div>
                     </div>
