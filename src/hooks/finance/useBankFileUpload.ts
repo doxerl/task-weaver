@@ -27,8 +27,9 @@ export interface ResumeState {
 }
 
 const PARSE_BATCH_SIZE = 10; // 10 satır per parse batch
+const PARALLEL_BATCH_COUNT = 3; // 3 batch aynı anda işlenecek
 const CATEGORIZE_BATCH_SIZE = 25;
-const ESTIMATED_SECONDS_PER_PARSE_BATCH = 15;
+const ESTIMATED_SECONDS_PER_PARSE_BATCH = 5; // Paralel işleme ile daha hızlı
 const ESTIMATED_SECONDS_PER_CATEGORIZE_BATCH = 6;
 
 export function useBankFileUpload() {
@@ -89,7 +90,51 @@ export function useBankFileUpload() {
     });
   }, [clearProgressInterval]);
 
-  // Process batches from a starting index
+  // Process a single batch
+  const processSingleBatch = async (
+    batchContent: string,
+    batchIndex: number,
+    ext: string,
+    fileName: string,
+    totalBatches: number
+  ): Promise<{ batchIndex: number; transactions: ParsedTransaction[]; success: boolean }> => {
+    try {
+      console.log(`Processing parse batch ${batchIndex + 1}/${totalBatches}`);
+
+      const { data: parseData, error: parseError } = await supabase.functions.invoke('parse-bank-statement', {
+        body: {
+          fileContent: batchContent,
+          fileType: ext,
+          fileName: fileName,
+          batchIndex: batchIndex,
+          totalBatches: totalBatches
+        }
+      });
+
+      if (parseError) {
+        console.warn(`Batch ${batchIndex + 1} error:`, parseError.message);
+        return { batchIndex, transactions: [], success: false };
+      }
+
+      if (parseData?.success && parseData?.transactions?.length > 0) {
+        // Add offset to index based on batch position
+        const offsetTransactions = parseData.transactions.map((t: any, idx: number) => ({
+          ...t,
+          index: (batchIndex * PARSE_BATCH_SIZE) + idx
+        }));
+        console.log(`Batch ${batchIndex + 1}: Got ${parseData.transactions.length} transactions`);
+        return { batchIndex, transactions: offsetTransactions, success: true };
+      } else {
+        console.warn(`Batch ${batchIndex + 1}: No transactions returned`);
+        return { batchIndex, transactions: [], success: false };
+      }
+    } catch (batchErr) {
+      console.error(`Batch ${batchIndex + 1} exception:`, batchErr);
+      return { batchIndex, transactions: [], success: false };
+    }
+  };
+
+  // Process batches from a starting index with parallel execution
   const processBatches = async (
     batches: string[],
     startIndex: number,
@@ -98,86 +143,90 @@ export function useBankFileUpload() {
     existingTransactions: ParsedTransaction[]
   ): Promise<ParsedTransaction[]> => {
     const totalParseBatches = batches.length;
-    const allTransactions: ParsedTransaction[] = [...existingTransactions];
+    const transactionMap: Map<number, ParsedTransaction[]> = new Map();
     let failedBatches = 0;
+    let completedBatches = startIndex;
+
+    // Add existing transactions to map
+    existingTransactions.forEach(t => {
+      const batchIdx = Math.floor(t.index / PARSE_BATCH_SIZE);
+      if (!transactionMap.has(batchIdx)) {
+        transactionMap.set(batchIdx, []);
+      }
+      transactionMap.get(batchIdx)!.push(t);
+    });
 
     // Initialize batch progress for parsing
     setBatchProgress({
       current: startIndex,
       total: totalParseBatches,
-      processedTransactions: allTransactions.length,
+      processedTransactions: existingTransactions.length,
       totalTransactions: totalParseBatches * PARSE_BATCH_SIZE,
-      estimatedTimeLeft: (totalParseBatches - startIndex) * ESTIMATED_SECONDS_PER_PARSE_BATCH,
+      estimatedTimeLeft: Math.ceil((totalParseBatches - startIndex) / PARALLEL_BATCH_COUNT) * ESTIMATED_SECONDS_PER_PARSE_BATCH,
       stage: 'parsing',
     });
 
-    for (let i = startIndex; i < batches.length; i++) {
+    // Process batches in parallel groups
+    for (let i = startIndex; i < batches.length; i += PARALLEL_BATCH_COUNT) {
       // Check if processing was stopped
       if (abortRef.current) {
-        console.log('Processing stopped by user at batch', i + 1);
+        console.log('Processing stopped by user at batch group starting', i + 1);
         // Save state for resume
         resumeStateRef.current = {
           batches,
           currentIndex: i,
           ext,
           fileName,
-          collectedTransactions: allTransactions,
+          collectedTransactions: Array.from(transactionMap.values()).flat().sort((a, b) => a.index - b.index),
         };
         setCanResume(true);
         break;
       }
 
-      const batchContent = batches[i];
+      // Get the batch indices for this parallel group
+      const parallelIndices: number[] = [];
+      for (let j = 0; j < PARALLEL_BATCH_COUNT && (i + j) < batches.length; j++) {
+        parallelIndices.push(i + j);
+      }
 
-      // Update progress before each batch
+      console.log(`Processing parallel batch group: ${parallelIndices.map(idx => idx + 1).join(', ')} / ${totalParseBatches}`);
+
+      // Update progress before each parallel group
+      const currentTransactionCount = Array.from(transactionMap.values()).flat().length;
       setBatchProgress(prev => ({
         ...prev,
         current: i,
-        processedTransactions: allTransactions.length,
-        estimatedTimeLeft: Math.max(0, (totalParseBatches - i) * ESTIMATED_SECONDS_PER_PARSE_BATCH),
+        processedTransactions: currentTransactionCount,
+        estimatedTimeLeft: Math.max(0, Math.ceil((totalParseBatches - i) / PARALLEL_BATCH_COUNT) * ESTIMATED_SECONDS_PER_PARSE_BATCH),
         stage: 'parsing',
       }));
 
-      try {
-        console.log(`Processing parse batch ${i + 1}/${totalParseBatches}`);
+      // Process batches in parallel
+      const parallelPromises = parallelIndices.map(batchIdx => 
+        processSingleBatch(batches[batchIdx], batchIdx, ext, fileName, totalParseBatches)
+      );
 
-        const { data: parseData, error: parseError } = await supabase.functions.invoke('parse-bank-statement', {
-          body: {
-            fileContent: batchContent,
-            fileType: ext,
-            fileName: fileName,
-            batchIndex: i,
-            totalBatches: totalParseBatches
-          }
-        });
+      const results = await Promise.all(parallelPromises);
 
-        if (parseError) {
-          console.warn(`Batch ${i + 1} error:`, parseError.message);
-          failedBatches++;
-          continue;
-        }
-
-        if (parseData?.success && parseData?.transactions?.length > 0) {
-          // Add offset to index based on batch position
-          const offsetTransactions = parseData.transactions.map((t: any, idx: number) => ({
-            ...t,
-            index: (i * PARSE_BATCH_SIZE) + idx
-          }));
-          allTransactions.push(...offsetTransactions);
-          console.log(`Batch ${i + 1}: Got ${parseData.transactions.length} transactions`);
+      // Collect results
+      for (const result of results) {
+        if (result.success && result.transactions.length > 0) {
+          transactionMap.set(result.batchIndex, result.transactions);
         } else {
-          console.warn(`Batch ${i + 1}: No transactions returned`);
           failedBatches++;
         }
-      } catch (batchErr) {
-        console.error(`Batch ${i + 1} exception:`, batchErr);
-        failedBatches++;
+        completedBatches++;
       }
 
       // Update overall progress
-      const parseProgress = 30 + ((i + 1) / totalParseBatches) * 35;
+      const parseProgress = 30 + (completedBatches / totalParseBatches) * 35;
       setProgress(parseProgress);
     }
+
+    // Flatten and sort all transactions by index
+    const allTransactions = Array.from(transactionMap.values())
+      .flat()
+      .sort((a, b) => a.index - b.index);
 
     // Parsing complete or stopped
     setBatchProgress(prev => ({
@@ -196,7 +245,7 @@ export function useBankFileUpload() {
       throw new Error('PAUSED');
     }
 
-    console.log(`Parsing complete: ${allTransactions.length} transactions from ${totalParseBatches - failedBatches}/${totalParseBatches} batches`);
+    console.log(`Parsing complete: ${allTransactions.length} transactions from ${totalParseBatches - failedBatches}/${totalParseBatches} batches (${PARALLEL_BATCH_COUNT}x parallel)`);
     return allTransactions;
   };
 
