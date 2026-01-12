@@ -32,3 +32,6 @@ verify_jwt = false
 
 [functions.parse-receipt]
 verify_jwt = false
+
+[functions.match-receipts]
+verify_jwt = false

@@ -60,6 +60,9 @@ export interface BankTransaction {
   created_at: string;
 }
 
+export type DocumentType = 'received' | 'issued';
+export type MatchStatus = 'unmatched' | 'suggested' | 'matched' | 'manual';
+
 export interface Receipt {
   id: string;
   user_id: string;
@@ -69,12 +72,39 @@ export interface Receipt {
   thumbnail_url?: string;
   ocr_raw_text?: string;
   ocr_confidence: number;
+  
+  // Document type
+  document_type: DocumentType;
+  
+  // Seller (issuer) information
+  seller_name?: string;
+  seller_tax_no?: string;
+  seller_address?: string;
+  
+  // Buyer (recipient) information
+  buyer_name?: string;
+  buyer_tax_no?: string;
+  buyer_address?: string;
+  
+  // Legacy fields (kept for compatibility)
   vendor_name?: string;
   vendor_tax_no?: string;
+  
   receipt_date?: string;
   receipt_no?: string;
+  
+  // Detailed amounts
+  subtotal?: number;
   total_amount?: number;
   tax_amount?: number;
+  
+  // Tax breakdown
+  vat_rate?: number;
+  vat_amount?: number;
+  withholding_tax_rate?: number;
+  withholding_tax_amount?: number;
+  stamp_tax_amount?: number;
+  
   currency: string;
   category_id?: string;
   category?: TransactionCategory;
@@ -83,7 +113,12 @@ export interface Receipt {
   processing_status: 'pending' | 'processing' | 'completed' | 'error';
   is_verified: boolean;
   is_included_in_report: boolean;
+  
+  // Bank transaction matching
   linked_bank_transaction_id?: string;
+  match_status: MatchStatus;
+  match_confidence: number;
+  
   month?: number;
   year?: number;
   notes?: string;

@@ -702,9 +702,13 @@ export type Database = {
       receipts: {
         Row: {
           ai_suggested_category_id: string | null
+          buyer_address: string | null
+          buyer_name: string | null
+          buyer_tax_no: string | null
           category_id: string | null
           created_at: string | null
           currency: string | null
+          document_type: string | null
           file_name: string | null
           file_type: string | null
           file_url: string | null
@@ -713,6 +717,8 @@ export type Database = {
           is_manually_categorized: boolean | null
           is_verified: boolean | null
           linked_bank_transaction_id: string | null
+          match_confidence: number | null
+          match_status: string | null
           month: number | null
           notes: string | null
           ocr_confidence: number | null
@@ -720,19 +726,32 @@ export type Database = {
           processing_status: string | null
           receipt_date: string | null
           receipt_no: string | null
+          seller_address: string | null
+          seller_name: string | null
+          seller_tax_no: string | null
+          stamp_tax_amount: number | null
+          subtotal: number | null
           tax_amount: number | null
           thumbnail_url: string | null
           total_amount: number | null
           user_id: string | null
+          vat_amount: number | null
+          vat_rate: number | null
           vendor_name: string | null
           vendor_tax_no: string | null
+          withholding_tax_amount: number | null
+          withholding_tax_rate: number | null
           year: number | null
         }
         Insert: {
           ai_suggested_category_id?: string | null
+          buyer_address?: string | null
+          buyer_name?: string | null
+          buyer_tax_no?: string | null
           category_id?: string | null
           created_at?: string | null
           currency?: string | null
+          document_type?: string | null
           file_name?: string | null
           file_type?: string | null
           file_url?: string | null
@@ -741,6 +760,8 @@ export type Database = {
           is_manually_categorized?: boolean | null
           is_verified?: boolean | null
           linked_bank_transaction_id?: string | null
+          match_confidence?: number | null
+          match_status?: string | null
           month?: number | null
           notes?: string | null
           ocr_confidence?: number | null
@@ -748,19 +769,32 @@ export type Database = {
           processing_status?: string | null
           receipt_date?: string | null
           receipt_no?: string | null
+          seller_address?: string | null
+          seller_name?: string | null
+          seller_tax_no?: string | null
+          stamp_tax_amount?: number | null
+          subtotal?: number | null
           tax_amount?: number | null
           thumbnail_url?: string | null
           total_amount?: number | null
           user_id?: string | null
+          vat_amount?: number | null
+          vat_rate?: number | null
           vendor_name?: string | null
           vendor_tax_no?: string | null
+          withholding_tax_amount?: number | null
+          withholding_tax_rate?: number | null
           year?: number | null
         }
         Update: {
           ai_suggested_category_id?: string | null
+          buyer_address?: string | null
+          buyer_name?: string | null
+          buyer_tax_no?: string | null
           category_id?: string | null
           created_at?: string | null
           currency?: string | null
+          document_type?: string | null
           file_name?: string | null
           file_type?: string | null
           file_url?: string | null
@@ -769,6 +803,8 @@ export type Database = {
           is_manually_categorized?: boolean | null
           is_verified?: boolean | null
           linked_bank_transaction_id?: string | null
+          match_confidence?: number | null
+          match_status?: string | null
           month?: number | null
           notes?: string | null
           ocr_confidence?: number | null
@@ -776,12 +812,21 @@ export type Database = {
           processing_status?: string | null
           receipt_date?: string | null
           receipt_no?: string | null
+          seller_address?: string | null
+          seller_name?: string | null
+          seller_tax_no?: string | null
+          stamp_tax_amount?: number | null
+          subtotal?: number | null
           tax_amount?: number | null
           thumbnail_url?: string | null
           total_amount?: number | null
           user_id?: string | null
+          vat_amount?: number | null
+          vat_rate?: number | null
           vendor_name?: string | null
           vendor_tax_no?: string | null
+          withholding_tax_amount?: number | null
+          withholding_tax_rate?: number | null
           year?: number | null
         }
         Relationships: [
