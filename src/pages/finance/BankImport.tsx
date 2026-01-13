@@ -3,13 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle, PlayCircle, Eye, RefreshCw, Trash2, UserPlus } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle, PlayCircle, Eye, RefreshCw, Trash2, UserPlus, AlertTriangle } from 'lucide-react';
 import { useBankFileUpload } from '@/hooks/finance/useBankFileUpload';
 import { useBankImportSession } from '@/hooks/finance/useBankImportSession';
 import { TransactionEditor, EditableTransaction } from '@/components/finance/TransactionEditor';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
-import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { ParsedTransactionList } from '@/components/finance/ParsedTransactionList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { PartnerRuleDialog } from '@/components/finance/PartnerRuleDialog';
@@ -37,6 +37,7 @@ export default function BankImport() {
     batchProgress, 
     canResume,
     pausedTransactionCount,
+    failedRowRanges,
     stopProcessing 
   } = useBankFileUpload();
 
@@ -277,6 +278,29 @@ export default function BankImport() {
                   )}
                   Tekrar Dene
                 </Button>
+              </AlertDescription>
+            </Alert>
+          )}
+
+          {/* Failed rows warning */}
+          {failedRowRanges.length > 0 && (
+            <Alert variant="destructive" className="bg-red-50 border-red-200 dark:bg-red-950 dark:border-red-800">
+              <AlertTriangle className="h-4 w-4" />
+              <AlertTitle className="text-red-700 dark:text-red-300">
+                ⚠️ Bazı satırlar işlenemedi ({failedRowRanges.length} batch başarısız)
+              </AlertTitle>
+              <AlertDescription className="mt-2">
+                <ul className="list-disc pl-4 space-y-1 text-sm text-red-600 dark:text-red-400">
+                  {failedRowRanges.map((batch, i) => (
+                    <li key={i}>
+                      <span className="font-medium">Satır {batch.rowRange.start}-{batch.rowRange.end}:</span>{' '}
+                      {batch.error} ({batch.retryCount} deneme yapıldı)
+                    </li>
+                  ))}
+                </ul>
+                <p className="mt-3 text-sm text-red-500 dark:text-red-400">
+                  Bu satırlardaki işlemleri Excel'den kontrol edip <strong>Manuel Giriş</strong> sayfasından ekleyebilirsiniz.
+                </p>
               </AlertDescription>
             </Alert>
           )}
