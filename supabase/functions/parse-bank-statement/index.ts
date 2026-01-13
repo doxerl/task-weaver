@@ -77,7 +77,16 @@ serve(async (req) => {
 2. Para hareketi içeren HER SATIR çıktıda olmalı
 3. Şüpheli satırları da dahil et, "needs_review": true işaretle
 4. Toplam işlem sayısını doğrulama için raporla
+5. [ROW X] formatındaki HER satırı işle - hiçbirini atlama
 ═══════════════════════════════════════════════════════════════════
+
+ÇİFT SATIRLI İŞLEMLER - KRİTİK:
+- Bazı işlemler 2 satıra yayılmış olabilir (ana satır + açıklama devamı)
+- İlk satır genellikle tarih ve tutar içerir
+- İkinci satır açıklama devamı veya referans numarası içerir
+- Her iki satırı da BİRLEŞTİRİP tek işlem olarak kaydet
+- row_number olarak ANA satırın (para hareketi olan) numarasını kullan
+- İkinci satırdaki bilgiyi description alanına ekle
 
 ÇIKTI FORMATI:
 {
@@ -107,7 +116,8 @@ serve(async (req) => {
     "needs_review_count": number,
     "total_income": number,
     "total_expense": number,
-    "date_range": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" }
+    "date_range": { "start": "YYYY-MM-DD", "end": "YYYY-MM-DD" },
+    "skipped_rows": [{ "row_number": number, "reason": "string" }]
   },
   "bank_info": {
     "detected_bank": "string | null",
@@ -151,8 +161,14 @@ BANKA TESPİTİ (Sütun yapısından):
 ATLAMA KURALLARI:
 - ATLA: Başlıklar, sütun isimleri, toplam satırları, boş satırlar
 - ATLAMA: Para hareketi içeren HER satır dahil edilmeli
+- Atlanan satırları "skipped_rows" arrayinde listele
 
 [ROW X] formatındaki satırları dikkate al. row_number alanına X değerini yaz.
+
+SATIR SAYISI DOĞRULAMA - KRİTİK:
+- Input'ta kaç adet [ROW X] satırı varsa say
+- Output'taki transaction sayısı + skipped_rows sayısı = toplam [ROW X] sayısına EŞİT OLMALI
+- Eksik satır olmamalı!
 
 ŞÜPHE DURUMUNDA:
 - needs_review: true işaretle

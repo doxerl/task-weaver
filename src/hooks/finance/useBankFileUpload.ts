@@ -6,7 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCategories } from './useCategories';
 import { useBankImportSession, SaveTransactionParams, SaveCategorizationParams } from './useBankImportSession';
 import { parseFile } from '@/lib/fileParser';
-import { ParsedTransaction, ParseResult, ParseSummary, BankInfo, CategorizationResult, BalanceImpact, TransactionCategory } from '@/types/finance';
+import { ParsedTransaction, ParseResult, ParseSummary, BankInfo, CategorizationResult, BalanceImpact, TransactionCategory, FailedBatch } from '@/types/finance';
 import { EditableTransaction } from '@/components/finance/TransactionEditor';
 import { categorizeWithRules, RuleMatchResult } from './useCategoryRules';
 
@@ -27,6 +27,7 @@ export interface ResumeState {
   ext: string;
   fileName: string;
   collectedTransactions: ParsedTransaction[];
+  failedBatches: FailedBatch[];
 }
 
 const PARSE_BATCH_SIZE = 10; // 10 satır per parse batch
@@ -34,6 +35,8 @@ const PARALLEL_BATCH_COUNT = 20; // 20 batch aynı anda işlenecek (parse & cate
 const CATEGORIZE_BATCH_SIZE = 25;
 const ESTIMATED_SECONDS_PER_PARSE_BATCH = 5; // Paralel işleme ile daha hızlı
 const ESTIMATED_SECONDS_PER_CATEGORIZE_GROUP = 4; // Paralel gruplar için
+const MAX_BATCH_RETRIES = 3; // Maximum retry count for failed batches
+const RETRY_DELAY_BASE_MS = 2000; // Base delay for exponential backoff
 
 // Hash function for file content
 async function computeFileHash(file: File): Promise<string> {
@@ -67,6 +70,7 @@ export function useBankFileUpload() {
   });
   const [canResume, setCanResume] = useState(false);
   const [pausedTransactionCount, setPausedTransactionCount] = useState(0);
+  const [failedRowRanges, setFailedRowRanges] = useState<FailedBatch[]>([]);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const abortRef = useRef<boolean>(false);
   const resumeStateRef = useRef<ResumeState | null>(null);
@@ -97,6 +101,7 @@ export function useBankFileUpload() {
     setCurrentFileId(null);
     setCanResume(false);
     setPausedTransactionCount(0);
+    setFailedRowRanges([]);
     resumeStateRef.current = null;
     currentSessionIdRef.current = null;
     setBatchProgress({
@@ -114,67 +119,103 @@ export function useBankFileUpload() {
     queryClient.invalidateQueries({ queryKey: ['activeImportSession'] });
   }, [clearProgressInterval, queryClient]);
 
-  // Process a single batch
+  // Process a single batch with retry mechanism
   const processSingleBatch = async (
     batchContent: string,
     batchIndex: number,
     ext: string,
     fileName: string,
-    totalBatches: number
-  ): Promise<{ batchIndex: number; transactions: ParsedTransaction[]; summary: ParseSummary | null; bank_info: BankInfo | null; success: boolean }> => {
-    try {
-      console.log(`Processing parse batch ${batchIndex + 1}/${totalBatches}`);
+    totalBatches: number,
+    maxRetries: number = MAX_BATCH_RETRIES
+  ): Promise<{ batchIndex: number; transactions: ParsedTransaction[]; summary: ParseSummary | null; bank_info: BankInfo | null; success: boolean; retryCount: number; error?: string }> => {
+    let lastError = '';
+    
+    for (let attempt = 0; attempt <= maxRetries; attempt++) {
+      try {
+        console.log(`Processing parse batch ${batchIndex + 1}/${totalBatches}${attempt > 0 ? ` (retry ${attempt})` : ''}`);
 
-      const { data: parseData, error: parseError } = await supabase.functions.invoke('parse-bank-statement', {
-        body: {
-          fileContent: batchContent,
-          fileType: ext,
-          fileName: fileName,
-          batchIndex: batchIndex,
-          totalBatches: totalBatches
+        const { data: parseData, error: parseError } = await supabase.functions.invoke('parse-bank-statement', {
+          body: {
+            fileContent: batchContent,
+            fileType: ext,
+            fileName: fileName,
+            batchIndex: batchIndex,
+            totalBatches: totalBatches
+          }
+        });
+
+        if (parseError) {
+          lastError = parseError.message;
+          console.warn(`Batch ${batchIndex + 1} error (attempt ${attempt + 1}):`, parseError.message);
+          
+          // Retry if we have attempts left
+          if (attempt < maxRetries) {
+            const delay = RETRY_DELAY_BASE_MS * Math.pow(2, attempt);
+            console.log(`Retrying batch ${batchIndex + 1} in ${delay}ms...`);
+            await new Promise(r => setTimeout(r, delay));
+            continue;
+          }
+          return { batchIndex, transactions: [], summary: null, bank_info: null, success: false, retryCount: attempt + 1, error: lastError };
         }
-      });
 
-      if (parseError) {
-        console.warn(`Batch ${batchIndex + 1} error:`, parseError.message);
-        return { batchIndex, transactions: [], summary: null, bank_info: null, success: false };
+        if (parseData?.success && parseData?.transactions?.length > 0) {
+          // Add offset to index based on batch position
+          const offsetTransactions = parseData.transactions.map((t: any, idx: number) => ({
+            ...t,
+            index: (batchIndex * PARSE_BATCH_SIZE) + idx
+          }));
+          console.log(`Batch ${batchIndex + 1}: Got ${parseData.transactions.length} transactions${attempt > 0 ? ` after ${attempt} retries` : ''}`);
+          return { 
+            batchIndex, 
+            transactions: offsetTransactions, 
+            summary: parseData.summary || null,
+            bank_info: parseData.bank_info || null,
+            success: true,
+            retryCount: attempt
+          };
+        } else {
+          // No transactions returned - might be a parsing issue, retry
+          lastError = 'No transactions returned from AI';
+          console.warn(`Batch ${batchIndex + 1}: No transactions returned (attempt ${attempt + 1})`);
+          
+          if (attempt < maxRetries) {
+            const delay = RETRY_DELAY_BASE_MS * Math.pow(2, attempt);
+            console.log(`Retrying batch ${batchIndex + 1} in ${delay}ms...`);
+            await new Promise(r => setTimeout(r, delay));
+            continue;
+          }
+          return { batchIndex, transactions: [], summary: null, bank_info: null, success: false, retryCount: attempt + 1, error: lastError };
+        }
+      } catch (batchErr) {
+        lastError = batchErr instanceof Error ? batchErr.message : 'Unknown error';
+        console.error(`Batch ${batchIndex + 1} exception (attempt ${attempt + 1}):`, batchErr);
+        
+        if (attempt < maxRetries) {
+          const delay = RETRY_DELAY_BASE_MS * Math.pow(2, attempt);
+          console.log(`Retrying batch ${batchIndex + 1} in ${delay}ms...`);
+          await new Promise(r => setTimeout(r, delay));
+          continue;
+        }
+        return { batchIndex, transactions: [], summary: null, bank_info: null, success: false, retryCount: attempt + 1, error: lastError };
       }
-
-      if (parseData?.success && parseData?.transactions?.length > 0) {
-        // Add offset to index based on batch position
-        const offsetTransactions = parseData.transactions.map((t: any, idx: number) => ({
-          ...t,
-          index: (batchIndex * PARSE_BATCH_SIZE) + idx
-        }));
-        console.log(`Batch ${batchIndex + 1}: Got ${parseData.transactions.length} transactions`);
-        return { 
-          batchIndex, 
-          transactions: offsetTransactions, 
-          summary: parseData.summary || null,
-          bank_info: parseData.bank_info || null,
-          success: true 
-        };
-      } else {
-        console.warn(`Batch ${batchIndex + 1}: No transactions returned`);
-        return { batchIndex, transactions: [], summary: null, bank_info: null, success: false };
-      }
-    } catch (batchErr) {
-      console.error(`Batch ${batchIndex + 1} exception:`, batchErr);
-      return { batchIndex, transactions: [], summary: null, bank_info: null, success: false };
     }
+    
+    // Should not reach here, but return failure just in case
+    return { batchIndex, transactions: [], summary: null, bank_info: null, success: false, retryCount: maxRetries + 1, error: lastError };
   };
 
-  // Process batches from a starting index with parallel execution
+  // Process batches from a starting index with parallel execution and retry mechanism
   const processBatches = async (
     batches: string[],
     startIndex: number,
     ext: string,
     fileName: string,
-    existingTransactions: ParsedTransaction[]
-  ): Promise<ParsedTransaction[]> => {
+    existingTransactions: ParsedTransaction[],
+    existingFailedBatches: FailedBatch[] = []
+  ): Promise<{ transactions: ParsedTransaction[]; failedBatches: FailedBatch[] }> => {
     const totalParseBatches = batches.length;
     const transactionMap: Map<number, ParsedTransaction[]> = new Map();
-    let failedBatches = 0;
+    const failedBatchList: FailedBatch[] = [...existingFailedBatches];
     let completedBatches = startIndex;
 
     // Add existing transactions to map
@@ -209,11 +250,12 @@ export function useBankFileUpload() {
           ext,
           fileName,
           collectedTransactions,
+          failedBatches: failedBatchList,
         };
         setCanResume(true);
         setPausedTransactionCount(collectedTransactions.length);
         setStatus('paused');
-        console.log(`Saved resume state: batch ${i}, collected ${collectedTransactions.length} transactions`);
+        console.log(`Saved resume state: batch ${i}, collected ${collectedTransactions.length} transactions, ${failedBatchList.length} failed batches`);
         break;
       }
 
@@ -247,7 +289,18 @@ export function useBankFileUpload() {
         if (result.success && result.transactions.length > 0) {
           transactionMap.set(result.batchIndex, result.transactions);
         } else {
-          failedBatches++;
+          // Track failed batch with row range
+          const rowStart = result.batchIndex * PARSE_BATCH_SIZE + 2; // +2 for header offset (Excel row 1 = header)
+          const rowEnd = Math.min((result.batchIndex + 1) * PARSE_BATCH_SIZE + 1, totalParseBatches * PARSE_BATCH_SIZE + 1);
+          
+          failedBatchList.push({
+            batchIndex: result.batchIndex,
+            rowRange: { start: rowStart, end: rowEnd },
+            error: result.error || 'Unknown error after 3 retries',
+            retryCount: result.retryCount
+          });
+          
+          console.warn(`⚠️ Batch ${result.batchIndex + 1} failed permanently: rows ${rowStart}-${rowEnd}`);
         }
         completedBatches++;
       }
@@ -262,6 +315,9 @@ export function useBankFileUpload() {
       .flat()
       .sort((a, b) => a.index - b.index);
 
+    // Update failed row ranges state for UI
+    setFailedRowRanges(failedBatchList);
+
     // Parsing complete or stopped
     setBatchProgress(prev => ({
       ...prev,
@@ -274,13 +330,21 @@ export function useBankFileUpload() {
     // If stopped by user
     if (abortRef.current) {
       if (allTransactions.length > 0) {
-        console.log(`Processing paused with ${allTransactions.length} transactions collected`);
+        console.log(`Processing paused with ${allTransactions.length} transactions collected, ${failedBatchList.length} failed batches`);
       }
       throw new Error('PAUSED');
     }
 
-    console.log(`Parsing complete: ${allTransactions.length} transactions from ${totalParseBatches - failedBatches}/${totalParseBatches} batches (${PARALLEL_BATCH_COUNT}x parallel)`);
-    return allTransactions;
+    // Log final summary
+    if (failedBatchList.length > 0) {
+      console.warn(`⚠️ Parsing complete with ${failedBatchList.length} failed batches:`);
+      failedBatchList.forEach(fb => {
+        console.warn(`  - Batch ${fb.batchIndex + 1}: rows ${fb.rowRange.start}-${fb.rowRange.end} (${fb.error})`);
+      });
+    }
+
+    console.log(`Parsing complete: ${allTransactions.length} transactions from ${totalParseBatches - failedBatchList.length}/${totalParseBatches} batches (${PARALLEL_BATCH_COUNT}x parallel)`);
+    return { transactions: allTransactions, failedBatches: failedBatchList };
   };
 
   // Categorize transactions using hybrid approach: Rules -> Keywords -> AI
@@ -480,7 +544,7 @@ export function useBankFileUpload() {
         throw new Error('Devam edilecek işlem bulunamadı');
       }
 
-      const { batches, currentIndex, ext, fileName, collectedTransactions } = resumeState;
+      const { batches, currentIndex, ext, fileName, collectedTransactions, failedBatches: existingFailedBatches } = resumeState;
       
       // CRITICAL: Reset abort flag BEFORE setting status
       abortRef.current = false;
@@ -490,22 +554,23 @@ export function useBankFileUpload() {
       console.log(`Resuming from batch ${currentIndex + 1}/${batches.length}, collected: ${collectedTransactions.length}`);
 
       try {
-        const allTransactions = await processBatches(
+        const result = await processBatches(
           batches,
           currentIndex,
           ext,
           fileName,
-          collectedTransactions
+          collectedTransactions,
+          existingFailedBatches
         );
 
-        if (allTransactions.length === 0) {
+        if (result.transactions.length === 0) {
           throw new Error('Dosyadan işlem çıkarılamadı.');
         }
 
         setProgress(65);
         setStatus('categorizing');
 
-        const categorized = await categorizeTransactions(allTransactions);
+        const categorized = await categorizeTransactions(result.transactions);
 
         setProgress(85);
         setParsedTransactions(categorized);
@@ -672,7 +737,8 @@ export function useBankFileUpload() {
         console.log(`Created ${batches.length} parse batches`);
 
         // 5. Process batches
-        const allTransactions = await processBatches(batches, 0, fileExt, file.name, []);
+        const batchResult = await processBatches(batches, 0, fileExt, file.name, []);
+        const allTransactions = batchResult.transactions;
 
         if (allTransactions.length === 0) {
           throw new Error('Dosyadan işlem çıkarılamadı. Lütfen farklı bir format deneyin.');
@@ -701,12 +767,16 @@ export function useBankFileUpload() {
           }
         }
 
-        // Calculate summary from transactions
+        // Calculate summary from transactions - include failed batch info
+        const expectedRows = dataLines.length;
+        const actualRows = allTransactions.length;
+        const missingRows = expectedRows - actualRows;
+
         const calculatedSummary: ParseSummary = {
-          total_rows_in_file: allTransactions.length,
-          header_rows_skipped: 0,
+          total_rows_in_file: expectedRows,
+          header_rows_skipped: 1,
           footer_rows_skipped: 0,
-          empty_rows_skipped: 0,
+          empty_rows_skipped: missingRows > 0 ? missingRows : 0,
           transaction_count: allTransactions.length,
           needs_review_count: allTransactions.filter(t => t.needs_review).length,
           total_income: allTransactions.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0),
@@ -972,6 +1042,7 @@ export function useBankFileUpload() {
     batchProgress,
     canResume,
     pausedTransactionCount,
+    failedRowRanges,
     reset,
     stopProcessing
   };

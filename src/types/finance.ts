@@ -405,3 +405,21 @@ export interface BankImportTransaction {
   created_at: string;
   updated_at: string;
 }
+
+// =====================================================
+// BATCH PROCESSING TYPES
+// =====================================================
+
+export interface FailedBatch {
+  batchIndex: number;
+  rowRange: { start: number; end: number };
+  error: string;
+  retryCount: number;
+}
+
+export interface BatchProcessingResult {
+  transactions: ParsedTransaction[];
+  failedBatches: FailedBatch[];
+  expectedRowCount: number;
+  actualRowCount: number;
+}
