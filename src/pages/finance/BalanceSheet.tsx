@@ -12,6 +12,8 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { useFinancialSettings } from '@/hooks/finance/useFinancialSettings';
 import { useFixedExpenses } from '@/hooks/finance/useFixedExpenses';
+import { useBalanceSheetPdfExport } from '@/hooks/finance/useBalanceSheetPdfExport';
+import { toast } from '@/hooks/use-toast';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { DetailedBalanceSheet } from '@/components/finance/DetailedBalanceSheet';
 import { cn } from '@/lib/utils';
@@ -82,10 +84,28 @@ const BalanceRow = ({
 export default function BalanceSheet() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [activeTab, setActiveTab] = useState('summary');
   
   const { balanceSheet, isLoading, uncategorizedCount, uncategorizedTotal } = useBalanceSheet(year);
   const { settings, upsertSettings } = useFinancialSettings();
   const { summary: fixedExpensesSummary } = useFixedExpenses();
+  const { generateBalanceSheetPdf, isGenerating } = useBalanceSheetPdfExport();
+
+  const handleExportPdf = async () => {
+    try {
+      await generateBalanceSheetPdf(balanceSheet, year, activeTab === 'detailed');
+      toast({
+        title: 'PDF oluşturuldu',
+        description: `Bilanço PDF olarak indirildi.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Hata',
+        description: 'PDF oluşturulurken bir hata oluştu.',
+        variant: 'destructive',
+      });
+    }
+  };
   
   const [formData, setFormData] = useState({
     paid_capital: settings.paid_capital,
@@ -358,7 +378,7 @@ export default function BalanceSheet() {
         </Card>
 
         {/* Tabs for Summary vs Detailed */}
-        <Tabs defaultValue="summary" className="w-full">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="w-full">
           <TabsList className="grid w-full grid-cols-2">
             <TabsTrigger value="summary">Özet Bilanço</TabsTrigger>
             <TabsTrigger value="detailed">Ayrıntılı Bilanço</TabsTrigger>
@@ -663,9 +683,13 @@ export default function BalanceSheet() {
         </Tabs>
 
         {/* Export */}
-        <Button className="w-full" disabled>
-          <FileDown className="h-5 w-5 mr-2" />
-          PDF İndir
+        <Button className="w-full" onClick={handleExportPdf} disabled={isGenerating}>
+          {isGenerating ? (
+            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+          ) : (
+            <FileDown className="h-5 w-5 mr-2" />
+          )}
+          {isGenerating ? 'PDF Oluşturuluyor...' : 'PDF İndir'}
         </Button>
       </div>
       <BottomTabBar />
