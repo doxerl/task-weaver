@@ -290,14 +290,15 @@ export function useBankFileUpload() {
       return parsed;
     }
 
-    // CRITICAL: Fetch fresh categories to avoid stale closure issue
+    // CRITICAL: Fetch fresh categories sorted by match_priority
     const { data: freshCategories } = await supabase
       .from('transaction_categories')
       .select('*')
-      .eq('is_active', true);
+      .eq('is_active', true)
+      .order('match_priority', { ascending: true });
     
     const categoryList = (freshCategories || []) as TransactionCategory[];
-    console.log('Fresh categories loaded:', categoryList.length, categoryList.map(c => c.code));
+    console.log('Fresh categories loaded (sorted by match_priority):', categoryList.length);
 
     // STAGE 1 & 2: Rule and Keyword matching (client-side, instant)
     console.log('🔍 Starting rule/keyword matching...');

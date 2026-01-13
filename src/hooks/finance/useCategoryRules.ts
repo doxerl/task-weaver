@@ -28,12 +28,53 @@ export interface RuleMatchResult {
   categoryCode: string;
   categoryType: string;
   confidence: number;
-  source: 'user_rule' | 'keyword' | 'ai';
+  source: 'user_rule' | 'keyword' | 'context_rule' | 'amount_rule' | 'ai';
   reasoning: string;
   affectsPnl: boolean;
   balanceImpact: string;
-  counterparty?: string;
+  counterparty?: string | null;
 }
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NEGATİF PATTERN'LER - FİRMA ADI TUZAKLARI
+// Bu pattern'ler eşleşirse, ilgili kategoriye ATANMAmalı
+// ═══════════════════════════════════════════════════════════════════════════
+const NEGATIVE_PATTERNS: Record<string, RegExp[]> = {
+  'HISSE': [
+    /LİMİTED ŞİRKETİ?/i,
+    /ANONİM ŞİRKETİ?/i,
+    /TİCARET A\.?Ş\.?/i,
+    /SANAYİ VE TİCARET/i,
+    /TEKSTİL/i,
+    /BOYA/i,
+    /KONFEKSİYON/i,
+    /SAN\. ?TİC\./i
+  ],
+  'ORTAK_OUT': [
+    /KESİNTİ VE EKLERİ/i,
+    /FAİZ TAHSİLATI/i,
+    /KOMİSYON/i,
+    /MASRAF/i,
+    /BANKA/i
+  ],
+  'ORTAK_IN': [
+    /KESİNTİ VE EKLERİ/i,
+    /FAİZ/i,
+    /MEVDUAT/i
+  ],
+  'EGITIM_IN': [
+    // "ALFA ZEN EĞİTİM DENETİM" firma adı, eğitim hizmeti değil!
+    /ALFA ZEN/i,
+    /EĞİTİM DENETİM/i,
+    /EĞİTİM VE DENETİM/i,
+    /DENETİM VE DANIŞMANLIK/i
+  ],
+  'IADE': [
+    /MEVDUAT GERİ/i,
+    /VADELİ HESAP/i,
+    /FAİZ GELİR/i
+  ]
+};
 
 // Check if pattern matches description based on rule type
 function matchesPattern(description: string, pattern: string, ruleType: string): boolean {
@@ -112,6 +153,377 @@ function getBalanceImpact(amount: number, categoryType: string): string {
   return 'none';
 }
 
+// Extract counterparty from description
+function extractCounterparty(tx: ParsedTransaction): string | null {
+  if (tx.counterparty) return tx.counterparty;
+  
+  const desc = tx.description || '';
+  // Try to extract company name patterns
+  const patterns = [
+    /^([A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜa-zçğıöşü\s]+(?:TEKSTİL|BOYA|SAN|TİC|A\.?Ş\.?|LTD))/i,
+    /^([A-ZÇĞİÖŞÜ][A-ZÇĞİÖŞÜ\s]{3,})/
+  ];
+  
+  for (const pattern of patterns) {
+    const match = desc.match(pattern);
+    if (match && match[1].length > 5) {
+      return match[1].trim();
+    }
+  }
+  
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CONTEXT-AWARE KURALLAR
+// Bağlama göre spesifik kategorileme
+// ═══════════════════════════════════════════════════════════════════════════
+function matchContextRules(tx: ParsedTransaction, categories: TransactionCategory[]): RuleMatchResult | null {
+  const desc = (tx.description || '').toUpperCase();
+  const amount = Math.abs(tx.amount || 0);
+  const isPositive = (tx.amount || 0) > 0;
+
+  // BANKA KESİNTİSİ: "KESİNTİ VE EKLERİ" + küçük tutar (< 100 TL)
+  if (desc.startsWith('KESİNTİ VE EKLERİ') && amount < 100) {
+    const cat = categories.find(c => c.code === 'BANKA');
+    if (cat) {
+      console.log(`✅ Context: TX[${tx.index}] "KESİNTİ VE EKLERİ" → BANKA`);
+      return {
+        transactionIndex: tx.index,
+        categoryId: cat.id,
+        categoryCode: 'BANKA',
+        categoryType: 'EXPENSE',
+        confidence: 1.0,
+        source: 'context_rule',
+        reasoning: `"KESİNTİ VE EKLERİ" + tutar ${amount.toFixed(2)} TL < 100 TL`,
+        affectsPnl: true,
+        balanceImpact: 'equity_decrease',
+        counterparty: null
+      };
+    }
+  }
+
+  // SİGORTA: Sigorta şirketi/ürünü + gider (negatif tutar)
+  if (/EUREKO|ALLIANZ|AXA|MAPFRE|HDI|SOMPO|KASKO|POLİÇE|SİGORTA PRİM|TRAFİK SİGORTA|DASK/i.test(desc) && !isPositive && amount < 50000) {
+    const cat = categories.find(c => c.code === 'SIGORTA');
+    if (cat) {
+      console.log(`✅ Context: TX[${tx.index}] Sigorta pattern → SIGORTA`);
+      return {
+        transactionIndex: tx.index,
+        categoryId: cat.id,
+        categoryCode: 'SIGORTA',
+        categoryType: 'EXPENSE',
+        confidence: 0.98,
+        source: 'context_rule',
+        reasoning: `Sigorta şirketi/ürünü + gider`,
+        affectsPnl: true,
+        balanceImpact: 'equity_decrease',
+        counterparty: extractCounterparty(tx)
+      };
+    }
+  }
+
+  // KREDİ ÖDEME: O4- prefix (otomatik ödeme talimatı)
+  if (desc.startsWith('O4-') && amount > 10000) {
+    const cat = categories.find(c => c.code === 'KREDI_OUT');
+    if (cat) {
+      console.log(`✅ Context: TX[${tx.index}] "O4-" prefix → KREDI_OUT`);
+      return {
+        transactionIndex: tx.index,
+        categoryId: cat.id,
+        categoryCode: 'KREDI_OUT',
+        categoryType: 'FINANCING',
+        confidence: 1.0,
+        source: 'context_rule',
+        reasoning: `"O4-" prefix (ticari kredi taksit)`,
+        affectsPnl: false,
+        balanceImpact: 'liability_decrease',
+        counterparty: null
+      };
+    }
+  }
+
+  // FAİZ GİDERİ
+  if (/FAİZ TAHSİLATI|KREDİLİ HESAP FAİZ|FAİZ KESINTI/i.test(desc) && !isPositive) {
+    const cat = categories.find(c => c.code === 'FAIZ_OUT');
+    if (cat) {
+      console.log(`✅ Context: TX[${tx.index}] Faiz pattern → FAIZ_OUT`);
+      return {
+        transactionIndex: tx.index,
+        categoryId: cat.id,
+        categoryCode: 'FAIZ_OUT',
+        categoryType: 'FINANCING',
+        confidence: 1.0,
+        source: 'context_rule',
+        reasoning: `Faiz tahsilatı keyword`,
+        affectsPnl: true,
+        balanceImpact: 'equity_decrease',
+        counterparty: null
+      };
+    }
+  }
+
+  // DÖVİZ SATIŞ: Pozitif tutar + döviz pattern
+  if (/DÖVİZ SATIŞ|FX SELL|EUR:|USD:|GBP:/i.test(desc) && isPositive) {
+    const cat = categories.find(c => c.code === 'DOVIZ_IN');
+    if (cat) {
+      console.log(`✅ Context: TX[${tx.index}] Döviz satış → DOVIZ_IN`);
+      return {
+        transactionIndex: tx.index,
+        categoryId: cat.id,
+        categoryCode: 'DOVIZ_IN',
+        categoryType: 'INCOME',
+        confidence: 0.98,
+        source: 'context_rule',
+        reasoning: `Döviz satış pattern`,
+        affectsPnl: true,
+        balanceImpact: 'equity_increase',
+        counterparty: null
+      };
+    }
+  }
+
+  // HGS/ULAŞIM: HGS pattern + makul tutar
+  if (/\bHGS\b|\bOGS\b|OTOYOL|KÖPRÜ GEÇİŞ|AVRASYA|GEBZE|OSMANGAZİ/i.test(desc) && !isPositive && amount < 10000) {
+    const cat = categories.find(c => c.code === 'HGS');
+    if (cat) {
+      console.log(`✅ Context: TX[${tx.index}] HGS pattern → HGS`);
+      return {
+        transactionIndex: tx.index,
+        categoryId: cat.id,
+        categoryCode: 'HGS',
+        categoryType: 'EXPENSE',
+        confidence: 0.98,
+        source: 'context_rule',
+        reasoning: `HGS/Ulaşım pattern`,
+        affectsPnl: true,
+        balanceImpact: 'equity_decrease',
+        counterparty: null
+      };
+    }
+  }
+
+  // TELEKOM: Telefon şirketi pattern
+  if (/TURKCELL|TRKCLL|VODAFONE|TÜRK TELEKOM|TURK TELEKOM|SUPERONLINE/i.test(desc) && !isPositive && amount < 5000) {
+    const cat = categories.find(c => c.code === 'TELEKOM');
+    if (cat) {
+      console.log(`✅ Context: TX[${tx.index}] Telekomünikasyon → TELEKOM`);
+      return {
+        transactionIndex: tx.index,
+        categoryId: cat.id,
+        categoryCode: 'TELEKOM',
+        categoryType: 'EXPENSE',
+        confidence: 0.98,
+        source: 'context_rule',
+        reasoning: `Telekomünikasyon şirketi`,
+        affectsPnl: true,
+        balanceImpact: 'equity_decrease',
+        counterparty: extractCounterparty(tx)
+      };
+    }
+  }
+
+  // KARGO: Kargo şirketi pattern
+  if (/ARAS KARGO|MNG KARGO|YURTIÇI KARGO|UPS|DHL|FEDEX|PTT KARGO/i.test(desc) && !isPositive && amount < 5000) {
+    const cat = categories.find(c => c.code === 'KARGO');
+    if (cat) {
+      console.log(`✅ Context: TX[${tx.index}] Kargo şirketi → KARGO`);
+      return {
+        transactionIndex: tx.index,
+        categoryId: cat.id,
+        categoryCode: 'KARGO',
+        categoryType: 'EXPENSE',
+        confidence: 0.98,
+        source: 'context_rule',
+        reasoning: `Kargo şirketi`,
+        affectsPnl: true,
+        balanceImpact: 'equity_decrease',
+        counterparty: extractCounterparty(tx)
+      };
+    }
+  }
+
+  return null;
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ALFA ZEN GELİR KATEGORİLEME (Güncel Fiyatlandırma)
+// ═══════════════════════════════════════════════════════════════════════════
+function categorizeAlfaZenIncome(tx: ParsedTransaction, categories: TransactionCategory[]): RuleMatchResult | null {
+  const desc = (tx.description || '').toUpperCase();
+  const amount = tx.amount || 0;
+  
+  // Sadece pozitif tutarlar
+  if (amount <= 0) return null;
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ADIM 1: Kesin keyword eşleştirme (en yüksek güven)
+  // ═══════════════════════════════════════════════════════════════════════
+  
+  // LEADERSHIP: Direkt L&S firmasına yapılan denetimler
+  if (/LEADERSHIP|LEADERSHİP|L&S|L%S|PERFORMANCE.*VER|SUST.*AUDIT/i.test(desc)) {
+    const cat = categories.find(c => c.code === 'L&S');
+    if (cat) {
+      console.log(`✅ AlfaZen: TX[${tx.index}] Leadership keyword → L&S`);
+      return {
+        transactionIndex: tx.index,
+        categoryId: cat.id,
+        categoryCode: 'L&S',
+        categoryType: 'INCOME',
+        confidence: 1.0,
+        source: 'keyword',
+        reasoning: 'Leadership keyword eşleşmesi',
+        affectsPnl: true,
+        balanceImpact: 'equity_increase',
+        counterparty: extractCounterparty(tx)
+      };
+    }
+  }
+  
+  // SBT TRACKER: Daraltılmış keywords
+  if (/\bSBT\b|SBT TRACKER|KARBON YÖNETİM|YAZILIM HİZ|YAZ HIZ BED/i.test(desc)) {
+    const cat = categories.find(c => c.code === 'SBT');
+    if (cat) {
+      console.log(`✅ AlfaZen: TX[${tx.index}] SBT keyword → SBT`);
+      return {
+        transactionIndex: tx.index,
+        categoryId: cat.id,
+        categoryCode: 'SBT',
+        categoryType: 'INCOME',
+        confidence: 1.0,
+        source: 'keyword',
+        reasoning: 'SBT Tracker keyword eşleşmesi',
+        affectsPnl: true,
+        balanceImpact: 'equity_increase',
+        counterparty: extractCounterparty(tx)
+      };
+    }
+  }
+  
+  // ZDHC: InCheck doğrulama
+  if (/ZDHC|INCHECK|IN-CHECK|IN CHECK|MRSL|GATEWAY|KİMYASAL.*DOĞ/i.test(desc)) {
+    const cat = categories.find(c => c.code === 'ZDHC');
+    if (cat) {
+      console.log(`✅ AlfaZen: TX[${tx.index}] ZDHC keyword → ZDHC`);
+      return {
+        transactionIndex: tx.index,
+        categoryId: cat.id,
+        categoryCode: 'ZDHC',
+        categoryType: 'INCOME',
+        confidence: 1.0,
+        source: 'keyword',
+        reasoning: 'ZDHC InCheck keyword eşleşmesi',
+        affectsPnl: true,
+        balanceImpact: 'equity_increase',
+        counterparty: extractCounterparty(tx)
+      };
+    }
+  }
+  
+  // EĞİTİM: SADECE gerçek eğitim hizmetleri (firma adı DEĞİL)
+  // "ALFA ZEN EĞİTİM" firma adıdır, eğitim hizmeti değil!
+  const hasEducationKeyword = /EĞİTİM HİZ|TRAINING FEE|SEMİNER KATILIM|WORKSHOP FEE/i.test(desc);
+  const isCompanyName = /ALFA ZEN|EĞİTİM DENETİM|EĞİTİM VE DENETİM/i.test(desc);
+  
+  if (hasEducationKeyword && !isCompanyName) {
+    const cat = categories.find(c => c.code === 'EGITIM_IN');
+    if (cat) {
+      console.log(`✅ AlfaZen: TX[${tx.index}] Eğitim hizmeti → EGITIM_IN`);
+      return {
+        transactionIndex: tx.index,
+        categoryId: cat.id,
+        categoryCode: 'EGITIM_IN',
+        categoryType: 'INCOME',
+        confidence: 0.90,
+        source: 'keyword',
+        reasoning: 'Eğitim hizmeti keyword (firma adı değil)',
+        affectsPnl: true,
+        balanceImpact: 'equity_increase',
+        counterparty: extractCounterparty(tx)
+      };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ADIM 2: Tekstil/Sanayi firması kontrolü
+  // ═══════════════════════════════════════════════════════════════════════
+  
+  const isIndustryCompany = /TEKSTİL|BOYA|APRE|DENİM|DOKUMA|KONFEKSİYON|SANAYİ|FABRİKA|KİMYA|İPLİK|ÖRME|TRİKO|ORME|KONFEKS|İPEK|BASMA|KUMAŞ/i.test(desc);
+  
+  if (!isIndustryCompany) {
+    return null; // Sanayi firması değilse AI'a bırak
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════
+  // ADIM 3: ALFA ZEN GÜNCEL TUTAR KURALLARI
+  // 
+  // Fiyatlandırma (2025):
+  // - L&S: 200K+ TL (toplu denetim ödemeleri, L&S firmasına direkt)
+  // - SBT Tracker: 
+  //   - Büyük projeler: 120K+ TL
+  //   - Küçük üreticiler: 70K-120K TL
+  // - ZDHC InCheck: 30K-70K TL
+  // ═══════════════════════════════════════════════════════════════════════
+  
+  let categoryCode: string;
+  let categoryName: string;
+  let confidence: number;
+  
+  if (amount >= 200000) {
+    // 200K+ = L&S toplu denetim ödemesi
+    categoryCode = 'L&S';
+    categoryName = 'Leadership & Sustainability (toplu)';
+    confidence = 0.92;
+  } else if (amount >= 120000) {
+    // 120K-200K = SBT Tracker büyük proje
+    categoryCode = 'SBT';
+    categoryName = 'SBT Tracker (büyük proje)';
+    confidence = 0.90;
+  } else if (amount >= 70000) {
+    // 70K-120K = Muhtemelen SBT küçük üretici
+    categoryCode = 'SBT';
+    categoryName = 'SBT Tracker (küçük üretici)';
+    confidence = 0.80; // Düşük güven - ZDHC de olabilir
+  } else if (amount >= 30000) {
+    // 30K-70K = ZDHC InCheck
+    categoryCode = 'ZDHC';
+    categoryName = 'ZDHC InCheck';
+    confidence = 0.85;
+  } else {
+    // 30K altı = Küçük ZDHC veya diğer
+    categoryCode = 'ZDHC';
+    categoryName = 'ZDHC InCheck (küçük)';
+    confidence = 0.75; // Düşük güven
+  }
+  
+  const cat = categories.find(c => c.code === categoryCode);
+  if (cat) {
+    console.log(`✅ AlfaZen: TX[${tx.index}] Sanayi firması + ${amount.toLocaleString('tr-TR')} TL → ${categoryCode}`);
+    return {
+      transactionIndex: tx.index,
+      categoryId: cat.id,
+      categoryCode,
+      categoryType: 'INCOME',
+      confidence,
+      source: 'amount_rule',
+      reasoning: `Sanayi firması + ${amount.toLocaleString('tr-TR')} TL → ${categoryName}`,
+      affectsPnl: true,
+      balanceImpact: 'equity_increase',
+      counterparty: extractCounterparty(tx)
+    };
+  }
+  
+  return null;
+}
+
+// Check if negative pattern blocks this category
+function isBlockedByNegativePattern(desc: string, categoryCode: string): boolean {
+  const patterns = NEGATIVE_PATTERNS[categoryCode];
+  if (!patterns) return false;
+  
+  return patterns.some(pattern => pattern.test(desc));
+}
+
 /**
  * Categorize transactions using rules and keywords (client-side)
  * Returns matched transactions and those that need AI categorization
@@ -121,6 +533,12 @@ export async function categorizeWithRules(
   userId: string,
   categories: TransactionCategory[]
 ): Promise<{ matched: RuleMatchResult[]; needsAI: ParsedTransaction[] }> {
+  console.log('📊 categorizeWithRules started:', {
+    transactionCount: transactions.length,
+    categoryCount: categories.length,
+    categoriesWithKeywords: categories.filter(c => c.keywords?.length > 0).length
+  });
+
   // 1. Fetch user rules
   const { data: userRules } = await supabase
     .from('user_category_rules')
@@ -128,6 +546,13 @@ export async function categorizeWithRules(
     .eq('user_id', userId)
     .eq('is_active', true)
     .order('priority', { ascending: true });
+
+  // 2. Sort categories by match_priority (lower = higher priority)
+  const sortedCategories = [...categories].sort((a, b) => {
+    const prioA = (a as any).match_priority ?? 100;
+    const prioB = (b as any).match_priority ?? 100;
+    return prioA - prioB;
+  });
 
   const matched: RuleMatchResult[] = [];
   const needsAI: ParsedTransaction[] = [];
@@ -138,7 +563,9 @@ export async function categorizeWithRules(
     const amount = tx.amount || 0;
     let found = false;
 
+    // ═══════════════════════════════════════════════════════════════════
     // STAGE 1: User rules (highest priority)
+    // ═══════════════════════════════════════════════════════════════════
     for (const rule of userRules || []) {
       if (!matchesAmountCondition(amount, rule.amount_condition)) continue;
       if (!matchesPattern(desc, rule.pattern, rule.rule_type)) continue;
@@ -160,6 +587,7 @@ export async function categorizeWithRules(
           balanceImpact: getBalanceImpact(amount, 'PARTNER'),
           counterparty: rule.pattern
         });
+        console.log(`✅ UserRule: TX[${tx.index}] "${desc.substring(0, 40)}..." → ${categoryCode} (ortak kuralı)`);
       } else if (rule.category_id) {
         const cat = categories.find(c => c.id === rule.category_id);
         if (cat) {
@@ -174,6 +602,7 @@ export async function categorizeWithRules(
             affectsPnl: getAffectsPnl(cat.type, cat.code),
             balanceImpact: getBalanceImpact(amount, cat.type)
           });
+          console.log(`✅ UserRule: TX[${tx.index}] "${desc.substring(0, 40)}..." → ${cat.code}`);
         }
       }
 
@@ -184,38 +613,89 @@ export async function categorizeWithRules(
     }
     if (found) continue;
 
-    // STAGE 2: Keyword matching
-    for (const cat of categories) {
+    // ═══════════════════════════════════════════════════════════════════
+    // STAGE 2: Context rules (BANKA kesintileri, sigorta, HGS vb.)
+    // ═══════════════════════════════════════════════════════════════════
+    const contextMatch = matchContextRules(tx, sortedCategories);
+    if (contextMatch) {
+      matched.push(contextMatch);
+      found = true;
+      continue;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // STAGE 3: Keyword matching (SPESİFİKLİK ÖNCELİKLİ)
+    // Tüm eşleşmeleri topla, en uzun keyword'ü seç
+    // ═══════════════════════════════════════════════════════════════════
+    interface KeywordMatch {
+      category: TransactionCategory;
+      keyword: string;
+      keywordLength: number;
+    }
+
+    const allKeywordMatches: KeywordMatch[] = [];
+
+    for (const cat of sortedCategories) {
       if (!cat.keywords || cat.keywords.length === 0) continue;
       
-      const keywordMatch = cat.keywords.find(kw => 
-        desc.toUpperCase().includes(kw.toUpperCase())
-      );
-
-      if (keywordMatch) {
-        // Check amount direction validity
-        if (!isAmountDirectionValid(amount, cat)) {
-          continue; // Skip if amount direction doesn't match
+      // Skip categories with high match_priority (like ORTAK, HISSE)
+      const matchPriority = (cat as any).match_priority ?? 100;
+      if (matchPriority >= 999) continue;
+      
+      for (const kw of cat.keywords) {
+        if (desc.toUpperCase().includes(kw.toUpperCase())) {
+          // Check amount direction validity
+          if (!isAmountDirectionValid(amount, cat)) continue;
+          
+          // Check negative patterns
+          if (isBlockedByNegativePattern(desc, cat.code)) {
+            console.log(`⛔ Negative pattern blocked: TX[${tx.index}] "${kw}" → ${cat.code}`);
+            continue;
+          }
+          
+          allKeywordMatches.push({
+            category: cat,
+            keyword: kw,
+            keywordLength: kw.length
+          });
         }
-
-        matched.push({
-          transactionIndex: tx.index,
-          categoryId: cat.id,
-          categoryCode: cat.code,
-          categoryType: cat.type,
-          confidence: 0.95,
-          source: 'keyword',
-          reasoning: `Keyword: "${keywordMatch}"`,
-          affectsPnl: getAffectsPnl(cat.type, cat.code),
-          balanceImpact: getBalanceImpact(amount, cat.type)
-        });
-        found = true;
-        break;
       }
     }
-    if (found) continue;
 
-    // STAGE 3: Send to AI
+    // En uzun (en spesifik) keyword'ü seç
+    if (allKeywordMatches.length > 0) {
+      allKeywordMatches.sort((a, b) => b.keywordLength - a.keywordLength);
+      const bestMatch = allKeywordMatches[0];
+      
+      matched.push({
+        transactionIndex: tx.index,
+        categoryId: bestMatch.category.id,
+        categoryCode: bestMatch.category.code,
+        categoryType: bestMatch.category.type,
+        confidence: 0.95,
+        source: 'keyword',
+        reasoning: `Keyword: "${bestMatch.keyword}" (${allKeywordMatches.length} eşleşmeden en spesifik)`,
+        affectsPnl: getAffectsPnl(bestMatch.category.type, bestMatch.category.code),
+        balanceImpact: getBalanceImpact(amount, bestMatch.category.type)
+      });
+      console.log(`✅ Keyword: TX[${tx.index}] "${desc.substring(0, 40)}..." → ${bestMatch.category.code} (keyword: "${bestMatch.keyword}")`);
+      found = true;
+      continue;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // STAGE 4: Alfa Zen income rules (tekstil/sanayi firması + tutar)
+    // ═══════════════════════════════════════════════════════════════════
+    const alfaZenMatch = categorizeAlfaZenIncome(tx, sortedCategories);
+    if (alfaZenMatch) {
+      matched.push(alfaZenMatch);
+      found = true;
+      continue;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // STAGE 5: Send to AI
+    // ═══════════════════════════════════════════════════════════════════
     needsAI.push(tx);
   }
 
@@ -232,6 +712,17 @@ export async function categorizeWithRules(
         .then(() => {});
     }
   }
+
+  console.log('📊 categorizeWithRules completed:', {
+    matched: matched.length,
+    needsAI: needsAI.length,
+    bySource: {
+      user_rule: matched.filter(m => m.source === 'user_rule').length,
+      context_rule: matched.filter(m => m.source === 'context_rule').length,
+      keyword: matched.filter(m => m.source === 'keyword').length,
+      amount_rule: matched.filter(m => m.source === 'amount_rule').length
+    }
+  });
 
   return { matched, needsAI };
 }
