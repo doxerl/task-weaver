@@ -12,6 +12,7 @@ import { useIncomeAnalysis } from '@/hooks/finance/useIncomeAnalysis';
 import { useExpenseAnalysis } from '@/hooks/finance/useExpenseAnalysis';
 import { useIncomeStatement } from '@/hooks/finance/useIncomeStatement';
 import { usePdfExport } from '@/hooks/finance/usePdfExport';
+import { useIncomeStatementPdfExport } from '@/hooks/finance/useIncomeStatementPdfExport';
 import { MonthlyTrendChart } from '@/components/finance/charts/MonthlyTrendChart';
 import { ServiceRevenueChart } from '@/components/finance/charts/ServiceRevenueChart';
 import { ExpenseCategoryChart } from '@/components/finance/charts/ExpenseCategoryChart';
@@ -32,7 +33,8 @@ export default function Reports() {
   const expenseAnalysis = useExpenseAnalysis(year);
   const incomeStatement = useIncomeStatement(year);
   const { generatePdf, isGenerating } = usePdfExport();
-  const { currency, formatAmount, getAvailableMonthsCount } = useCurrency();
+  const { generateIncomeStatementPdf, isGenerating: isIncomeStatementPdfGenerating } = useIncomeStatementPdfExport();
+  const { currency, formatAmount, getAvailableMonthsCount, yearlyAverageRate } = useCurrency();
   
   const availableMonths = getAvailableMonthsCount(year);
   const missingMonths = 12 - availableMonths;
@@ -55,8 +57,7 @@ export default function Reports() {
     });
   }, [hub.byMonth]);
 
-  // Get yearly average rate for PDF export
-  const { yearlyAverageRate } = useCurrency();
+  // yearlyAverageRate is now imported from useCurrency above
 
   const handleExportPdf = async () => {
     const reportData: FullReportData = {
@@ -95,6 +96,24 @@ export default function Reports() {
         yearlyAverageRate,
       });
       toast.success(`PDF başarıyla oluşturuldu (${currency})`);
+    } catch {
+      toast.error('PDF oluşturulamadı');
+    }
+  };
+
+  const handleIncomeStatementPdf = async () => {
+    try {
+      await generateIncomeStatementPdf(
+        incomeStatement.statement,
+        incomeStatement.lines,
+        year,
+        {
+          currency,
+          formatAmount: (n) => formatAmount(n, undefined, year),
+          yearlyAverageRate,
+        }
+      );
+      toast.success(`Gelir Tablosu PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
     }
@@ -267,8 +286,24 @@ export default function Reports() {
           </TabsContent>
 
           {/* Tab 4: Income Statement */}
-          <TabsContent value="statement">
-            <IncomeStatementTable lines={incomeStatement.lines} year={year} />
+          <TabsContent value="statement" className="space-y-3">
+            <div className="flex justify-end">
+              <Button 
+                onClick={handleIncomeStatementPdf} 
+                disabled={isIncomeStatementPdfGenerating} 
+                size="sm" 
+                variant="outline"
+                className="gap-1"
+              >
+                {isIncomeStatementPdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                PDF
+              </Button>
+            </div>
+            <IncomeStatementTable 
+              lines={incomeStatement.lines} 
+              year={year}
+              formatAmount={(n) => formatAmount(n, undefined, year)}
+            />
           </TabsContent>
 
           {/* Tab 5: Financing - Detailed */}
