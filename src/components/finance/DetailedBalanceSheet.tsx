@@ -2,100 +2,95 @@ import { BalanceSheet } from '@/types/finance';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
-const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { 
-  minimumFractionDigits: 2, 
-  maximumFractionDigits: 2 
-}).format(n);
-
-// Detailed balance row with account code support
-const DetailedRow = ({ 
-  code,
-  label, 
-  value, 
-  level = 0, 
-  isNegative = false,
-  isSubTotal = false,
-  isSectionTotal = false,
-  isMainTotal = false,
-  showZero = true,
-}: { 
-  code?: string;
-  label: string; 
-  value: number; 
-  level?: number; 
-  isNegative?: boolean;
-  isSubTotal?: boolean;
-  isSectionTotal?: boolean;
-  isMainTotal?: boolean;
-  showZero?: boolean;
-}) => {
-  if (!showZero && value === 0) return null;
-  
-  const paddingLeft = level * 16;
-  const displayValue = isNegative ? `(${formatCurrency(Math.abs(value))})` : formatCurrency(value);
-  
-  if (isMainTotal) {
-    return (
-      <div className="flex justify-between font-bold text-sm border-t-2 border-b-2 border-primary/30 py-2 my-2 bg-primary/5">
-        <span className="pl-1">{label}</span>
-        <span className="pr-1">{displayValue}</span>
-      </div>
-    );
-  }
-  
-  if (isSectionTotal) {
-    return (
-      <div className="flex justify-between font-semibold text-xs border-t border-muted-foreground/30 pt-1 mt-1 bg-muted/30">
-        <span className="pl-1">{label}</span>
-        <span className="pr-1">{displayValue}</span>
-      </div>
-    );
-  }
-  
-  if (isSubTotal) {
-    return (
-      <div className="flex justify-between font-medium text-xs">
-        <span style={{ paddingLeft }}>{code && <span className="text-muted-foreground mr-1">{code}</span>}{label}</span>
-        <span>{displayValue}</span>
-      </div>
-    );
-  }
-  
-  return (
-    <div className={cn(
-      "flex justify-between text-xs py-0.5",
-      isNegative && "text-destructive"
-    )}>
-      <span style={{ paddingLeft }}>
-        {code && <span className="text-muted-foreground mr-1">{code}</span>}
-        {label}
-      </span>
-      <span>{displayValue}</span>
-    </div>
-  );
-};
-
-// Section header
-const SectionHeader = ({ roman, title }: { roman: string; title: string }) => (
-  <div className="font-bold text-xs py-1 mt-2 first:mt-0 bg-muted/50 px-1">
-    {roman} - {title}
-  </div>
-);
-
-// Sub-section header (A, B, C, etc.)
-const SubSectionHeader = ({ letter, title, total }: { letter: string; title: string; total: number }) => (
-  <div className="flex justify-between font-medium text-xs py-0.5 pl-2">
-    <span>{letter} - {title}</span>
-    <span>{formatCurrency(total)}</span>
-  </div>
-);
-
 interface DetailedBalanceSheetProps {
   balanceSheet: BalanceSheet;
   year: number;
+  formatAmount: (n: number) => string;
 }
 
-export function DetailedBalanceSheet({ balanceSheet, year }: DetailedBalanceSheetProps) {
+export function DetailedBalanceSheet({ balanceSheet, year, formatAmount }: DetailedBalanceSheetProps) {
+  // Detailed balance row with account code support
+  const DetailedRow = ({ 
+    code,
+    label, 
+    value, 
+    level = 0, 
+    isNegative = false,
+    isSubTotal = false,
+    isSectionTotal = false,
+    isMainTotal = false,
+    showZero = true,
+  }: { 
+    code?: string;
+    label: string; 
+    value: number; 
+    level?: number; 
+    isNegative?: boolean;
+    isSubTotal?: boolean;
+    isSectionTotal?: boolean;
+    isMainTotal?: boolean;
+    showZero?: boolean;
+  }) => {
+    if (!showZero && value === 0) return null;
+    
+    const paddingLeft = level * 16;
+    const displayValue = isNegative ? `(${formatAmount(Math.abs(value))})` : formatAmount(value);
+    
+    if (isMainTotal) {
+      return (
+        <div className="flex justify-between font-bold text-sm border-t-2 border-b-2 border-primary/30 py-2 my-2 bg-primary/5">
+          <span className="pl-1">{label}</span>
+          <span className="pr-1">{displayValue}</span>
+        </div>
+      );
+    }
+    
+    if (isSectionTotal) {
+      return (
+        <div className="flex justify-between font-semibold text-xs border-t border-muted-foreground/30 pt-1 mt-1 bg-muted/30">
+          <span className="pl-1">{label}</span>
+          <span className="pr-1">{displayValue}</span>
+        </div>
+      );
+    }
+    
+    if (isSubTotal) {
+      return (
+        <div className="flex justify-between font-medium text-xs">
+          <span style={{ paddingLeft }}>{code && <span className="text-muted-foreground mr-1">{code}</span>}{label}</span>
+          <span>{displayValue}</span>
+        </div>
+      );
+    }
+    
+    return (
+      <div className={cn(
+        "flex justify-between text-xs py-0.5",
+        isNegative && "text-destructive"
+      )}>
+        <span style={{ paddingLeft }}>
+          {code && <span className="text-muted-foreground mr-1">{code}</span>}
+          {label}
+        </span>
+        <span>{displayValue}</span>
+      </div>
+    );
+  };
+
+  // Section header
+  const SectionHeader = ({ roman, title }: { roman: string; title: string }) => (
+    <div className="font-bold text-xs py-1 mt-2 first:mt-0 bg-muted/50 px-1">
+      {roman} - {title}
+    </div>
+  );
+
+  // Sub-section header (A, B, C, etc.)
+  const SubSectionHeader = ({ letter, title, total }: { letter: string; title: string; total: number }) => (
+    <div className="flex justify-between font-medium text-xs py-0.5 pl-2">
+      <span>{letter} - {title}</span>
+      <span>{formatAmount(total)}</span>
+    </div>
+  );
   const { 
     currentAssets, 
     fixedAssets, 

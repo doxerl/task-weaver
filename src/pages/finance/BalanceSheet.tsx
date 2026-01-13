@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, FileDown, Settings, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { ArrowLeft, FileDown, Settings, CheckCircle, AlertTriangle, Loader2, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { useFinancialSettings } from '@/hooks/finance/useFinancialSettings';
@@ -16,70 +16,9 @@ import { captureElementToPdf } from '@/lib/pdfCapture';
 import { toast } from '@/hooks/use-toast';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { DetailedBalanceSheet } from '@/components/finance/DetailedBalanceSheet';
+import { CurrencyToggle } from '@/components/finance/CurrencyToggle';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { cn } from '@/lib/utils';
-
-const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { 
-  minimumFractionDigits: 2, 
-  maximumFractionDigits: 2 
-}).format(n);
-
-// Row component for consistent styling
-const BalanceRow = ({ 
-  label, 
-  value, 
-  level = 0, 
-  isTotal = false, 
-  isNegative = false,
-  isSectionTotal = false,
-  isMainTotal = false,
-}: { 
-  label: string; 
-  value: number; 
-  level?: number; 
-  isTotal?: boolean; 
-  isNegative?: boolean;
-  isSectionTotal?: boolean;
-  isMainTotal?: boolean;
-}) => {
-  const paddingLeft = level * 16;
-  
-  if (isMainTotal) {
-    return (
-      <div className="flex justify-between font-bold text-base border-t-2 border-b-2 py-2 my-2">
-        <span>{label}</span>
-        <span>{formatCurrency(value)}</span>
-      </div>
-    );
-  }
-  
-  if (isSectionTotal) {
-    return (
-      <div className="flex justify-between font-semibold text-sm border-t pt-1 mt-1">
-        <span>{label}</span>
-        <span>{formatCurrency(value)}</span>
-      </div>
-    );
-  }
-  
-  if (isTotal) {
-    return (
-      <div className="flex justify-between font-medium text-sm">
-        <span style={{ paddingLeft }}>{label}</span>
-        <span>{formatCurrency(value)}</span>
-      </div>
-    );
-  }
-  
-  return (
-    <div className={cn(
-      "flex justify-between text-sm",
-      isNegative && "text-destructive"
-    )}>
-      <span style={{ paddingLeft }}>{label}</span>
-      <span>{isNegative ? `(${formatCurrency(Math.abs(value))})` : formatCurrency(value)}</span>
-    </div>
-  );
-};
 
 export default function BalanceSheet() {
   const [year, setYear] = useState(new Date().getFullYear());
@@ -92,6 +31,69 @@ export default function BalanceSheet() {
   const { balanceSheet, isLoading, uncategorizedCount, uncategorizedTotal } = useBalanceSheet(year);
   const { settings, upsertSettings } = useFinancialSettings();
   const { summary: fixedExpensesSummary } = useFixedExpenses();
+  const { currency, formatAmount, yearlyAverageRate, getAvailableMonthsCount } = useCurrency();
+  
+  // Create format function for balance sheet values (uses yearly average)
+  const formatValue = (n: number) => formatAmount(n, undefined, year);
+  const availableMonths = getAvailableMonthsCount(year);
+
+  // Row component for consistent styling - uses formatValue from context
+  const BalanceRow = ({ 
+    label, 
+    value, 
+    level = 0, 
+    isTotal = false, 
+    isNegative = false,
+    isSectionTotal = false,
+    isMainTotal = false,
+  }: { 
+    label: string; 
+    value: number; 
+    level?: number; 
+    isTotal?: boolean; 
+    isNegative?: boolean;
+    isSectionTotal?: boolean;
+    isMainTotal?: boolean;
+  }) => {
+    const paddingLeft = level * 16;
+    
+    if (isMainTotal) {
+      return (
+        <div className="flex justify-between font-bold text-base border-t-2 border-b-2 py-2 my-2">
+          <span>{label}</span>
+          <span>{formatValue(value)}</span>
+        </div>
+      );
+    }
+    
+    if (isSectionTotal) {
+      return (
+        <div className="flex justify-between font-semibold text-sm border-t pt-1 mt-1">
+          <span>{label}</span>
+          <span>{formatValue(value)}</span>
+        </div>
+      );
+    }
+    
+    if (isTotal) {
+      return (
+        <div className="flex justify-between font-medium text-sm">
+          <span style={{ paddingLeft }}>{label}</span>
+          <span>{formatValue(value)}</span>
+        </div>
+      );
+    }
+    
+    return (
+      <div className={cn(
+        "flex justify-between text-sm",
+        isNegative && "text-destructive"
+      )}>
+        <span style={{ paddingLeft }}>{label}</span>
+        <span>{isNegative ? `(${formatValue(Math.abs(value))})` : formatValue(value)}</span>
+      </div>
+    );
+  };
 
   const handleExportPdf = async () => {
     if (!contentRef.current) {
@@ -205,6 +207,7 @@ export default function BalanceSheet() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold flex-1">Bilanço</h1>
+          <CurrencyToggle year={year} />
           <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
             <SheetTrigger asChild>
               <Button variant="outline" size="icon">
@@ -379,7 +382,7 @@ export default function BalanceSheet() {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Kategorisiz İşlem Var</AlertTitle>
             <AlertDescription>
-              {uncategorizedCount} adet işlem (₺{formatCurrency(uncategorizedTotal)}) kategorilendirilememiş.{' '}
+              {uncategorizedCount} adet işlem ({formatValue(uncategorizedTotal)}) kategorilendirilememiş.{' '}
               <Link to="/finance/bank-transactions" className="underline font-medium">
                 Kategorilendirmeye Git
               </Link>
@@ -387,9 +390,23 @@ export default function BalanceSheet() {
           </Alert>
         )}
 
+        {/* USD Mode Info Alert */}
+        {currency === 'USD' && (
+          <Alert variant="default" className="bg-blue-50 dark:bg-blue-950/20 border-blue-200">
+            <Info className="h-4 w-4 text-blue-600" />
+            <AlertDescription className="text-blue-800 dark:text-blue-200">
+              USD gösterimi {year} yılı ortalama kuru ile hesaplanmıştır.
+              {availableMonths < 12 && ` (${availableMonths}/12 ay kur verisi mevcut)`}
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Date indicator */}
         <div className="text-center">
-          <p className="text-base font-semibold">31.12.{year} TARİHLİ BİLANÇO</p>
+          <p className="text-base font-semibold">
+            31.12.{year} TARİHLİ BİLANÇO
+            {currency === 'USD' && <span className="text-muted-foreground ml-2">(USD)</span>}
+          </p>
         </div>
 
         {/* Balance Check */}
@@ -404,7 +421,7 @@ export default function BalanceSheet() {
                 <AlertTriangle className="h-5 w-5 text-yellow-600" />
               )}
               <span className="text-sm font-medium">
-                {isBalanced ? 'Aktif = Pasif (Denklik Sağlandı)' : `Denklik Farkı: ₺${formatCurrency(difference)}`}
+                {isBalanced ? 'Aktif = Pasif (Denklik Sağlandı)' : `Denklik Farkı: ${formatValue(difference)}`}
               </span>
             </div>
           </CardContent>
@@ -713,7 +730,7 @@ export default function BalanceSheet() {
           </TabsContent>
           
           <TabsContent value="detailed" className="mt-4">
-            <DetailedBalanceSheet balanceSheet={balanceSheet} year={year} />
+            <DetailedBalanceSheet balanceSheet={balanceSheet} year={year} formatAmount={formatValue} />
           </TabsContent>
           </div>
         </Tabs>
