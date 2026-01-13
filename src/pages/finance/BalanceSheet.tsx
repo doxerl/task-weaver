@@ -106,13 +106,16 @@ export default function BalanceSheet() {
     setIsGenerating(true);
     setPdfProgress('');
     
+    const isSummary = activeTab === 'summary';
+    
     try {
       const success = await captureElementToPdf(contentRef.current, {
-        filename: `Bilanco_${year}_${activeTab === 'detailed' ? 'Ayrintili' : 'Ozet'}.pdf`,
+        filename: `Bilanco_${year}_${isSummary ? 'Ozet' : 'Ayrintili'}.pdf`,
         orientation: 'portrait',
         margin: 10,
         scale: 2,
         waitTime: 1000,
+        fitToPage: isSummary, // Özet bilanço tek sayfaya sığsın
         onProgress: setPdfProgress,
       });
       
