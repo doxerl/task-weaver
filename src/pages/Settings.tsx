@@ -8,7 +8,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { GitHubIntegration } from '@/components/GitHubIntegration';
-import { ArrowLeft, Loader2, Save, User, Globe, Clock, Wallet, CreditCard, Plus } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, User, Globe, Clock, Wallet, CreditCard, Plus, DollarSign } from 'lucide-react';
+import { ExchangeRateEditor } from '@/components/finance/ExchangeRateEditor';
 import { toast } from 'sonner';
 import { useFixedExpenses, FixedExpenseDefinition } from '@/hooks/finance/useFixedExpenses';
 import { useCategories } from '@/hooks/finance/useCategories';
@@ -329,6 +330,24 @@ export default function Settings() {
                 </div>
               </>
             )}
+          </CardContent>
+        </Card>
+
+        <Separator />
+
+        {/* Exchange Rates */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <DollarSign className="h-5 w-5" />
+              Döviz Kurları (USD/TRY)
+            </CardTitle>
+            <CardDescription>
+              Aylık ortalama USD/TRY kurlarını yönetin
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <ExchangeRateEditor />
           </CardContent>
         </Card>
 
