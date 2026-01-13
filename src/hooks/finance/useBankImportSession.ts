@@ -563,11 +563,16 @@ export function useBankImportSession() {
       
       console.log(`AI returned ${catData.results.length} categorizations`);
       
-      // Update transactions in DB
+      // Update transactions in DB - index eşleştirmesi düzeltildi
       let updatedCount = 0;
-      for (const result of catData.results) {
-        const tx = uncategorized.find(t => t.row_number - 1 === result.index);
+      for (let i = 0; i < catData.results.length; i++) {
+        const result = catData.results[i];
+        // Önce AI'ın döndürdüğü index ile eşleştir, bulamazsa sırayla eşle
+        const tx = uncategorized.find(t => t.row_number - 1 === result.index) 
+                 || uncategorized[i];
+        
         if (tx && result.categoryCode) {
+          console.log(`Updating tx ${tx.id} (row ${tx.row_number}) with category ${result.categoryCode}`);
           const { error: updateError } = await supabase
             .from('bank_import_transactions')
             .update({
@@ -584,6 +589,8 @@ export function useBankImportSession() {
           
           if (!updateError) {
             updatedCount++;
+          } else {
+            console.error(`Failed to update tx ${tx.id}:`, updateError);
           }
         }
       }
@@ -597,15 +604,18 @@ export function useBankImportSession() {
         })
         .eq('id', currentSessionId);
       
+      console.log(`Recategorization complete: ${updatedCount}/${catData.results.length} updated`);
       return { count: updatedCount, message: `${updatedCount} işlem kategorilendi` };
     },
-    onSuccess: (result) => {
+    onSuccess: async (result) => {
       toast({
         title: 'Tekrar Kategorilendirme Tamamlandı',
         description: result.message
       });
-      queryClient.invalidateQueries({ queryKey: ['bankImportTransactions'] });
-      queryClient.invalidateQueries({ queryKey: ['bankImportSession'] });
+      // Force refetch for immediate UI update
+      await queryClient.invalidateQueries({ queryKey: ['bankImportTransactions'] });
+      await queryClient.refetchQueries({ queryKey: ['bankImportTransactions'] });
+      await queryClient.invalidateQueries({ queryKey: ['bankImportSession'] });
     },
     onError: (error: Error) => {
       toast({
