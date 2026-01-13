@@ -3,8 +3,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle, PlayCircle, Eye } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle, PlayCircle, Eye, RefreshCw } from 'lucide-react';
 import { useBankFileUpload } from '@/hooks/finance/useBankFileUpload';
+import { useBankImportSession } from '@/hooks/finance/useBankImportSession';
 import { TransactionEditor, EditableTransaction } from '@/components/finance/TransactionEditor';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
@@ -16,28 +17,56 @@ type ViewMode = 'upload' | 'preview' | 'completed';
 
 export default function BankImport() {
   const navigate = useNavigate();
+  
+  // Upload hook - for new uploads
   const { 
     uploadAndParse, 
-    saveTransactions, 
+    saveTransactions: saveFromUpload, 
     resumeProcessing,
     categorizeAndShowPaused,
     progress, 
     status, 
     isUploading, 
-    isSaving, 
+    isSaving: isSavingUpload, 
     isResuming,
     isCategorizing,
     reset, 
-    parsedTransactions,
+    parsedTransactions: uploadedTransactions,
     parseResult,
     batchProgress, 
     canResume,
     pausedTransactionCount,
     stopProcessing 
   } = useBankFileUpload();
+
+  // Session hook - for loading from database on page refresh
+  const {
+    session,
+    parsedTransactions: sessionTransactions,
+    hasActiveSession,
+    isLoading: sessionLoading,
+    approveAndTransfer,
+    cancelSession,
+    isApproving
+  } = useBankImportSession();
+
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [viewMode, setViewMode] = useState<ViewMode>('upload');
   const [error, setError] = useState<string | null>(null);
+
+  // Auto-switch to preview if active session with transactions exists
+  useEffect(() => {
+    if (hasActiveSession && sessionTransactions.length > 0 && viewMode === 'upload' && !isUploading && !isResuming && !isCategorizing) {
+      setViewMode('preview');
+    }
+  }, [hasActiveSession, sessionTransactions.length, viewMode, isUploading, isResuming, isCategorizing]);
+
+  // Effective transactions: prefer uploaded (fresh), fallback to session (from DB)
+  const effectiveTransactions = uploadedTransactions.length > 0 
+    ? uploadedTransactions 
+    : sessionTransactions;
+
+  const isSaving = isSavingUpload || isApproving;
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -92,14 +121,19 @@ export default function BankImport() {
 
   // Watch for successful completion after resume
   useEffect(() => {
-    if (parsedTransactions.length > 0 && status !== 'parsing' && status !== 'categorizing' && status !== 'paused' && !isResuming) {
+    if (uploadedTransactions.length > 0 && status !== 'parsing' && status !== 'categorizing' && status !== 'paused' && !isResuming) {
       // Processing completed, can go to preview
     }
-  }, [parsedTransactions, status, isResuming]);
+  }, [uploadedTransactions, status, isResuming]);
 
   const handleSave = async (transactions: EditableTransaction[]) => {
     try {
-      await saveTransactions.mutateAsync(transactions);
+      // If we have active session, use approveAndTransfer (moves to main tables)
+      if (hasActiveSession && uploadedTransactions.length === 0) {
+        await approveAndTransfer();
+      } else {
+        await saveFromUpload.mutateAsync(transactions);
+      }
       setViewMode('completed');
     } catch (err: any) {
       setError(err.message);
@@ -127,8 +161,21 @@ export default function BankImport() {
 
   const isProcessing = isUploading || isResuming || isCategorizing;
 
+  // Loading state - checking for active session
+  if (sessionLoading && viewMode === 'upload') {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center pb-20">
+        <div className="flex flex-col items-center gap-3">
+          <Loader2 className="h-8 w-8 animate-spin text-primary" />
+          <span className="text-sm text-muted-foreground">Mevcut oturum kontrol ediliyor...</span>
+        </div>
+        <BottomTabBar />
+      </div>
+    );
+  }
+
   // Preview mode - show transaction editor with tabs
-  if (viewMode === 'preview' && parsedTransactions.length > 0) {
+  if (viewMode === 'preview' && effectiveTransactions.length > 0) {
     return (
       <div className="min-h-screen bg-background pb-20">
         <div className="p-4 space-y-4">
@@ -139,7 +186,12 @@ export default function BankImport() {
             <div>
               <h1 className="text-xl font-bold">İşlemleri Düzenle</h1>
               <p className="text-sm text-muted-foreground">
-                {parsedTransactions.length} işlem bulundu - kategorileri seçin
+                {effectiveTransactions.length} işlem bulundu - kategorileri seçin
+                {session && uploadedTransactions.length === 0 && (
+                  <span className="block text-xs mt-1 text-primary">
+                    📁 "{session.file_name}" dosyasından yüklendi
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -159,7 +211,7 @@ export default function BankImport() {
             
             <TabsContent value="categorize" className="mt-4">
               <TransactionEditor
-                transactions={parsedTransactions}
+                transactions={effectiveTransactions}
                 onSave={handleSave}
                 isSaving={isSaving}
               />
