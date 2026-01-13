@@ -175,19 +175,6 @@ export default function Reports() {
               <CardHeader className="pb-2"><CardTitle className="text-sm">Hizmet Bazlı Gelir Dağılımı</CardTitle></CardHeader>
               <CardContent><ServiceRevenueChart data={incomeAnalysis.serviceRevenue} /></CardContent>
             </Card>
-            <Card>
-              <CardContent className="p-4">
-                <h3 className="font-medium mb-3">Müşteri Bazlı Gelir (Top 10)</h3>
-                <div className="space-y-2">
-                  {incomeAnalysis.customerRevenue.slice(0, 10).map((c, i) => (
-                    <div key={i} className="flex justify-between text-sm">
-                      <span className="truncate flex-1">{c.counterparty}</span>
-                      <span className="text-green-600 font-medium">{formatCurrency(c.amount)}</span>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
           </TabsContent>
 
           {/* Tab 3: Expense */}
