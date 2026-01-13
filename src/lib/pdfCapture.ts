@@ -10,6 +10,7 @@ export interface ScreenshotPdfOptions {
   scale?: number;
   onProgress?: (stage: string) => void;
   waitTime?: number;
+  fitToPage?: boolean; // İçeriği tek sayfaya sığdır
 }
 
 /**
@@ -25,7 +26,8 @@ export async function captureElementToPdf(
     orientation = 'portrait', 
     margin = 10, 
     scale = 2,
-    waitTime = 800 
+    waitTime = 800,
+    fitToPage = false
   } = options;
   
   try {
@@ -62,27 +64,61 @@ export async function captureElementToPdf(
     
     const pageWidth = pdf.internal.pageSize.getWidth();
     const pageHeight = pdf.internal.pageSize.getHeight();
-    const imgWidth = pageWidth - (margin * 2);
+    const contentAreaWidth = pageWidth - (margin * 2);
+    const contentAreaHeight = pageHeight - (margin * 2);
+    
+    // Canvas'ın PDF'teki boyutları
+    const imgWidth = contentAreaWidth;
     const imgHeight = (canvas.height * imgWidth) / canvas.width;
     
-    // Canvas'ı PNG'ye çevir
-    const imgData = canvas.toDataURL('image/png', 1.0);
-    
-    // İlk sayfa
-    let heightLeft = imgHeight;
-    let position = margin;
-    let pageNumber = 1;
-    
-    pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-    heightLeft -= (pageHeight - margin * 2);
-    
-    // Ek sayfalar (içerik uzunsa)
-    while (heightLeft > 0) {
-      position = -(pageNumber * (pageHeight - margin * 2)) + margin;
-      pdf.addPage();
-      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
-      heightLeft -= (pageHeight - margin * 2);
-      pageNumber++;
+    if (fitToPage) {
+      // Tek sayfaya sığdırma modu
+      // İçerik sayfadan büyükse ölçekle
+      if (imgHeight > contentAreaHeight) {
+        const scaleRatio = contentAreaHeight / imgHeight;
+        const scaledWidth = imgWidth * scaleRatio;
+        const scaledHeight = contentAreaHeight;
+        // Yatayda ortala
+        const xOffset = margin + (contentAreaWidth - scaledWidth) / 2;
+        const imgData = canvas.toDataURL('image/png', 1.0);
+        pdf.addImage(imgData, 'PNG', xOffset, margin, scaledWidth, scaledHeight);
+      } else {
+        // İçerik zaten sayfaya sığıyor
+        const imgData = canvas.toDataURL('image/png', 1.0);
+        pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
+      }
+    } else {
+      // Çok sayfalı mod - canvas'ı sayfalara böl
+      const pageCanvasHeight = (contentAreaHeight * canvas.width) / imgWidth;
+      const totalPages = Math.ceil(canvas.height / pageCanvasHeight);
+      
+      for (let page = 0; page < totalPages; page++) {
+        if (page > 0) pdf.addPage();
+        
+        // Bu sayfa için canvas slice oluştur
+        const sliceCanvas = document.createElement('canvas');
+        const ctx = sliceCanvas.getContext('2d');
+        
+        if (!ctx) continue;
+        
+        sliceCanvas.width = canvas.width;
+        const remainingHeight = canvas.height - (page * pageCanvasHeight);
+        sliceCanvas.height = Math.min(pageCanvasHeight, remainingHeight);
+        
+        // Slice'ı çiz
+        ctx.drawImage(
+          canvas,
+          0, page * pageCanvasHeight,           // Kaynak (x, y)
+          canvas.width, sliceCanvas.height,     // Kaynak (width, height)
+          0, 0,                                  // Hedef (x, y)
+          sliceCanvas.width, sliceCanvas.height // Hedef (width, height)
+        );
+        
+        const sliceData = sliceCanvas.toDataURL('image/png', 1.0);
+        const sliceImgHeight = (sliceCanvas.height * imgWidth) / sliceCanvas.width;
+        
+        pdf.addImage(sliceData, 'PNG', margin, margin, imgWidth, sliceImgHeight);
+      }
     }
     
     options.onProgress?.('İndiriliyor...');
