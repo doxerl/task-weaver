@@ -183,15 +183,28 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     // Category lookup map
     const categoryMap = new Map(categories.map(c => [c.id, c]));
     
-    // Define category types based on code patterns
-    const getCategoryType = (code: string | null): ProcessedTransaction['categoryType'] => {
-      if (!code) return 'EXPENSE';
+    // Define category types - prioritize category.type field from database
+    const getCategoryType = (cat: typeof categories[0] | null, isIncome: boolean): ProcessedTransaction['categoryType'] => {
+      if (!cat) return isIncome ? 'INCOME' : 'EXPENSE';
+      
+      // First check the category type field from database
+      const dbType = cat.type?.toUpperCase();
+      if (dbType === 'EXCLUDED' || cat.is_excluded) return 'EXCLUDED';
+      if (dbType === 'PARTNER' || cat.affects_partner_account) return 'PARTNER';
+      if (dbType === 'FINANCING' || cat.is_financing) return 'FINANCING';
+      if (dbType === 'INVESTMENT') return 'INVESTMENT';
+      if (dbType === 'INCOME') return 'INCOME';
+      if (dbType === 'EXPENSE') return 'EXPENSE';
+      
+      // Fallback: code pattern matching
+      const code = cat.code || '';
       if (code.includes('EXCLUDED') || code === 'TRANSFER') return 'EXCLUDED';
       if (code.includes('PARTNER')) return 'PARTNER';
       if (code.includes('KREDI') || code.includes('LEASING') || code.includes('FAIZ')) return 'FINANCING';
       if (code.includes('YATIRIM') || code.includes('EKIPMAN') || code.includes('ARAC')) return 'INVESTMENT';
       if (code.includes('GELIR') || code.includes('HIZMET') || code.includes('SATIS')) return 'INCOME';
-      return 'EXPENSE';
+      
+      return isIncome ? 'INCOME' : 'EXPENSE';
     };
 
     // Process bank transactions
@@ -207,8 +220,8 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
         is_commercial: tx.is_commercial
       });
       
-      const catType = cat ? getCategoryType(cat.code) : (tx.amount && tx.amount > 0 ? 'INCOME' : 'EXPENSE');
       const isIncome = tx.amount != null && tx.amount > 0;
+      const catType = getCategoryType(cat || null, isIncome);
       const month = tx.transaction_date ? new Date(tx.transaction_date).getMonth() + 1 : 1;
       
       processedTx.push({
@@ -267,9 +280,9 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     // Also add issued receipts for VAT calculation (they represent income VAT)
     const issuedReceipts = receipts.filter(r => r.document_type === 'issued');
 
-    // Categorize transactions
-    const income = processedTx.filter(t => t.categoryType === 'INCOME' || (t.isIncome && t.categoryType !== 'FINANCING' && t.categoryType !== 'PARTNER'));
-    const expense = processedTx.filter(t => t.categoryType === 'EXPENSE' || (!t.isIncome && t.categoryType !== 'FINANCING' && t.categoryType !== 'PARTNER' && t.categoryType !== 'INVESTMENT' && t.categoryType !== 'EXCLUDED'));
+    // Categorize transactions - strict filtering based on categoryType
+    const income = processedTx.filter(t => t.categoryType === 'INCOME');
+    const expense = processedTx.filter(t => t.categoryType === 'EXPENSE');
     const financing = processedTx.filter(t => t.categoryType === 'FINANCING');
     const investment = processedTx.filter(t => t.categoryType === 'INVESTMENT');
     const partner = processedTx.filter(t => t.categoryType === 'PARTNER');
@@ -382,8 +395,8 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     const byMonth: Record<number, MonthlySummary> = {};
     for (let m = 1; m <= 12; m++) {
       const monthTx = processedTx.filter(t => t.month === m);
-      const monthIncome = monthTx.filter(t => t.categoryType === 'INCOME' || (t.isIncome && t.categoryType !== 'FINANCING' && t.categoryType !== 'PARTNER'));
-      const monthExpense = monthTx.filter(t => t.categoryType === 'EXPENSE' || (!t.isIncome && t.categoryType !== 'FINANCING' && t.categoryType !== 'PARTNER' && t.categoryType !== 'INVESTMENT'));
+      const monthIncome = monthTx.filter(t => t.categoryType === 'INCOME');
+      const monthExpense = monthTx.filter(t => t.categoryType === 'EXPENSE');
       const monthFinancing = monthTx.filter(t => t.categoryType === 'FINANCING');
       const monthInvestment = monthTx.filter(t => t.categoryType === 'INVESTMENT');
       const monthPartner = monthTx.filter(t => t.categoryType === 'PARTNER');
@@ -421,11 +434,24 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     const profitMargin = incomeSummary.net > 0 ? (operatingProfit / incomeSummary.net) * 100 : 0;
 
     // Balance sheet data calculation
-    // Bank balance from latest transaction
+    // Bank balance - use last balance if available, otherwise calculate cumulatively
     const sortedBankTx = [...bankTx].sort((a, b) => 
       new Date(b.transaction_date || 0).getTime() - new Date(a.transaction_date || 0).getTime()
     );
-    const bankBalance = sortedBankTx[0]?.balance || 0;
+    
+    // Try to get balance from latest transaction first
+    let bankBalance = sortedBankTx[0]?.balance;
+    
+    // If balance column is null, calculate cumulative balance from transactions
+    if (bankBalance == null) {
+      const txSortedAsc = [...bankTx].sort((a, b) => 
+        new Date(a.transaction_date || 0).getTime() - new Date(b.transaction_date || 0).getTime()
+      );
+      bankBalance = txSortedAsc.reduce((balance, tx) => {
+        if (tx.is_excluded) return balance;
+        return balance + (tx.amount || 0);
+      }, 0);
+    }
     
     // Partner receivables/payables - net calculation
     const partnerReceivables = partnerSummary.withdrawals > partnerSummary.deposits 
