@@ -51,6 +51,8 @@ export default function BankImport() {
     uncategorizedCount,
     recategorizeUncategorized,
     isRecategorizing,
+    recategorizeAll,
+    isRecategorizingAll,
     isCancelling
   } = useBankImportSession();
 
@@ -220,6 +222,19 @@ export default function BankImport() {
                 )}
               </p>
             </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => recategorizeAll()}
+              disabled={isSaving || isRecategorizingAll || isRecategorizing}
+              title="Tüm işlemleri yeniden kategorile"
+            >
+              {isRecategorizingAll ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+            </Button>
             <Button
               variant="destructive"
               size="sm"

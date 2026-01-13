@@ -646,6 +646,96 @@ export function useBankImportSession() {
     }
   });
 
+  // Recategorize ALL transactions (even already categorized ones)
+  const recategorizeAll = useMutation({
+    mutationFn: async () => {
+      if (!currentSessionId) throw new Error('Aktif oturum yok');
+      
+      // Get ALL transactions from session
+      const { data: allTxs, error } = await supabase
+        .from('bank_import_transactions')
+        .select('*')
+        .eq('session_id', currentSessionId)
+        .order('row_number');
+      
+      if (error || !allTxs?.length) throw new Error('İşlem bulunamadı');
+      
+      console.log(`Recategorizing ALL ${allTxs.length} transactions...`);
+      
+      // Send ALL to AI
+      const txsForAI = allTxs.map(tx => ({
+        index: tx.row_number - 1,
+        id: tx.id,
+        date: tx.transaction_date,
+        description: tx.description,
+        amount: tx.amount,
+        counterparty: tx.counterparty,
+        reference: tx.reference
+      }));
+      
+      const { data: catData, error: catError } = await supabase.functions.invoke('categorize-transactions', {
+        body: { transactions: txsForAI }
+      });
+      
+      if (catError || !catData?.results) {
+        throw new Error('AI kategorilendirme başarısız');
+      }
+      
+      // Update all transactions - clear user selections too
+      let updatedCount = 0;
+      for (const result of catData.results) {
+        const tx = txsForAI.find(t => t.index === result.index);
+        if (tx && result.categoryCode) {
+          const { error: updateError } = await supabase
+            .from('bank_import_transactions')
+            .update({
+              ai_category_code: result.categoryCode,
+              ai_category_type: result.categoryType,
+              ai_confidence: result.confidence,
+              ai_reasoning: result.reasoning,
+              ai_affects_pnl: result.affects_pnl,
+              ai_balance_impact: result.balance_impact,
+              ai_counterparty: result.counterparty,
+              needs_review: result.confidence < 0.7,
+              user_category_id: null,      // Clear user selection
+              user_modified: false,         // Reset modified flag
+              final_category_id: null       // Reset final category
+            })
+            .eq('id', tx.id);
+          
+          if (!updateError) updatedCount++;
+        }
+      }
+      
+      // Update session stats
+      await supabase
+        .from('bank_import_sessions')
+        .update({
+          categorized_count: updatedCount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', currentSessionId);
+      
+      return { count: updatedCount, total: allTxs.length };
+    },
+    onSuccess: async (result) => {
+      toast({
+        title: '✅ Tüm İşlemler Yeniden Kategorilendi',
+        description: `${result.count}/${result.total} işlem güncellendi`
+      });
+      await queryClient.invalidateQueries({ queryKey: ['bankImportTransactions'] });
+      await queryClient.refetchQueries({ queryKey: ['bankImportTransactions'] });
+      await queryClient.invalidateQueries({ queryKey: ['bankImportSession'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Hata',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+
   // Convert DB transactions to ParsedTransaction format
   const convertToParsedTransactions = useCallback((): ParsedTransaction[] => {
     // Wait for both transactions and categories to load
@@ -718,6 +808,7 @@ export function useBankImportSession() {
     clearSession,
     getUncategorizedTransactions,
     recategorizeUncategorized: recategorizeUncategorized.mutateAsync,
+    recategorizeAll: recategorizeAll.mutateAsync,
     refetchSession,
     refetchTransactions,
 
@@ -728,6 +819,7 @@ export function useBankImportSession() {
     isApproving: approveAndTransfer.isPending,
     isUpdatingCategory: updateCategory.isPending,
     isRecategorizing: recategorizeUncategorized.isPending,
+    isRecategorizingAll: recategorizeAll.isPending,
     isCancelling: cancelSession.isPending
   };
 }
