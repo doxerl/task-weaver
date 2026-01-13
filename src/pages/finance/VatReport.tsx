@@ -11,14 +11,16 @@ import { ArrowLeft, Receipt, TrendingUp, TrendingDown, AlertTriangle, FileDown, 
 import { useVatCalculations } from '@/hooks/finance/useVatCalculations';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { Skeleton } from '@/components/ui/skeleton';
-
-const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
+import { useCurrency } from '@/contexts/CurrencyContext';
 
 const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
 export default function VatReport() {
   const [year, setYear] = useState(new Date().getFullYear());
   const vat = useVatCalculations(year);
+  const { formatAmount } = useCurrency();
+
+  const fmt = (value: number) => formatAmount(value, undefined, year);
 
   if (vat.isLoading) {
     return (
@@ -68,7 +70,7 @@ export default function VatReport() {
                 <TrendingUp className="h-4 w-4 text-purple-600" />
                 <span className="text-xs">Hesaplanan KDV</span>
               </div>
-              <p className="text-lg font-bold text-purple-600">{formatCurrency(vat.totalCalculatedVat)}</p>
+              <p className="text-lg font-bold text-purple-600">{fmt(vat.totalCalculatedVat)}</p>
               <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
                 <span>{vat.issuedCount} fatura</span>
                 <span>•</span>
@@ -83,7 +85,7 @@ export default function VatReport() {
                 <TrendingDown className="h-4 w-4 text-green-600" />
                 <span className="text-xs">İndirilecek KDV</span>
               </div>
-              <p className="text-lg font-bold text-green-600">{formatCurrency(vat.totalDeductibleVat)}</p>
+              <p className="text-lg font-bold text-green-600">{fmt(vat.totalDeductibleVat)}</p>
               <div className="flex gap-2 mt-1 text-xs text-muted-foreground">
                 <span>{vat.receivedCount} fatura</span>
                 <span>•</span>
@@ -103,10 +105,10 @@ export default function VatReport() {
               </span>
             </div>
             <p className={`text-3xl font-bold ${vat.netVatPayable >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
-              {formatCurrency(Math.abs(vat.netVatPayable))}
+              {fmt(Math.abs(vat.netVatPayable))}
             </p>
             <p className="text-xs text-muted-foreground mt-2">
-              Hesaplanan ({formatCurrency(vat.totalCalculatedVat)}) - İndirilecek ({formatCurrency(vat.totalDeductibleVat)})
+              Hesaplanan ({fmt(vat.totalCalculatedVat)}) - İndirilecek ({fmt(vat.totalDeductibleVat)})
             </p>
           </CardContent>
         </Card>
@@ -132,13 +134,13 @@ export default function VatReport() {
                 <div>
                   <span className="text-muted-foreground">Hesaplanan:</span>
                   <span className="ml-2 font-medium text-purple-600">
-                    {formatCurrency(vat.receiptCalculatedVat)}
+                    {fmt(vat.receiptCalculatedVat)}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">İndirilecek:</span>
                   <span className="ml-2 font-medium text-green-600">
-                    {formatCurrency(vat.receiptDeductibleVat)}
+                    {fmt(vat.receiptDeductibleVat)}
                   </span>
                 </div>
               </div>
@@ -159,18 +161,18 @@ export default function VatReport() {
                 <div>
                   <span className="text-muted-foreground">Hesaplanan:</span>
                   <span className="ml-2 font-medium text-purple-600">
-                    {formatCurrency(vat.bankCalculatedVat)}
+                    {fmt(vat.bankCalculatedVat)}
                   </span>
                 </div>
                 <div>
                   <span className="text-muted-foreground">İndirilecek:</span>
                   <span className="ml-2 font-medium text-green-600">
-                    {formatCurrency(vat.bankDeductibleVat)}
+                    {fmt(vat.bankDeductibleVat)}
                   </span>
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                * Banka işlemleri %20 KDV oranı ile hesaplanmıştır (brüt ÷ 1.20)
+                * Banka işlemleri is_commercial=true filtresiyle, KDV oranına göre hesaplanmıştır
               </p>
             </div>
           </CardContent>
@@ -226,13 +228,13 @@ export default function VatReport() {
                           <TableRow key={idx}>
                             <TableCell className="font-medium">{month}</TableCell>
                             <TableCell className="text-right text-purple-600">
-                              {formatCurrency(data.calculatedVat)}
+                              {fmt(data.calculatedVat)}
                             </TableCell>
                             <TableCell className="text-right text-green-600">
-                              {formatCurrency(data.deductibleVat)}
+                              {fmt(data.deductibleVat)}
                             </TableCell>
                             <TableCell className={`text-right font-medium ${data.netVat >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                              {formatCurrency(data.netVat)}
+                              {fmt(data.netVat)}
                             </TableCell>
                           </TableRow>
                         );
@@ -241,13 +243,13 @@ export default function VatReport() {
                       <TableRow className="bg-muted/50 font-bold">
                         <TableCell>TOPLAM</TableCell>
                         <TableCell className="text-right text-purple-600">
-                          {formatCurrency(vat.totalCalculatedVat)}
+                          {fmt(vat.totalCalculatedVat)}
                         </TableCell>
                         <TableCell className="text-right text-green-600">
-                          {formatCurrency(vat.totalDeductibleVat)}
+                          {fmt(vat.totalDeductibleVat)}
                         </TableCell>
                         <TableCell className={`text-right ${vat.netVatPayable >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                          {formatCurrency(vat.netVatPayable)}
+                          {fmt(vat.netVatPayable)}
                         </TableCell>
                       </TableRow>
                     </TableBody>
@@ -282,13 +284,13 @@ export default function VatReport() {
                               </span>
                             </TableCell>
                             <TableCell className="text-right text-purple-600">
-                              {formatCurrency(receiptCalc)}
+                              {fmt(receiptCalc)}
                             </TableCell>
                             <TableCell className="text-right text-green-600">
-                              {formatCurrency(receiptDed)}
+                              {fmt(receiptDed)}
                             </TableCell>
                             <TableCell className={`text-right font-medium ${receiptCalc - receiptDed >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                              {formatCurrency(receiptCalc - receiptDed)}
+                              {fmt(receiptCalc - receiptDed)}
                             </TableCell>
                           </TableRow>
                         );
@@ -296,13 +298,13 @@ export default function VatReport() {
                       <TableRow className="bg-muted/50 font-bold">
                         <TableCell>TOPLAM</TableCell>
                         <TableCell className="text-right text-purple-600">
-                          {formatCurrency(vat.receiptCalculatedVat)}
+                          {fmt(vat.receiptCalculatedVat)}
                         </TableCell>
                         <TableCell className="text-right text-green-600">
-                          {formatCurrency(vat.receiptDeductibleVat)}
+                          {fmt(vat.receiptDeductibleVat)}
                         </TableCell>
                         <TableCell className={`text-right ${vat.receiptCalculatedVat - vat.receiptDeductibleVat >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                          {formatCurrency(vat.receiptCalculatedVat - vat.receiptDeductibleVat)}
+                          {fmt(vat.receiptCalculatedVat - vat.receiptDeductibleVat)}
                         </TableCell>
                       </TableRow>
                     </TableBody>
@@ -335,13 +337,13 @@ export default function VatReport() {
                               </span>
                             </TableCell>
                             <TableCell className="text-right text-purple-600">
-                              {formatCurrency(data.bankCalculatedVat)}
+                              {fmt(data.bankCalculatedVat)}
                             </TableCell>
                             <TableCell className="text-right text-green-600">
-                              {formatCurrency(data.bankDeductibleVat)}
+                              {fmt(data.bankDeductibleVat)}
                             </TableCell>
                             <TableCell className={`text-right font-medium ${data.bankCalculatedVat - data.bankDeductibleVat >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                              {formatCurrency(data.bankCalculatedVat - data.bankDeductibleVat)}
+                              {fmt(data.bankCalculatedVat - data.bankDeductibleVat)}
                             </TableCell>
                           </TableRow>
                         );
@@ -349,13 +351,13 @@ export default function VatReport() {
                       <TableRow className="bg-muted/50 font-bold">
                         <TableCell>TOPLAM</TableCell>
                         <TableCell className="text-right text-purple-600">
-                          {formatCurrency(vat.bankCalculatedVat)}
+                          {fmt(vat.bankCalculatedVat)}
                         </TableCell>
                         <TableCell className="text-right text-green-600">
-                          {formatCurrency(vat.bankDeductibleVat)}
+                          {fmt(vat.bankDeductibleVat)}
                         </TableCell>
                         <TableCell className={`text-right ${vat.bankCalculatedVat - vat.bankDeductibleVat >= 0 ? 'text-red-600' : 'text-blue-600'}`}>
-                          {formatCurrency(vat.bankCalculatedVat - vat.bankDeductibleVat)}
+                          {fmt(vat.bankCalculatedVat - vat.bankDeductibleVat)}
                         </TableCell>
                       </TableRow>
                     </TableBody>
@@ -386,8 +388,8 @@ export default function VatReport() {
                     </div>
                   </div>
                   <div className="text-right text-sm">
-                    <div className="text-purple-600">Hes: {formatCurrency(data.calculatedVat)}</div>
-                    <div className="text-green-600">İnd: {formatCurrency(data.deductibleVat)}</div>
+                    <div className="text-purple-600">Hes: {fmt(data.calculatedVat)}</div>
+                    <div className="text-green-600">İnd: {fmt(data.deductibleVat)}</div>
                   </div>
                 </div>
               );
@@ -403,8 +405,8 @@ export default function VatReport() {
                   </div>
                 </div>
                 <div className="text-right text-sm">
-                  <div className="text-purple-600">Hes: {formatCurrency(vat.byVatRate[0].calculatedVat)}</div>
-                  <div className="text-green-600">İnd: {formatCurrency(vat.byVatRate[0].deductibleVat)}</div>
+                  <div className="text-purple-600">Hes: {fmt(vat.byVatRate[0].calculatedVat)}</div>
+                  <div className="text-green-600">İnd: {fmt(vat.byVatRate[0].deductibleVat)}</div>
                 </div>
               </div>
             )}

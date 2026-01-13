@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useReceipts } from './useReceipts';
 import { useBankTransactions } from './useBankTransactions';
+import { separateVat } from './utils/vatSeparation';
 
 export interface VatByMonth {
   calculatedVat: number;
@@ -99,14 +100,11 @@ export function useVatCalculations(year: number): VatCalculations {
       };
     }
 
-    // Filter active bank transactions (commercial only)
-    const commercialTx = (transactions || []).filter(t => 
-      !t.is_excluded && t.is_commercial !== false
-    );
+    // Filter active bank transactions (not excluded)
+    const activeTx = (transactions || []).filter(t => !t.is_excluded);
 
     // ===== FATURA BAZLI KDV =====
     // Tüm faturaları dahil et (banka ile eşleşmeyenler dahil)
-    // Banka ile eşleşenler zaten banka KDV'sinde hesaplanıyor, çift sayma
     const unlinkedReceipts = receipts.filter(r => !r.linked_bank_transaction_id);
     
     // Kesilen faturalar (Hesaplanan KDV - borç)
@@ -120,26 +118,29 @@ export function useVatCalculations(year: number): VatCalculations {
     // KDV bilgisi eksik olanlar
     const missingVatCount = receipts.filter(r => !r.vat_amount && r.total_amount).length;
 
-    // ===== BANKA İŞLEMİ BAZLI KDV =====
-    // Gelirlerden hesaplanan KDV (brüt / 1.20 = net, brüt - net = KDV)
-    const bankIncomeTx = commercialTx.filter(t => t.amount > 0);
+    // ===== BANKA İŞLEMİ BAZLI KDV (separateVat ile tutarlı) =====
+    // Gelirlerden hesaplanan KDV - only commercial transactions
+    const bankIncomeTx = activeTx.filter(t => t.amount > 0 && t.is_commercial === true);
     const bankCalculatedVat = bankIncomeTx.reduce((sum, t) => {
-      if (t.vat_amount !== undefined && t.vat_amount !== null) {
-        return sum + t.vat_amount;
-      }
-      // Fallback calculation
-      return sum + (t.amount - t.amount / 1.20);
+      const vatResult = separateVat({
+        amount: t.amount,
+        vat_amount: t.vat_amount,
+        vat_rate: t.vat_rate,
+        is_commercial: t.is_commercial,
+      });
+      return sum + vatResult.vatAmount;
     }, 0);
     
-    // Giderlerden indirilecek KDV
-    const bankExpenseTx = commercialTx.filter(t => t.amount < 0);
+    // Giderlerden indirilecek KDV - only commercial transactions
+    const bankExpenseTx = activeTx.filter(t => t.amount < 0 && t.is_commercial === true);
     const bankDeductibleVat = bankExpenseTx.reduce((sum, t) => {
-      if (t.vat_amount !== undefined && t.vat_amount !== null) {
-        return sum + t.vat_amount;
-      }
-      // Fallback calculation
-      const absAmount = Math.abs(t.amount);
-      return sum + (absAmount - absAmount / 1.20);
+      const vatResult = separateVat({
+        amount: t.amount,
+        vat_amount: t.vat_amount,
+        vat_rate: t.vat_rate,
+        is_commercial: t.is_commercial,
+      });
+      return sum + vatResult.vatAmount;
     }, 0);
 
     // ===== TOPLAM KDV =====
@@ -156,7 +157,7 @@ export function useVatCalculations(year: number): VatCalculations {
       const receiptCalc = monthIssued.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
       const receiptDed = monthReceived.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
       
-      // Bank VAT
+      // Bank VAT (using separateVat for consistency)
       const monthBankIncome = bankIncomeTx.filter(t => {
         if (!t.transaction_date) return false;
         return new Date(t.transaction_date).getMonth() + 1 === month;
@@ -167,14 +168,23 @@ export function useVatCalculations(year: number): VatCalculations {
       });
       
       const bankCalc = monthBankIncome.reduce((sum, t) => {
-        if (t.vat_amount !== undefined && t.vat_amount !== null) return sum + t.vat_amount;
-        return sum + (t.amount - t.amount / 1.20);
+        const vatResult = separateVat({
+          amount: t.amount,
+          vat_amount: t.vat_amount,
+          vat_rate: t.vat_rate,
+          is_commercial: t.is_commercial,
+        });
+        return sum + vatResult.vatAmount;
       }, 0);
       
       const bankDed = monthBankExpense.reduce((sum, t) => {
-        if (t.vat_amount !== undefined && t.vat_amount !== null) return sum + t.vat_amount;
-        const absAmount = Math.abs(t.amount);
-        return sum + (absAmount - absAmount / 1.20);
+        const vatResult = separateVat({
+          amount: t.amount,
+          vat_amount: t.vat_amount,
+          vat_rate: t.vat_rate,
+          is_commercial: t.is_commercial,
+        });
+        return sum + vatResult.vatAmount;
       }, 0);
       
       const totalCalc = receiptCalc + bankCalc;
