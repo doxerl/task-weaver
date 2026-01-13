@@ -6,165 +6,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useCategories } from './useCategories';
 import { ParsedTransaction, BalanceImpact } from '@/types/finance';
 
-// =====================================================
-// HARDCODED RULES - Client-side pre-processing
-// =====================================================
-
-interface HardcodedRule {
-  pattern: RegExp;
-  category: string;
-  type: 'INCOME' | 'EXPENSE' | 'PARTNER' | 'FINANCING' | 'EXCLUDED';
-  affects_pnl: boolean;
-  balance_impact: string;
-  reasoning: string;
-}
-
-const HARDCODED_RULES: HardcodedRule[] = [
-  // Banka masrafları - KESİNTİ ile başlayan her şey
-  { 
-    pattern: /^KESİNTİ VE EKLERİ/i, 
-    category: 'BANKA', 
-    type: 'EXPENSE', 
-    affects_pnl: true, 
-    balance_impact: 'equity_decrease',
-    reasoning: 'Banka EFT/Havale masrafı'
-  },
-  
-  // Ortak işlemleri - EMRE AKÇAOĞLU
-  { 
-    pattern: /HVL-borç\s*-?\s*EMRE AKÇAOĞLU/i, 
-    category: 'ORTAK_OUT', 
-    type: 'PARTNER', 
-    affects_pnl: false, 
-    balance_impact: 'liability_increase',
-    reasoning: 'Ortağa borç ödemesi'
-  },
-  { 
-    pattern: /CEP ŞUBE-HVL-.*-?\s*EMRE AKÇAOĞLU/i, 
-    category: 'ORTAK_OUT', 
-    type: 'PARTNER', 
-    affects_pnl: false, 
-    balance_impact: 'liability_increase',
-    reasoning: 'Ortağa ödeme'
-  },
-  
-  // HGS/Ulaşım
-  { 
-    pattern: /^HGS Hesaptan/i, 
-    category: 'HGS', 
-    type: 'EXPENSE', 
-    affects_pnl: true, 
-    balance_impact: 'equity_decrease',
-    reasoning: 'HGS bakiye yükleme'
-  },
-  
-  // Kredi ödemeleri
-  { 
-    pattern: /^O4-.*KREDİ/i, 
-    category: 'KREDI_OUT', 
-    type: 'EXPENSE', 
-    affects_pnl: true, 
-    balance_impact: 'equity_decrease',
-    reasoning: 'Kredi taksit ödemesi'
-  },
-  { 
-    pattern: /KREDİLİ HESAP FAİZ/i, 
-    category: 'FAIZ_OUT', 
-    type: 'FINANCING', 
-    affects_pnl: true, 
-    balance_impact: 'equity_decrease',
-    reasoning: 'Kredi faiz gideri'
-  },
-  
-  // Döviz işlemleri
-  { 
-    pattern: /^Mobil DÖVİZ SATIŞ/i, 
-    category: 'DOVIZ_IN', 
-    type: 'INCOME', 
-    affects_pnl: true, 
-    balance_impact: 'equity_increase',
-    reasoning: 'Döviz satış geliri'
-  },
-  { 
-    pattern: /^Mobil DÖVİZ ALIŞ/i, 
-    category: 'DOVIZ_OUT', 
-    type: 'EXPENSE', 
-    affects_pnl: true, 
-    balance_impact: 'equity_decrease',
-    reasoning: 'Döviz alım gideri'
-  },
-  
-  // Sigorta
-  { 
-    pattern: /Eureko|ALLIANZ|AXA|KASKO|TRAFİK|POLİÇE|Prim Tahsilatı/i, 
-    category: 'SIGORTA', 
-    type: 'EXPENSE', 
-    affects_pnl: true, 
-    balance_impact: 'equity_decrease',
-    reasoning: 'Sigorta primi'
-  },
-  
-  // Telekom
-  { 
-    pattern: /TURKCELL|TRKCLL|VODAFONE|TÜRK TELEKOM/i, 
-    category: 'TELEKOM', 
-    type: 'EXPENSE', 
-    affects_pnl: true, 
-    balance_impact: 'equity_decrease',
-    reasoning: 'Telefon/internet faturası'
-  },
-  
-  // Vadeli hesap - hariç tut
-  { 
-    pattern: /^VAD\.HES\.AÇILIŞI|^MEVDUAT GERİ|^REFERANS KAPAMA/i, 
-    category: 'EXCLUDED', 
-    type: 'EXCLUDED', 
-    affects_pnl: false, 
-    balance_impact: 'none',
-    reasoning: 'Vadeli hesap/iç transfer'
-  }
-];
-
-/**
- * Pre-process transactions with hardcoded rules
- * Returns: { preCategorized: transactions with categories, needsAI: transactions for AI }
- */
-function preProcessTransactions(transactions: any[]): {
-  preCategorized: any[];
-  needsAI: any[];
-} {
-  const preCategorized: any[] = [];
-  const needsAI: any[] = [];
-  
-  for (const tx of transactions) {
-    let matched = false;
-    
-    for (const rule of HARDCODED_RULES) {
-      if (rule.pattern.test(tx.description)) {
-        preCategorized.push({
-          ...tx,
-          ai_category_code: rule.category,
-          ai_category_type: rule.type,
-          ai_confidence: 1.0, // Hardcoded = 100% confidence
-          ai_reasoning: rule.reasoning,
-          ai_affects_pnl: rule.affects_pnl,
-          ai_balance_impact: rule.balance_impact,
-          ai_counterparty: tx.counterparty || null,
-          isPreCategorized: true
-        });
-        matched = true;
-        break;
-      }
-    }
-    
-    if (!matched) {
-      needsAI.push(tx);
-    }
-  }
-  
-  console.log(`Pre-processing: ${preCategorized.length} hardcoded, ${needsAI.length} need AI`);
-  return { preCategorized, needsAI };
-}
+// No hardcoded rules - all categorization handled by AI
 
 // =====================================================
 // TYPES
@@ -716,7 +558,7 @@ export function useBankImportSession() {
     return data || [];
   }, [currentSessionId]);
 
-  // Recategorize uncategorized transactions with pre-processing
+  // Recategorize uncategorized transactions - pure AI
   const recategorizeUncategorized = useMutation({
     mutationFn: async () => {
       if (!currentSessionId) throw new Error('No active session');
@@ -728,12 +570,11 @@ export function useBankImportSession() {
         return { count: 0, message: 'Kategorilenmemiş işlem yok' };
       }
       
-      console.log(`Processing ${uncategorized.length} transactions...`);
+      console.log(`Sending ${uncategorized.length} transactions to AI...`);
       
-      // Step 1: Pre-process with hardcoded rules
-      const txsForProcessing = uncategorized.map(tx => ({
+      // Send ALL to AI - no pre-processing
+      const txsForAI = uncategorized.map(tx => ({
         index: tx.row_number - 1,
-        row_number: tx.row_number,
         id: tx.id,
         date: tx.transaction_date,
         description: tx.description,
@@ -742,89 +583,37 @@ export function useBankImportSession() {
         reference: tx.reference
       }));
       
-      const { preCategorized, needsAI } = preProcessTransactions(txsForProcessing);
+      const { data: catData, error } = await supabase.functions.invoke('categorize-transactions', {
+        body: { transactions: txsForAI }
+      });
       
-      let updatedCount = 0;
-      
-      // Step 2: Save pre-categorized transactions directly
-      for (const tx of preCategorized) {
-        const { error: updateError } = await supabase
-          .from('bank_import_transactions')
-          .update({
-            ai_category_code: tx.ai_category_code,
-            ai_category_type: tx.ai_category_type,
-            ai_confidence: tx.ai_confidence,
-            ai_reasoning: tx.ai_reasoning,
-            ai_affects_pnl: tx.ai_affects_pnl,
-            ai_balance_impact: tx.ai_balance_impact,
-            ai_counterparty: tx.ai_counterparty,
-            needs_review: false // Hardcoded rules don't need review
-          })
-          .eq('id', tx.id);
-        
-        if (!updateError) {
-          updatedCount++;
-        } else {
-          console.error(`Failed to save pre-categorized tx ${tx.id}:`, updateError);
-        }
+      if (error || !catData?.results) {
+        throw new Error('AI kategorilendirme başarısız: ' + (error?.message || 'Unknown error'));
       }
       
-      console.log(`Pre-categorized: ${preCategorized.length}, needs AI: ${needsAI.length}`);
+      console.log(`AI returned ${catData.results.length} categorizations`);
       
-      // Step 3: Send remaining to AI (if any)
-      if (needsAI.length > 0) {
-        const { data: catData, error } = await supabase.functions.invoke('categorize-transactions', {
-          body: { 
-            transactions: needsAI.map(tx => ({
-              index: tx.index,
-              date: tx.date,
-              description: tx.description,
-              amount: tx.amount,
-              counterparty: tx.counterparty,
-              reference: tx.reference
-            }))
-          }
-        });
+      // Update all transactions with AI results
+      let updatedCount = 0;
+      for (const result of catData.results) {
+        const tx = txsForAI.find(t => t.index === result.index);
         
-        if (error || !catData?.results) {
-          console.error('AI kategorilendirme hatası:', error?.message);
-          // Still return partial success from pre-categorized
-          if (updatedCount > 0) {
-            return { 
-              count: updatedCount, 
-              message: `${updatedCount} işlem kurallarla kategorilendi, AI hatası: ${error?.message || 'Bilinmeyen'}` 
-            };
-          }
-          throw new Error('AI kategorilendirme başarısız: ' + (error?.message || 'Unknown error'));
-        }
-        
-        console.log(`AI returned ${catData.results.length} categorizations`);
-        
-        // Update AI-categorized transactions
-        for (const result of catData.results) {
-          const tx = needsAI.find(t => t.index === result.index);
+        if (tx && result.categoryCode) {
+          const { error: updateError } = await supabase
+            .from('bank_import_transactions')
+            .update({
+              ai_category_code: result.categoryCode,
+              ai_category_type: result.categoryType,
+              ai_confidence: result.confidence,
+              ai_reasoning: result.reasoning,
+              ai_affects_pnl: result.affects_pnl,
+              ai_balance_impact: result.balance_impact,
+              ai_counterparty: result.counterparty,
+              needs_review: result.confidence < 0.7
+            })
+            .eq('id', tx.id);
           
-          if (tx && result.categoryCode) {
-            const { error: updateError } = await supabase
-              .from('bank_import_transactions')
-              .update({
-                ai_category_code: result.categoryCode,
-                ai_category_type: result.categoryType,
-                ai_confidence: result.confidence,
-                ai_reasoning: result.reasoning,
-                ai_affects_pnl: result.affects_pnl,
-                ai_balance_impact: result.balance_impact,
-                ai_counterparty: result.counterparty,
-                needs_review: result.confidence < 0.7
-              })
-              .eq('id', tx.id);
-            
-            if (!updateError) {
-              updatedCount++;
-            } else {
-              console.error(`Failed to update AI tx ${tx.id}:`, updateError);
-            }
-          }
+          if (!updateError) updatedCount++;
         }
       }
       
@@ -837,8 +626,7 @@ export function useBankImportSession() {
         })
         .eq('id', currentSessionId);
       
-      console.log(`Complete: ${updatedCount} total (${preCategorized.length} rules, ${needsAI.length > 0 ? updatedCount - preCategorized.length : 0} AI)`);
-      return { count: updatedCount, message: `${updatedCount} işlem kategorilendi (${preCategorized.length} kural, ${updatedCount - preCategorized.length} AI)` };
+      return { count: updatedCount, message: `${updatedCount} işlem AI ile kategorilendi` };
     },
     onSuccess: async (result) => {
       toast({
