@@ -1,22 +1,28 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, RotateCcw, Download, TrendingUp, Loader2 } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Download, TrendingUp, Save, Plus, Loader2 } from 'lucide-react';
 import { useGrowthSimulation } from '@/hooks/finance/useGrowthSimulation';
+import { useScenarios } from '@/hooks/finance/useScenarios';
 import { SummaryCards } from '@/components/simulation/SummaryCards';
 import { ProjectionTable } from '@/components/simulation/ProjectionTable';
 import { AddItemDialog } from '@/components/simulation/AddItemDialog';
 import { ComparisonChart } from '@/components/simulation/ComparisonChart';
 import { CapitalAnalysis } from '@/components/simulation/CapitalAnalysis';
+import { ScenarioSelector } from '@/components/simulation/ScenarioSelector';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { Skeleton } from '@/components/ui/skeleton';
+import { SimulationScenario } from '@/types/simulation';
 
 function GrowthSimulationContent() {
+  const simulation = useGrowthSimulation();
+  const scenariosHook = useScenarios();
+  
   const {
     scenarioName,
     setScenarioName,
@@ -38,7 +44,36 @@ function GrowthSimulationContent() {
     addInvestment,
     removeInvestment,
     resetToDefaults,
-  } = useGrowthSimulation();
+    loadScenario,
+  } = simulation;
+
+  const handleSave = async () => {
+    const savedId = await scenariosHook.saveScenario(
+      {
+        name: scenarioName,
+        revenues,
+        expenses,
+        investments,
+        assumedExchangeRate,
+        notes,
+      },
+      scenariosHook.currentScenarioId
+    );
+    
+    if (savedId) {
+      scenariosHook.setCurrentScenarioId(savedId);
+    }
+  };
+
+  const handleSelectScenario = (scenario: SimulationScenario) => {
+    loadScenario(scenario);
+    scenariosHook.setCurrentScenarioId(scenario.id);
+  };
+
+  const handleNewScenario = () => {
+    resetToDefaults();
+    scenariosHook.setCurrentScenarioId(null);
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -62,7 +97,38 @@ function GrowthSimulationContent() {
               </div>
             </div>
             <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" className="gap-2" onClick={resetToDefaults}>
+              <ScenarioSelector
+                scenarios={scenariosHook.scenarios}
+                currentScenarioId={scenariosHook.currentScenarioId}
+                isLoading={scenariosHook.isLoading}
+                onSelect={handleSelectScenario}
+                onDelete={scenariosHook.deleteScenario}
+                onDuplicate={scenariosHook.duplicateScenario}
+              />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-2" 
+                onClick={handleNewScenario}
+              >
+                <Plus className="h-4 w-4" />
+                Yeni
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-2" 
+                onClick={handleSave}
+                disabled={scenariosHook.isSaving}
+              >
+                {scenariosHook.isSaving ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4" />
+                )}
+                Kaydet
+              </Button>
+              <Button variant="outline" size="sm" className="gap-2" onClick={handleNewScenario}>
                 <RotateCcw className="h-4 w-4" />
                 Sıfırla
               </Button>

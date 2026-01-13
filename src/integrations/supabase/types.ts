@@ -1413,6 +1413,57 @@ export type Database = {
           },
         ]
       }
+      simulation_scenarios: {
+        Row: {
+          assumed_exchange_rate: number | null
+          base_year: number | null
+          created_at: string | null
+          description: string | null
+          expenses: Json | null
+          id: string
+          investments: Json | null
+          is_default: boolean | null
+          name: string
+          notes: string | null
+          revenues: Json | null
+          target_year: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          assumed_exchange_rate?: number | null
+          base_year?: number | null
+          created_at?: string | null
+          description?: string | null
+          expenses?: Json | null
+          id?: string
+          investments?: Json | null
+          is_default?: boolean | null
+          name: string
+          notes?: string | null
+          revenues?: Json | null
+          target_year?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          assumed_exchange_rate?: number | null
+          base_year?: number | null
+          created_at?: string | null
+          description?: string | null
+          expenses?: Json | null
+          id?: string
+          investments?: Json | null
+          is_default?: boolean | null
+          name?: string
+          notes?: string | null
+          revenues?: Json | null
+          target_year?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       transaction_categories: {
         Row: {
           account_code: string | null
