@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -20,8 +21,8 @@ interface CategoryResult {
   balance_impact: string;
 }
 
-// Detaylı kural bazlı prompt - örnek bazlı
-const SYSTEM_PROMPT = `Sen Türk bankacılık işlemlerini kategorileyen bir uzmansın.
+// Static rules that don't change
+const STATIC_RULES = `Sen Türk bankacılık işlemlerini kategorileyen bir uzmansın.
 
 ## KRİTİK KURALLAR
 
@@ -29,79 +30,83 @@ const SYSTEM_PROMPT = `Sen Türk bankacılık işlemlerini kategorileyen bir uzm
 - POZİTİF (+) tutar = GELEN PARA = GELİR (müşteriden tahsilat, döviz satışı, vs.)
 - NEGATİF (-) tutar = GİDEN PARA = GİDER veya ÖDEME
 
-### 2. ORTAK İŞLEMLERİ (EMRE AKÇAOĞLU)
-- "borç" + "EMRE AKÇAOĞLU" + NEGATİF = ORTAK_OUT (categoryType: PARTNER, affects_pnl: false)
-- Örnek: "CEP ŞUBE-HVL-borç -EMRE AKÇAOĞLU" -50.000₺ → ORTAK_OUT
-- NOT: Ortağa yapılan ödemeler K/Z'yi ETKİLEMEZ
+### 2. ORTAK İŞLEMLERİ
+- "borç" + kişi adı + NEGATİF = ORTAK_OUT (categoryType: PARTNER, affects_pnl: false)
+- Ortağa yapılan ödemeler K/Z'yi ETKİLEMEZ
 
 ### 3. BANKA KESİNTİLERİ
-- "KESİNTİ VE EKLERİ" + küçük tutar (genelde -6,39₺ veya -12,80₺) = BANKA
+- "KESİNTİ VE EKLERİ" + küçük tutar (genelde < 100₺) = BANKA
 - Bunlar EFT/havale masraflarıdır
-- Örnek: "KESİNTİ VE EKLERİ-borç Faiz / Komisyon" -6,39₺ → BANKA
 
-### 4. MÜŞTERİ TAHSİLATLARI (GELİRLER) - DANIŞMANLIK/DENETİM
-POZİTİF tutar + firma adı (TEKSTİL, SANAYİ, LTD, A.Ş.) = GELİR
+### 4. MÜŞTERİ TAHSİLATLARI (GELİRLER)
+POZİTİF tutar + firma adı = GELİR
 
 **ÖNCE İÇERİK KONTROL ET:**
-- Açıklamada "LEADERSHIP" veya "L&S" veya "L%S" (büyük/küçük harf farketmez) geçiyorsa → L&S
+- "LEADERSHIP" veya "L&S" veya "L%S" geçiyorsa → L&S
 
-**SONRA TUTAR KONTROL ET (sadece içerikte leadership YOKSA):**
-- Tutar > 125.000 TL → SBT (SBT Tracker denetim geliri)
-- Tutar < 75.000 TL → ZDHC (ZDHC InCheck denetim geliri)
-- Tutar 75.000 - 125.000 TL arası → DANIS (Genel danışmanlık geliri)
+**SONRA TUTAR KONTROL ET:**
+- Tutar > 125.000 TL → SBT
+- Tutar < 75.000 TL → ZDHC
+- Tutar 75.000 - 125.000 TL arası → DANIS
 
-Örnekler:
-- "INT-HVL-emre performance - LEADERSHIP" +369.984₺ → L&S (içerikte LEADERSHIP var)
-- "EF1876110 FORTE BOYA VE APRE TEKSTİL" +180.000₺ → SBT (içerikte leadership yok, 125k üstü)
-- "CEP ŞUBE-HVL-XYZ TEKSTİL SAN" +50.000₺ → ZDHC (içerikte leadership yok, 75k altı)
-- "EF9988123 ABC SANAYİ A.Ş." +95.000₺ → DANIS (içerikte leadership yok, 75k-125k arası)
+### 5. MÜŞTERİ İADESİ
+- "İADE" geçiyorsa + NEGATİF tutar = IADE
+- Örnek: "CEP ŞUBE-EFT İADE" -111.665₺ → IADE
 
-### 5. HGS/OTOYOL
-- "HGS Hesaptan Bakiye Yükleme" = HGS (categoryType: EXPENSE)
-- "HGS Hesaptan" ile başlayan her şey = HGS
-- Örnek: "HGS Hesaptan Bakiye Yükleme Gebze İzmir" -795₺ → HGS
-
-### 6. TELEKOM
-- "TRKCLL" veya "TURKCELL" = TELEKOM
-- Örnek: "TRKCLL 5314214216" -391,50₺ → TELEKOM
-
-### 7. SİGORTA
-- "Eureko", "KASKO", "Poliçe", "Prim" = SIGORTA
-- Örnek: "Eureko-KASKO Poliçesi Prim Tahsilatı" -2.904₺ → SIGORTA
-
-### 8. KREDİ
-- "KREDİ TAHS", "TİCARİ AMAÇLI KREDİ" = KREDI_OUT (affects_pnl: false, sadece anapara)
-- "KREDİLİ HESAP FAİZ TAHSİLATI" = FAIZ_OUT (affects_pnl: true)
-- Örnek: "O4-(TİCARİ AMAÇLI KREDİ TAHS.)" -41.262₺ → KREDI_OUT
-
-### 9. DÖVİZ
-- "DÖVİZ SATIŞ" + POZİTİF TL = DOVIZ_IN (döviz sattık, TL aldık)
-- Örnek: "Mobil DÖVİZ SATIŞ EUR:47.597" +10.471₺ → DOVIZ_IN
-
-### 10. OFİS GİDERLERİ
-- "KARTVİZİT BASIMI BEDELİ" (büyük tutar, ör: -1.080₺) = OFIS
-- NOT: Bunun yanındaki "KESİNTİ VE EKLERİ" (-6,39₺) ayrı BANKA kesintisidir
-
-### 11. DANIŞMANLIK GİDERİ
-- "DANIŞMANLIK HİZMET BEDELİ" + NEGATİF + kişi adı = DANIS_OUT
-- Örnek: "CEP ŞUBE-HVL-DANIŞMANLIK HİZMET BEDELİ -AKIN TAŞKIRAN" -18.840₺ → DANIS_OUT
-
-## KATEGORİ KODLARI
-GELİR: SBT, L&S, DANIS, ZDHC, MASRAF, BAYI, EGITIM_IN, RAPOR, FAIZ_IN, KIRA_IN, DOVIZ_IN, DIGER_IN
-GİDER: SEYAHAT, FUAR, HGS, SIGORTA, TELEKOM, BANKA, OFIS, YEMEK, PERSONEL, YAZILIM, MUHASEBE, HUKUK, VERGI, KIRA_OUT, KARGO, HARICI, IADE, DOVIZ_OUT, KREDI_OUT, DIGER_OUT, DANIS_OUT
-ORTAK: ORTAK_OUT, ORTAK_IN
-FİNANSMAN: KREDI_IN, LEASING, FAIZ_OUT
-HARİÇ: IC_TRANSFER, NAKIT_CEKME, EXCLUDED
-
-## affects_pnl KURALI
+### 6. affects_pnl KURALI
 - true: Gelirler, normal giderler (K/Z'yi etkiler)
-- false: Ortak işlemleri, kredi anaparası, iç transferler (bilanço hareketi)
+- false: Ortak işlemleri, kredi anaparası, iç transferler
 
-## counterparty TESPİTİ
+### 7. counterparty TESPİTİ
 - Açıklamadaki firma/kişi adını yaz
-- "EMRE AKÇAOĞLU" ise = "EMRE AKÇAOĞLU"
-- "FORTE BOYA" ise = "FORTE BOYA VE APRE TEKSTİL"
-- Tespit edilemezse = null`;
+- Tespit edilemezse = null
+
+ÖNEMLİ: Bu işlemler kural/keyword ile eşleşmedi. Dikkatli analiz et!`;
+
+// Build dynamic category section from database
+function buildCategorySection(categories: any[]): string {
+  const grouped: Record<string, any[]> = {
+    INCOME: [],
+    EXPENSE: [],
+    PARTNER: [],
+    FINANCING: [],
+    INVESTMENT: [],
+    EXCLUDED: []
+  };
+  
+  for (const cat of categories) {
+    if (grouped[cat.type]) {
+      grouped[cat.type].push(cat);
+    }
+  }
+  
+  const lines = ['\n## KATEGORİ KODLARI (VERİTABANINDAN)'];
+  
+  for (const [type, cats] of Object.entries(grouped)) {
+    if (cats.length > 0) {
+      const codes = cats.map(c => c.code).join(', ');
+      const typeLabels: Record<string, string> = {
+        INCOME: 'GELİR',
+        EXPENSE: 'GİDER', 
+        PARTNER: 'ORTAK',
+        FINANCING: 'FİNANSMAN',
+        INVESTMENT: 'YATIRIM',
+        EXCLUDED: 'HARİÇ'
+      };
+      lines.push(`${typeLabels[type] || type}: ${codes}`);
+    }
+  }
+  
+  // Add keyword hints for categories that have them
+  lines.push('\n## KEYWORD İPUÇLARI (eşleşmemiş işlemler için referans)');
+  const catsWithKeywords = categories.filter(c => c.keywords?.length > 0);
+  for (const cat of catsWithKeywords.slice(0, 15)) { // Limit to avoid token overflow
+    const hints = cat.keywords.slice(0, 5).join(', ');
+    lines.push(`- ${cat.code}: ${hints}...`);
+  }
+  
+  return lines.join('\n');
+}
 
 // Process a single batch
 async function processSingleBatch(
@@ -109,7 +114,8 @@ async function processSingleBatch(
   startIdx: number,
   batchIndex: number,
   totalBatches: number,
-  apiKey: string
+  apiKey: string,
+  systemPrompt: string
 ): Promise<{ batchIndex: number; results: CategoryResult[]; success: boolean }> {
   const txList = batch.map((t: any, idx: number) => {
     const txIndex = t.index !== undefined ? t.index : startIdx + idx;
@@ -130,7 +136,7 @@ async function processSingleBatch(
       body: JSON.stringify({
         model: 'google/gemini-2.5-flash',
         messages: [
-          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'system', content: systemPrompt },
           { role: 'user', content: `Kategorile:\n${txList}` }
         ],
         tools: [{
@@ -200,7 +206,7 @@ serve(async (req) => {
   }
 
   try {
-    const { transactions } = await req.json();
+    const { transactions, categories: providedCategories } = await req.json();
     
     if (!transactions || transactions.length === 0) {
       return new Response(
@@ -214,7 +220,26 @@ serve(async (req) => {
       throw new Error('LOVABLE_API_KEY not configured');
     }
 
-    console.log(`Processing ${transactions.length} transactions...`);
+    // Use provided categories or fetch from DB
+    let categories = providedCategories;
+    if (!categories || categories.length === 0) {
+      const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
+      const supabaseKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+      
+      const { data: dbCategories } = await supabase
+        .from('transaction_categories')
+        .select('code, name, type, keywords')
+        .eq('is_active', true);
+      
+      categories = dbCategories || [];
+    }
+
+    // Build dynamic prompt
+    const categorySection = buildCategorySection(categories);
+    const DYNAMIC_PROMPT = STATIC_RULES + categorySection;
+
+    console.log(`Processing ${transactions.length} transactions with dynamic prompt...`);
 
     // Split into batches
     const batches: any[][] = [];
@@ -228,7 +253,7 @@ serve(async (req) => {
     for (let g = 0; g < batches.length; g += PARALLEL_BATCH_COUNT) {
       const groupBatches = batches.slice(g, g + PARALLEL_BATCH_COUNT);
       const promises = groupBatches.map((batch, idx) => 
-        processSingleBatch(batch, (g + idx) * BATCH_SIZE, g + idx, batches.length, LOVABLE_API_KEY)
+        processSingleBatch(batch, (g + idx) * BATCH_SIZE, g + idx, batches.length, LOVABLE_API_KEY, DYNAMIC_PROMPT)
       );
       
       const groupResults = await Promise.all(promises);
