@@ -47,17 +47,17 @@ export function ServiceRevenueChart({ data, formatAmount }: ServiceRevenueChartP
   }, [data]);
 
   return (
-    <div className="flex flex-col lg:flex-row items-center gap-4">
+    <div className="flex flex-col gap-4">
       {/* Donut Chart */}
-      <div className="w-full lg:w-1/2 h-[220px]">
+      <div className="w-full h-[180px]">
         <ResponsiveContainer width="100%" height="100%">
           <PieChart>
             <Pie
               data={processedData}
               cx="50%"
               cy="50%"
-              innerRadius={50}
-              outerRadius={85}
+              innerRadius={45}
+              outerRadius={75}
               paddingAngle={2}
               dataKey="amount"
               nameKey="name"
@@ -81,30 +81,28 @@ export function ServiceRevenueChart({ data, formatAmount }: ServiceRevenueChartP
         </ResponsiveContainer>
       </div>
 
-      {/* Legend Table */}
-      <div className="w-full lg:w-1/2">
-        <div className="space-y-2">
+      {/* Legend Grid */}
+      <div className="w-full">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
           {processedData.map((item, index) => (
             <div 
               key={index} 
-              className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors gap-4"
+              className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors gap-2"
             >
-              {/* Sol taraf: Renk + İsim */}
-              <div className="flex items-center gap-2 flex-1 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
                 <div 
                   className="w-3 h-3 rounded-full flex-shrink-0" 
                   style={{ backgroundColor: item.color }} 
                 />
-                <span className="text-sm font-medium" style={{ wordBreak: 'break-word' }}>
+                <span className="text-sm font-medium truncate">
                   {item.name}
                 </span>
               </div>
-              {/* Sağ taraf: Değer + Yüzde */}
-              <div className="flex items-center gap-3 flex-shrink-0">
+              <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-sm font-semibold whitespace-nowrap">
                   {formatter(item.amount)}
                 </span>
-                <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[45px] text-right">
+                <span className="text-xs text-muted-foreground whitespace-nowrap">
                   ({item.percentage.toFixed(1)}%)
                 </span>
               </div>
