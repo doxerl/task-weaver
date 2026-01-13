@@ -1315,6 +1315,68 @@ export type Database = {
         }
         Relationships: []
       }
+      user_category_rules: {
+        Row: {
+          amount_condition: string | null
+          category_id: string | null
+          created_at: string | null
+          description: string | null
+          hit_count: number | null
+          id: string
+          is_active: boolean | null
+          is_partner_rule: boolean | null
+          last_hit_at: string | null
+          partner_type: string | null
+          pattern: string
+          priority: number | null
+          rule_type: string | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          amount_condition?: string | null
+          category_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          hit_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_partner_rule?: boolean | null
+          last_hit_at?: string | null
+          partner_type?: string | null
+          pattern: string
+          priority?: number | null
+          rule_type?: string | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          amount_condition?: string | null
+          category_id?: string | null
+          created_at?: string | null
+          description?: string | null
+          hit_count?: number | null
+          id?: string
+          is_active?: boolean | null
+          is_partner_rule?: boolean | null
+          last_hit_at?: string | null
+          partner_type?: string | null
+          pattern?: string
+          priority?: number | null
+          rule_type?: string | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "user_category_rules_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       user_quick_chips: {
         Row: {
           created_at: string
