@@ -1,3 +1,4 @@
+import { useMemo } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
@@ -52,38 +53,42 @@ export function useFinancialSettings() {
     },
   });
 
-  // Return with defaults
-  const defaultSettings: FinancialSettings = {
-    id: '',
-    user_id: user?.id || '',
-    paid_capital: 0,
-    retained_earnings: 0,
-    fiscal_year_start: 1,
-    cash_on_hand: 0,
-    inventory_value: 0,
-    equipment_value: 0,
-    vehicles_value: 0,
-    accumulated_depreciation: 0,
-    bank_loans: 0,
-    trade_receivables: 0,
-    trade_payables: 0,
-    // New fields for detailed balance sheet
-    unpaid_capital: 0,
-    legal_reserves: 0,
-    other_vat: 0,
-    personnel_payables: 0,
-    tax_payables: 0,
-    social_security_payables: 0,
-    deferred_tax_liabilities: 0,
-    calculated_vat_payable: 0,
-    fixtures_value: 0,
-    notes: null,
-    created_at: null,
-    updated_at: null,
-  };
+  // Return with stable defaults using useMemo to prevent infinite loops
+  const stableSettings = useMemo<FinancialSettings>(() => {
+    if (settings) return settings;
+    
+    return {
+      id: '',
+      user_id: user?.id || '',
+      paid_capital: 0,
+      retained_earnings: 0,
+      fiscal_year_start: 1,
+      cash_on_hand: 0,
+      inventory_value: 0,
+      equipment_value: 0,
+      vehicles_value: 0,
+      accumulated_depreciation: 0,
+      bank_loans: 0,
+      trade_receivables: 0,
+      trade_payables: 0,
+      // New fields for detailed balance sheet
+      unpaid_capital: 0,
+      legal_reserves: 0,
+      other_vat: 0,
+      personnel_payables: 0,
+      tax_payables: 0,
+      social_security_payables: 0,
+      deferred_tax_liabilities: 0,
+      calculated_vat_payable: 0,
+      fixtures_value: 0,
+      notes: null,
+      created_at: null,
+      updated_at: null,
+    };
+  }, [settings, user?.id]);
 
   return {
-    settings: settings || defaultSettings,
+    settings: stableSettings,
     isLoading,
     upsertSettings,
   };

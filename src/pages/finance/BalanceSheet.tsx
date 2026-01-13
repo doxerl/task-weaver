@@ -102,25 +102,28 @@ export default function BalanceSheet() {
     social_security_payables: (settings as any).social_security_payables || 0,
   });
 
-  // Sync formData when settings load
+  // Sync formData when settings load - use stable reference to prevent infinite loops
   useEffect(() => {
-    setFormData({
-      paid_capital: settings.paid_capital,
-      unpaid_capital: (settings as any).unpaid_capital || 0,
-      retained_earnings: settings.retained_earnings,
-      legal_reserves: (settings as any).legal_reserves || 0,
-      cash_on_hand: settings.cash_on_hand,
-      trade_receivables: settings.trade_receivables,
-      other_vat: (settings as any).other_vat || 0,
-      vehicles_value: settings.vehicles_value,
-      fixtures_value: (settings as any).fixtures_value || settings.equipment_value,
-      accumulated_depreciation: settings.accumulated_depreciation,
-      trade_payables: settings.trade_payables,
-      personnel_payables: (settings as any).personnel_payables || 0,
-      tax_payables: (settings as any).tax_payables || 0,
-      social_security_payables: (settings as any).social_security_payables || 0,
-    });
-  }, [settings]);
+    // Only update if settings have an actual ID (from database) or if not loading
+    if (settings.id || !isLoading) {
+      setFormData({
+        paid_capital: settings.paid_capital,
+        unpaid_capital: (settings as any).unpaid_capital || 0,
+        retained_earnings: settings.retained_earnings,
+        legal_reserves: (settings as any).legal_reserves || 0,
+        cash_on_hand: settings.cash_on_hand,
+        trade_receivables: settings.trade_receivables,
+        other_vat: (settings as any).other_vat || 0,
+        vehicles_value: settings.vehicles_value,
+        fixtures_value: (settings as any).fixtures_value || settings.equipment_value,
+        accumulated_depreciation: settings.accumulated_depreciation,
+        trade_payables: settings.trade_payables,
+        personnel_payables: (settings as any).personnel_payables || 0,
+        tax_payables: (settings as any).tax_payables || 0,
+        social_security_payables: (settings as any).social_security_payables || 0,
+      });
+    }
+  }, [settings.id, isLoading]);
 
   const handleSaveSettings = () => {
     upsertSettings.mutate(formData);
@@ -385,11 +388,23 @@ export default function BalanceSheet() {
                 <BalanceRow label="1 - Alıcılar" value={balanceSheet.currentAssets.receivables} level={2} />
               </div>
               
+              {/* D - Diğer Alacaklar - Ortaklardan Alacaklar */}
+              {balanceSheet.currentAssets.partnerReceivables > 0 && (
+                <div className="mb-2">
+                  <BalanceRow 
+                    label="D - Diğer Alacaklar" 
+                    value={balanceSheet.currentAssets.partnerReceivables} 
+                    isTotal 
+                  />
+                  <BalanceRow label="1 - Ortaklardan Alacaklar" value={balanceSheet.currentAssets.partnerReceivables} level={2} />
+                </div>
+              )}
+              
               {/* H - Diğer Dönen Varlıklar */}
               <div className="mb-2">
                 <BalanceRow 
                   label="H - Diğer Dönen Varlıklar" 
-                  value={balanceSheet.currentAssets.vatReceivable + (balanceSheet.currentAssets as any).otherVat || balanceSheet.currentAssets.vatReceivable} 
+                  value={balanceSheet.currentAssets.vatReceivable + ((balanceSheet.currentAssets as any).otherVat || 0)} 
                   isTotal 
                 />
                 <BalanceRow label="2 - İndirilecek KDV" value={balanceSheet.currentAssets.vatReceivable} level={2} />
