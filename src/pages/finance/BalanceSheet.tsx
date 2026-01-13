@@ -6,12 +6,14 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ArrowLeft, FileDown, Settings, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { useFinancialSettings } from '@/hooks/finance/useFinancialSettings';
 import { useFixedExpenses } from '@/hooks/finance/useFixedExpenses';
 import { BottomTabBar } from '@/components/BottomTabBar';
+import { DetailedBalanceSheet } from '@/components/finance/DetailedBalanceSheet';
 import { cn } from '@/lib/utils';
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { 
@@ -334,7 +336,7 @@ export default function BalanceSheet() {
 
         {/* Date indicator */}
         <div className="text-center">
-          <p className="text-base font-semibold">31.12.{year} TARİHLİ AYRINTILI BİLANÇO</p>
+          <p className="text-base font-semibold">31.12.{year} TARİHLİ BİLANÇO</p>
         </div>
 
         {/* Balance Check */}
@@ -354,6 +356,15 @@ export default function BalanceSheet() {
             </div>
           </CardContent>
         </Card>
+
+        {/* Tabs for Summary vs Detailed */}
+        <Tabs defaultValue="summary" className="w-full">
+          <TabsList className="grid w-full grid-cols-2">
+            <TabsTrigger value="summary">Özet Bilanço</TabsTrigger>
+            <TabsTrigger value="detailed">Ayrıntılı Bilanço</TabsTrigger>
+          </TabsList>
+          
+          <TabsContent value="summary" className="space-y-4 mt-4">
 
         {/* AKTİF (VARLIKLAR) */}
         <Card>
@@ -644,6 +655,12 @@ export default function BalanceSheet() {
             />
           </CardContent>
         </Card>
+          </TabsContent>
+          
+          <TabsContent value="detailed" className="mt-4">
+            <DetailedBalanceSheet balanceSheet={balanceSheet} year={year} />
+          </TabsContent>
+        </Tabs>
 
         {/* Export */}
         <Button className="w-full" disabled>
