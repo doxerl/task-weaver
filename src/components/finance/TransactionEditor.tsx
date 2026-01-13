@@ -20,11 +20,14 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Save, CheckCircle, ArrowUpCircle, ArrowDownCircle, Sparkles, PenLine, Settings2, AlertTriangle, Info, BarChart3, FileText, Check, X } from 'lucide-react';
+import { Save, CheckCircle, ArrowUpCircle, ArrowDownCircle, Sparkles, PenLine, Settings2, AlertTriangle, Info, BarChart3, FileText, Check, X, ArrowUpDown } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { cn } from '@/lib/utils';
 import { ParsedTransaction, BalanceImpact } from '@/types/finance';
+
+type SortField = 'date' | 'amount' | 'category' | 'confidence';
+type SortDirection = 'asc' | 'desc';
 
 export interface EditableTransaction extends ParsedTransaction {
   categoryId: string | null;
@@ -92,6 +95,8 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
     });
   }, [transactions]);
   const [selectAll, setSelectAll] = useState(false);
+  const [sortField, setSortField] = useState<SortField>('confidence');
+  const [sortDirection, setSortDirection] = useState<SortDirection>('asc');
   
   // Amount editing state
   const [editingAmountIndex, setEditingAmountIndex] = useState<number | null>(null);
@@ -211,11 +216,45 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
 
   const sortedTransactions = useMemo(() => {
     return [...editableTransactions].sort((a, b) => {
-      const aConf = a.aiConfidence || 1;
-      const bConf = b.aiConfidence || 1;
-      return aConf - bConf;
+      let comparison = 0;
+      
+      switch (sortField) {
+        case 'date':
+          // Parse date strings for comparison (DD.MM.YYYY or YYYY-MM-DD)
+          const dateA = a.date || '';
+          const dateB = b.date || '';
+          // Convert to comparable format
+          const parseDateForSort = (d: string) => {
+            if (d.includes('.')) {
+              const parts = d.split('.');
+              return `${parts[2]}-${parts[1]}-${parts[0]}`;
+            }
+            return d;
+          };
+          comparison = parseDateForSort(dateA).localeCompare(parseDateForSort(dateB));
+          break;
+          
+        case 'amount':
+          comparison = Math.abs(a.amount) - Math.abs(b.amount);
+          break;
+          
+        case 'category':
+          const catA = getCategoryName(a.categoryId) || 'zzz'; // null ones go to end
+          const catB = getCategoryName(b.categoryId) || 'zzz';
+          comparison = catA.localeCompare(catB, 'tr');
+          break;
+          
+        case 'confidence':
+        default:
+          const aConf = a.aiConfidence || 1;
+          const bConf = b.aiConfidence || 1;
+          comparison = aConf - bConf;
+          break;
+      }
+      
+      return sortDirection === 'asc' ? comparison : -comparison;
     });
-  }, [editableTransactions]);
+  }, [editableTransactions, sortField, sortDirection, categories]);
 
   const getOriginalIndex = (tx: EditableTransaction) => {
     return editableTransactions.findIndex(t => t.index === tx.index);
@@ -315,12 +354,39 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
         )}
 
         {/* Bulk actions */}
-        <div className="flex items-center gap-3 p-3 bg-muted/50 rounded-lg">
+        <div className="flex flex-wrap items-center gap-3 p-3 bg-muted/50 rounded-lg">
           <Checkbox
             checked={selectAll}
             onCheckedChange={(checked) => handleSelectAll(checked as boolean)}
           />
           <span className="text-sm font-medium">Tümünü Seç</span>
+          
+          {/* Sorting dropdown */}
+          <div className="flex items-center gap-2 ml-auto">
+            <ArrowUpDown className="h-4 w-4 text-muted-foreground" />
+            <Select 
+              value={`${sortField}-${sortDirection}`}
+              onValueChange={(val) => {
+                const [field, dir] = val.split('-') as [SortField, SortDirection];
+                setSortField(field);
+                setSortDirection(dir);
+              }}
+            >
+              <SelectTrigger className="w-52 h-8">
+                <SelectValue placeholder="Sırala" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="date-desc">Tarih (Yeni → Eski)</SelectItem>
+                <SelectItem value="date-asc">Tarih (Eski → Yeni)</SelectItem>
+                <SelectItem value="amount-desc">Tutar (Büyük → Küçük)</SelectItem>
+                <SelectItem value="amount-asc">Tutar (Küçük → Büyük)</SelectItem>
+                <SelectItem value="category-asc">Kategori (A-Z)</SelectItem>
+                <SelectItem value="category-desc">Kategori (Z-A)</SelectItem>
+                <SelectItem value="confidence-asc">Güven (Düşük → Yüksek)</SelectItem>
+                <SelectItem value="confidence-desc">Güven (Yüksek → Düşük)</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
           
           {selectedCount > 0 && (
             <>
