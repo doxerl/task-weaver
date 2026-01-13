@@ -1,6 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, RefObject } from 'react';
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import html2canvas from 'html2canvas';
 import { BalanceSheet } from '@/types/finance';
 import { normalizeTurkishText } from '@/lib/fonts/roboto';
 
@@ -12,6 +13,94 @@ const tr = (text: string): string => normalizeTurkishText(text);
 
 export function useBalanceSheetPdfExport() {
   const [isGenerating, setIsGenerating] = useState(false);
+  const [progressMessage, setProgressMessage] = useState('');
+
+  /**
+   * Ekran yakalama ile PDF oluşturma (önerilen yöntem)
+   * HTML elementini birebir yakalar - Türkçe karakterler sorunsuz
+   */
+  const generateFromScreenshot = useCallback(async (
+    containerRef: RefObject<HTMLElement>,
+    year: number,
+    detailed: boolean = false
+  ): Promise<boolean> => {
+    if (!containerRef.current) {
+      console.error('Container ref bulunamadı');
+      return false;
+    }
+    
+    setIsGenerating(true);
+    setProgressMessage('Sayfa hazırlanıyor...');
+    
+    try {
+      // Render tamamlanmasını bekle
+      await new Promise(resolve => setTimeout(resolve, 800));
+      
+      setProgressMessage('Ekran yakalanıyor...');
+      
+      const element = containerRef.current;
+      
+      // html2canvas ile yakala
+      const canvas = await html2canvas(element, {
+        scale: 2,
+        useCORS: true,
+        logging: false,
+        allowTaint: true,
+        backgroundColor: '#ffffff',
+        windowWidth: element.scrollWidth,
+        windowHeight: element.scrollHeight,
+      });
+      
+      setProgressMessage('PDF oluşturuluyor...');
+      
+      // PDF boyutları (A4)
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'mm',
+        format: 'a4',
+      });
+      
+      const margin = 10;
+      const pageWidth = pdf.internal.pageSize.getWidth();
+      const pageHeight = pdf.internal.pageSize.getHeight();
+      const imgWidth = pageWidth - (margin * 2);
+      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      
+      // Canvas'ı PNG'ye çevir
+      const imgData = canvas.toDataURL('image/png', 1.0);
+      
+      // İlk sayfa
+      let heightLeft = imgHeight;
+      let position = margin;
+      let pageNumber = 1;
+      
+      pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+      heightLeft -= (pageHeight - margin * 2);
+      
+      // Ek sayfalar (içerik uzunsa)
+      while (heightLeft > 0) {
+        position = -(pageNumber * (pageHeight - margin * 2)) + margin;
+        pdf.addPage();
+        pdf.addImage(imgData, 'PNG', margin, position, imgWidth, imgHeight);
+        heightLeft -= (pageHeight - margin * 2);
+        pageNumber++;
+      }
+      
+      setProgressMessage('İndiriliyor...');
+      await new Promise(resolve => setTimeout(resolve, 200));
+      
+      const filename = `Bilanco_${year}_${detailed ? 'Ayrintili' : 'Ozet'}.pdf`;
+      pdf.save(filename);
+      
+      return true;
+    } catch (error) {
+      console.error('PDF oluşturma hatası:', error);
+      return false;
+    } finally {
+      setIsGenerating(false);
+      setProgressMessage('');
+    }
+  }, []);
 
   const generateBalanceSheetPdf = useCallback(async (
     balanceSheet: BalanceSheet,
@@ -70,7 +159,7 @@ export function useBalanceSheetPdfExport() {
     }
   }, []);
 
-  return { generateBalanceSheetPdf, isGenerating };
+  return { generateBalanceSheetPdf, generateFromScreenshot, isGenerating, progressMessage };
 }
 
 function generateSummaryPdf(doc: jsPDF, balanceSheet: BalanceSheet, pageWidth: number) {
