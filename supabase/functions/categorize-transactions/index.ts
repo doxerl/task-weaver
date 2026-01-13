@@ -329,9 +329,11 @@ async function processSingleBatch(
   totalBatches: number,
   apiKey: string
 ): Promise<{ batchIndex: number; results: CategoryResult[]; success: boolean }> {
-  const txList = batch.map((t: any, idx: number) =>
-    `${startIdx + idx}|${t.amount > 0 ? '+' : ''}${t.amount}|${t.description}|${t.counterparty || '-'}`
-  ).join('\n');
+  const txList = batch.map((t: any, idx: number) => {
+    // Transaction'ın kendi index'i varsa onu kullan (recategorize durumu için)
+    const txIndex = t.index !== undefined ? t.index : startIdx + idx;
+    return `${txIndex}|${t.amount > 0 ? '+' : ''}${t.amount}|${t.description}|${t.counterparty || '-'}`;
+  }).join('\n');
 
   try {
     const controller = new AbortController();
