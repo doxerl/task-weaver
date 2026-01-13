@@ -105,19 +105,20 @@ export function useVatCalculations(year: number): VatCalculations {
     );
 
     // ===== FATURA BAZLI KDV =====
-    // Sadece rapora dahil edilen belgeler
-    const includedReceipts = receipts.filter(r => r.is_included_in_report);
+    // Tüm faturaları dahil et (banka ile eşleşmeyenler dahil)
+    // Banka ile eşleşenler zaten banka KDV'sinde hesaplanıyor, çift sayma
+    const unlinkedReceipts = receipts.filter(r => !r.linked_bank_transaction_id);
     
     // Kesilen faturalar (Hesaplanan KDV - borç)
-    const issuedReceipts = includedReceipts.filter(r => r.document_type === 'issued');
+    const issuedReceipts = unlinkedReceipts.filter(r => r.document_type === 'issued');
     const receiptCalculatedVat = issuedReceipts.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
     
     // Alınan fişler (İndirilecek KDV - alacak)
-    const receivedReceipts = includedReceipts.filter(r => r.document_type === 'received');
+    const receivedReceipts = unlinkedReceipts.filter(r => r.document_type === 'received');
     const receiptDeductibleVat = receivedReceipts.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
     
     // KDV bilgisi eksik olanlar
-    const missingVatCount = includedReceipts.filter(r => !r.vat_amount && r.total_amount).length;
+    const missingVatCount = receipts.filter(r => !r.vat_amount && r.total_amount).length;
 
     // ===== BANKA İŞLEMİ BAZLI KDV =====
     // Gelirlerden hesaplanan KDV (brüt / 1.20 = net, brüt - net = KDV)

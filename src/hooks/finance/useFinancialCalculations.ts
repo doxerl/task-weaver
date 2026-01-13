@@ -40,7 +40,8 @@ export function useFinancialCalculations(year: number): FinancialCalculations & 
 
     // Filter active transactions (not excluded)
     const activeTx = transactions.filter(t => !t.is_excluded);
-    const activeReceipts = receipts.filter(r => r.is_included_in_report);
+    // Include ALL receipts for expense calculation (not just is_included_in_report)
+    const activeReceipts = receipts;
 
     // Get category IDs by type
     const financingIds = categories
@@ -121,9 +122,23 @@ export function useFinancialCalculations(year: number): FinancialCalculations & 
     const netVatPayable = calculatedVat - deductibleVat;
 
     // Calculate expenses from receipts (unlinked to bank transactions)
+    // Only include "received" type receipts (alınan faturalar), not issued ones
+    // Use NET amount (KDV hariç) to avoid counting VAT as expense
     const receiptExpense = activeReceipts
-      .filter(r => !r.linked_bank_transaction_id)
-      .reduce((sum, r) => sum + (r.total_amount || 0), 0);
+      .filter(r => !r.linked_bank_transaction_id && r.document_type !== 'issued')
+      .reduce((sum, r) => {
+        const total = r.total_amount || 0;
+        // Use KDV hariç (net) amount
+        const netAmount = r.vat_amount 
+          ? total - r.vat_amount 
+          : total / 1.20; // Fallback: assume 20% VAT
+        return sum + netAmount;
+      }, 0);
+
+    // Calculate VAT from receipts for deduction
+    const receiptDeductibleVat = activeReceipts
+      .filter(r => !r.linked_bank_transaction_id && r.document_type === 'received')
+      .reduce((sum, r) => sum + (r.vat_amount || 0), 0);
 
     const totalExpenses = expenseFromBank + receiptExpense;
     const operatingProfit = totalIncome - totalExpenses;

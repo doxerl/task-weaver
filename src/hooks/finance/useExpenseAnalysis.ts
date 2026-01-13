@@ -45,7 +45,7 @@ export function useExpenseAnalysis(year: number) {
       return true;
     });
 
-    // Expense by Category
+    // Expense by Category - Use NET amounts (KDV hariç)
     const categoryMap = new Map<string, { amount: number; byMonth: Record<number, number> }>();
     
     expenseTransactions.forEach(tx => {
@@ -53,21 +53,27 @@ export function useExpenseAnalysis(year: number) {
       const code = category?.code || 'DIGER_GIDER';
       const date = new Date(tx.transaction_date || '');
       const month = date.getMonth() + 1;
+      
+      // Use net_amount if available, otherwise calculate (KDV hariç)
       const absAmount = Math.abs(tx.amount || 0);
+      const netAmount = tx.net_amount !== undefined && tx.net_amount !== null
+        ? Math.abs(tx.net_amount)
+        : (tx.is_commercial !== false ? absAmount / 1.20 : absAmount);
       
       if (!categoryMap.has(code)) {
         categoryMap.set(code, { amount: 0, byMonth: {} });
       }
       
       const entry = categoryMap.get(code)!;
-      entry.amount += absAmount;
-      entry.byMonth[month] = (entry.byMonth[month] || 0) + absAmount;
+      entry.amount += netAmount;
+      entry.byMonth[month] = (entry.byMonth[month] || 0) + netAmount;
     });
 
-    // Add receipt expenses (not linked to bank transactions)
+    // Add receipt expenses (all received receipts, not linked to bank transactions)
+    // Use NET amounts (KDV hariç)
     const unlinkedReceipts = receipts.filter(
       r => !r.linked_bank_transaction_id && 
-      r.is_included_in_report !== false &&
+      r.document_type !== 'issued' &&
       r.total_amount
     );
 
@@ -75,15 +81,20 @@ export function useExpenseAnalysis(year: number) {
       const category = categories.find(c => c.id === receipt.category_id);
       const code = category?.code || 'DIGER_GIDER';
       const month = receipt.month || new Date(receipt.receipt_date || '').getMonth() + 1;
-      const amount = receipt.total_amount || 0;
+      
+      // Use KDV hariç (net) amount
+      const total = receipt.total_amount || 0;
+      const netAmount = receipt.vat_amount 
+        ? total - receipt.vat_amount 
+        : total / 1.20; // Fallback: assume 20% VAT
       
       if (!categoryMap.has(code)) {
         categoryMap.set(code, { amount: 0, byMonth: {} });
       }
       
       const entry = categoryMap.get(code)!;
-      entry.amount += amount;
-      entry.byMonth[month] = (entry.byMonth[month] || 0) + amount;
+      entry.amount += netAmount;
+      entry.byMonth[month] = (entry.byMonth[month] || 0) + netAmount;
     });
 
     const totalExpense = Array.from(categoryMap.values()).reduce((sum, s) => sum + s.amount, 0);
@@ -116,15 +127,24 @@ export function useExpenseAnalysis(year: number) {
       monthlyMap.set(m, 0);
     }
 
+    // Monthly expense totals - use NET amounts
     expenseTransactions.forEach(tx => {
       const date = new Date(tx.transaction_date || '');
       const month = date.getMonth() + 1;
-      monthlyMap.set(month, (monthlyMap.get(month) || 0) + Math.abs(tx.amount || 0));
+      
+      const absAmount = Math.abs(tx.amount || 0);
+      const netAmount = tx.net_amount !== undefined && tx.net_amount !== null
+        ? Math.abs(tx.net_amount)
+        : (tx.is_commercial !== false ? absAmount / 1.20 : absAmount);
+        
+      monthlyMap.set(month, (monthlyMap.get(month) || 0) + netAmount);
     });
 
     unlinkedReceipts.forEach(receipt => {
       const month = receipt.month || new Date(receipt.receipt_date || '').getMonth() + 1;
-      monthlyMap.set(month, (monthlyMap.get(month) || 0) + (receipt.total_amount || 0));
+      const total = receipt.total_amount || 0;
+      const netAmount = receipt.vat_amount ? total - receipt.vat_amount : total / 1.20;
+      monthlyMap.set(month, (monthlyMap.get(month) || 0) + netAmount);
     });
 
     const monthlyExpense: MonthlyDataPoint[] = Array.from(monthlyMap.entries())

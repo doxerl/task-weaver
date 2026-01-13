@@ -40,7 +40,7 @@ export function useIncomeAnalysis(year: number) {
       return true;
     });
 
-    // Service Revenue by Category
+    // Service Revenue by Category - Use NET amounts (KDV hariç)
     const serviceMap = new Map<string, { amount: number; byMonth: Record<number, number> }>();
     
     incomeTransactions.forEach(tx => {
@@ -49,13 +49,18 @@ export function useIncomeAnalysis(year: number) {
       const date = new Date(tx.transaction_date || '');
       const month = date.getMonth() + 1;
       
+      // Use net_amount if available, otherwise calculate (KDV hariç)
+      const netAmount = tx.net_amount !== undefined && tx.net_amount !== null
+        ? tx.net_amount
+        : (tx.is_commercial !== false ? (tx.amount || 0) / 1.20 : (tx.amount || 0));
+      
       if (!serviceMap.has(code)) {
         serviceMap.set(code, { amount: 0, byMonth: {} });
       }
       
       const entry = serviceMap.get(code)!;
-      entry.amount += tx.amount || 0;
-      entry.byMonth[month] = (entry.byMonth[month] || 0) + (tx.amount || 0);
+      entry.amount += netAmount;
+      entry.byMonth[month] = (entry.byMonth[month] || 0) + netAmount;
     });
 
     const totalIncome = Array.from(serviceMap.values()).reduce((sum, s) => sum + s.amount, 0);
@@ -80,11 +85,17 @@ export function useIncomeAnalysis(year: number) {
     
     incomeTransactions.forEach(tx => {
       const counterparty = tx.counterparty || 'Bilinmeyen';
+      
+      // Use net_amount if available, otherwise calculate (KDV hariç)
+      const netAmount = tx.net_amount !== undefined && tx.net_amount !== null
+        ? tx.net_amount
+        : (tx.is_commercial !== false ? (tx.amount || 0) / 1.20 : (tx.amount || 0));
+      
       if (!customerMap.has(counterparty)) {
         customerMap.set(counterparty, { amount: 0, count: 0 });
       }
       const entry = customerMap.get(counterparty)!;
-      entry.amount += tx.amount || 0;
+      entry.amount += netAmount;
       entry.count += 1;
     });
 
@@ -104,10 +115,16 @@ export function useIncomeAnalysis(year: number) {
       monthlyMap.set(m, 0);
     }
 
+    // Monthly income totals - use NET amounts
     incomeTransactions.forEach(tx => {
       const date = new Date(tx.transaction_date || '');
       const month = date.getMonth() + 1;
-      monthlyMap.set(month, (monthlyMap.get(month) || 0) + (tx.amount || 0));
+      
+      const netAmount = tx.net_amount !== undefined && tx.net_amount !== null
+        ? tx.net_amount
+        : (tx.is_commercial !== false ? (tx.amount || 0) / 1.20 : (tx.amount || 0));
+        
+      monthlyMap.set(month, (monthlyMap.get(month) || 0) + netAmount);
     });
 
     let cumulativeProfit = 0;
