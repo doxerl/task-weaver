@@ -55,6 +55,9 @@ export default function Reports() {
     });
   }, [hub.byMonth]);
 
+  // Get yearly average rate for PDF export
+  const { yearlyAverageRate } = useCurrency();
+
   const handleExportPdf = async () => {
     const reportData: FullReportData = {
       year,
@@ -86,8 +89,12 @@ export default function Reports() {
     };
 
     try {
-      await generatePdf(reportData);
-      toast.success('PDF başarıyla oluşturuldu');
+      await generatePdf(reportData, {
+        currency,
+        formatAmount: (n) => formatAmount(n, undefined, year),
+        yearlyAverageRate,
+      });
+      toast.success(`PDF başarıyla oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
     }
