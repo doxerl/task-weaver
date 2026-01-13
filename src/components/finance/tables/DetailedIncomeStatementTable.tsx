@@ -9,12 +9,27 @@ interface Props {
 
 export const DetailedIncomeStatementTable = forwardRef<HTMLDivElement, Props>(
   ({ data, formatAmount }, ref) => {
+    // Format value with parentheses for negative
     const formatValue = (value: number | undefined, isNegative?: boolean) => {
-      if (value === undefined || value === 0) return '';
+      if (value === undefined) return '';
+      if (value === 0) return '0,00';
       const absValue = Math.abs(value);
       const formatted = formatAmount(absValue);
       return isNegative || value < 0 ? `(${formatted})` : formatted;
     };
+
+    // Filter out empty sub-items (keep headers and rows with values)
+    const visibleLines = data.lines.filter(line => {
+      // Always show headers and bold total rows
+      if (line.isBold || line.isHeader) return true;
+      // Show sub-items only if they have a value
+      if (line.isSubItem) {
+        return line.subAmount !== undefined && line.subAmount !== 0;
+      }
+      // Show other rows if they have any value
+      return (line.subAmount !== undefined && line.subAmount !== 0) || 
+             (line.totalAmount !== undefined && line.totalAmount !== 0);
+    });
 
     return (
       <div ref={ref} className="bg-background rounded-lg border overflow-hidden">
@@ -27,41 +42,41 @@ export const DetailedIncomeStatementTable = forwardRef<HTMLDivElement, Props>(
           <p className="text-sm font-semibold mt-1">{data.companyName}</p>
         </div>
 
-        {/* Table */}
+        {/* Table - Single amount column (Resmi format) */}
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead className="w-16 text-center font-bold">Kod</TableHead>
               <TableHead className="font-bold">AÇIKLAMA</TableHead>
-              <TableHead className="w-32 text-right font-bold">
+              <TableHead className="w-40 text-right font-bold">
                 <div className="text-xs">CARİ DÖNEM</div>
                 <div className="text-xs">({data.year})</div>
-              </TableHead>
-              <TableHead className="w-32 text-right font-bold">
-                <div className="text-xs">TOPLAM</div>
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {data.lines.map((line, idx) => (
-              <TableRow 
-                key={idx} 
-                className={line.isBold && !line.isHeader ? 'bg-muted/20 font-semibold' : ''}
-              >
-                <TableCell className="text-center font-mono text-sm">
-                  {line.code}
-                </TableCell>
-                <TableCell className={`${line.isSubItem ? 'pl-8' : ''} ${line.isBold ? 'font-semibold' : ''}`}>
-                  {line.name}
-                </TableCell>
-                <TableCell className={`text-right font-mono text-sm ${line.isNegative ? 'text-red-600' : ''}`}>
-                  {formatValue(line.subAmount, line.isNegative)}
-                </TableCell>
-                <TableCell className={`text-right font-mono text-sm ${line.isNegative || (line.totalAmount && line.totalAmount < 0) ? 'text-red-600' : ''} ${line.isBold ? 'font-semibold' : ''}`}>
-                  {formatValue(line.totalAmount, line.isNegative)}
-                </TableCell>
-              </TableRow>
-            ))}
+            {visibleLines.map((line, idx) => {
+              // Determine the display value (use subAmount for sub-items, totalAmount for headers/totals)
+              const displayValue = line.isSubItem ? line.subAmount : line.totalAmount;
+              const isNegativeValue = line.isNegative || (displayValue !== undefined && displayValue < 0);
+              
+              return (
+                <TableRow 
+                  key={idx} 
+                  className={line.isBold && !line.isHeader ? 'bg-muted/20 font-semibold' : ''}
+                >
+                  <TableCell className="text-center font-mono text-sm">
+                    {line.code}
+                  </TableCell>
+                  <TableCell className={`${line.isSubItem ? 'pl-8' : ''} ${line.isBold ? 'font-semibold' : ''}`}>
+                    {line.name}
+                  </TableCell>
+                  <TableCell className={`text-right font-mono text-sm ${isNegativeValue ? 'text-destructive' : ''} ${line.isBold ? 'font-semibold' : ''}`}>
+                    {formatValue(displayValue, line.isNegative)}
+                  </TableCell>
+                </TableRow>
+              );
+            })}
           </TableBody>
         </Table>
 
