@@ -3,10 +3,11 @@ import { Link } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft, PenLine, Building2, Receipt, Scale } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft, PenLine, Building2, Receipt, Scale, Truck, BarChart3 } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/finance/useFinancialCalculations';
 import { useVatCalculations } from '@/hooks/finance/useVatCalculations';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
+import { useCostCenterAnalysis } from '@/hooks/finance/useCostCenterAnalysis';
 import { BottomTabBar } from '@/components/BottomTabBar';
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
@@ -17,7 +18,7 @@ export default function FinanceDashboard() {
   const calc = useFinancialCalculations(year);
   const vat = useVatCalculations(year);
   const { balanceSheet, isLoading: balanceLoading } = useBalanceSheet(year);
-  // Note: Previous year comparison removed to simplify hook chain
+  const costCenter = useCostCenterAnalysis(year);
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -171,6 +172,70 @@ export default function FinanceDashboard() {
             </Card>
           </Link>
         )}
+
+        {/* KKEG Summary Card */}
+        {costCenter.kkeg.totalKkeg > 0 && (
+          <Link to="/finance/cost-center">
+            <Card className="border-destructive/50 bg-destructive/5 hover:bg-destructive/10 transition-colors">
+              <CardContent className="p-4">
+                <div className="flex items-center gap-2 text-destructive mb-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-sm font-medium">KKEG Uyarısı</span>
+                  <ArrowLeft className="h-4 w-4 rotate-180 ml-auto" />
+                </div>
+                <div className="flex items-center justify-between">
+                  <div>
+                    <p className="text-lg font-bold text-destructive">{formatCurrency(costCenter.kkeg.totalKkeg)}</p>
+                    <p className="text-xs text-muted-foreground">Vergi matrahından düşülemez</p>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-sm font-bold">{formatCurrency(costCenter.kkeg.totalKkeg * 0.25)}</p>
+                    <p className="text-xs text-muted-foreground">Tahmini ek vergi</p>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          </Link>
+        )}
+
+        {/* Cost Center Summary Card */}
+        <Link to="/finance/cost-center">
+          <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/10 hover:bg-blue-100/50 dark:hover:bg-blue-950/20 transition-colors">
+            <CardContent className="p-4">
+              <div className="flex items-center gap-2 text-muted-foreground mb-3">
+                <BarChart3 className="h-4 w-4 text-blue-600" />
+                <span className="text-sm font-medium">Maliyet Merkezi</span>
+                <ArrowLeft className="h-4 w-4 rotate-180 ml-auto" />
+              </div>
+              <div className="grid grid-cols-3 gap-3">
+                <div>
+                  <div className="flex items-center gap-1 mb-1">
+                    <Truck className="h-3 w-3 text-blue-600" />
+                    <p className="text-xs text-muted-foreground">Teslimat</p>
+                  </div>
+                  <p className="text-sm font-bold">{formatCompact(costCenter.costCenters.find(c => c.costCenter === 'DELIVERY')?.totalAmount || 0)}</p>
+                  <p className="text-[10px] text-muted-foreground">{costCenter.deliveryRatio.toFixed(0)}%</p>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1 mb-1">
+                    <Building2 className="h-3 w-3 text-purple-600" />
+                    <p className="text-xs text-muted-foreground">Yönetim</p>
+                  </div>
+                  <p className="text-sm font-bold">{formatCompact(costCenter.costCenters.find(c => c.costCenter === 'ADMIN')?.totalAmount || 0)}</p>
+                  <p className="text-[10px] text-muted-foreground">{costCenter.adminRatio.toFixed(0)}%</p>
+                </div>
+                <div>
+                  <div className="flex items-center gap-1 mb-1">
+                    <TrendingUp className="h-3 w-3 text-orange-600" />
+                    <p className="text-xs text-muted-foreground">Satış</p>
+                  </div>
+                  <p className="text-sm font-bold">{formatCompact(costCenter.costCenters.find(c => c.costCenter === 'SALES')?.totalAmount || 0)}</p>
+                  <p className="text-[10px] text-muted-foreground">{costCenter.salesRatio.toFixed(0)}%</p>
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </Link>
 
         {/* Financing Info - Shown separately */}
         {calc.financingIn > 0 && (
