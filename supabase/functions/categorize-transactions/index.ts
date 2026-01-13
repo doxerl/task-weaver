@@ -139,8 +139,15 @@ KRİTİK AYRIMLAR (Sık Karıştırılan Durumlar)
    ✓ Aradaki fark olan FAİZ ayrı satırda görünür → FAIZ_IN
 
 6. BANKA MASRAFLARI:
-   ✓ "KESİNTİ VE EKLERİ-borç" (genelde 3-12 TL) → BANKA
-   ✓ "KESİNTİ VE EKLERİ-" + açıklama → Açıklamaya göre (FUAR, SEYAHAT vb.)
+   ⚠️ KRİTİK KURAL: "KESİNTİ VE EKLERİ" ile başlayan HER işlem = BANKA
+   - "KESİNTİ VE EKLERİ-borç" → BANKA
+   - "KESİNTİ VE EKLERİ-DANIŞMANLIK HİZMET BEDELİ" → BANKA (danışmanlık DEĞİL!)
+   - "KESİNTİ VE EKLERİ-KARTVİZİT BASIMI" → BANKA (fuar DEĞİL!)
+   - "KESİNTİ VE EKLERİ-FUAR HİZMET BEDELİ" → BANKA (fuar DEĞİL!)
+   - Açıklama ne olursa olsun → HER ZAMAN BANKA
+   - NEDEN? Bu satırlar EFT/havale masrafıdır, parayı BANKA alır.
+   - Ana işlem (danışmanlık, kartvizit vb.) zaten AYRI SATIRDA.
+   
    ✓ "EFT MASRAF", "HAVALE MASRAF" → BANKA
    ✓ "Giden Fon Transferi Ücreti" → BANKA
    ✓ "BSMV" → VERGİ (ayrı kategorile)
@@ -278,10 +285,12 @@ ADIM 6: CONFIDENCE BELİRLEME
 ÖZEL DURUMLAR VE İSTİSNALAR
 ═══════════════════════════════════════════════════════════════════════════════
 
-1. "KESİNTİ VE EKLERİ" AYIRIMI:
-   - Tek başına veya "borç" ile → BANKA
-   - "+ açıklama" varsa → Açıklamaya göre (örn: "KESİNTİ VE EKLERİ-KARTVİZİT" → FUAR)
-   - "Faiz / Komisyon" içeriyorsa → BANKA
+1. "KESİNTİ VE EKLERİ" KURALI (MUTLAK):
+   ⚠️ "KESİNTİ VE EKLERİ" ile başlayan HER işlem = BANKA (istisnasız!)
+   - Açıklama ne olursa olsun: borç, danışmanlık, kartvizit, fuar → BANKA
+   - Tutar ne olursa olsun: 6.39 TL, 12.80 TL, 100 TL → BANKA
+   - Bu satırlar EFT/HAVALE/FAST masrafıdır, parayı BANKA alır
+   - Ana işlem (danışmanlık ödemesi, kartvizit satın alma) AYRI SATIRDA
 
 2. DANIŞMANLIK AYIRIMI:
    - Pozitif tutar + DANIŞMANLIK → DANIS (gelir)
