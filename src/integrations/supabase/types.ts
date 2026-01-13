@@ -742,6 +742,8 @@ export type Database = {
           notes: string | null
           paid_capital: number | null
           retained_earnings: number | null
+          trade_payables: number | null
+          trade_receivables: number | null
           updated_at: string | null
           user_id: string
           vehicles_value: number | null
@@ -758,6 +760,8 @@ export type Database = {
           notes?: string | null
           paid_capital?: number | null
           retained_earnings?: number | null
+          trade_payables?: number | null
+          trade_receivables?: number | null
           updated_at?: string | null
           user_id: string
           vehicles_value?: number | null
@@ -774,6 +778,8 @@ export type Database = {
           notes?: string | null
           paid_capital?: number | null
           retained_earnings?: number | null
+          trade_payables?: number | null
+          trade_receivables?: number | null
           updated_at?: string | null
           user_id?: string
           vehicles_value?: number | null
