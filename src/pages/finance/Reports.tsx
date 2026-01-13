@@ -117,6 +117,13 @@ export default function Reports() {
     };
 
     const additionalData = {
+      // Detailed Income Statement for official format
+      detailedIncomeStatement: detailedStatement.data,
+      
+      // Full Balance Sheet with account codes
+      fullBalanceSheet: balanceSheet,
+      
+      // Legacy balance sheet for backward compatibility
       balanceSheet: {
         totalAssets: balanceSheet.totalAssets,
         totalLiabilities: balanceSheet.totalLiabilities,
