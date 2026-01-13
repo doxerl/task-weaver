@@ -8,8 +8,22 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { GitHubIntegration } from '@/components/GitHubIntegration';
-import { ArrowLeft, Loader2, Save, User, Globe, Clock, Wallet } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, User, Globe, Clock, Wallet, CreditCard, Plus } from 'lucide-react';
 import { toast } from 'sonner';
+import { useFixedExpenses, FixedExpenseDefinition } from '@/hooks/finance/useFixedExpenses';
+import { useCategories } from '@/hooks/finance/useCategories';
+import { FixedExpenseForm } from '@/components/finance/FixedExpenseForm';
+import { FixedExpenseCard } from '@/components/finance/FixedExpenseCard';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 const TIMEZONES = [
   { value: 'Europe/Istanbul', label: 'İstanbul (UTC+3)' },
@@ -39,6 +53,14 @@ export default function Settings() {
   const [workingStart, setWorkingStart] = useState(profile?.working_hours_start || '08:00');
   const [workingEnd, setWorkingEnd] = useState(profile?.working_hours_end || '22:00');
   const [isSaving, setIsSaving] = useState(false);
+  
+  // Fixed expense management
+  const [showExpenseForm, setShowExpenseForm] = useState(false);
+  const [editingExpense, setEditingExpense] = useState<FixedExpenseDefinition | null>(null);
+  const [deletingExpenseId, setDeletingExpenseId] = useState<string | null>(null);
+  
+  const { definitions, summary, createDefinition, updateDefinition, deleteDefinition } = useFixedExpenses();
+  const { categories } = useCategories();
 
   const handleSaveProfile = async () => {
     if (!firstName.trim() || !lastName.trim()) {
@@ -68,6 +90,31 @@ export default function Settings() {
     await signOut();
     navigate('/auth');
   };
+
+  const handleSaveExpense = async (data: Partial<FixedExpenseDefinition>) => {
+    if (data.id) {
+      await updateDefinition.mutateAsync(data as FixedExpenseDefinition);
+    } else {
+      await createDefinition.mutateAsync(data);
+    }
+    setShowExpenseForm(false);
+    setEditingExpense(null);
+  };
+
+  const handleDeleteExpense = async () => {
+    if (deletingExpenseId) {
+      await deleteDefinition.mutateAsync(deletingExpenseId);
+      setDeletingExpenseId(null);
+    }
+  };
+
+  const getCategoryName = (categoryId: string | null) => {
+    if (!categoryId) return undefined;
+    return categories.find(c => c.id === categoryId)?.name;
+  };
+
+  const formatCurrency = (val: number) =>
+    new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(val);
 
   return (
     <div className="min-h-screen bg-background">
@@ -213,6 +260,80 @@ export default function Settings() {
 
         <Separator />
 
+        {/* Fixed Expense Definitions */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <CreditCard className="h-5 w-5" />
+              Sabit Gider Tanımları
+            </CardTitle>
+            <CardDescription>
+              Aylık sabit giderlerinizi ve taksitli ödemelerinizi yönetin
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <Button 
+              variant="outline" 
+              className="w-full" 
+              onClick={() => {
+                setEditingExpense(null);
+                setShowExpenseForm(true);
+              }}
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Yeni Sabit Gider Ekle
+            </Button>
+
+            {definitions.length > 0 ? (
+              <div className="space-y-3">
+                {definitions.map(def => (
+                  <FixedExpenseCard
+                    key={def.id}
+                    expense={def}
+                    categoryName={getCategoryName(def.category_id)}
+                    onEdit={() => {
+                      setEditingExpense(def);
+                      setShowExpenseForm(true);
+                    }}
+                    onDelete={() => setDeletingExpenseId(def.id)}
+                  />
+                ))}
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Henüz sabit gider tanımı eklenmemiş
+              </p>
+            )}
+
+            {definitions.length > 0 && (
+              <>
+                <Separator />
+                <div className="space-y-2 text-sm">
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Aylık Sabit:</span>
+                    <span>{formatCurrency(summary.monthlyFixed)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Aylık Taksit:</span>
+                    <span>{formatCurrency(summary.monthlyInstallments)}</span>
+                  </div>
+                  <Separator />
+                  <div className="flex justify-between font-medium">
+                    <span>Aylık Toplam:</span>
+                    <span>{formatCurrency(summary.totalMonthly)}</span>
+                  </div>
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>Yıllık Projeksiyon:</span>
+                    <span>{formatCurrency(summary.yearlyProjected)}</span>
+                  </div>
+                </div>
+              </>
+            )}
+          </CardContent>
+        </Card>
+
+        <Separator />
+
         {/* Financial Settings */}
         <Card>
           <CardHeader>
@@ -254,6 +375,35 @@ export default function Settings() {
           </CardContent>
         </Card>
       </main>
+
+      {/* Fixed Expense Form Sheet */}
+      <FixedExpenseForm
+        open={showExpenseForm}
+        onOpenChange={(open) => {
+          setShowExpenseForm(open);
+          if (!open) setEditingExpense(null);
+        }}
+        expense={editingExpense}
+        categories={categories}
+        onSave={handleSaveExpense}
+        isSaving={createDefinition.isPending || updateDefinition.isPending}
+      />
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={!!deletingExpenseId} onOpenChange={(open) => !open && setDeletingExpenseId(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sabit Gideri Sil</AlertDialogTitle>
+            <AlertDialogDescription>
+              Bu sabit gider tanımını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteExpense}>Sil</AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
