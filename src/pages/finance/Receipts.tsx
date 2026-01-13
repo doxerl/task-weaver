@@ -6,18 +6,19 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Loader2, Plus, Receipt as ReceiptIcon, FileText, Building2, ArrowRightLeft, Trash2, Eye, LayoutGrid, Table as TableIcon } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Receipt as ReceiptIcon, FileText, Building2, ArrowRightLeft, Trash2, Eye, LayoutGrid, Table as TableIcon, FileCheck } from 'lucide-react';
 import { useReceipts } from '@/hooks/finance/useReceipts';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
-import { DocumentType, Receipt } from '@/types/finance';
+import { Receipt, ReceiptSubtype } from '@/types/finance';
 import { MissingVatAlert } from '@/components/finance/MissingVatAlert';
 import { ReceiptTable } from '@/components/finance/ReceiptTable';
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
 
 type ViewMode = 'card' | 'table';
+type TabType = 'slip' | 'invoice' | 'issued';
 
 interface ReceiptCardProps {
   receipt: Receipt;
@@ -145,9 +146,9 @@ function ReceiptCard({ receipt, categories, onCategoryChange, onToggleReport, on
               </AlertDialogTrigger>
               <AlertDialogContent>
                 <AlertDialogHeader>
-                  <AlertDialogTitle>Faturayı Sil</AlertDialogTitle>
+                  <AlertDialogTitle>Belgeyi Sil</AlertDialogTitle>
                   <AlertDialogDescription>
-                    Bu faturayı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+                    Bu belgeyi silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
                   </AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
@@ -170,7 +171,7 @@ function ReceiptCard({ receipt, categories, onCategoryChange, onToggleReport, on
 
 export default function Receipts() {
   const [year, setYear] = useState(new Date().getFullYear());
-  const [activeTab, setActiveTab] = useState<DocumentType>('received');
+  const [activeTab, setActiveTab] = useState<TabType>('slip');
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [isReprocessingAll, setIsReprocessingAll] = useState(false);
   
@@ -189,16 +190,30 @@ export default function Receipts() {
   
   const { grouped } = useCategories();
 
-  const filteredReceipts = receipts.filter(r => 
-    activeTab === 'received' 
-      ? r.document_type !== 'issued' 
-      : r.document_type === 'issued'
-  );
+  // Filter receipts based on active tab
+  const filteredReceipts = receipts.filter(r => {
+    if (activeTab === 'issued') {
+      return r.document_type === 'issued';
+    }
+    // For slip and invoice tabs, filter by document_type = received AND receipt_subtype
+    if (r.document_type === 'issued') return false;
+    const subtype = (r as any).receipt_subtype as ReceiptSubtype | undefined;
+    if (activeTab === 'slip') {
+      return subtype !== 'invoice'; // slip or undefined
+    }
+    return subtype === 'invoice';
+  });
 
+  // Calculate stats for each tab
   const tabStats = {
-    received: {
-      count: receipts.filter(r => r.document_type !== 'issued').length,
-      total: receipts.filter(r => r.document_type !== 'issued' && r.is_included_in_report)
+    slip: {
+      count: receipts.filter(r => r.document_type !== 'issued' && (r as any).receipt_subtype !== 'invoice').length,
+      total: receipts.filter(r => r.document_type !== 'issued' && (r as any).receipt_subtype !== 'invoice' && r.is_included_in_report)
+        .reduce((sum, r) => sum + (r.total_amount || 0), 0),
+    },
+    invoice: {
+      count: receipts.filter(r => r.document_type !== 'issued' && (r as any).receipt_subtype === 'invoice').length,
+      total: receipts.filter(r => r.document_type !== 'issued' && (r as any).receipt_subtype === 'invoice' && r.is_included_in_report)
         .reduce((sum, r) => sum + (r.total_amount || 0), 0),
     },
     issued: {
@@ -208,7 +223,8 @@ export default function Receipts() {
     }
   };
 
-  const categories = activeTab === 'received' ? grouped.expense : grouped.income;
+  // Categories based on tab
+  const categories = activeTab === 'issued' ? grouped.income : grouped.expense;
 
   const handleReprocessAll = async () => {
     setIsReprocessingAll(true);
@@ -221,6 +237,24 @@ export default function Receipts() {
 
   const handleDelete = (id: string) => {
     deleteReceipt.mutate(id);
+  };
+
+  const getUploadUrl = () => {
+    if (activeTab === 'issued') return '/finance/receipts/upload?type=issued';
+    if (activeTab === 'invoice') return '/finance/receipts/upload?type=received&subtype=invoice';
+    return '/finance/receipts/upload?type=received&subtype=slip';
+  };
+
+  const getEmptyMessage = () => {
+    if (activeTab === 'slip') return 'Henüz fiş yok.';
+    if (activeTab === 'invoice') return 'Henüz alınan fatura yok.';
+    return 'Henüz kesilen fatura yok.';
+  };
+
+  const getUploadLabel = () => {
+    if (activeTab === 'slip') return 'Fiş yükle';
+    if (activeTab === 'invoice') return 'Fatura yükle';
+    return 'Fatura yükle';
   };
 
   return (
@@ -252,79 +286,67 @@ export default function Receipts() {
           results={reprocessResults}
         />
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={v => setActiveTab(v as DocumentType)}>
-          <TabsList className="grid w-full grid-cols-2">
-            <TabsTrigger value="received" className="gap-2">
+        {/* Tabs - 3 tabs now */}
+        <Tabs value={activeTab} onValueChange={v => setActiveTab(v as TabType)}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="slip" className="gap-1 text-xs sm:text-sm">
               <ReceiptIcon className="h-4 w-4" />
-              Alınan ({tabStats.received.count})
+              <span className="hidden sm:inline">Fiş</span> ({tabStats.slip.count})
             </TabsTrigger>
-            <TabsTrigger value="issued" className="gap-2">
+            <TabsTrigger value="invoice" className="gap-1 text-xs sm:text-sm">
+              <FileCheck className="h-4 w-4" />
+              <span className="hidden sm:inline">Fatura</span> ({tabStats.invoice.count})
+            </TabsTrigger>
+            <TabsTrigger value="issued" className="gap-1 text-xs sm:text-sm">
               <FileText className="h-4 w-4" />
-              Kesilen ({tabStats.issued.count})
+              <span className="hidden sm:inline">Kesilen</span> ({tabStats.issued.count})
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="received" className="mt-4 space-y-4">
+          {/* Slip Tab Content */}
+          <TabsContent value="slip" className="mt-4 space-y-4">
             <div className="flex justify-between items-center">
               <p className="text-sm text-muted-foreground">
-                Gider: {formatCurrency(tabStats.received.total)}
+                Gider: {formatCurrency(tabStats.slip.total)}
               </p>
               <div className="flex items-center gap-2">
-                {/* View Toggle */}
-                <div className="flex items-center border rounded-lg">
-                  <Button 
-                    variant={viewMode === 'card' ? 'secondary' : 'ghost'} 
-                    size="sm"
-                    className="h-8 px-2"
-                    onClick={() => setViewMode('card')}
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant={viewMode === 'table' ? 'secondary' : 'ghost'} 
-                    size="sm"
-                    className="h-8 px-2"
-                    onClick={() => setViewMode('table')}
-                  >
-                    <TableIcon className="h-4 w-4" />
-                  </Button>
-                </div>
-                <Link to="/finance/receipts/upload?type=received">
+                <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+                <Link to="/finance/receipts/upload?type=received&subtype=slip">
                   <Button size="sm" className="gap-1">
                     <Plus className="h-4 w-4" />
-                    Yükle
+                    Fiş Yükle
                   </Button>
                 </Link>
               </div>
             </div>
           </TabsContent>
 
+          {/* Invoice Tab Content */}
+          <TabsContent value="invoice" className="mt-4 space-y-4">
+            <div className="flex justify-between items-center">
+              <p className="text-sm text-muted-foreground">
+                Gider: {formatCurrency(tabStats.invoice.total)}
+              </p>
+              <div className="flex items-center gap-2">
+                <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
+                <Link to="/finance/receipts/upload?type=received&subtype=invoice">
+                  <Button size="sm" className="gap-1">
+                    <Plus className="h-4 w-4" />
+                    Fatura Yükle
+                  </Button>
+                </Link>
+              </div>
+            </div>
+          </TabsContent>
+
+          {/* Issued Tab Content */}
           <TabsContent value="issued" className="mt-4 space-y-4">
             <div className="flex justify-between items-center">
               <p className="text-sm text-muted-foreground">
                 Gelir: {formatCurrency(tabStats.issued.total)}
               </p>
               <div className="flex items-center gap-2">
-                {/* View Toggle */}
-                <div className="flex items-center border rounded-lg">
-                  <Button 
-                    variant={viewMode === 'card' ? 'secondary' : 'ghost'} 
-                    size="sm"
-                    className="h-8 px-2"
-                    onClick={() => setViewMode('card')}
-                  >
-                    <LayoutGrid className="h-4 w-4" />
-                  </Button>
-                  <Button 
-                    variant={viewMode === 'table' ? 'secondary' : 'ghost'} 
-                    size="sm"
-                    className="h-8 px-2"
-                    onClick={() => setViewMode('table')}
-                  >
-                    <TableIcon className="h-4 w-4" />
-                  </Button>
-                </div>
+                <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
                 <Link to="/finance/receipts/upload?type=issued">
                   <Button size="sm" className="gap-1 bg-green-600 hover:bg-green-700">
                     <Plus className="h-4 w-4" />
@@ -344,12 +366,12 @@ export default function Receipts() {
         ) : filteredReceipts.length === 0 ? (
           <Card>
             <CardContent className="p-8 text-center text-muted-foreground">
-              {activeTab === 'received' ? 'Henüz alınan fiş/fatura yok.' : 'Henüz kesilen fatura yok.'}
+              {getEmptyMessage()}
               <Link 
-                to={`/finance/receipts/upload?type=${activeTab}`} 
+                to={getUploadUrl()} 
                 className="block mt-2 text-primary underline"
               >
-                {activeTab === 'received' ? 'Fiş/Fatura yükle' : 'Fatura yükle'}
+                {getUploadLabel()}
               </Link>
             </CardContent>
           </Card>
@@ -360,7 +382,7 @@ export default function Receipts() {
             onCategoryChange={(id, categoryId) => updateCategory.mutate({ id, categoryId })}
             onToggleReport={(id, include) => toggleIncludeInReport.mutate({ id, include })}
             onDelete={handleDelete}
-            isReceived={activeTab === 'received'}
+            isReceived={activeTab !== 'issued'}
           />
         ) : (
           <div className="grid grid-cols-2 gap-3">
@@ -378,6 +400,30 @@ export default function Receipts() {
         )}
       </div>
       <BottomTabBar />
+    </div>
+  );
+}
+
+// View Toggle Component
+function ViewToggle({ viewMode, setViewMode }: { viewMode: ViewMode; setViewMode: (mode: ViewMode) => void }) {
+  return (
+    <div className="flex items-center border rounded-lg">
+      <Button 
+        variant={viewMode === 'card' ? 'secondary' : 'ghost'} 
+        size="sm"
+        className="h-8 px-2"
+        onClick={() => setViewMode('card')}
+      >
+        <LayoutGrid className="h-4 w-4" />
+      </Button>
+      <Button 
+        variant={viewMode === 'table' ? 'secondary' : 'ghost'} 
+        size="sm"
+        className="h-8 px-2"
+        onClick={() => setViewMode('table')}
+      >
+        <TableIcon className="h-4 w-4" />
+      </Button>
     </div>
   );
 }

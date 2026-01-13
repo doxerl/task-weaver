@@ -78,6 +78,7 @@ export interface ReceiptTransactionMatch {
 }
 
 export type DocumentType = 'received' | 'issued';
+export type ReceiptSubtype = 'slip' | 'invoice';
 export type MatchStatus = 'unmatched' | 'suggested' | 'matched' | 'manual';
 
 export interface Receipt {
@@ -92,6 +93,7 @@ export interface Receipt {
   
   // Document type
   document_type: DocumentType;
+  receipt_subtype?: ReceiptSubtype;
   
   // Seller (issuer) information
   seller_name?: string;
