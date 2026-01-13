@@ -6,15 +6,17 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, RotateCcw, Download, TrendingUp } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Download, TrendingUp, Loader2 } from 'lucide-react';
 import { useGrowthSimulation } from '@/hooks/finance/useGrowthSimulation';
 import { SummaryCards } from '@/components/simulation/SummaryCards';
 import { ProjectionTable } from '@/components/simulation/ProjectionTable';
 import { AddItemDialog } from '@/components/simulation/AddItemDialog';
 import { ComparisonChart } from '@/components/simulation/ComparisonChart';
 import { CapitalAnalysis } from '@/components/simulation/CapitalAnalysis';
+import { CurrencyProvider } from '@/contexts/CurrencyContext';
+import { Skeleton } from '@/components/ui/skeleton';
 
-export default function GrowthSimulation() {
+function GrowthSimulationContent() {
   const {
     scenarioName,
     setScenarioName,
@@ -26,6 +28,7 @@ export default function GrowthSimulation() {
     notes,
     setNotes,
     summary,
+    isLoading,
     updateRevenue,
     addRevenue,
     removeRevenue,
@@ -110,8 +113,26 @@ export default function GrowthSimulation() {
           </CardContent>
         </Card>
 
-        {/* Summary Cards */}
-        <SummaryCards summary={summary} exchangeRate={assumedExchangeRate} />
+        {/* Summary Cards with Loading State */}
+        {isLoading ? (
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {[1, 2, 3].map((i) => (
+              <Card key={i}>
+                <CardContent className="pt-4 space-y-3">
+                  <Skeleton className="h-6 w-32" />
+                  <Skeleton className="h-4 w-24" />
+                  <div className="space-y-2 mt-4">
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full" />
+                  </div>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : (
+          <SummaryCards summary={summary} exchangeRate={assumedExchangeRate} />
+        )}
 
         {/* Main Content Tabs */}
         <Tabs defaultValue="projections" className="space-y-4">
@@ -169,5 +190,13 @@ export default function GrowthSimulation() {
         </Tabs>
       </main>
     </div>
+  );
+}
+
+export default function GrowthSimulation() {
+  return (
+    <CurrencyProvider defaultYear={2025}>
+      <GrowthSimulationContent />
+    </CurrencyProvider>
   );
 }

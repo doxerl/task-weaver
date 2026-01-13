@@ -52,16 +52,18 @@ export interface SimulationSummary {
     netCapitalNeed: number;
   };
 }
+// Note: 2025 base data is now dynamically loaded from the database
+// via useFinancialDataHub in useGrowthSimulation hook.
+// The following constants are kept as fallbacks only.
 
-// 2025 Reference Data (USD) - based on actual bank data
-export const BASE_REVENUES_2025: Omit<ProjectionItem, 'id' | 'projectedAmount' | 'description' | 'isNew'>[] = [
+export const FALLBACK_REVENUES_2025: Omit<ProjectionItem, 'id' | 'projectedAmount' | 'description' | 'isNew'>[] = [
   { category: 'SBT Tracker', baseAmount: 70290 },
   { category: 'Leadership Denetim', baseAmount: 55454 },
   { category: 'Danışmanlık', baseAmount: 17819 },
   { category: 'ZDHC InCheck', baseAmount: 3219 },
 ];
 
-export const BASE_EXPENSES_2025: Omit<ProjectionItem, 'id' | 'projectedAmount' | 'description' | 'isNew'>[] = [
+export const FALLBACK_EXPENSES_2025: Omit<ProjectionItem, 'id' | 'projectedAmount' | 'description' | 'isNew'>[] = [
   { category: 'Personel (Brüt+SGK)', baseAmount: 48272 },
   { category: 'Yazılım/Abonelik', baseAmount: 16291 },
   { category: 'Kira', baseAmount: 9165 },
@@ -72,7 +74,3 @@ export const BASE_EXPENSES_2025: Omit<ProjectionItem, 'id' | 'projectedAmount' |
   { category: 'Danışmanlık Gideri', baseAmount: 4350 },
   { category: 'Diğer', baseAmount: 10185 },
 ];
-
-export const TOTAL_BASE_REVENUE_2025 = BASE_REVENUES_2025.reduce((sum, r) => sum + r.baseAmount, 0);
-export const TOTAL_BASE_EXPENSE_2025 = BASE_EXPENSES_2025.reduce((sum, e) => sum + e.baseAmount, 0);
-export const NET_PROFIT_2025 = TOTAL_BASE_REVENUE_2025 - TOTAL_BASE_EXPENSE_2025;
