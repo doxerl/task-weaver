@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -61,6 +61,36 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
       isManuallyChanged: false
     }))
   );
+
+  // Sync editableTransactions when transactions prop changes (e.g., after recategorization)
+  useEffect(() => {
+    setEditableTransactions(prev => {
+      // Create a map of previous transactions by index for quick lookup
+      const prevMap = new Map(prev.map(t => [t.index, t]));
+      
+      return transactions.map(t => {
+        const existing = prevMap.get(t.index);
+        
+        // If user manually changed this transaction, preserve their choice
+        if (existing?.isManuallyChanged) {
+          return {
+            ...t,
+            categoryId: existing.categoryId,
+            isSelected: existing.isSelected,
+            isManuallyChanged: true
+          };
+        }
+        
+        // Otherwise, use the new values from props
+        return { 
+          ...t, 
+          categoryId: t.suggestedCategoryId || null,
+          isSelected: existing?.isSelected || false,
+          isManuallyChanged: false
+        };
+      });
+    });
+  }, [transactions]);
   const [selectAll, setSelectAll] = useState(false);
   
   // Amount editing state
