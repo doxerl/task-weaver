@@ -11,12 +11,15 @@ import { useFinancialDataHub } from '@/hooks/finance/useFinancialDataHub';
 import { useIncomeAnalysis } from '@/hooks/finance/useIncomeAnalysis';
 import { useExpenseAnalysis } from '@/hooks/finance/useExpenseAnalysis';
 import { useIncomeStatement } from '@/hooks/finance/useIncomeStatement';
+import { useDetailedIncomeStatement } from '@/hooks/finance/useDetailedIncomeStatement';
 import { usePdfExport } from '@/hooks/finance/usePdfExport';
 import { useIncomeStatementPdfExport } from '@/hooks/finance/useIncomeStatementPdfExport';
+import { useDetailedIncomeStatementPdf } from '@/hooks/finance/useDetailedIncomeStatementPdf';
 import { MonthlyTrendChart } from '@/components/finance/charts/MonthlyTrendChart';
 import { ServiceRevenueChart } from '@/components/finance/charts/ServiceRevenueChart';
 import { ExpenseCategoryChart } from '@/components/finance/charts/ExpenseCategoryChart';
 import { IncomeStatementTable } from '@/components/finance/tables/IncomeStatementTable';
+import { DetailedIncomeStatementTable } from '@/components/finance/tables/DetailedIncomeStatementTable';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { CurrencyToggle } from '@/components/finance/CurrencyToggle';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -32,8 +35,10 @@ export default function Reports() {
   const incomeAnalysis = useIncomeAnalysis(year);
   const expenseAnalysis = useExpenseAnalysis(year);
   const incomeStatement = useIncomeStatement(year);
+  const detailedStatement = useDetailedIncomeStatement(year);
   const { generatePdf, isGenerating } = usePdfExport();
   const { generateIncomeStatementPdf, isGenerating: isIncomeStatementPdfGenerating } = useIncomeStatementPdfExport();
+  const { generatePdf: generateDetailedPdf, isGenerating: isDetailedPdfGenerating } = useDetailedIncomeStatementPdf();
   const { currency, formatAmount, getAvailableMonthsCount, yearlyAverageRate } = useCurrency();
   
   const availableMonths = getAvailableMonthsCount(year);
@@ -114,6 +119,19 @@ export default function Reports() {
         }
       );
       toast.success(`Gelir Tablosu PDF oluşturuldu (${currency})`);
+    } catch {
+      toast.error('PDF oluşturulamadı');
+    }
+  };
+
+  const handleDetailedPdf = async () => {
+    try {
+      await generateDetailedPdf(detailedStatement.data, {
+        currency,
+        formatAmount: (n) => formatAmount(n, undefined, year),
+        yearlyAverageRate,
+      });
+      toast.success(`Ayrıntılı Gelir Tablosu PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
     }
@@ -229,11 +247,12 @@ export default function Reports() {
 
         {/* Tabs */}
         <Tabs defaultValue="dashboard" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5 h-auto">
+          <TabsList className="grid w-full grid-cols-6 h-auto">
             <TabsTrigger value="dashboard" className="text-xs py-2"><BarChart3 className="h-3 w-3 mr-1 hidden sm:inline" />Özet</TabsTrigger>
             <TabsTrigger value="income" className="text-xs py-2"><TrendingUp className="h-3 w-3 mr-1 hidden sm:inline" />Gelir</TabsTrigger>
             <TabsTrigger value="expense" className="text-xs py-2"><TrendingDown className="h-3 w-3 mr-1 hidden sm:inline" />Gider</TabsTrigger>
             <TabsTrigger value="statement" className="text-xs py-2"><FileText className="h-3 w-3 mr-1 hidden sm:inline" />Tablo</TabsTrigger>
+            <TabsTrigger value="detailed" className="text-xs py-2"><FileText className="h-3 w-3 mr-1 hidden sm:inline" />Resmi</TabsTrigger>
             <TabsTrigger value="financing" className="text-xs py-2"><CreditCard className="h-3 w-3 mr-1 hidden sm:inline" />Finans</TabsTrigger>
           </TabsList>
 
@@ -306,7 +325,27 @@ export default function Reports() {
             />
           </TabsContent>
 
-          {/* Tab 5: Financing - Detailed */}
+          {/* Tab 5: Detailed Income Statement (Official Format) */}
+          <TabsContent value="detailed" className="space-y-3">
+            <div className="flex justify-end">
+              <Button 
+                onClick={handleDetailedPdf} 
+                disabled={isDetailedPdfGenerating} 
+                size="sm" 
+                variant="outline"
+                className="gap-1"
+              >
+                {isDetailedPdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                PDF
+              </Button>
+            </div>
+            <DetailedIncomeStatementTable 
+              data={detailedStatement.data}
+              formatAmount={(n) => formatAmount(n, undefined, year)}
+            />
+          </TabsContent>
+
+          {/* Tab 6: Financing - Detailed */}
           <TabsContent value="financing" className="space-y-4">
             {/* Partner Account */}
             <Card>

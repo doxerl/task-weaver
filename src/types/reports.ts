@@ -201,3 +201,23 @@ export const MONTH_NAMES_SHORT_TR = [
   'Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz',
   'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'
 ];
+
+// Detailed Income Statement Types (Resmi Format)
+export interface DetailedIncomeStatementLine {
+  code: string;
+  name: string;
+  subAmount?: number;
+  totalAmount?: number;
+  isHeader?: boolean;
+  isSubItem?: boolean;
+  isNegative?: boolean;
+  isBold?: boolean;
+}
+
+export interface DetailedIncomeStatementData {
+  companyName: string;
+  periodStart: string;
+  periodEnd: string;
+  year: number;
+  lines: DetailedIncomeStatementLine[];
+}
