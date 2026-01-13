@@ -22,7 +22,7 @@ export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isL
       const emptyBalanceSheet: BalanceSheet = {
         asOfDate: `${year}-12-31`,
         year,
-        currentAssets: { cash: 0, banks: 0, receivables: 0, partnerReceivables: 0, inventory: 0, prepaidExpenses: 0, total: 0 },
+        currentAssets: { cash: 0, banks: 0, receivables: 0, partnerReceivables: 0, vatReceivable: 0, inventory: 0, prepaidExpenses: 0, total: 0 },
         fixedAssets: { equipment: 0, vehicles: 0, depreciation: 0, total: 0 },
         totalAssets: 0,
         shortTermLiabilities: { payables: 0, vatPayable: 0, taxPayable: 0, partnerPayables: 0, total: 0 },
@@ -41,28 +41,48 @@ export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isL
     )[0];
     const bankBalance = lastTransaction?.balance || 0;
 
-    // Receivables: Issued invoices not yet matched to bank transactions
-    const unmatchedIssuedReceipts = receipts?.filter(r => 
-      r.document_type === 'issued' && 
-      r.is_included_in_report && 
-      !r.linked_bank_transaction_id
-    ) || [];
-    const receivables = unmatchedIssuedReceipts.reduce((sum, r) => sum + (r.total_amount || 0), 0);
+    // 2025 için fatura eşleştirmesi yok - manuel girişten al
+    const useReceiptMatching = false; // Gelecekte true yapılabilir
 
-    // Payables: Received invoices not yet matched to bank transactions
-    const unmatchedReceivedReceipts = receipts?.filter(r => 
-      r.document_type !== 'issued' && 
-      r.is_included_in_report && 
-      !r.linked_bank_transaction_id
-    ) || [];
-    const payables = unmatchedReceivedReceipts.reduce((sum, r) => sum + (r.total_amount || 0), 0);
+    // Alacaklar hesaplaması
+    let receivables = 0;
+    if (useReceiptMatching) {
+      const unmatchedIssuedReceipts = receipts?.filter(r => 
+        r.document_type === 'issued' && 
+        r.is_included_in_report && 
+        !r.linked_bank_transaction_id
+      ) || [];
+      receivables = unmatchedIssuedReceipts.reduce((sum, r) => sum + (r.total_amount || 0), 0);
+    } else {
+      receivables = settings.trade_receivables || 0;
+    }
 
-    // Partner account
-    const partnerReceivables = financials.netPartnerBalance > 0 ? financials.netPartnerBalance : 0;
-    const partnerPayables = financials.netPartnerBalance < 0 ? Math.abs(financials.netPartnerBalance) : 0;
+    // Borçlar hesaplaması
+    let payables = 0;
+    if (useReceiptMatching) {
+      const unmatchedReceivedReceipts = receipts?.filter(r => 
+        r.document_type !== 'issued' && 
+        r.is_included_in_report && 
+        !r.linked_bank_transaction_id
+      ) || [];
+      payables = unmatchedReceivedReceipts.reduce((sum, r) => sum + (r.total_amount || 0), 0);
+    } else {
+      payables = settings.trade_payables || 0;
+    }
 
-    // VAT payable
+    // Ortak hesabı - DOĞRU MANTIK:
+    // Ortağa verilen para (ORTAK_OUT) = Ortaklardan Alacak (Aktif) - 131 hesabı
+    // Ortaktan alınan para (ORTAK_IN) = Ortaklara Borç (Pasif) - 331 hesabı
+    const partnerReceivables = financials.partnerOut > financials.partnerIn 
+      ? financials.partnerOut - financials.partnerIn 
+      : 0;
+    const partnerPayables = financials.partnerIn > financials.partnerOut 
+      ? financials.partnerIn - financials.partnerOut 
+      : 0;
+
+    // KDV hesaplaması - Devreden KDV dahil
     const vatPayable = vat.netVatPayable > 0 ? vat.netVatPayable : 0;
+    const vatReceivable = vat.netVatPayable < 0 ? Math.abs(vat.netVatPayable) : 0;
 
     // Build balance sheet
     const currentAssets = {
@@ -70,12 +90,14 @@ export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isL
       banks: bankBalance,
       receivables,
       partnerReceivables,
+      vatReceivable,
       inventory: settings.inventory_value || 0,
       prepaidExpenses: 0,
       total: 0,
     };
     currentAssets.total = currentAssets.cash + currentAssets.banks + currentAssets.receivables + 
-                          currentAssets.partnerReceivables + currentAssets.inventory + currentAssets.prepaidExpenses;
+                          currentAssets.partnerReceivables + currentAssets.vatReceivable + 
+                          currentAssets.inventory + currentAssets.prepaidExpenses;
 
     // Calculate investment purchases from transactions
     const investmentCategories = categories.filter(c => c.type === 'INVESTMENT');
@@ -109,17 +131,41 @@ export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isL
     shortTermLiabilities.total = shortTermLiabilities.payables + shortTermLiabilities.vatPayable + 
                                   shortTermLiabilities.taxPayable + shortTermLiabilities.partnerPayables;
 
-    // Add leasing to long term liabilities
+    // Kredi ve Leasing hesaplaması - DOĞRU MANTIK:
+    // Banka Kredileri = Başlangıç + Kullanılan Krediler - Ödenen Taksitler - Leasing Ödemeleri
+    const krediInCat = categories.find(c => c.code === 'KREDI_IN');
+    const krediOutCat = categories.find(c => c.code === 'KREDI_OUT');
     const leasingCat = categories.find(c => c.code === 'LEASING');
-    const leasingPayments = leasingCat 
+
+    // Kullanılan krediler (+)
+    const krediIn = krediInCat 
       ? transactions
-          .filter(t => t.category_id === leasingCat.id && t.amount < 0)
+          .filter(t => t.category_id === krediInCat.id && t.amount > 0 && !t.is_excluded)
+          .reduce((sum, t) => sum + t.amount, 0)
+      : 0;
+
+    // Ödenen kredi taksitleri (-)
+    const krediOut = krediOutCat 
+      ? transactions
+          .filter(t => t.category_id === krediOutCat.id && t.amount < 0 && !t.is_excluded)
           .reduce((sum, t) => sum + Math.abs(t.amount), 0)
       : 0;
 
+    // Leasing ödemeleri (-)
+    const leasingPayments = leasingCat 
+      ? transactions
+          .filter(t => t.category_id === leasingCat.id && t.amount < 0 && !t.is_excluded)
+          .reduce((sum, t) => sum + Math.abs(t.amount), 0)
+      : 0;
+
+    // Net banka kredisi = Başlangıç + Kullanılan - Ödenen - Leasing
+    const bankLoansBalance = Math.max(0, 
+      (settings.bank_loans || 0) + krediIn - krediOut - leasingPayments
+    );
+
     const longTermLiabilities = {
-      bankLoans: (settings.bank_loans || 0) + leasingPayments,
-      total: (settings.bank_loans || 0) + leasingPayments,
+      bankLoans: bankLoansBalance,
+      total: bankLoansBalance,
     };
 
     const equity = {

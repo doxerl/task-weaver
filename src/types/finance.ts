@@ -272,6 +272,8 @@ export interface FinancialSettings {
   vehicles_value: number;
   accumulated_depreciation: number;
   bank_loans: number;
+  trade_receivables: number;  // Ticari Alacaklar - Manuel giriş
+  trade_payables: number;     // Ticari Borçlar - Manuel giriş
   notes: string | null;
   created_at: string | null;
   updated_at: string | null;
@@ -288,6 +290,7 @@ export interface BalanceSheet {
     banks: number;
     receivables: number;
     partnerReceivables: number;
+    vatReceivable: number;  // Devreden KDV (negatif KDV bakiyesi)
     inventory: number;
     prepaidExpenses: number;
     total: number;

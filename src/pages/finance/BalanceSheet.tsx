@@ -30,6 +30,8 @@ export default function BalanceSheet() {
     vehicles_value: settings.vehicles_value,
     accumulated_depreciation: settings.accumulated_depreciation,
     bank_loans: settings.bank_loans,
+    trade_receivables: settings.trade_receivables,
+    trade_payables: settings.trade_payables,
   });
 
   const handleSaveSettings = () => {
@@ -131,7 +133,37 @@ export default function BalanceSheet() {
                     onChange={e => setFormData(p => ({ ...p, bank_loans: Number(e.target.value) }))}
                   />
                 </div>
-                <Button onClick={handleSaveSettings} className="w-full">
+                
+                {/* Bilanço Kalemleri - Manuel Giriş */}
+                <div className="border-t pt-4 mt-4">
+                  <h4 className="font-medium mb-3 text-sm text-muted-foreground">
+                    Ticari Alacak/Borç (Fatura Eşleştirmesi Yoksa)
+                  </h4>
+                  <div className="space-y-2">
+                    <Label>Ticari Alacaklar (₺)</Label>
+                    <Input 
+                      type="number" 
+                      value={formData.trade_receivables}
+                      onChange={e => setFormData(p => ({ ...p, trade_receivables: Number(e.target.value) }))}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Müşterilerden tahsil edilmemiş fatura tutarları
+                    </p>
+                  </div>
+                  <div className="space-y-2 mt-3">
+                    <Label>Ticari Borçlar (₺)</Label>
+                    <Input 
+                      type="number" 
+                      value={formData.trade_payables}
+                      onChange={e => setFormData(p => ({ ...p, trade_payables: Number(e.target.value) }))}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Tedarikçilere ödenmemiş fatura tutarları
+                    </p>
+                  </div>
+                </div>
+                
+                <Button onClick={handleSaveSettings} className="w-full mt-4">
                   Kaydet
                 </Button>
               </div>
@@ -200,6 +232,12 @@ export default function BalanceSheet() {
                   <span>2. Ortaklardan Alacaklar</span>
                   <span>{formatCurrency(currentAssets.partnerReceivables)}</span>
                 </div>
+                {currentAssets.vatReceivable > 0 && (
+                  <div className="flex justify-between pl-4">
+                    <span>3. Devreden KDV</span>
+                    <span>{formatCurrency(currentAssets.vatReceivable)}</span>
+                  </div>
+                )}
                 <div className="flex justify-between mt-2">
                   <span>C. Stoklar</span>
                   <span>{formatCurrency(currentAssets.inventory)}</span>

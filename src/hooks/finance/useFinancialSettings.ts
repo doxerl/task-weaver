@@ -65,6 +65,8 @@ export function useFinancialSettings() {
     vehicles_value: 0,
     accumulated_depreciation: 0,
     bank_loans: 0,
+    trade_receivables: 0,
+    trade_payables: 0,
     notes: null,
     created_at: null,
     updated_at: null,
