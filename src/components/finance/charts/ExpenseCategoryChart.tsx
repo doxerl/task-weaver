@@ -19,7 +19,7 @@ const defaultFormatFullCurrency = (value: number) => new Intl.NumberFormat('tr-T
   maximumFractionDigits: 0 
 }).format(value);
 
-const truncateName = (name: string, max: number = 18) => 
+const truncateName = (name: string, max: number = 25) => 
   name.length > max ? name.slice(0, max) + '...' : name;
 
 // Gradient blue colors from dark to light
@@ -79,7 +79,7 @@ export function ExpenseCategoryChart({ data, formatAmount }: ExpenseCategoryChar
           type="category" 
           dataKey="displayName" 
           tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} 
-          width={120} 
+          width={160} 
           axisLine={false}
           tickLine={false}
         />
