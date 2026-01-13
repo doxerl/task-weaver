@@ -165,6 +165,10 @@ export interface FinancialDataHub {
   operatingProfit: number;
   netProfit: number;
   profitMargin: number;
+  
+  // Uncategorized transaction tracking
+  uncategorizedCount: number;
+  uncategorizedTotal: number;
 }
 
 export function useFinancialDataHub(year: number): FinancialDataHub {
@@ -186,7 +190,11 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     
     // Define category types - prioritize category.type field from database
     const getCategoryType = (cat: typeof categories[0] | null, isIncome: boolean): ProcessedTransaction['categoryType'] => {
-      if (!cat) return isIncome ? 'INCOME' : 'EXPENSE';
+      // Kategorisiz işlemler kar/zarara dahil edilmemeli - EXCLUDED olarak işaretle
+      if (!cat) {
+        console.warn('⚠️ Kategorisiz işlem tespit edildi - EXCLUDED olarak işaretleniyor');
+        return 'EXCLUDED';
+      }
       
       // First check the category type field from database
       const dbType = cat.type?.toUpperCase();
@@ -199,7 +207,7 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       
       // Fallback: code pattern matching
       const code = cat.code || '';
-      if (code.includes('EXCLUDED') || code === 'TRANSFER') return 'EXCLUDED';
+      if (code.includes('EXCLUDED') || code.includes('TRANSFER')) return 'EXCLUDED';
       if (code.includes('PARTNER')) return 'PARTNER';
       if (code.includes('KREDI') || code.includes('LEASING') || code.includes('FAIZ')) return 'FINANCING';
       if (code.includes('YATIRIM') || code.includes('EKIPMAN') || code.includes('ARAC')) return 'INVESTMENT';
@@ -569,7 +577,9 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       fixedExpenses,
       operatingProfit,
       netProfit,
-      profitMargin
+      profitMargin,
+      uncategorizedCount: bankTx.filter(tx => !tx.category_id && !tx.is_excluded).length,
+      uncategorizedTotal: bankTx.filter(tx => !tx.category_id && !tx.is_excluded).reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0)
     };
   }, [isLoading, bankTx, receipts, categories, settings, fixedExpenses]);
 
@@ -641,6 +651,8 @@ function createEmptyHub(fixedExpenses: FixedExpenseSummary): FinancialDataHub {
     fixedExpenses,
     operatingProfit: 0,
     netProfit: 0,
-    profitMargin: 0
+    profitMargin: 0,
+    uncategorizedCount: 0,
+    uncategorizedTotal: 0
   };
 }

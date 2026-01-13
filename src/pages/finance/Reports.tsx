@@ -5,7 +5,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, TrendingUp, TrendingDown, Wallet, FileDown, BarChart3, FileText, Users, Loader2, Receipt, CreditCard, Car, Building } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Wallet, FileDown, BarChart3, FileText, Users, Loader2, Receipt, CreditCard, Car, Building, AlertTriangle } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFinancialDataHub } from '@/hooks/finance/useFinancialDataHub';
 import { useIncomeAnalysis } from '@/hooks/finance/useIncomeAnalysis';
 import { useExpenseAnalysis } from '@/hooks/finance/useExpenseAnalysis';
@@ -108,6 +109,21 @@ export default function Reports() {
             PDF
           </Button>
         </div>
+
+        {/* Uncategorized Transaction Warning */}
+        {hub.uncategorizedCount > 0 && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Kategorisiz İşlem Var</AlertTitle>
+            <AlertDescription>
+              {hub.uncategorizedCount} adet işlem ({new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(hub.uncategorizedTotal)}) kategorilendirilememiş. 
+              Bu işlemler finansal raporlara dahil edilmiyor.{' '}
+              <Link to="/finance/bank-transactions" className="underline font-medium">
+                Kategorilendirmeye Git
+              </Link>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* KPI Cards - Row 1: Income/Expense */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
