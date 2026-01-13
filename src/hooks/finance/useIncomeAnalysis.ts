@@ -22,20 +22,23 @@ export function useIncomeAnalysis(year: number) {
       };
     }
 
-    // Get income category IDs (excluding partner, financing, excluded)
+    // Exclude partner, financing, investment, and excluded categories from income
     const excludedTypes = ['PARTNER', 'FINANCING', 'INVESTMENT', 'EXCLUDED'];
-    const incomeCategories = categories.filter(
-      c => c.type === 'INCOME' && !excludedTypes.includes(c.type) && c.is_active !== false
+    
+    // Get IDs of categories that should be excluded from operating income
+    const excludedCategoryIds = new Set(
+      categories
+        .filter(c => excludedTypes.includes(c.type) || c.is_financing || c.affects_partner_account)
+        .map(c => c.id)
     );
-    const incomeCategoryIds = new Set(incomeCategories.map(c => c.id));
 
-    // Filter income transactions
-    const incomeTransactions = transactions.filter(
-      tx => tx.amount && tx.amount > 0 && 
-      tx.is_excluded !== true &&
-      (!tx.category_id || incomeCategoryIds.has(tx.category_id) || 
-       categories.find(c => c.id === tx.category_id)?.type === 'INCOME')
-    );
+    // Filter income transactions (positive amounts, excluding special categories)
+    const incomeTransactions = transactions.filter(tx => {
+      if (!tx.amount || tx.amount <= 0 || tx.is_excluded) return false;
+      // Exclude financing, investment, partner, and excluded categories
+      if (tx.category_id && excludedCategoryIds.has(tx.category_id)) return false;
+      return true;
+    });
 
     // Service Revenue by Category
     const serviceMap = new Map<string, { amount: number; byMonth: Record<number, number> }>();

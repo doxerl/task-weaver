@@ -27,18 +27,23 @@ export function useExpenseAnalysis(year: number) {
       };
     }
 
-    // Get expense category IDs (excluding partner, financing, investment)
+    // Exclude partner, financing, investment, and excluded categories from expenses
     const excludedTypes = ['PARTNER', 'FINANCING', 'INVESTMENT', 'EXCLUDED', 'INCOME'];
-    const expenseCategories = categories.filter(
-      c => c.type === 'EXPENSE' && !excludedTypes.includes(c.type) && c.is_active !== false
+    
+    // Get IDs of categories that should be excluded from operating expenses
+    const excludedCategoryIds = new Set(
+      categories
+        .filter(c => excludedTypes.includes(c.type) || c.is_financing || c.affects_partner_account)
+        .map(c => c.id)
     );
 
-    // Filter expense transactions (negative amounts)
-    const expenseTransactions = transactions.filter(
-      tx => tx.amount && tx.amount < 0 && 
-      tx.is_excluded !== true &&
-      !categories.find(c => c.id === tx.category_id && excludedTypes.includes(c.type))
-    );
+    // Filter expense transactions (negative amounts, excluding special categories)
+    const expenseTransactions = transactions.filter(tx => {
+      if (!tx.amount || tx.amount >= 0 || tx.is_excluded) return false;
+      // Exclude financing, investment, partner, and excluded categories
+      if (tx.category_id && excludedCategoryIds.has(tx.category_id)) return false;
+      return true;
+    });
 
     // Expense by Category
     const categoryMap = new Map<string, { amount: number; byMonth: Record<number, number> }>();
