@@ -4,11 +4,15 @@ import { cn } from '@/lib/utils';
 interface IncomeStatementTableProps {
   lines: IncomeStatementLine[];
   year: number;
+  formatAmount?: (n: number) => string;
 }
 
-const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
+const defaultFormatCurrency = (n: number) => 
+  new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
 
-export function IncomeStatementTable({ lines, year }: IncomeStatementTableProps) {
+export function IncomeStatementTable({ lines, year, formatAmount }: IncomeStatementTableProps) {
+  const fmt = formatAmount || defaultFormatCurrency;
+
   return (
     <div className="border rounded-lg overflow-hidden">
       <div className="bg-muted px-4 py-3 border-b">
@@ -29,7 +33,7 @@ export function IncomeStatementTable({ lines, year }: IncomeStatementTableProps)
             <span style={{ paddingLeft: `${line.indent * 16}px` }}>{line.name}</span>
             {line.amount !== 0 && (
               <span className={cn(line.isNegative && 'text-destructive')}>
-                {line.isNegative ? `(${formatCurrency(line.amount)})` : formatCurrency(line.amount)}
+                {line.isNegative ? `(${fmt(Math.abs(line.amount))})` : fmt(line.amount)}
               </span>
             )}
           </div>

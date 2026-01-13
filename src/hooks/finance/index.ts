@@ -15,6 +15,7 @@ export { useExpenseAnalysis } from './useExpenseAnalysis';
 export { useIncomeStatement } from './useIncomeStatement';
 export { usePdfExport } from './usePdfExport';
 export { useBalanceSheetPdfExport } from './useBalanceSheetPdfExport';
+export { useIncomeStatementPdfExport } from './useIncomeStatementPdfExport';
 export { useFinancialDataHub } from './useFinancialDataHub';
 export { useFixedExpenses } from './useFixedExpenses';
 export { useExchangeRates } from './useExchangeRates';
