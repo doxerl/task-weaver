@@ -24,15 +24,35 @@ export function useCategories() {
     enabled: !!user?.id
   });
 
-  const grouped = useMemo(() => ({
-    income: categories.filter(c => c.type === 'INCOME'),
-    expense: categories.filter(c => c.type === 'EXPENSE'),
-    partner: categories.filter(c => c.type === 'PARTNER'),
-    financing: categories.filter(c => c.type === 'FINANCING'),
-    investment: categories.filter(c => c.type === 'INVESTMENT'),
-    excluded: categories.filter(c => c.type === 'EXCLUDED'),
-    all: categories
-  }), [categories]);
+  // Hierarchical structure builder
+  const buildHierarchy = (cats: TransactionCategory[]): TransactionCategory[] => {
+    const parentCats = cats.filter(c => !c.parent_category_id);
+    return parentCats.map(parent => ({
+      ...parent,
+      children: cats.filter(c => c.parent_category_id === parent.id)
+    }));
+  };
+
+  const grouped = useMemo(() => {
+    const byType = {
+      income: categories.filter(c => c.type === 'INCOME'),
+      expense: categories.filter(c => c.type === 'EXPENSE'),
+      partner: categories.filter(c => c.type === 'PARTNER'),
+      financing: categories.filter(c => c.type === 'FINANCING'),
+      investment: categories.filter(c => c.type === 'INVESTMENT'),
+      excluded: categories.filter(c => c.type === 'EXCLUDED'),
+      all: categories
+    };
+    return byType;
+  }, [categories]);
+
+  // Hierarchical categories (with children nested)
+  const hierarchical = useMemo(() => buildHierarchy(categories), [categories]);
+
+  // Get parent categories only
+  const parentCategories = useMemo(() => 
+    categories.filter(c => !c.parent_category_id),
+  [categories]);
 
   const createCategory = useMutation({
     mutationFn: async (data: Partial<TransactionCategory>) => {
@@ -85,6 +105,8 @@ export function useCategories() {
   return { 
     categories, 
     grouped, 
+    hierarchical,
+    parentCategories,
     isLoading, 
     error,
     createCategory, 

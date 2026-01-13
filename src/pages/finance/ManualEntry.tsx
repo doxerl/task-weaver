@@ -6,7 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { ArrowLeft, Plus, TrendingUp, TrendingDown, Users } from 'lucide-react';
 import { useCategories } from '@/hooks/finance/useCategories';
@@ -37,7 +37,7 @@ const ICON_OPTIONS = ['💰', '📊', '🔍', '💼', '✅', '🏪', '🚗', '�
 export default function ManualEntry() {
   const currentDate = new Date();
   const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
-  const { grouped, isLoading: catLoading, createCategory } = useCategories();
+  const { grouped, hierarchical, isLoading: catLoading, createCategory, parentCategories } = useCategories();
   const { addTransaction, addPartnerTransaction, recentTransactions, isLoading } = useManualEntry(selectedYear);
 
   const [transactionType, setTransactionType] = useState<'income' | 'expense' | 'partner'>('income');
@@ -102,12 +102,12 @@ export default function ManualEntry() {
     setCategoryId('');
   };
 
-  // Get categories based on transaction type
+  // Get categories based on transaction type (hierarchical)
   const getCategories = () => {
-    if (transactionType === 'income') {
-      return [...(grouped.income || []), ...(grouped.financing || [])];
-    }
-    return [...(grouped.expense || []), ...(grouped.investment || [])];
+    const typeFilter = transactionType === 'income' 
+      ? ['INCOME', 'FINANCING'] 
+      : ['EXPENSE', 'INVESTMENT'];
+    return hierarchical.filter(c => typeFilter.includes(c.type));
   };
 
   const categories = getCategories();
@@ -247,11 +247,38 @@ export default function ManualEntry() {
                       <SelectValue placeholder="Kategori seçin" />
                     </SelectTrigger>
                     <SelectContent>
-                      {categories.map(c => (
-                        <SelectItem key={c.id} value={c.id}>
-                          {c.icon} {c.name}
-                          {c.is_financing && <span className="text-muted-foreground ml-2">(Finansman)</span>}
-                        </SelectItem>
+                      {categories.map(cat => (
+                        cat.children && cat.children.length > 0 ? (
+                          <SelectGroup key={cat.id}>
+                            <SelectLabel className="flex items-center gap-2 text-sm font-medium">
+                              {cat.icon} {cat.name}
+                              {cat.account_subcode && <span className="text-muted-foreground">({cat.account_subcode})</span>}
+                            </SelectLabel>
+                            {cat.children.map(child => (
+                              <SelectItem key={child.id} value={child.id} className="pl-6">
+                                <span className="flex items-center gap-2">
+                                  <span className="text-muted-foreground">├</span>
+                                  {child.icon} {child.name}
+                                  {child.account_subcode && <span className="text-muted-foreground text-xs ml-1">({child.account_subcode})</span>}
+                                </span>
+                              </SelectItem>
+                            ))}
+                            <SelectItem value={cat.id} className="pl-6 border-t mt-1 pt-1 text-muted-foreground">
+                              <span className="flex items-center gap-2">
+                                <span>└</span>
+                                {cat.icon} Genel {cat.name}
+                              </span>
+                            </SelectItem>
+                          </SelectGroup>
+                        ) : (
+                          <SelectItem key={cat.id} value={cat.id}>
+                            <span className="flex items-center gap-2">
+                              {cat.icon} {cat.name}
+                              {cat.account_subcode && <span className="text-muted-foreground text-xs ml-1">({cat.account_subcode})</span>}
+                              {cat.is_financing && <span className="text-muted-foreground ml-2">(Finansman)</span>}
+                            </span>
+                          </SelectItem>
+                        )
                       ))}
                       <SelectItem value="NEW" className="text-primary font-medium border-t mt-2 pt-2">
                         ➕ Yeni Kategori Ekle

@@ -5,6 +5,7 @@ import { z } from 'zod';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Checkbox } from '@/components/ui/checkbox';
 import {
   Select,
   SelectContent,
@@ -19,9 +20,11 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from '@/components/ui/form';
-import { TransactionCategory, CategoryType } from '@/types/finance';
+import { TransactionCategory, CategoryType, CostCenter } from '@/types/finance';
 import { Loader2 } from 'lucide-react';
+import { useCategories } from '@/hooks/finance/useCategories';
 
 const COMMON_EMOJIS = [
   '💰', '💵', '💳', '🏦', '📊', '📈', '📉',
@@ -46,6 +49,28 @@ const categoryTypes: { value: CategoryType; label: string }[] = [
   { value: 'EXCLUDED', label: 'Hariç' },
 ];
 
+const costCenterOptions: { value: CostCenter; label: string }[] = [
+  { value: null, label: 'Belirtilmemiş' },
+  { value: 'DELIVERY', label: 'Teslimat' },
+  { value: 'ADMIN', label: 'Yönetim' },
+  { value: 'SALES', label: 'Satış' },
+];
+
+const accountCodeOptions = [
+  { value: '600', label: '600 - Yurtiçi Satışlar' },
+  { value: '601', label: '601 - Yurtdışı Satışlar' },
+  { value: '602', label: '602 - Diğer Gelirler' },
+  { value: '620', label: '620 - Satılan Mamuller Maliyeti' },
+  { value: '622', label: '622 - Satılan Hizmet Maliyeti' },
+  { value: '632', label: '632 - Genel Yönetim Giderleri' },
+  { value: '760', label: '760 - Pazarlama Satış Dağıtım Giderleri' },
+  { value: '770', label: '770 - Genel Yönetim Giderleri' },
+  { value: '780', label: '780 - Finansman Giderleri' },
+  { value: '642', label: '642 - Faiz Gelirleri' },
+  { value: '649', label: '649 - Diğer Olağan Gelir ve Karlar' },
+  { value: '659', label: '659 - Diğer Olağan Gider ve Zararlar' },
+];
+
 const categorySchema = z.object({
   name: z.string().min(2, 'En az 2 karakter').max(50, 'En fazla 50 karakter'),
   code: z.string().min(2, 'En az 2 karakter').max(20, 'En fazla 20 karakter')
@@ -55,6 +80,12 @@ const categorySchema = z.object({
   color: z.string().default('#6b7280'),
   keywords: z.string().optional(),
   vendor_patterns: z.string().optional(),
+  // New fields
+  parent_category_id: z.string().optional().nullable(),
+  account_code: z.string().optional().nullable(),
+  account_subcode: z.string().optional().nullable(),
+  cost_center: z.enum(['DELIVERY', 'ADMIN', 'SALES']).optional().nullable(),
+  is_kkeg: z.boolean().default(false),
 });
 
 type CategoryFormData = z.infer<typeof categorySchema>;
@@ -69,6 +100,7 @@ interface CategoryFormProps {
 export function CategoryForm({ category, onSave, onCancel, isLoading }: CategoryFormProps) {
   const [selectedEmoji, setSelectedEmoji] = useState(category?.icon || '💰');
   const [selectedColor, setSelectedColor] = useState(category?.color || '#6b7280');
+  const { parentCategories } = useCategories();
 
   const form = useForm<CategoryFormData>({
     resolver: zodResolver(categorySchema),
@@ -80,6 +112,11 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
       color: category?.color || '#6b7280',
       keywords: category?.keywords?.join(', ') || '',
       vendor_patterns: category?.vendor_patterns?.join(', ') || '',
+      parent_category_id: category?.parent_category_id || null,
+      account_code: category?.account_code || null,
+      account_subcode: category?.account_subcode || null,
+      cost_center: category?.cost_center || null,
+      is_kkeg: category?.is_kkeg || false,
     },
   });
 
@@ -87,6 +124,13 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
     const value = e.target.value.toUpperCase().replace(/[^A-Z_]/g, '').replace(/\s/g, '_');
     form.setValue('code', value);
   };
+
+  const selectedType = form.watch('type');
+  const selectedParent = form.watch('parent_category_id');
+  const selectedAccountCode = form.watch('account_code');
+
+  // Filter parent categories by selected type
+  const filteredParentCategories = parentCategories.filter(c => c.type === selectedType);
 
   const onSubmit = (data: CategoryFormData) => {
     const keywords = data.keywords
@@ -102,6 +146,10 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
       color: selectedColor,
       keywords,
       vendor_patterns,
+      parent_category_id: data.parent_category_id || null,
+      cost_center: data.cost_center || null,
+      is_kkeg: data.is_kkeg || false,
+      depth: data.parent_category_id ? 1 : 0,
     });
   };
 
@@ -161,6 +209,140 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
                 </SelectContent>
               </Select>
               <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Parent Category Selection */}
+        <FormField
+          control={form.control}
+          name="parent_category_id"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Üst Kategori (opsiyonel)</FormLabel>
+              <Select 
+                onValueChange={(v) => field.onChange(v === 'none' ? null : v)} 
+                value={field.value || 'none'}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Üst kategori seçin" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="none">— Ana Kategori —</SelectItem>
+                  {filteredParentCategories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.icon} {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormDescription>
+                Alt kategori oluşturmak için üst kategori seçin
+              </FormDescription>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* Account Code */}
+        <div className="grid grid-cols-2 gap-3">
+          <FormField
+            control={form.control}
+            name="account_code"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Hesap Kodu</FormLabel>
+                <Select 
+                  onValueChange={(v) => field.onChange(v === 'none' ? null : v)} 
+                  value={field.value || 'none'}
+                >
+                  <FormControl>
+                    <SelectTrigger>
+                      <SelectValue placeholder="Hesap kodu" />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    <SelectItem value="none">—</SelectItem>
+                    {accountCodeOptions.map((opt) => (
+                      <SelectItem key={opt.value} value={opt.value}>
+                        {opt.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <FormField
+            control={form.control}
+            name="account_subcode"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Alt Hesap Kodu</FormLabel>
+                <FormControl>
+                  <Input
+                    placeholder="örn: 632.01.01"
+                    {...field}
+                    value={field.value || ''}
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+        </div>
+
+        {/* Cost Center */}
+        <FormField
+          control={form.control}
+          name="cost_center"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Maliyet Merkezi</FormLabel>
+              <Select 
+                onValueChange={(v) => field.onChange(v === 'none' ? null : v)} 
+                value={field.value || 'none'}
+              >
+                <FormControl>
+                  <SelectTrigger>
+                    <SelectValue placeholder="Maliyet merkezi" />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {costCenterOptions.map((opt) => (
+                    <SelectItem key={opt.value || 'none'} value={opt.value || 'none'}>
+                      {opt.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        {/* KKEG Checkbox */}
+        <FormField
+          control={form.control}
+          name="is_kkeg"
+          render={({ field }) => (
+            <FormItem className="flex flex-row items-start space-x-3 space-y-0 rounded-md border p-3">
+              <FormControl>
+                <Checkbox
+                  checked={field.value}
+                  onCheckedChange={field.onChange}
+                />
+              </FormControl>
+              <div className="space-y-1 leading-none">
+                <FormLabel>KKEG (Kanunen Kabul Edilmeyen Gider)</FormLabel>
+                <FormDescription>
+                  Vergiden indirilemez giderler için işaretleyin
+                </FormDescription>
+              </div>
             </FormItem>
           )}
         />

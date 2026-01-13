@@ -1350,6 +1350,7 @@ export type Database = {
           color: string | null
           cost_center: string | null
           created_at: string | null
+          depth: number | null
           expense_behavior: string | null
           icon: string | null
           id: string
@@ -1361,6 +1362,7 @@ export type Database = {
           keywords: string[] | null
           match_priority: number | null
           name: string
+          parent_category_id: string | null
           sort_order: number | null
           type: string
           user_id: string | null
@@ -1374,6 +1376,7 @@ export type Database = {
           color?: string | null
           cost_center?: string | null
           created_at?: string | null
+          depth?: number | null
           expense_behavior?: string | null
           icon?: string | null
           id?: string
@@ -1385,6 +1388,7 @@ export type Database = {
           keywords?: string[] | null
           match_priority?: number | null
           name: string
+          parent_category_id?: string | null
           sort_order?: number | null
           type: string
           user_id?: string | null
@@ -1398,6 +1402,7 @@ export type Database = {
           color?: string | null
           cost_center?: string | null
           created_at?: string | null
+          depth?: number | null
           expense_behavior?: string | null
           icon?: string | null
           id?: string
@@ -1409,12 +1414,21 @@ export type Database = {
           keywords?: string[] | null
           match_priority?: number | null
           name?: string
+          parent_category_id?: string | null
           sort_order?: number | null
           type?: string
           user_id?: string | null
           vendor_patterns?: string[] | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "transaction_categories_parent_category_id_fkey"
+            columns: ["parent_category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       uploaded_bank_files: {
         Row: {
