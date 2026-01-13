@@ -4,12 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, TrendingUp, TrendingDown, Wallet, FileDown, BarChart3, PieChart, FileText, Users, Loader2, Receipt } from 'lucide-react';
-import { useFinancialCalculations } from '@/hooks/finance/useFinancialCalculations';
+import { Progress } from '@/components/ui/progress';
+import { ArrowLeft, TrendingUp, TrendingDown, Wallet, FileDown, BarChart3, FileText, Users, Loader2, Receipt, CreditCard, Car, Building } from 'lucide-react';
+import { useFinancialDataHub } from '@/hooks/finance/useFinancialDataHub';
 import { useIncomeAnalysis } from '@/hooks/finance/useIncomeAnalysis';
 import { useExpenseAnalysis } from '@/hooks/finance/useExpenseAnalysis';
 import { useIncomeStatement } from '@/hooks/finance/useIncomeStatement';
-import { useVatCalculations } from '@/hooks/finance/useVatCalculations';
 import { usePdfExport } from '@/hooks/finance/usePdfExport';
 import { MonthlyTrendChart } from '@/components/finance/charts/MonthlyTrendChart';
 import { ServiceRevenueChart } from '@/components/finance/charts/ServiceRevenueChart';
@@ -25,30 +25,30 @@ export default function Reports() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [period, setPeriod] = useState<ReportPeriod>('yearly');
   
-  const calc = useFinancialCalculations(year);
+  // Use unified data hub
+  const hub = useFinancialDataHub(year);
   const incomeAnalysis = useIncomeAnalysis(year);
   const expenseAnalysis = useExpenseAnalysis(year);
   const incomeStatement = useIncomeStatement(year);
-  const vatCalc = useVatCalculations(year);
   const { generatePdf, isGenerating } = usePdfExport();
 
-  // Combine monthly data
+  // Combine monthly data from hub
   const monthlyData = useMemo((): MonthlyDataPoint[] => {
-    const months = Object.entries(calc.byMonth || {});
+    const months = Object.entries(hub.byMonth || {});
     let cumulative = 0;
     return months.map(([m, data]) => {
-      const net = data.income - data.expense;
+      const net = data.income.net - data.expense.net;
       cumulative += net;
       return {
         month: parseInt(m),
         monthName: MONTH_NAMES_SHORT_TR[parseInt(m) - 1],
-        income: data.income,
-        expense: data.expense,
+        income: data.income.net,
+        expense: data.expense.net,
         net,
         cumulativeProfit: cumulative,
       };
     });
-  }, [calc.byMonth]);
+  }, [hub.byMonth]);
 
   const handleExportPdf = async () => {
     const reportData: FullReportData = {
@@ -56,10 +56,10 @@ export default function Reports() {
       period,
       generatedAt: new Date().toISOString(),
       kpis: {
-        totalIncome: { value: calc.totalIncome, trend: 'neutral' },
-        totalExpenses: { value: calc.totalExpenses, trend: 'neutral' },
-        netProfit: { value: calc.operatingProfit, trend: calc.operatingProfit >= 0 ? 'up' : 'down' },
-        profitMargin: { value: calc.profitMargin, trend: 'neutral' },
+        totalIncome: { value: hub.incomeSummary.gross, trend: 'neutral' },
+        totalExpenses: { value: hub.expenseSummary.gross, trend: 'neutral' },
+        netProfit: { value: hub.operatingProfit, trend: hub.operatingProfit >= 0 ? 'up' : 'down' },
+        profitMargin: { value: hub.profitMargin, trend: 'neutral' },
       },
       monthlyData,
       serviceRevenue: incomeAnalysis.serviceRevenue,
@@ -67,16 +67,16 @@ export default function Reports() {
       incomeStatement: incomeStatement.statement,
       partnerAccount: {
         transactions: [],
-        totalDebit: calc.partnerOut,
-        totalCredit: calc.partnerIn,
-        balance: calc.netPartnerBalance,
+        totalDebit: hub.partnerSummary.withdrawals,
+        totalCredit: hub.partnerSummary.deposits,
+        balance: hub.partnerSummary.balance,
       },
       financing: {
-        creditUsed: calc.financingIn,
-        creditPaid: calc.financingOut,
-        leasingPaid: 0,
-        interestPaid: 0,
-        remainingDebt: 0,
+        creditUsed: hub.financingSummary.creditIn,
+        creditPaid: hub.financingSummary.creditOut,
+        leasingPaid: hub.financingSummary.leasingOut,
+        interestPaid: hub.financingSummary.interestPaid,
+        remainingDebt: hub.financingSummary.remainingDebt,
       },
     };
 
@@ -115,22 +115,22 @@ export default function Reports() {
             <CardContent className="p-3">
               <TrendingUp className="h-4 w-4 text-green-600 mb-1" />
               <p className="text-xs text-muted-foreground">Net Gelir (KDV Hariç)</p>
-              <p className="text-lg font-bold text-green-600">{formatCurrency(calc.netRevenue)}</p>
+              <p className="text-lg font-bold text-green-600">{formatCurrency(hub.incomeSummary.net)}</p>
             </CardContent>
           </Card>
           <Card className="bg-red-50 dark:bg-red-950/30">
             <CardContent className="p-3">
               <TrendingDown className="h-4 w-4 text-red-600 mb-1" />
               <p className="text-xs text-muted-foreground">Net Gider (KDV Hariç)</p>
-              <p className="text-lg font-bold text-red-600">{formatCurrency(calc.netCost + calc.receiptTotal)}</p>
+              <p className="text-lg font-bold text-red-600">{formatCurrency(hub.expenseSummary.net)}</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-3">
               <Wallet className="h-4 w-4 text-primary mb-1" />
               <p className="text-xs text-muted-foreground">Net Kâr</p>
-              <p className={`text-lg font-bold ${calc.operatingProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(calc.operatingProfit)}
+              <p className={`text-lg font-bold ${hub.operatingProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                {formatCurrency(hub.operatingProfit)}
               </p>
             </CardContent>
           </Card>
@@ -138,7 +138,7 @@ export default function Reports() {
             <CardContent className="p-3">
               <BarChart3 className="h-4 w-4 text-primary mb-1" />
               <p className="text-xs text-muted-foreground">Kâr Marjı</p>
-              <p className="text-lg font-bold">{calc.profitMargin.toFixed(1)}%</p>
+              <p className="text-lg font-bold">{hub.profitMargin.toFixed(1)}%</p>
             </CardContent>
           </Card>
         </div>
@@ -149,28 +149,22 @@ export default function Reports() {
             <CardContent className="p-3">
               <Receipt className="h-4 w-4 text-blue-600 mb-1" />
               <p className="text-xs text-muted-foreground">Hesaplanan KDV</p>
-              <p className="text-base font-bold text-blue-600">{formatCurrency(vatCalc.totalCalculatedVat)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Fatura: {formatCurrency(vatCalc.receiptCalculatedVat)} | Banka: {formatCurrency(vatCalc.bankCalculatedVat)}
-              </p>
+              <p className="text-base font-bold text-blue-600">{formatCurrency(hub.vatSummary.calculated)}</p>
             </CardContent>
           </Card>
           <Card className="bg-orange-50 dark:bg-orange-950/30">
             <CardContent className="p-3">
               <Receipt className="h-4 w-4 text-orange-600 mb-1" />
               <p className="text-xs text-muted-foreground">İndirilecek KDV</p>
-              <p className="text-base font-bold text-orange-600">{formatCurrency(vatCalc.totalDeductibleVat)}</p>
-              <p className="text-xs text-muted-foreground mt-1">
-                Fatura: {formatCurrency(vatCalc.receiptDeductibleVat)} | Banka: {formatCurrency(vatCalc.bankDeductibleVat)}
-              </p>
+              <p className="text-base font-bold text-orange-600">{formatCurrency(hub.vatSummary.deductible)}</p>
             </CardContent>
           </Card>
-          <Card className={vatCalc.netVatPayable >= 0 ? 'bg-purple-50 dark:bg-purple-950/30' : 'bg-green-50 dark:bg-green-950/30'}>
+          <Card className={hub.vatSummary.net >= 0 ? 'bg-purple-50 dark:bg-purple-950/30' : 'bg-green-50 dark:bg-green-950/30'}>
             <CardContent className="p-3">
               <Wallet className="h-4 w-4 text-purple-600 mb-1" />
               <p className="text-xs text-muted-foreground">Net KDV</p>
-              <p className={`text-base font-bold ${vatCalc.netVatPayable >= 0 ? 'text-purple-600' : 'text-green-600'}`}>
-                {vatCalc.netVatPayable >= 0 ? 'Ödenecek' : 'Devreden'}: {formatCurrency(Math.abs(vatCalc.netVatPayable))}
+              <p className={`text-base font-bold ${hub.vatSummary.net >= 0 ? 'text-purple-600' : 'text-green-600'}`}>
+                {hub.vatSummary.net >= 0 ? 'Ödenecek' : 'Devreden'}: {formatCurrency(Math.abs(hub.vatSummary.net))}
               </p>
             </CardContent>
           </Card>
@@ -183,7 +177,7 @@ export default function Reports() {
             <TabsTrigger value="income" className="text-xs py-2"><TrendingUp className="h-3 w-3 mr-1 hidden sm:inline" />Gelir</TabsTrigger>
             <TabsTrigger value="expense" className="text-xs py-2"><TrendingDown className="h-3 w-3 mr-1 hidden sm:inline" />Gider</TabsTrigger>
             <TabsTrigger value="statement" className="text-xs py-2"><FileText className="h-3 w-3 mr-1 hidden sm:inline" />Tablo</TabsTrigger>
-            <TabsTrigger value="partner" className="text-xs py-2"><Users className="h-3 w-3 mr-1 hidden sm:inline" />Ortak</TabsTrigger>
+            <TabsTrigger value="financing" className="text-xs py-2"><CreditCard className="h-3 w-3 mr-1 hidden sm:inline" />Finans</TabsTrigger>
           </TabsList>
 
           {/* Tab 1: Dashboard */}
@@ -222,13 +216,13 @@ export default function Reports() {
               <Card>
                 <CardContent className="p-3">
                   <p className="text-xs text-muted-foreground">Sabit Gider</p>
-                  <p className="text-lg font-bold">{formatCurrency(expenseAnalysis.fixedExpense)}</p>
+                  <p className="text-lg font-bold">{formatCurrency(hub.expenseSummary.fixed)}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-3">
                   <p className="text-xs text-muted-foreground">Değişken Gider</p>
-                  <p className="text-lg font-bold">{formatCurrency(expenseAnalysis.variableExpense)}</p>
+                  <p className="text-lg font-bold">{formatCurrency(hub.expenseSummary.variable)}</p>
                 </CardContent>
               </Card>
             </div>
@@ -239,46 +233,172 @@ export default function Reports() {
             <IncomeStatementTable lines={incomeStatement.lines} year={year} />
           </TabsContent>
 
-          {/* Tab 5: Partner */}
-          <TabsContent value="partner" className="space-y-4">
+          {/* Tab 5: Financing - Detailed */}
+          <TabsContent value="financing" className="space-y-4">
+            {/* Partner Account */}
             <Card>
-              <CardContent className="p-4">
-                <div className="flex items-center gap-2 mb-3">
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
                   <Users className="h-4 w-4" />
-                  <span className="font-medium">Ortak Cari</span>
+                  <CardTitle className="text-sm">Ortak Cari Hesabı</CardTitle>
                 </div>
-                <div className="space-y-2 text-sm">
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Ortaktan Tahsilat</span>
-                    <span className="text-green-600">+{formatCurrency(calc.partnerIn)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-muted-foreground">Ortağa Ödeme</span>
-                    <span className="text-red-600">-{formatCurrency(calc.partnerOut)}</span>
-                  </div>
-                  <hr />
-                  <div className="flex justify-between font-medium">
-                    <span>Net Bakiye</span>
-                    <span className={calc.netPartnerBalance >= 0 ? 'text-green-600' : 'text-red-600'}>
-                      {formatCurrency(calc.netPartnerBalance)}
-                    </span>
-                  </div>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Ortaktan Tahsilat</span>
+                  <span className="text-green-600">+{formatCurrency(hub.partnerSummary.deposits)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Ortağa Ödeme</span>
+                  <span className="text-red-600">-{formatCurrency(hub.partnerSummary.withdrawals)}</span>
+                </div>
+                <hr />
+                <div className="flex justify-between font-medium">
+                  <span>Net Bakiye</span>
+                  <span className={hub.partnerSummary.balance >= 0 ? 'text-green-600' : 'text-red-600'}>
+                    {formatCurrency(hub.partnerSummary.balance)}
+                  </span>
                 </div>
               </CardContent>
             </Card>
+
+            {/* Credit Tracking */}
             <Card>
-              <CardContent className="p-4">
-                <h3 className="font-medium mb-3">Finansman Durumu</h3>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <CreditCard className="h-4 w-4" />
+                  <CardTitle className="text-sm">Kredi Takibi</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-3">
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Kredi Kullanımı</span>
-                    <span className="text-green-600">+{formatCurrency(calc.financingIn)}</span>
+                    <span className="text-muted-foreground">Toplam Kredi</span>
+                    <span className="font-medium">{formatCurrency(hub.financingSummary.creditDetails.totalCredit)}</span>
                   </div>
                   <div className="flex justify-between">
-                    <span className="text-muted-foreground">Kredi Ödemesi</span>
-                    <span className="text-red-600">-{formatCurrency(calc.financingOut)}</span>
+                    <span className="text-muted-foreground">Ödenen Taksit</span>
+                    <span className="text-green-600">-{formatCurrency(hub.financingSummary.creditOut)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Leasing Ödemesi</span>
+                    <span className="text-green-600">-{formatCurrency(hub.financingSummary.leasingOut)}</span>
+                  </div>
+                  <hr />
+                  <div className="flex justify-between font-medium">
+                    <span>Kalan Borç</span>
+                    <span className="text-red-600">{formatCurrency(hub.financingSummary.remainingDebt)}</span>
                   </div>
                 </div>
+                
+                {hub.financingSummary.creditDetails.totalCredit > 0 && (
+                  <div className="pt-2">
+                    <div className="flex justify-between text-xs text-muted-foreground mb-1">
+                      <span>Ödeme İlerlemesi</span>
+                      <span>
+                        {hub.financingSummary.creditDetails.paidMonths > 0 
+                          ? `${hub.financingSummary.creditDetails.paidMonths} / ${hub.financingSummary.creditDetails.paidMonths + hub.financingSummary.creditDetails.remainingMonths} ay`
+                          : `${Math.round((hub.financingSummary.creditOut / hub.financingSummary.creditDetails.totalCredit) * 100)}%`
+                        }
+                      </span>
+                    </div>
+                    <Progress 
+                      value={hub.financingSummary.creditDetails.totalCredit > 0 
+                        ? (hub.financingSummary.creditOut / hub.financingSummary.creditDetails.totalCredit) * 100 
+                        : 0} 
+                      className="h-2" 
+                    />
+                    {hub.financingSummary.creditDetails.monthlyPayment > 0 && (
+                      <p className="text-xs text-muted-foreground mt-1">
+                        Aylık Taksit: {formatCurrency(hub.financingSummary.creditDetails.monthlyPayment)}
+                      </p>
+                    )}
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+
+            {/* Investment Summary */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Building className="h-4 w-4" />
+                  <CardTitle className="text-sm">Yatırımlar</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                {hub.investmentSummary.vehicles > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground flex items-center gap-1">
+                      <Car className="h-3 w-3" /> Araçlar
+                    </span>
+                    <span className="font-medium">{formatCurrency(hub.investmentSummary.vehicles)}</span>
+                  </div>
+                )}
+                {hub.investmentSummary.equipment > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Ekipman</span>
+                    <span className="font-medium">{formatCurrency(hub.investmentSummary.equipment)}</span>
+                  </div>
+                )}
+                {hub.investmentSummary.other > 0 && (
+                  <div className="flex justify-between">
+                    <span className="text-muted-foreground">Diğer</span>
+                    <span className="font-medium">{formatCurrency(hub.investmentSummary.other)}</span>
+                  </div>
+                )}
+                <hr />
+                <div className="flex justify-between font-medium">
+                  <span>Toplam Yatırım</span>
+                  <span>{formatCurrency(hub.investmentSummary.total)}</span>
+                </div>
+              </CardContent>
+            </Card>
+
+            {/* Fixed Expenses Summary */}
+            <Card>
+              <CardHeader className="pb-2">
+                <div className="flex items-center gap-2">
+                  <Receipt className="h-4 w-4" />
+                  <CardTitle className="text-sm">Sabit Gider Takibi</CardTitle>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Aylık Sabit Gider</span>
+                  <span className="font-medium">{formatCurrency(hub.fixedExpenses.monthlyFixed)}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">Aylık Taksitler</span>
+                  <span className="font-medium">{formatCurrency(hub.fixedExpenses.monthlyInstallments)}</span>
+                </div>
+                <hr />
+                <div className="flex justify-between font-medium">
+                  <span>Toplam Aylık</span>
+                  <span className="text-red-600">{formatCurrency(hub.fixedExpenses.totalMonthly)}</span>
+                </div>
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>Yıllık Projeksiyon</span>
+                  <span>{formatCurrency(hub.fixedExpenses.yearlyProjected)}</span>
+                </div>
+                
+                {hub.fixedExpenses.installmentDetails.length > 0 && (
+                  <div className="pt-2 space-y-2">
+                    <p className="text-xs font-medium text-muted-foreground">Aktif Taksitler:</p>
+                    {hub.fixedExpenses.installmentDetails.map((item, i) => (
+                      <div key={i} className="bg-muted/50 rounded p-2 text-xs">
+                        <div className="flex justify-between">
+                          <span className="font-medium">{item.definition.expense_name}</span>
+                          <span>{formatCurrency(item.monthlyAmount)}/ay</span>
+                        </div>
+                        <div className="flex justify-between text-muted-foreground mt-1">
+                          <span>Kalan: {item.remainingMonths} ay</span>
+                          <span>{formatCurrency(item.remainingTotal)}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
               </CardContent>
             </Card>
           </TabsContent>

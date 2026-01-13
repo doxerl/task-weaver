@@ -786,6 +786,68 @@ export type Database = {
         }
         Relationships: []
       }
+      fixed_expense_definitions: {
+        Row: {
+          category_id: string | null
+          created_at: string | null
+          end_date: string | null
+          expense_name: string
+          expense_type: string
+          id: string
+          installment_months: number | null
+          installments_paid: number | null
+          is_active: boolean | null
+          monthly_amount: number | null
+          notes: string | null
+          start_date: string | null
+          total_amount: number | null
+          updated_at: string | null
+          user_id: string
+        }
+        Insert: {
+          category_id?: string | null
+          created_at?: string | null
+          end_date?: string | null
+          expense_name: string
+          expense_type?: string
+          id?: string
+          installment_months?: number | null
+          installments_paid?: number | null
+          is_active?: boolean | null
+          monthly_amount?: number | null
+          notes?: string | null
+          start_date?: string | null
+          total_amount?: number | null
+          updated_at?: string | null
+          user_id: string
+        }
+        Update: {
+          category_id?: string | null
+          created_at?: string | null
+          end_date?: string | null
+          expense_name?: string
+          expense_type?: string
+          id?: string
+          installment_months?: number | null
+          installments_paid?: number | null
+          is_active?: boolean | null
+          monthly_amount?: number | null
+          notes?: string | null
+          start_date?: string | null
+          total_amount?: number | null
+          updated_at?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "fixed_expense_definitions_category_id_fkey"
+            columns: ["category_id"]
+            isOneToOne: false
+            referencedRelation: "transaction_categories"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       github_work_items_cache: {
         Row: {
           assignees: string[] | null
@@ -1225,6 +1287,7 @@ export type Database = {
           code: string
           color: string | null
           created_at: string | null
+          expense_behavior: string | null
           icon: string | null
           id: string
           is_active: boolean | null
@@ -1244,6 +1307,7 @@ export type Database = {
           code: string
           color?: string | null
           created_at?: string | null
+          expense_behavior?: string | null
           icon?: string | null
           id?: string
           is_active?: boolean | null
@@ -1263,6 +1327,7 @@ export type Database = {
           code?: string
           color?: string | null
           created_at?: string | null
+          expense_behavior?: string | null
           icon?: string | null
           id?: string
           is_active?: boolean | null
