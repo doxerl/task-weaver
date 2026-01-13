@@ -24,7 +24,7 @@ export function useDetailedIncomeStatementPdf() {
       // Helper to normalize Turkish text for PDF
       const n = normalizeTurkishText;
 
-      // Format helper
+      // Format helper - with parentheses for negative values
       const formatValue = (value: number | undefined, isNegative?: boolean): string => {
         if (value === undefined) return '';
         if (value === 0) return '0,00';
@@ -54,25 +54,35 @@ export function useDetailedIncomeStatementPdf() {
         doc.text(n(`Para Birimi: USD (Yillik Ort. Kur: ${options.yearlyAverageRate.toFixed(4)})`), pageWidth / 2, 35, { align: 'center' });
       }
 
-      // Prepare table data
-      const tableData = data.lines.map(line => {
-        const row = [
-          line.code || '',
-          n(line.isSubItem ? `   ${line.name}` : line.name),
-          formatValue(line.subAmount, line.isNegative),
-          formatValue(line.totalAmount, line.isNegative),
-        ];
-        return row;
+      // Filter out empty sub-items for cleaner PDF
+      const visibleLines = data.lines.filter(line => {
+        if (line.isBold || line.isHeader) return true;
+        if (line.isSubItem) {
+          return line.subAmount !== undefined && line.subAmount !== 0;
+        }
+        return (line.subAmount !== undefined && line.subAmount !== 0) || 
+               (line.totalAmount !== undefined && line.totalAmount !== 0);
       });
 
-      // Generate table
+      // Prepare table data - Single column format (Resmi Türk formatı)
+      const tableData = visibleLines.map(line => {
+        // Use subAmount for sub-items, totalAmount for headers/totals
+        const displayValue = line.isSubItem ? line.subAmount : line.totalAmount;
+        
+        return [
+          line.code || '',
+          n(line.isSubItem ? `   ${line.name}` : line.name),
+          formatValue(displayValue, line.isNegative),
+        ];
+      });
+
+      // Generate table - Single amount column
       autoTable(doc, {
         startY: currency === 'USD' ? 40 : 35,
         head: [[
           'Kod',
           n('ACIKLAMA'),
-          n(`CARI DONEM\n(${data.year})`),
-          'TOPLAM',
+          n(`CARI DONEM (${data.year})`),
         ]],
         body: tableData,
         theme: 'grid',
@@ -89,20 +99,20 @@ export function useDetailedIncomeStatementPdf() {
         },
         columnStyles: {
           0: { halign: 'center', cellWidth: 15 },
-          1: { halign: 'left', cellWidth: 90 },
-          2: { halign: 'right', cellWidth: 35 },
-          3: { halign: 'right', cellWidth: 35 },
+          1: { halign: 'left', cellWidth: 120 },
+          2: { halign: 'right', cellWidth: 40 },
         },
         didParseCell: (hookData) => {
           if (hookData.section === 'body') {
-            const line = data.lines[hookData.row.index];
+            const lineIndex = hookData.row.index;
+            const line = visibleLines[lineIndex];
             if (line) {
               // Bold for headers and totals
               if (line.isBold || line.isHeader) {
                 hookData.cell.styles.fontStyle = 'bold';
               }
-              // Red for negative values in amount columns
-              if ((hookData.column.index === 2 || hookData.column.index === 3) && line.isNegative) {
+              // Red for negative values in amount column
+              if (hookData.column.index === 2 && line.isNegative) {
                 hookData.cell.styles.textColor = [200, 0, 0];
               }
               // Highlight total rows
