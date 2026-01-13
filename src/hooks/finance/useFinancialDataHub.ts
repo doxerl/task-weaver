@@ -84,6 +84,50 @@ export interface VatSummary {
   byMonth: Record<number, { calculated: number; deductible: number; net: number }>;
 }
 
+export interface BalanceData {
+  // Dönen Varlıklar
+  bankBalance: number;
+  cashOnHand: number;
+  inventory: number;
+  tradeReceivables: number;
+  partnerReceivables: number;
+  vatReceivable: number;
+  currentAssetsTotal: number;
+  
+  // Duran Varlıklar
+  equipment: number;
+  vehicles: number;
+  depreciation: number;
+  fixedAssetsTotal: number;
+  
+  // Toplam Aktif
+  totalAssets: number;
+  
+  // Kısa Vadeli Borçlar
+  tradePayables: number;
+  vatPayable: number;
+  taxPayable: number;
+  partnerPayables: number;
+  shortTermTotal: number;
+  
+  // Uzun Vadeli Borçlar
+  bankLoans: number;
+  longTermTotal: number;
+  
+  // Özkaynaklar
+  paidCapital: number;
+  retainedEarnings: number;
+  currentProfit: number;
+  equityTotal: number;
+  
+  // Toplam Pasif
+  totalLiabilities: number;
+  
+  // Denge kontrolü
+  isBalanced: boolean;
+  difference: number;
+}
+
 export interface FinancialDataHub {
   // Loading state
   isLoading: boolean;
@@ -105,6 +149,9 @@ export interface FinancialDataHub {
   investmentSummary: InvestmentSummary;
   partnerSummary: PartnerSummary;
   vatSummary: VatSummary;
+  
+  // Balance sheet data
+  balanceData: BalanceData;
   
   // Breakdowns
   byCategory: Record<string, CategorySummary>;
@@ -373,6 +420,87 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     const netProfit = operatingProfit - interestPaid;
     const profitMargin = incomeSummary.net > 0 ? (operatingProfit / incomeSummary.net) * 100 : 0;
 
+    // Balance sheet data calculation
+    // Bank balance from latest transaction
+    const sortedBankTx = [...bankTx].sort((a, b) => 
+      new Date(b.transaction_date || 0).getTime() - new Date(a.transaction_date || 0).getTime()
+    );
+    const bankBalance = sortedBankTx[0]?.balance || 0;
+    
+    // Partner receivables/payables - net calculation
+    const partnerReceivables = partnerSummary.withdrawals > partnerSummary.deposits 
+      ? partnerSummary.withdrawals - partnerSummary.deposits 
+      : 0;
+    const partnerPayables = partnerSummary.deposits > partnerSummary.withdrawals 
+      ? partnerSummary.deposits - partnerSummary.withdrawals 
+      : 0;
+    
+    // VAT - positive = payable, negative = receivable
+    const vatPayable = vatSummary.net > 0 ? vatSummary.net : 0;
+    const vatReceivable = vatSummary.net < 0 ? Math.abs(vatSummary.net) : 0;
+    
+    // Current assets
+    const cashOnHand = settings?.cash_on_hand || 0;
+    const inventoryValue = settings?.inventory_value || 0;
+    const tradeReceivables = settings?.trade_receivables || 0;
+    const currentAssetsTotal = cashOnHand + bankBalance + tradeReceivables + partnerReceivables + vatReceivable + inventoryValue;
+    
+    // Fixed assets - include year purchases
+    const equipmentPurchases = investment.filter(t => t.categoryCode?.includes('EKIPMAN')).reduce((sum, t) => sum + t.gross, 0);
+    const vehiclePurchases = investment.filter(t => t.categoryCode?.includes('ARAC')).reduce((sum, t) => sum + t.gross, 0);
+    const equipmentTotal = (settings?.equipment_value || 0) + equipmentPurchases;
+    const vehiclesTotal = (settings?.vehicles_value || 0) + vehiclePurchases;
+    const depreciationTotal = settings?.accumulated_depreciation || 0;
+    const fixedAssetsTotal = equipmentTotal + vehiclesTotal - depreciationTotal;
+    
+    const totalAssets = currentAssetsTotal + fixedAssetsTotal;
+    
+    // Short term liabilities
+    const tradePayables = settings?.trade_payables || 0;
+    const shortTermTotal = tradePayables + vatPayable + partnerPayables;
+    
+    // Long term liabilities
+    const bankLoansBalance = Math.max(0, financingSummary.remainingDebt);
+    const longTermTotal = bankLoansBalance;
+    
+    // Equity
+    const paidCapital = settings?.paid_capital || 0;
+    const retainedEarnings = settings?.retained_earnings || 0;
+    const equityTotal = paidCapital + retainedEarnings + operatingProfit;
+    
+    const totalLiabilities = shortTermTotal + longTermTotal + equityTotal;
+    const difference = totalAssets - totalLiabilities;
+    const isBalanced = Math.abs(difference) < 0.01;
+    
+    const balanceData: BalanceData = {
+      bankBalance,
+      cashOnHand,
+      inventory: inventoryValue,
+      tradeReceivables,
+      partnerReceivables,
+      vatReceivable,
+      currentAssetsTotal,
+      equipment: equipmentTotal,
+      vehicles: vehiclesTotal,
+      depreciation: depreciationTotal,
+      fixedAssetsTotal,
+      totalAssets,
+      tradePayables,
+      vatPayable,
+      taxPayable: 0,
+      partnerPayables,
+      shortTermTotal,
+      bankLoans: bankLoansBalance,
+      longTermTotal,
+      paidCapital,
+      retainedEarnings,
+      currentProfit: operatingProfit,
+      equityTotal,
+      totalLiabilities,
+      isBalanced,
+      difference
+    };
+
     return {
       isLoading: false,
       transactions: processedTx,
@@ -387,6 +515,7 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       investmentSummary,
       partnerSummary,
       vatSummary,
+      balanceData,
       byCategory,
       byMonth,
       fixedExpenses,
@@ -400,6 +529,35 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
 }
 
 function createEmptyHub(fixedExpenses: FixedExpenseSummary): FinancialDataHub {
+  const emptyBalanceData: BalanceData = {
+    bankBalance: 0,
+    cashOnHand: 0,
+    inventory: 0,
+    tradeReceivables: 0,
+    partnerReceivables: 0,
+    vatReceivable: 0,
+    currentAssetsTotal: 0,
+    equipment: 0,
+    vehicles: 0,
+    depreciation: 0,
+    fixedAssetsTotal: 0,
+    totalAssets: 0,
+    tradePayables: 0,
+    vatPayable: 0,
+    taxPayable: 0,
+    partnerPayables: 0,
+    shortTermTotal: 0,
+    bankLoans: 0,
+    longTermTotal: 0,
+    paidCapital: 0,
+    retainedEarnings: 0,
+    currentProfit: 0,
+    equityTotal: 0,
+    totalLiabilities: 0,
+    isBalanced: true,
+    difference: 0
+  };
+
   return {
     isLoading: true,
     transactions: [],
@@ -428,6 +586,7 @@ function createEmptyHub(fixedExpenses: FixedExpenseSummary): FinancialDataHub {
     investmentSummary: { equipment: 0, vehicles: 0, other: 0, total: 0, byType: {} },
     partnerSummary: { deposits: 0, withdrawals: 0, balance: 0 },
     vatSummary: { calculated: 0, deductible: 0, net: 0, byMonth: {} },
+    balanceData: emptyBalanceData,
     byCategory: {},
     byMonth: {},
     fixedExpenses,
