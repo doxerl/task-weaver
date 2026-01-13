@@ -10,3 +10,7 @@ export { useFinancialSettings } from './useFinancialSettings';
 export { useBalanceSheet } from './useBalanceSheet';
 export { useBankImportSession } from './useBankImportSession';
 export { useCategoryRules, categorizeWithRules } from './useCategoryRules';
+export { useIncomeAnalysis } from './useIncomeAnalysis';
+export { useExpenseAnalysis } from './useExpenseAnalysis';
+export { useIncomeStatement } from './useIncomeStatement';
+export { usePdfExport } from './usePdfExport';
