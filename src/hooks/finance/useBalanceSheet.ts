@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useFinancialDataHub, BalanceData } from './useFinancialDataHub';
 import { BalanceSheet } from '@/types/finance';
 
-export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isLoading: boolean } {
+export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isLoading: boolean; uncategorizedCount: number; uncategorizedTotal: number } {
   const hub = useFinancialDataHub(year);
 
   return useMemo(() => {
@@ -20,7 +20,7 @@ export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isL
         isBalanced: true,
         difference: 0,
       };
-      return { balanceSheet: emptyBalanceSheet, isLoading: true };
+      return { balanceSheet: emptyBalanceSheet, isLoading: true, uncategorizedCount: 0, uncategorizedTotal: 0 };
     }
 
     const { balanceData } = hub;
@@ -79,6 +79,6 @@ export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isL
       difference: balanceData.difference,
     };
 
-    return { balanceSheet, isLoading: false };
-  }, [hub.isLoading, hub.balanceData, year]);
+    return { balanceSheet, isLoading: false, uncategorizedCount: hub.uncategorizedCount, uncategorizedTotal: hub.uncategorizedTotal };
+  }, [hub.isLoading, hub.balanceData, hub.uncategorizedCount, hub.uncategorizedTotal, year]);
 }

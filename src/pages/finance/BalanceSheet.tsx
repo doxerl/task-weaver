@@ -7,6 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { ArrowLeft, FileDown, Settings, CheckCircle, AlertTriangle, Loader2 } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { useFinancialSettings } from '@/hooks/finance/useFinancialSettings';
 import { BottomTabBar } from '@/components/BottomTabBar';
@@ -18,7 +19,7 @@ export default function BalanceSheet() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [settingsOpen, setSettingsOpen] = useState(false);
   
-  const { balanceSheet, isLoading } = useBalanceSheet(year);
+  const { balanceSheet, isLoading, uncategorizedCount, uncategorizedTotal } = useBalanceSheet(year);
   const { settings, upsertSettings } = useFinancialSettings();
   
   const [formData, setFormData] = useState({
@@ -178,6 +179,21 @@ export default function BalanceSheet() {
             </SelectContent>
           </Select>
         </div>
+
+        {/* Uncategorized Transaction Warning */}
+        {uncategorizedCount > 0 && (
+          <Alert variant="destructive" className="mb-0">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Kategorisiz İşlem Var</AlertTitle>
+            <AlertDescription>
+              {uncategorizedCount} adet işlem ({formatCurrency(uncategorizedTotal)}) kategorilendirilememiş. 
+              Bu işlemler bilançoya dahil edilmiyor.{' '}
+              <Link to="/finance/bank-transactions" className="underline font-medium">
+                Kategorilendirmeye Git
+              </Link>
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Date indicator */}
         <p className="text-sm text-muted-foreground text-center">
