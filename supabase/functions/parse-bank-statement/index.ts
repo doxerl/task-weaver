@@ -5,7 +5,51 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
-const TIMEOUT_MS = 300000; // 5 dakika timeout
+const TIMEOUT_MS = 120000; // 2 dakika timeout (reduced for faster retry)
+const MAX_RETRIES = 3;
+const RETRY_DELAY_MS = 2000;
+
+// Retry helper with exponential backoff
+async function fetchWithRetry(
+  url: string, 
+  options: RequestInit, 
+  retries = MAX_RETRIES
+): Promise<Response> {
+  let lastError: Error | null = null;
+  
+  for (let attempt = 0; attempt <= retries; attempt++) {
+    try {
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
+      
+      const response = await fetch(url, {
+        ...options,
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
+      return response;
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error(String(error));
+      
+      // Don't retry on abort (timeout)
+      if (lastError.name === 'AbortError') {
+        console.warn(`Attempt ${attempt + 1} timed out after ${TIMEOUT_MS}ms`);
+      } else {
+        console.warn(`Attempt ${attempt + 1} failed:`, lastError.message);
+      }
+      
+      // If we have retries left, wait before retrying
+      if (attempt < retries) {
+        const delay = RETRY_DELAY_MS * Math.pow(2, attempt); // exponential backoff
+        console.log(`Retrying in ${delay}ms...`);
+        await new Promise(resolve => setTimeout(resolve, delay));
+      }
+    }
+  }
+  
+  throw lastError || new Error('All retry attempts failed');
+}
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -120,15 +164,10 @@ DOĞRULAMA:
 
 SADECE JSON döndür, markdown code block kullanma, Türkçe karakterleri koru.`;
 
-    console.log('Step 2: Calling Lovable AI Gateway (Gemini 2.5 Pro)...');
+    console.log('Step 2: Calling Lovable AI Gateway (Gemini 2.5 Pro) with retry...');
 
-    // AbortController for timeout protection
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    const response = await fetchWithRetry('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
-      signal: controller.signal,
       headers: {
         'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
@@ -142,8 +181,6 @@ SADECE JSON döndür, markdown code block kullanma, Türkçe karakterleri koru.`
         max_tokens: 100000,
       })
     });
-
-    clearTimeout(timeoutId);
 
     if (!response.ok) {
       if (response.status === 429) {
