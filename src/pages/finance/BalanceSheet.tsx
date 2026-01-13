@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { useFinancialSettings } from '@/hooks/finance/useFinancialSettings';
 import { useFixedExpenses } from '@/hooks/finance/useFixedExpenses';
-import { useBalanceSheetPdfExport } from '@/hooks/finance/useBalanceSheetPdfExport';
+import { captureElementToPdf } from '@/lib/pdfCapture';
 import { toast } from '@/hooks/use-toast';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { DetailedBalanceSheet } from '@/components/finance/DetailedBalanceSheet';
@@ -85,25 +85,55 @@ export default function BalanceSheet() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('summary');
+  const [isGenerating, setIsGenerating] = useState(false);
+  const [pdfProgress, setPdfProgress] = useState('');
+  const contentRef = useRef<HTMLDivElement>(null);
   
   const { balanceSheet, isLoading, uncategorizedCount, uncategorizedTotal } = useBalanceSheet(year);
   const { settings, upsertSettings } = useFinancialSettings();
   const { summary: fixedExpensesSummary } = useFixedExpenses();
-  const { generateBalanceSheetPdf, isGenerating } = useBalanceSheetPdfExport();
 
   const handleExportPdf = async () => {
-    try {
-      await generateBalanceSheetPdf(balanceSheet, year, activeTab === 'detailed');
+    if (!contentRef.current) {
       toast({
-        title: 'PDF oluşturuldu',
-        description: `Bilanço PDF olarak indirildi.`,
+        title: 'Hata',
+        description: 'PDF içeriği bulunamadı.',
+        variant: 'destructive',
       });
+      return;
+    }
+
+    setIsGenerating(true);
+    setPdfProgress('');
+    
+    try {
+      const success = await captureElementToPdf(contentRef.current, {
+        filename: `Bilanco_${year}_${activeTab === 'detailed' ? 'Ayrintili' : 'Ozet'}.pdf`,
+        orientation: 'portrait',
+        margin: 10,
+        scale: 2,
+        waitTime: 1000,
+        onProgress: setPdfProgress,
+      });
+      
+      if (success) {
+        toast({
+          title: 'PDF oluşturuldu',
+          description: 'Bilanço PDF olarak indirildi.',
+        });
+      } else {
+        throw new Error('PDF oluşturulamadı');
+      }
     } catch (error) {
+      console.error('PDF export error:', error);
       toast({
         title: 'Hata',
         description: 'PDF oluşturulurken bir hata oluştu.',
         variant: 'destructive',
       });
+    } finally {
+      setIsGenerating(false);
+      setPdfProgress('');
     }
   };
   
@@ -384,6 +414,8 @@ export default function BalanceSheet() {
             <TabsTrigger value="detailed">Ayrıntılı Bilanço</TabsTrigger>
           </TabsList>
           
+          {/* PDF için yakalanacak içerik */}
+          <div ref={contentRef} className="bg-background">
           <TabsContent value="summary" className="space-y-4 mt-4">
 
         {/* AKTİF (VARLIKLAR) */}
@@ -680,6 +712,7 @@ export default function BalanceSheet() {
           <TabsContent value="detailed" className="mt-4">
             <DetailedBalanceSheet balanceSheet={balanceSheet} year={year} />
           </TabsContent>
+          </div>
         </Tabs>
 
         {/* Export */}
@@ -689,7 +722,7 @@ export default function BalanceSheet() {
           ) : (
             <FileDown className="h-5 w-5 mr-2" />
           )}
-          {isGenerating ? 'PDF Oluşturuluyor...' : 'PDF İndir'}
+          {isGenerating ? pdfProgress || 'PDF Oluşturuluyor...' : 'PDF İndir'}
         </Button>
       </div>
       <BottomTabBar />
