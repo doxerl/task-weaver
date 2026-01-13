@@ -68,12 +68,15 @@ export function useFixedExpenses() {
   };
 
   definitions.forEach(def => {
-    if (def.expense_type === 'installment' && def.total_amount && def.installment_months) {
-      const monthlyAmount = def.total_amount / def.installment_months;
+    if (def.expense_type === 'installment') {
+      // Aylık taksit tutarını al: önce monthly_amount, yoksa total_amount / installment_months
+      const monthlyAmount = def.monthly_amount || 
+        (def.total_amount && def.installment_months ? def.total_amount / def.installment_months : 0);
       const paid = def.installments_paid || 0;
-      const remaining = def.installment_months - paid;
+      const totalMonths = def.installment_months || 0;
+      const remaining = Math.max(0, totalMonths - paid);
       
-      if (remaining > 0) {
+      if (remaining > 0 && monthlyAmount > 0) {
         summary.monthlyInstallments += monthlyAmount;
         summary.installmentDetails.push({
           definition: def,

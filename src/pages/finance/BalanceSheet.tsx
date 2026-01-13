@@ -10,6 +10,7 @@ import { ArrowLeft, FileDown, Settings, CheckCircle, AlertTriangle, Loader2 } fr
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { useFinancialSettings } from '@/hooks/finance/useFinancialSettings';
+import { useFixedExpenses } from '@/hooks/finance/useFixedExpenses';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { cn } from '@/lib/utils';
 
@@ -21,6 +22,7 @@ export default function BalanceSheet() {
   
   const { balanceSheet, isLoading, uncategorizedCount, uncategorizedTotal } = useBalanceSheet(year);
   const { settings, upsertSettings } = useFinancialSettings();
+  const { summary: fixedExpensesSummary } = useFixedExpenses();
   
   const [formData, setFormData] = useState({
     paid_capital: settings.paid_capital,
@@ -324,10 +326,22 @@ export default function BalanceSheet() {
                   <span>{formatCurrency(shortTermLiabilities.partnerPayables)}</span>
                 </div>
                 {shortTermLiabilities.loanInstallments > 0 && (
-                  <div className="flex justify-between mt-2">
-                    <span>D. Kredi Taksitleri (12 Aylık)</span>
-                    <span>{formatCurrency(shortTermLiabilities.loanInstallments)}</span>
-                  </div>
+                  <>
+                    <div className="text-muted-foreground mb-1 mt-2">D. Taksitli Borçlar (12 Ay İçi)</div>
+                    {fixedExpensesSummary.installmentDetails.map(detail => {
+                      const shortTermMonths = Math.min(12, detail.remainingMonths);
+                      const shortTermAmount = shortTermMonths * detail.monthlyAmount;
+                      if (shortTermAmount <= 0) return null;
+                      return (
+                        <div key={detail.definition.id} className="flex justify-between pl-4 text-sm">
+                          <span className="truncate mr-2">
+                            {detail.definition.expense_name} ({shortTermMonths} ay)
+                          </span>
+                          <span className="whitespace-nowrap">{formatCurrency(shortTermAmount)}</span>
+                        </div>
+                      );
+                    })}
+                  </>
                 )}
               </div>
               <div className="flex justify-between font-medium border-t mt-2 pt-2">
@@ -340,10 +354,29 @@ export default function BalanceSheet() {
             <div>
               <h3 className="font-medium text-sm mb-2">II. UZUN VADELİ YABANCI KAYNAKLAR</h3>
               <div className="space-y-1 text-sm pl-4">
-                <div className="flex justify-between">
-                  <span>A. Banka Kredileri</span>
-                  <span>{formatCurrency(longTermLiabilities.bankLoans)}</span>
-                </div>
+                {longTermLiabilities.bankLoans > 0 ? (
+                  <>
+                    <div className="text-muted-foreground mb-1">A. Taksitli Borçlar (12 Ay Sonrası)</div>
+                    {fixedExpensesSummary.installmentDetails.map(detail => {
+                      const longTermMonths = Math.max(0, detail.remainingMonths - 12);
+                      const longTermAmount = longTermMonths * detail.monthlyAmount;
+                      if (longTermAmount <= 0) return null;
+                      return (
+                        <div key={detail.definition.id} className="flex justify-between pl-4 text-sm">
+                          <span className="truncate mr-2">
+                            {detail.definition.expense_name} ({longTermMonths} ay kaldı)
+                          </span>
+                          <span className="whitespace-nowrap">{formatCurrency(longTermAmount)}</span>
+                        </div>
+                      );
+                    })}
+                  </>
+                ) : (
+                  <div className="flex justify-between text-muted-foreground">
+                    <span>A. Banka Kredileri</span>
+                    <span>{formatCurrency(0)}</span>
+                  </div>
+                )}
               </div>
               <div className="flex justify-between font-medium border-t mt-2 pt-2">
                 <span>TOPLAM UZUN VADELİ</span>

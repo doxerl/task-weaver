@@ -507,15 +507,27 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     // Short term liabilities
     const tradePayables = settings?.trade_payables || 0;
     
-    // Kısa vadeli kredi borcu - önümüzdeki 12 ay içinde ödenecek taksitler
-    const monthlyInstallmentAmount = financingSummary.creditDetails.monthlyPayment;
-    const shortTermLoanDebt = Math.min(monthlyInstallmentAmount * 12, financingSummary.remainingDebt);
+    // Taksitli borç hesaplaması - fixed_expense_definitions tablosundan
+    // Tüm aktif taksitli tanımları al ve kısa/uzun vadeli olarak ayır
+    let totalShortTermInstallments = 0;
+    let totalLongTermInstallments = 0;
     
+    fixedExpenses.installmentDetails.forEach(detail => {
+      const { remainingMonths, monthlyAmount } = detail;
+      // Kısa vadeli: Önümüzdeki 12 ay içinde ödenecek
+      const shortTermMonths = Math.min(12, remainingMonths);
+      // Uzun vadeli: 12 aydan sonra kalan
+      const longTermMonths = Math.max(0, remainingMonths - 12);
+      
+      totalShortTermInstallments += shortTermMonths * monthlyAmount;
+      totalLongTermInstallments += longTermMonths * monthlyAmount;
+    });
+    
+    const shortTermLoanDebt = totalShortTermInstallments;
     const shortTermTotal = tradePayables + vatPayable + partnerPayables + shortTermLoanDebt;
     
-    // Long term liabilities - 12 aydan sonra kalan kredi borcu
-    const longTermLoanDebt = Math.max(0, financingSummary.remainingDebt - shortTermLoanDebt);
-    const bankLoansBalance = longTermLoanDebt;
+    // Long term liabilities - 12 aydan sonra kalan taksitli borçlar
+    const bankLoansBalance = totalLongTermInstallments;
     const longTermTotal = bankLoansBalance;
     
     // Equity
