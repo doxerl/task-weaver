@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { useFinancialSettings } from '@/hooks/finance/useFinancialSettings';
 import { useFixedExpenses } from '@/hooks/finance/useFixedExpenses';
-import { captureElementToPdf } from '@/lib/pdfCapture';
+import { useBalanceSheetPdfExport } from '@/hooks/finance/useBalanceSheetPdfExport';
 import { toast } from '@/hooks/use-toast';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { DetailedBalanceSheet } from '@/components/finance/DetailedBalanceSheet';
@@ -32,6 +32,7 @@ export default function BalanceSheet() {
   const { settings, upsertSettings } = useFinancialSettings();
   const { summary: fixedExpensesSummary } = useFixedExpenses();
   const { currency, formatAmount, yearlyAverageRate, getAvailableMonthsCount } = useCurrency();
+  const { generateBalanceSheetPdf, isGenerating: isPdfGenerating } = useBalanceSheetPdfExport();
   
   // Create format function for balance sheet values (uses yearly average)
   const formatValue = (n: number) => formatAmount(n, undefined, year);
@@ -96,39 +97,22 @@ export default function BalanceSheet() {
   };
 
   const handleExportPdf = async () => {
-    if (!contentRef.current) {
-      toast({
-        title: 'Hata',
-        description: 'PDF içeriği bulunamadı.',
-        variant: 'destructive',
-      });
-      return;
-    }
-
     setIsGenerating(true);
     setPdfProgress('');
     
-    const isSummary = activeTab === 'summary';
+    const isDetailed = activeTab !== 'summary';
     
     try {
-      const success = await captureElementToPdf(contentRef.current, {
-        filename: `Bilanco_${year}_${isSummary ? 'Ozet' : 'Ayrintili'}.pdf`,
-        orientation: 'portrait',
-        margin: 10,
-        scale: 2,
-        waitTime: 1000,
-        fitToPage: isSummary, // Özet bilanço tek sayfaya sığsın
-        onProgress: setPdfProgress,
+      await generateBalanceSheetPdf(balanceSheet, year, isDetailed, {
+        currency,
+        formatAmount: formatValue,
+        yearlyAverageRate,
       });
       
-      if (success) {
-        toast({
-          title: 'PDF oluşturuldu',
-          description: 'Bilanço PDF olarak indirildi.',
-        });
-      } else {
-        throw new Error('PDF oluşturulamadı');
-      }
+      toast({
+        title: 'PDF oluşturuldu',
+        description: `Bilanço PDF olarak indirildi (${currency}).`,
+      });
     } catch (error) {
       console.error('PDF export error:', error);
       toast({
