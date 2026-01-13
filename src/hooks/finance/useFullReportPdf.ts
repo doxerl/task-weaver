@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { FullReportData, MonthlyDataPoint } from '@/types/reports';
+import { FullReportData, MonthlyDataPoint, DetailedIncomeStatementData, DetailedIncomeStatementLine } from '@/types/reports';
+import { BalanceSheet } from '@/types/finance';
 
 export interface FullReportPdfOptions {
   currency?: 'TRY' | 'USD';
@@ -16,13 +17,13 @@ export interface FullReportChartRefs {
 }
 
 export interface FullReportAdditionalData {
-  detailedStatement?: {
-    sections: Array<{
-      title: string;
-      items: Array<{ code: string; name: string; amount: number }>;
-      total: number;
-    }>;
-  };
+  // Detailed Income Statement (Official Format)
+  detailedIncomeStatement?: DetailedIncomeStatementData;
+  
+  // Full Balance Sheet with account codes
+  fullBalanceSheet?: BalanceSheet;
+  
+  // Legacy balance sheet summary (for backward compatibility)
   balanceSheet?: {
     totalAssets: number;
     totalLiabilities: number;
@@ -88,7 +89,7 @@ async function captureChartToImage(element: HTMLElement): Promise<string | null>
 
 export function useFullReportPdf() {
   const [isGenerating, setIsGenerating] = useState(false);
-  const [progress, setProgress] = useState<FullReportProgress>({ current: 0, total: 10, stage: '' });
+  const [progress, setProgress] = useState<FullReportProgress>({ current: 0, total: 12, stage: '' });
 
   const generateFullReport = useCallback(async (
     data: FullReportData,
@@ -97,7 +98,7 @@ export function useFullReportPdf() {
     options?: FullReportPdfOptions
   ) => {
     setIsGenerating(true);
-    setProgress({ current: 0, total: 10, stage: 'Baslatiliyor...' });
+    setProgress({ current: 0, total: 12, stage: 'Baslatiliyor...' });
 
     try {
       const { currency = 'TRY', formatAmount, yearlyAverageRate } = options || {};
@@ -125,7 +126,7 @@ export function useFullReportPdf() {
       // ==========================================
       // PAGE 1: COVER PAGE
       // ==========================================
-      setProgress({ current: 1, total: 10, stage: 'Kapak olusturuluyor...' });
+      setProgress({ current: 1, total: 12, stage: 'Kapak olusturuluyor...' });
 
       // Blue header bar
       doc.setFillColor(59, 130, 246);
@@ -166,9 +167,9 @@ export function useFullReportPdf() {
         '1. Yonetici Ozeti ve Temel Gostergeler',
         '2. Aylik Trend Analizi',
         '3. Gelir Dagilimi',
-        '4. Gider Dagilimi',
-        '5. Gelir Tablosu',
-        '6. Bilanco Ozeti',
+        '4. Gider Dagilimi ve Alt Kirilimlari',
+        '5. Resmi Ayrintili Gelir Tablosu',
+        '6. Tam Bilanco',
         '7. KDV Ozeti',
         '8. Finansman ve Ortak Cari',
       ];
@@ -184,7 +185,7 @@ export function useFullReportPdf() {
       // PAGE 2: EXECUTIVE SUMMARY (KPIs)
       // ==========================================
       doc.addPage();
-      setProgress({ current: 2, total: 10, stage: 'Ozet olusturuluyor...' });
+      setProgress({ current: 2, total: 12, stage: 'Ozet olusturuluyor...' });
 
       doc.setFillColor(59, 130, 246);
       doc.rect(0, 0, pageWidth, 25, 'F');
@@ -282,7 +283,7 @@ export function useFullReportPdf() {
       // PAGE 3: MONTHLY TREND CHART
       // ==========================================
       doc.addPage();
-      setProgress({ current: 3, total: 10, stage: 'Trend grafigi ekleniyor...' });
+      setProgress({ current: 3, total: 12, stage: 'Trend grafigi ekleniyor...' });
 
       doc.setFillColor(59, 130, 246);
       doc.rect(0, 0, pageWidth, 25, 'F');
@@ -325,13 +326,13 @@ export function useFullReportPdf() {
         showHead: 'everyPage',
         pageBreak: 'auto',
         rowPageBreak: 'avoid',
-        didParseCell: (data) => {
-          if (data.section === 'body' && data.column.index === 3) {
-            const value = parseFloat(String(data.cell.raw).replace(/[^\d,-]/g, '').replace(',', '.'));
+        didParseCell: (cellData) => {
+          if (cellData.section === 'body' && cellData.column.index === 3) {
+            const value = parseFloat(String(cellData.cell.raw).replace(/[^\d,-]/g, '').replace(',', '.'));
             if (value < 0) {
-              data.cell.styles.textColor = [239, 68, 68];
+              cellData.cell.styles.textColor = [239, 68, 68];
             } else if (value > 0) {
-              data.cell.styles.textColor = [34, 197, 94];
+              cellData.cell.styles.textColor = [34, 197, 94];
             }
           }
         },
@@ -343,7 +344,7 @@ export function useFullReportPdf() {
       // PAGE 4: INCOME DISTRIBUTION
       // ==========================================
       doc.addPage();
-      setProgress({ current: 4, total: 10, stage: 'Gelir dagilimi ekleniyor...' });
+      setProgress({ current: 4, total: 12, stage: 'Gelir dagilimi ekleniyor...' });
 
       doc.setFillColor(34, 197, 94);
       doc.rect(0, 0, pageWidth, 25, 'F');
@@ -387,17 +388,17 @@ export function useFullReportPdf() {
       addPageNumber();
 
       // ==========================================
-      // PAGE 5: EXPENSE DISTRIBUTION
+      // PAGE 5: EXPENSE DISTRIBUTION WITH SUB-BREAKDOWNS
       // ==========================================
       doc.addPage();
-      setProgress({ current: 5, total: 10, stage: 'Gider dagilimi ekleniyor...' });
+      setProgress({ current: 5, total: 12, stage: 'Gider dagilimi ekleniyor...' });
 
       doc.setFillColor(239, 68, 68);
       doc.rect(0, 0, pageWidth, 25, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text(normalizeTurkish('4. GIDER DAGILIMI'), pageWidth / 2, 17, { align: 'center' });
+      doc.text(normalizeTurkish('4. GIDER DAGILIMI VE ALT KIRILIMLARI'), pageWidth / 2, 17, { align: 'center' });
 
       // Try to capture expense chart
       if (chartRefs.expenseChart) {
@@ -407,200 +408,428 @@ export function useFullReportPdf() {
         }
       }
 
-      // Full expense categories table
+      // Full expense categories table with Fixed/Variable indication
       const fullExpenseData = data.expenseCategories.map(item => [
-        normalizeTurkish(item.name.length > 40 ? item.name.substring(0, 37) + '...' : item.name),
+        normalizeTurkish(item.name.length > 35 ? item.name.substring(0, 32) + '...' : item.name),
+        item.isFixed ? 'Sabit' : 'Degisken',
         fmt(item.amount),
         `%${item.percentage.toFixed(1)}`,
       ]);
 
       autoTable(doc, {
         startY: chartRefs.expenseChart ? 145 : 35,
-        head: [[normalizeTurkish('Gider Kategorisi'), normalizeTurkish('Tutar'), '%']],
+        head: [[normalizeTurkish('Gider Kategorisi'), normalizeTurkish('Tur'), normalizeTurkish('Tutar'), '%']],
         body: fullExpenseData,
         theme: 'striped',
         headStyles: { fillColor: [239, 68, 68], textColor: 255 },
         margin: { left: margin, right: margin },
         columnStyles: {
-          0: { cellWidth: 100 },
-          1: { cellWidth: 45, halign: 'right' },
-          2: { cellWidth: 25, halign: 'right' },
+          0: { cellWidth: 80 },
+          1: { cellWidth: 25, halign: 'center' },
+          2: { cellWidth: 45, halign: 'right' },
+          3: { cellWidth: 20, halign: 'right' },
         },
         showHead: 'everyPage',
         pageBreak: 'auto',
         rowPageBreak: 'avoid',
+        didParseCell: (cellData) => {
+          if (cellData.section === 'body' && cellData.column.index === 1) {
+            const value = String(cellData.cell.raw);
+            if (value === 'Sabit') {
+              cellData.cell.styles.textColor = [59, 130, 246];
+            } else {
+              cellData.cell.styles.textColor = [168, 85, 247];
+            }
+          }
+        },
+      });
+
+      // Summary: Fixed vs Variable
+      yPos = (doc as any).lastAutoTable.finalY + 10;
+      const fixedTotal = data.expenseCategories.filter(c => c.isFixed).reduce((s, c) => s + c.amount, 0);
+      const variableTotal = data.expenseCategories.filter(c => !c.isFixed).reduce((s, c) => s + c.amount, 0);
+
+      doc.setTextColor(0, 0, 0);
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'bold');
+      doc.text(normalizeTurkish('Sabit vs Degisken Gider Ozeti:'), margin, yPos);
+
+      autoTable(doc, {
+        startY: yPos + 3,
+        body: [
+          [normalizeTurkish('Sabit Giderler'), fmt(fixedTotal)],
+          [normalizeTurkish('Degisken Giderler'), fmt(variableTotal)],
+          [normalizeTurkish('TOPLAM'), fmt(fixedTotal + variableTotal)],
+        ],
+        theme: 'plain',
+        margin: { left: margin, right: margin },
+        columnStyles: {
+          0: { cellWidth: 80 },
+          1: { cellWidth: 50, halign: 'right' },
+        },
+        didParseCell: (cellData) => {
+          if (cellData.section === 'body' && cellData.row.index === 2) {
+            cellData.cell.styles.fontStyle = 'bold';
+          }
+        },
       });
 
       addPageNumber();
 
       // ==========================================
-      // PAGE 6: INCOME STATEMENT
+      // PAGE 6-7: OFFICIAL DETAILED INCOME STATEMENT
       // ==========================================
       doc.addPage();
-      setProgress({ current: 6, total: 10, stage: 'Gelir tablosu ekleniyor...' });
+      setProgress({ current: 6, total: 12, stage: 'Ayrintili gelir tablosu ekleniyor...' });
 
       doc.setFillColor(59, 130, 246);
       doc.rect(0, 0, pageWidth, 25, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text(normalizeTurkish('5. GELIR TABLOSU'), pageWidth / 2, 17, { align: 'center' });
+      doc.text(normalizeTurkish('5. RESMI AYRINTILI GELIR TABLOSU'), pageWidth / 2, 17, { align: 'center' });
 
-      const incomeStatementData = [
-        [normalizeTurkish('Brut Satislar'), fmt(data.incomeStatement.grossSales.total)],
-        [normalizeTurkish('  - Satis Iadeleri (-)'), fmt(data.incomeStatement.salesReturns || 0)],
-        [normalizeTurkish('NET SATISLAR'), fmt(data.incomeStatement.netSales)],
-        ['', ''],
-        [normalizeTurkish('Satisin Maliyeti (-)'), fmt(data.incomeStatement.costOfSales || 0)],
-        [normalizeTurkish('BRUT KAR'), fmt(data.incomeStatement.grossProfit)],
-        ['', ''],
-        [normalizeTurkish('Faaliyet Giderleri (-)'), fmt(data.incomeStatement.operatingExpenses?.total || 0)],
-        [normalizeTurkish('FAALIYET KARI (EBIT)'), fmt(data.incomeStatement.operatingProfit)],
-        ['', ''],
-        [normalizeTurkish('Diger Gelirler (+)'), fmt(data.incomeStatement.otherIncome?.total || 0)],
-        [normalizeTurkish('Diger Giderler (-)'), fmt(data.incomeStatement.otherExpenses?.total || 0)],
-        [normalizeTurkish('Finansman Giderleri (-)'), fmt(data.incomeStatement.financeExpenses || 0)],
-        ['', ''],
-        [normalizeTurkish('VERGI ONCESI KAR'), fmt(data.incomeStatement.preTaxProfit)],
-        [normalizeTurkish('Vergi Karsiligi (-)'), fmt(data.incomeStatement.taxExpense || 0)],
-        [normalizeTurkish('DONEM NET KARI'), fmt(data.incomeStatement.netProfit)],
-      ];
+      if (additionalData.detailedIncomeStatement && additionalData.detailedIncomeStatement.lines.length > 0) {
+        const detailedData = additionalData.detailedIncomeStatement;
 
-      autoTable(doc, {
-        startY: 35,
-        body: incomeStatementData.map(row => [normalizeTurkish(row[0]), row[1]]),
-        theme: 'plain',
-        margin: { left: margin, right: margin },
-        columnStyles: {
-          0: { cellWidth: 110 },
-          1: { cellWidth: 60, halign: 'right' },
-        },
-        didParseCell: (data) => {
-          if (data.section === 'body') {
-            const text = String(data.cell.raw);
-            // Bold for totals
-            if (text.startsWith('NET') || text.startsWith('BRUT') || text.startsWith('FAALIYET') || 
-                text.startsWith('VERGI') || text.startsWith('DONEM')) {
-              data.cell.styles.fontStyle = 'bold';
-              data.cell.styles.fillColor = [239, 246, 255];
-            }
+        // Header info
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(normalizeTurkish(`(${detailedData.periodStart} - ${detailedData.periodEnd} DONEMI)`), pageWidth / 2, 32, { align: 'center' });
+        doc.text(normalizeTurkish(detailedData.companyName || ''), pageWidth / 2, 38, { align: 'center' });
+
+        // Format value helper for detailed statement
+        const formatDetailedValue = (value: number | undefined, isNegative?: boolean): string => {
+          if (value === undefined) return '';
+          if (value === 0) return '0,00';
+          const absValue = Math.abs(value);
+          const formatted = fmt(absValue).replace(/[₺$]/g, '').trim();
+          return isNegative || value < 0 ? `(${formatted})` : formatted;
+        };
+
+        // Filter out empty sub-items for cleaner PDF
+        const visibleLines = detailedData.lines.filter((line: DetailedIncomeStatementLine) => {
+          if (line.isBold || line.isHeader) return true;
+          if (line.isSubItem) {
+            return line.subAmount !== undefined && line.subAmount !== 0;
           }
-        },
-        showHead: 'everyPage',
-        pageBreak: 'auto',
-        rowPageBreak: 'avoid',
-      });
+          return (line.subAmount !== undefined && line.subAmount !== 0) || 
+                 (line.totalAmount !== undefined && line.totalAmount !== 0);
+        });
 
-      // Profitability ratios
-      yPos = (doc as any).lastAutoTable.finalY + 15;
-      doc.setTextColor(0, 0, 0);
-      doc.setFontSize(12);
-      doc.setFont('helvetica', 'bold');
-      doc.text(normalizeTurkish('Karlilik Oranlari'), margin, yPos);
+        // Prepare table data
+        const tableData = visibleLines.map((line: DetailedIncomeStatementLine) => {
+          const displayValue = line.isSubItem ? line.subAmount : line.totalAmount;
+          return [
+            line.code || '',
+            normalizeTurkish(line.isSubItem ? `   ${line.name}` : line.name),
+            formatDetailedValue(displayValue, line.isNegative),
+          ];
+        });
 
-      const ratioData = [
-        [normalizeTurkish('Brut Kar Marji'), `%${data.incomeStatement.grossMargin.toFixed(1)}`],
-        [normalizeTurkish('EBIT Marji (Faaliyet)'), `%${data.incomeStatement.ebitMargin.toFixed(1)}`],
-        [normalizeTurkish('Net Kar Marji'), `%${data.incomeStatement.profitMargin.toFixed(1)}`],
-      ];
+        autoTable(doc, {
+          startY: 45,
+          head: [['Kod', normalizeTurkish('ACIKLAMA'), normalizeTurkish(`CARI DONEM (${data.year})`)]],
+          body: tableData,
+          theme: 'grid',
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold', halign: 'center' },
+          margin: { left: margin, right: margin },
+          columnStyles: {
+            0: { halign: 'center', cellWidth: 15 },
+            1: { halign: 'left', cellWidth: 120 },
+            2: { halign: 'right', cellWidth: 40 },
+          },
+          didParseCell: (hookData) => {
+            if (hookData.section === 'body') {
+              const lineIndex = hookData.row.index;
+              const line = visibleLines[lineIndex];
+              if (line) {
+                if (line.isBold || line.isHeader) {
+                  hookData.cell.styles.fontStyle = 'bold';
+                }
+                if (hookData.column.index === 2 && line.isNegative) {
+                  hookData.cell.styles.textColor = [200, 0, 0];
+                }
+                if (line.isBold && !line.isHeader) {
+                  hookData.cell.styles.fillColor = [245, 245, 245];
+                }
+              }
+            }
+          },
+          showHead: 'everyPage',
+          pageBreak: 'auto',
+          rowPageBreak: 'avoid',
+        });
 
-      autoTable(doc, {
-        startY: yPos + 5,
-        body: ratioData,
-        theme: 'striped',
-        margin: { left: margin, right: margin },
-        columnStyles: {
-          0: { cellWidth: 100 },
-          1: { cellWidth: 50, halign: 'right' },
-        },
-        showHead: 'everyPage',
-        pageBreak: 'auto',
-        rowPageBreak: 'avoid',
-      });
+        // Profitability ratios
+        yPos = (doc as any).lastAutoTable.finalY + 10;
+        
+        // Check if we need a new page
+        if (yPos > pageHeight - 60) {
+          doc.addPage();
+          yPos = 20;
+        }
+
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'bold');
+        doc.text(normalizeTurkish('Karlilik Oranlari'), margin, yPos);
+
+        const ratioData = [
+          [normalizeTurkish('Brut Kar Marji'), `%${data.incomeStatement.grossMargin.toFixed(1)}`],
+          [normalizeTurkish('EBIT Marji (Faaliyet)'), `%${data.incomeStatement.ebitMargin.toFixed(1)}`],
+          [normalizeTurkish('Net Kar Marji'), `%${data.incomeStatement.profitMargin.toFixed(1)}`],
+        ];
+
+        autoTable(doc, {
+          startY: yPos + 3,
+          body: ratioData,
+          theme: 'striped',
+          margin: { left: margin, right: margin },
+          columnStyles: {
+            0: { cellWidth: 80 },
+            1: { cellWidth: 40, halign: 'right' },
+          },
+        });
+      } else {
+        // Fallback to simple income statement
+        doc.setTextColor(0, 0, 0);
+        doc.setFontSize(11);
+        doc.text(normalizeTurkish('Ayrintili gelir tablosu verisi mevcut degil. Ozet gosteriliyor.'), margin, 35);
+
+        const incomeStatementData = [
+          [normalizeTurkish('Brut Satislar'), fmt(data.incomeStatement.grossSales.total)],
+          [normalizeTurkish('  - Satis Iadeleri (-)'), fmt(data.incomeStatement.salesReturns || 0)],
+          [normalizeTurkish('NET SATISLAR'), fmt(data.incomeStatement.netSales)],
+          ['', ''],
+          [normalizeTurkish('Satisin Maliyeti (-)'), fmt(data.incomeStatement.costOfSales || 0)],
+          [normalizeTurkish('BRUT KAR'), fmt(data.incomeStatement.grossProfit)],
+          ['', ''],
+          [normalizeTurkish('Faaliyet Giderleri (-)'), fmt(data.incomeStatement.operatingExpenses?.total || 0)],
+          [normalizeTurkish('FAALIYET KARI (EBIT)'), fmt(data.incomeStatement.operatingProfit)],
+          ['', ''],
+          [normalizeTurkish('Diger Gelirler (+)'), fmt(data.incomeStatement.otherIncome?.total || 0)],
+          [normalizeTurkish('Diger Giderler (-)'), fmt(data.incomeStatement.otherExpenses?.total || 0)],
+          [normalizeTurkish('Finansman Giderleri (-)'), fmt(data.incomeStatement.financeExpenses || 0)],
+          ['', ''],
+          [normalizeTurkish('VERGI ONCESI KAR'), fmt(data.incomeStatement.preTaxProfit)],
+          [normalizeTurkish('Vergi Karsiligi (-)'), fmt(data.incomeStatement.taxExpense || 0)],
+          [normalizeTurkish('DONEM NET KARI'), fmt(data.incomeStatement.netProfit)],
+        ];
+
+        autoTable(doc, {
+          startY: 45,
+          body: incomeStatementData.map(row => [normalizeTurkish(row[0]), row[1]]),
+          theme: 'plain',
+          margin: { left: margin, right: margin },
+          columnStyles: {
+            0: { cellWidth: 110 },
+            1: { cellWidth: 60, halign: 'right' },
+          },
+          didParseCell: (cellData) => {
+            if (cellData.section === 'body') {
+              const text = String(cellData.cell.raw);
+              if (text.startsWith('NET') || text.startsWith('BRUT') || text.startsWith('FAALIYET') || 
+                  text.startsWith('VERGI') || text.startsWith('DONEM')) {
+                cellData.cell.styles.fontStyle = 'bold';
+                cellData.cell.styles.fillColor = [239, 246, 255];
+              }
+            }
+          },
+        });
+      }
 
       addPageNumber();
 
       // ==========================================
-      // PAGE 7: BALANCE SHEET SUMMARY
+      // PAGE 8-9: FULL BALANCE SHEET
       // ==========================================
       doc.addPage();
-      setProgress({ current: 7, total: 10, stage: 'Bilanco ekleniyor...' });
+      setProgress({ current: 7, total: 12, stage: 'Tam bilanco ekleniyor...' });
 
       doc.setFillColor(99, 102, 241);
       doc.rect(0, 0, pageWidth, 25, 'F');
       doc.setTextColor(255, 255, 255);
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text(normalizeTurkish('6. BILANCO OZETI'), pageWidth / 2, 17, { align: 'center' });
+      doc.text(normalizeTurkish('6. TAM BILANCO'), pageWidth / 2, 17, { align: 'center' });
 
-      if (additionalData.balanceSheet) {
-        const bs = additionalData.balanceSheet;
+      const bs = additionalData.fullBalanceSheet || additionalData.balanceSheet;
+      
+      if (bs && 'currentAssets' in bs) {
+        const fullBs = bs as BalanceSheet;
         
-        // Assets
+        // Sub-header
         doc.setTextColor(0, 0, 0);
-        doc.setFontSize(12);
-        doc.setFont('helvetica', 'bold');
-        doc.text(normalizeTurkish('AKTIF (VARLIKLAR)'), margin, 40);
+        doc.setFontSize(10);
+        doc.setFont('helvetica', 'normal');
+        doc.text(normalizeTurkish(`31.12.${data.year} Tarihli`), pageWidth / 2, 32, { align: 'center' });
 
-        const assetsData = [
-          [normalizeTurkish('Donen Varliklar'), fmt(bs.currentAssets.total)],
-          [normalizeTurkish('  - Hazir Degerler'), fmt(bs.currentAssets.cash + bs.currentAssets.banks)],
-          [normalizeTurkish('  - Ticari Alacaklar'), fmt(bs.currentAssets.receivables)],
-          [normalizeTurkish('Duran Varliklar'), fmt(bs.fixedAssets.total)],
-          [normalizeTurkish('TOPLAM AKTIF'), fmt(bs.totalAssets)],
+        // AKTIF (ASSETS)
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(normalizeTurkish('AKTIF (VARLIKLAR)'), margin, 42);
+
+        const otherVat = (fullBs.currentAssets as any).otherVat || 0;
+        const aktivData: (string | number)[][] = [
+          [normalizeTurkish('I - DONEN VARLIKLAR'), ''],
+          [normalizeTurkish('   A - Hazir Degerler'), fmt(fullBs.currentAssets.cash + fullBs.currentAssets.banks)],
+          [normalizeTurkish('      100 Kasa'), fmt(fullBs.currentAssets.cash)],
+          [normalizeTurkish('      102 Bankalar'), fmt(fullBs.currentAssets.banks)],
+          [normalizeTurkish('   C - Ticari Alacaklar'), fmt(fullBs.currentAssets.receivables)],
+          [normalizeTurkish('      120 Alicilar'), fmt(fullBs.currentAssets.receivables)],
         ];
 
+        if (fullBs.currentAssets.partnerReceivables > 0) {
+          aktivData.push([normalizeTurkish('   D - Diger Alacaklar'), fmt(fullBs.currentAssets.partnerReceivables)]);
+          aktivData.push([normalizeTurkish('      131 Ortaklardan Alacaklar'), fmt(fullBs.currentAssets.partnerReceivables)]);
+        }
+
+        aktivData.push([normalizeTurkish('   H - Diger Donen Varliklar'), fmt(fullBs.currentAssets.vatReceivable + otherVat)]);
+        aktivData.push([normalizeTurkish('      191 Indirilecek KDV'), fmt(fullBs.currentAssets.vatReceivable)]);
+        if (otherVat > 0) {
+          aktivData.push([normalizeTurkish('      193 Diger KDV'), fmt(otherVat)]);
+        }
+        aktivData.push([normalizeTurkish('DONEN VARLIKLAR TOPLAMI'), fmt(fullBs.currentAssets.total)]);
+        aktivData.push(['', '']);
+        aktivData.push([normalizeTurkish('II - DURAN VARLIKLAR'), '']);
+        aktivData.push([normalizeTurkish('   D - Maddi Duran Varliklar'), fmt(fullBs.fixedAssets.total)]);
+        aktivData.push([normalizeTurkish('      254 Tasitlar'), fmt(fullBs.fixedAssets.vehicles)]);
+        aktivData.push([normalizeTurkish('      255 Demirbaslar'), fmt(fullBs.fixedAssets.equipment)]);
+        aktivData.push([normalizeTurkish('      257 Birikmis Amortismanlar (-)'), `(${fmt(fullBs.fixedAssets.depreciation)})`]);
+        aktivData.push([normalizeTurkish('DURAN VARLIKLAR TOPLAMI'), fmt(fullBs.fixedAssets.total)]);
+        aktivData.push(['', '']);
+        aktivData.push([normalizeTurkish('AKTIF (VARLIKLAR) TOPLAMI'), fmt(fullBs.totalAssets)]);
+
         autoTable(doc, {
-          startY: 45,
-          body: assetsData,
+          startY: 47,
+          body: aktivData,
           theme: 'plain',
+          styles: { fontSize: 8, cellPadding: 1 },
           margin: { left: margin, right: margin },
           columnStyles: {
-            0: { cellWidth: 100 },
-            1: { cellWidth: 60, halign: 'right' },
+            0: { cellWidth: 110 },
+            1: { cellWidth: 50, halign: 'right' },
           },
-          didParseCell: (data) => {
-            if (data.section === 'body') {
-              const text = String(data.cell.raw);
-              if (text === normalizeTurkish('TOPLAM AKTIF')) {
-                data.cell.styles.fontStyle = 'bold';
-                data.cell.styles.fillColor = [220, 252, 231];
-              }
+          didParseCell: (cellData) => {
+            const rowText = String(aktivData[cellData.row.index]?.[0] || '');
+            if (rowText.includes('TOPLAMI')) {
+              cellData.cell.styles.fontStyle = 'bold';
+            }
+            if (rowText.startsWith('I -') || rowText.startsWith('II -')) {
+              cellData.cell.styles.fontStyle = 'bold';
             }
           },
         });
 
-        // Liabilities
-        yPos = (doc as any).lastAutoTable.finalY + 15;
-        doc.setFontSize(12);
+        // PASİF (LIABILITIES) - New page if needed
+        yPos = (doc as any).lastAutoTable.finalY + 10;
+        if (yPos > pageHeight - 100) {
+          doc.addPage();
+          yPos = 20;
+        }
+
+        doc.setFontSize(11);
         doc.setFont('helvetica', 'bold');
         doc.text(normalizeTurkish('PASIF (KAYNAKLAR)'), margin, yPos);
 
-        const liabilitiesData = [
-          [normalizeTurkish('Kisa Vadeli Yabanci Kaynaklar'), fmt(bs.shortTermLiabilities.total)],
-          [normalizeTurkish('Uzun Vadeli Yabanci Kaynaklar'), fmt(bs.longTermLiabilities.total)],
-          [normalizeTurkish('Ozkaynaklar'), fmt(bs.equity.total)],
-          [normalizeTurkish('  - Odenmis Sermaye'), fmt(bs.equity.paidCapital)],
-          [normalizeTurkish('  - Donem Net Kari'), fmt(bs.equity.currentProfit)],
-          [normalizeTurkish('TOPLAM PASIF'), fmt(bs.totalLiabilities)],
+        const personnelPayables = (fullBs.shortTermLiabilities as any).personnelPayables || 0;
+        const taxPayables = (fullBs.shortTermLiabilities as any).taxPayables || 0;
+        const socialSecurityPayables = (fullBs.shortTermLiabilities as any).socialSecurityPayables || 0;
+
+        const pasifData: (string | number)[][] = [
+          [normalizeTurkish('I - KISA VADELI YABANCI KAYNAKLAR'), ''],
         ];
+
+        if (fullBs.shortTermLiabilities.loanInstallments > 0) {
+          pasifData.push([normalizeTurkish('   A - Mali Borclar'), fmt(fullBs.shortTermLiabilities.loanInstallments)]);
+          pasifData.push([normalizeTurkish('      300 Banka Kredileri'), fmt(fullBs.shortTermLiabilities.loanInstallments)]);
+        }
+
+        pasifData.push([normalizeTurkish('   B - Ticari Borclar'), fmt(fullBs.shortTermLiabilities.payables)]);
+        pasifData.push([normalizeTurkish('      320 Saticilar'), fmt(fullBs.shortTermLiabilities.payables)]);
+
+        if (fullBs.shortTermLiabilities.partnerPayables > 0 || personnelPayables > 0) {
+          pasifData.push([normalizeTurkish('   C - Diger Borclar'), fmt(fullBs.shortTermLiabilities.partnerPayables + personnelPayables)]);
+          if (fullBs.shortTermLiabilities.partnerPayables > 0) {
+            pasifData.push([normalizeTurkish('      331 Ortaklara Borclar'), fmt(fullBs.shortTermLiabilities.partnerPayables)]);
+          }
+          if (personnelPayables > 0) {
+            pasifData.push([normalizeTurkish('      335 Personele Borclar'), fmt(personnelPayables)]);
+          }
+        }
+
+        if (taxPayables > 0 || socialSecurityPayables > 0) {
+          pasifData.push([normalizeTurkish('   F - Odenecek Vergi ve Diger Yuk.'), fmt(taxPayables + socialSecurityPayables)]);
+          if (taxPayables > 0) {
+            pasifData.push([normalizeTurkish('      360 Odenecek Vergi ve Fonlar'), fmt(taxPayables)]);
+          }
+          if (socialSecurityPayables > 0) {
+            pasifData.push([normalizeTurkish('      361 Odenecek SGK Kesintileri'), fmt(socialSecurityPayables)]);
+          }
+        }
+
+        if (fullBs.shortTermLiabilities.vatPayable > 0) {
+          pasifData.push([normalizeTurkish('   I - Diger Kisa Vadeli Yab. Kay.'), fmt(fullBs.shortTermLiabilities.vatPayable)]);
+          pasifData.push([normalizeTurkish('      391 Hesaplanan KDV'), fmt(fullBs.shortTermLiabilities.vatPayable)]);
+        }
+
+        pasifData.push([normalizeTurkish('KISA VADELI YABANCI KAY. TOPLAMI'), fmt(fullBs.shortTermLiabilities.total)]);
+
+        if (fullBs.longTermLiabilities.total > 0) {
+          pasifData.push(['', '']);
+          pasifData.push([normalizeTurkish('II - UZUN VADELI YABANCI KAYNAKLAR'), '']);
+          pasifData.push([normalizeTurkish('   A - Mali Borclar'), fmt(fullBs.longTermLiabilities.bankLoans)]);
+          pasifData.push([normalizeTurkish('      400 Banka Kredileri'), fmt(fullBs.longTermLiabilities.bankLoans)]);
+          pasifData.push([normalizeTurkish('UZUN VADELI YABANCI KAY. TOPLAMI'), fmt(fullBs.longTermLiabilities.total)]);
+        }
+
+        pasifData.push(['', '']);
+        pasifData.push([normalizeTurkish('III - OZKAYNAKLAR'), '']);
+        pasifData.push([normalizeTurkish('   A - Odenmis Sermaye'), fmt(fullBs.equity.paidCapital)]);
+        pasifData.push([normalizeTurkish('      500 Sermaye'), fmt(fullBs.equity.paidCapital)]);
+        
+        if (fullBs.equity.retainedEarnings !== 0) {
+          pasifData.push([normalizeTurkish('   D - Gecmis Yillar Karlari'), fmt(fullBs.equity.retainedEarnings)]);
+        }
+        
+        pasifData.push([normalizeTurkish('   F - Donem Net Kari (Zarari)'), fmt(fullBs.equity.currentProfit)]);
+        if (fullBs.equity.currentProfit >= 0) {
+          pasifData.push([normalizeTurkish('      590 Donem Net Kari'), fmt(fullBs.equity.currentProfit)]);
+        } else {
+          pasifData.push([normalizeTurkish('      591 Donem Net Zarari (-)'), `(${fmt(Math.abs(fullBs.equity.currentProfit))})`]);
+        }
+        
+        pasifData.push([normalizeTurkish('OZKAYNAKLAR TOPLAMI'), fmt(fullBs.equity.total)]);
+        pasifData.push(['', '']);
+        pasifData.push([normalizeTurkish('PASIF (KAYNAKLAR) TOPLAMI'), fmt(fullBs.totalLiabilities)]);
+
+        // Balance check
+        pasifData.push(['', '']);
+        const balanceStatus = fullBs.isBalanced 
+          ? normalizeTurkish('Denklik: Aktif = Pasif [OK]')
+          : normalizeTurkish(`Denklik Farki: ${fmt(fullBs.difference)}`);
+        pasifData.push([balanceStatus, '']);
 
         autoTable(doc, {
           startY: yPos + 5,
-          body: liabilitiesData,
+          body: pasifData,
           theme: 'plain',
+          styles: { fontSize: 8, cellPadding: 1 },
           margin: { left: margin, right: margin },
           columnStyles: {
-            0: { cellWidth: 100 },
-            1: { cellWidth: 60, halign: 'right' },
+            0: { cellWidth: 110 },
+            1: { cellWidth: 50, halign: 'right' },
           },
-          didParseCell: (data) => {
-            if (data.section === 'body') {
-              const text = String(data.cell.raw);
-              if (text === normalizeTurkish('TOPLAM PASIF')) {
-                data.cell.styles.fontStyle = 'bold';
-                data.cell.styles.fillColor = [219, 234, 254];
-              }
+          didParseCell: (cellData) => {
+            const rowText = String(pasifData[cellData.row.index]?.[0] || '');
+            if (rowText.includes('TOPLAMI') || rowText.startsWith('Denklik')) {
+              cellData.cell.styles.fontStyle = 'bold';
+            }
+            if (rowText.startsWith('I -') || rowText.startsWith('II -') || rowText.startsWith('III -')) {
+              cellData.cell.styles.fontStyle = 'bold';
             }
           },
         });
@@ -613,10 +842,10 @@ export function useFullReportPdf() {
       addPageNumber();
 
       // ==========================================
-      // PAGE 8: VAT SUMMARY
+      // PAGE 10: VAT SUMMARY
       // ==========================================
       doc.addPage();
-      setProgress({ current: 8, total: 10, stage: 'KDV ozeti ekleniyor...' });
+      setProgress({ current: 8, total: 12, stage: 'KDV ozeti ekleniyor...' });
 
       doc.setFillColor(168, 85, 247);
       doc.rect(0, 0, pageWidth, 25, 'F');
@@ -645,9 +874,9 @@ export function useFullReportPdf() {
             0: { cellWidth: 100 },
             1: { cellWidth: 60, halign: 'right' },
           },
-          didParseCell: (data) => {
-            if (data.section === 'body' && data.row.index === 2) {
-              data.cell.styles.fontStyle = 'bold';
+          didParseCell: (cellData) => {
+            if (cellData.section === 'body' && cellData.row.index === 2) {
+              cellData.cell.styles.fontStyle = 'bold';
             }
           },
         });
@@ -660,10 +889,10 @@ export function useFullReportPdf() {
       addPageNumber();
 
       // ==========================================
-      // PAGE 9-10: FINANCING & PARTNER ACCOUNT
+      // PAGE 11: FINANCING & PARTNER ACCOUNT
       // ==========================================
       doc.addPage();
-      setProgress({ current: 9, total: 10, stage: 'Finansman ekleniyor...' });
+      setProgress({ current: 9, total: 12, stage: 'Finansman ekleniyor...' });
 
       doc.setFillColor(236, 72, 153);
       doc.rect(0, 0, pageWidth, 25, 'F');
@@ -693,9 +922,9 @@ export function useFullReportPdf() {
           0: { cellWidth: 100 },
           1: { cellWidth: 60, halign: 'right' },
         },
-        didParseCell: (data) => {
-          if (data.section === 'body' && data.row.index === 2) {
-            data.cell.styles.fontStyle = 'bold';
+        didParseCell: (cellData) => {
+          if (cellData.section === 'body' && cellData.row.index === 2) {
+            cellData.cell.styles.fontStyle = 'bold';
           }
         },
       });
@@ -723,10 +952,10 @@ export function useFullReportPdf() {
           0: { cellWidth: 100 },
           1: { cellWidth: 60, halign: 'right' },
         },
-        didParseCell: (data) => {
-          if (data.section === 'body' && data.row.index === 4) {
-            data.cell.styles.fontStyle = 'bold';
-            data.cell.styles.textColor = [239, 68, 68];
+        didParseCell: (cellData) => {
+          if (cellData.section === 'body' && cellData.row.index === 4) {
+            cellData.cell.styles.fontStyle = 'bold';
+            cellData.cell.styles.textColor = [239, 68, 68];
           }
         },
       });
@@ -736,7 +965,7 @@ export function useFullReportPdf() {
       // ==========================================
       // FINALIZE: Add page numbers to all pages
       // ==========================================
-      setProgress({ current: 10, total: 10, stage: 'Tamamlaniyor...' });
+      setProgress({ current: 10, total: 12, stage: 'Tamamlaniyor...' });
 
       const pageCount = doc.getNumberOfPages();
       for (let i = 1; i <= pageCount; i++) {
@@ -758,7 +987,7 @@ export function useFullReportPdf() {
 
     } finally {
       setIsGenerating(false);
-      setProgress({ current: 0, total: 10, stage: '' });
+      setProgress({ current: 0, total: 12, stage: '' });
     }
   }, []);
 
