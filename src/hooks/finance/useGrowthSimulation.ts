@@ -67,14 +67,14 @@ export function useGrowthSimulation() {
     const revenueGroups: Record<string, number> = {};
     hub.income.forEach(tx => {
       const category = mapCategoryCode(tx.categoryCode, REVENUE_CATEGORY_MAP, 'Diğer Gelir');
-      revenueGroups[category] = (revenueGroups[category] || 0) + Math.abs(tx.gross);
+      revenueGroups[category] = (revenueGroups[category] || 0) + Math.abs(tx.net);
     });
 
     // Group expenses by category
     const expenseGroups: Record<string, number> = {};
     hub.expense.forEach(tx => {
       const category = mapCategoryCode(tx.categoryCode, EXPENSE_CATEGORY_MAP, 'Diğer');
-      expenseGroups[category] = (expenseGroups[category] || 0) + Math.abs(tx.gross);
+      expenseGroups[category] = (expenseGroups[category] || 0) + Math.abs(tx.net);
     });
 
     // Convert to USD
