@@ -561,7 +561,8 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     const inventoryValue = settings?.inventory_value || 0;
     const vatReceivable = vatSummary.net < 0 ? Math.abs(vatSummary.net) : 0;
     
-    const currentAssetsTotal = readyValuesTotal + tradeReceivablesTotal + otherCurrentAssetsTotal;
+    // Include partner receivables in current assets total
+    const currentAssetsTotal = readyValuesTotal + tradeReceivablesTotal + partnerReceivables + otherCurrentAssetsTotal;
     
     // II - DURAN VARLIKLAR
     // D - Maddi Duran Varlıklar

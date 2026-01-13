@@ -301,8 +301,9 @@ export interface BalanceSheet {
     cash: number;
     banks: number;
     receivables: number;
-    partnerReceivables: number;
-    vatReceivable: number;  // Devreden KDV (negatif KDV bakiyesi)
+    partnerReceivables: number;  // Ortaklardan Alacaklar
+    vatReceivable: number;  // İndirilecek KDV
+    otherVat?: number;      // Diğer KDV
     inventory: number;
     prepaidExpenses: number;
     total: number;
@@ -321,6 +322,9 @@ export interface BalanceSheet {
     vatPayable: number;
     taxPayable: number;
     partnerPayables: number;
+    personnelPayables?: number;
+    taxPayables?: number;
+    socialSecurityPayables?: number;
     loanInstallments: number;  // Önümüzdeki 12 ay içinde ödenecek kredi taksitleri
     total: number;
   };

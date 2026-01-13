@@ -31,7 +31,8 @@ export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isL
       banks: balanceData.bankBalance,
       receivables: balanceData.tradeReceivables,
       partnerReceivables: balanceData.partnerReceivables,
-      vatReceivable: balanceData.vatReceivable,
+      vatReceivable: balanceData.vatDeductible, // İndirilecek KDV
+      otherVat: balanceData.otherVat,
       inventory: balanceData.inventory,
       prepaidExpenses: 0,
       total: balanceData.currentAssetsTotal,
@@ -46,9 +47,12 @@ export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isL
 
     const shortTermLiabilities = {
       payables: balanceData.tradePayables,
-      vatPayable: balanceData.vatPayable,
+      vatPayable: balanceData.calculatedVatPayable,
       taxPayable: balanceData.taxPayable,
       partnerPayables: balanceData.partnerPayables,
+      personnelPayables: balanceData.personnelPayables,
+      taxPayables: balanceData.taxPayables,
+      socialSecurityPayables: balanceData.socialSecurityPayables,
       loanInstallments: balanceData.shortTermLoanDebt,
       total: balanceData.shortTermTotal,
     };
