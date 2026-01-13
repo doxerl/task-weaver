@@ -14,6 +14,7 @@ export { useIncomeAnalysis } from './useIncomeAnalysis';
 export { useExpenseAnalysis } from './useExpenseAnalysis';
 export { useIncomeStatement } from './useIncomeStatement';
 export { usePdfExport } from './usePdfExport';
+export { useBalanceSheetPdfExport } from './useBalanceSheetPdfExport';
 export { useFinancialDataHub } from './useFinancialDataHub';
 export { useFixedExpenses } from './useFixedExpenses';
 export { separateVat, calculateVatFromGross, calculateVatFromNet } from './utils/vatSeparation';
