@@ -453,10 +453,13 @@ export function useBankImportSession() {
         };
       });
 
-      // Insert to bank_transactions
+      // Upsert to bank_transactions (update if exists based on user_id, file_id, row_number)
       const { error: insertError } = await supabase
         .from('bank_transactions')
-        .insert(bankTxInserts);
+        .upsert(bankTxInserts, { 
+          onConflict: 'user_id,file_id,row_number',
+          ignoreDuplicates: false 
+        });
 
       if (insertError) throw insertError;
 
