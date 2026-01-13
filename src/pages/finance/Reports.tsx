@@ -336,6 +336,12 @@ export default function Reports() {
               {[2026, 2025, 2024].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
             </SelectContent>
           </Select>
+          <Link to="/finance/simulation">
+            <Button variant="outline" size="sm" className="gap-1">
+              <TrendingUp className="h-4 w-4" />
+              <span className="hidden sm:inline">2026 Simülasyon</span>
+            </Button>
+          </Link>
           <Button onClick={handleFullReportPdf} disabled={isFullReportGenerating} size="sm" className="gap-1">
             {isFullReportGenerating ? (
               <>

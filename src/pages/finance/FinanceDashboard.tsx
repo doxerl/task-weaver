@@ -301,6 +301,17 @@ export default function FinanceDashboard() {
 
         {/* Quick Links */}
         <div className="space-y-2">
+          <Link to="/finance/simulation">
+            <Card className="hover:bg-accent transition-colors border-primary/30 bg-primary/5">
+              <CardContent className="p-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <TrendingUp className="h-5 w-5 text-primary" />
+                  <span className="font-medium">2026 Büyüme Simülasyonu</span>
+                </div>
+                <ArrowLeft className="h-4 w-4 rotate-180" />
+              </CardContent>
+            </Card>
+          </Link>
           <Link to="/finance/bank-transactions">
             <Card className="hover:bg-accent transition-colors">
               <CardContent className="p-4 flex items-center justify-between">
