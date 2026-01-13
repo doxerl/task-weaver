@@ -7,20 +7,36 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Receipt, TrendingUp, TrendingDown, AlertTriangle, FileDown, Calculator, Building2, CreditCard } from 'lucide-react';
+import { ArrowLeft, Receipt, TrendingUp, TrendingDown, AlertTriangle, FileDown, Calculator, Building2, CreditCard, Loader2 } from 'lucide-react';
 import { useVatCalculations } from '@/hooks/finance/useVatCalculations';
+import { useVatReportPdf } from '@/hooks/finance/useVatReportPdf';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { toast } from 'sonner';
 
 const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
 export default function VatReport() {
   const [year, setYear] = useState(new Date().getFullYear());
   const vat = useVatCalculations(year);
-  const { formatAmount } = useCurrency();
+  const { currency, formatAmount, yearlyAverageRate } = useCurrency();
+  const { generatePdf, isGenerating } = useVatReportPdf();
 
   const fmt = (value: number) => formatAmount(value, undefined, year);
+
+  const handleExportPdf = async () => {
+    try {
+      await generatePdf(vat, year, {
+        currency,
+        formatAmount: fmt,
+        yearlyAverageRate,
+      });
+      toast.success(`KDV Raporu PDF oluşturuldu (${currency})`);
+    } catch {
+      toast.error('PDF oluşturulamadı');
+    }
+  };
 
   if (vat.isLoading) {
     return (
@@ -52,14 +68,20 @@ export default function VatReport() {
             </Link>
             <h1 className="text-xl font-bold">KDV Raporu</h1>
           </div>
-          <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
-            <SelectTrigger className="w-24">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {[2026, 2025, 2024].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-            </SelectContent>
-          </Select>
+          <div className="flex items-center gap-2">
+            <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
+              <SelectTrigger className="w-24">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[2026, 2025, 2024].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <Button onClick={handleExportPdf} disabled={isGenerating || vat.isLoading} size="sm" className="gap-1">
+              {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+              PDF
+            </Button>
+          </div>
         </div>
 
         {/* KDV Summary Cards */}
@@ -413,11 +435,6 @@ export default function VatReport() {
           </CardContent>
         </Card>
 
-        {/* Download Button */}
-        <Button variant="outline" className="w-full" disabled>
-          <FileDown className="h-4 w-4 mr-2" />
-          PDF İndir (Yakında)
-        </Button>
       </div>
       <BottomTabBar />
     </div>
