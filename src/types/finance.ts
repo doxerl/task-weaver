@@ -209,6 +209,9 @@ export interface ParsedTransaction {
   aiReasoning?: string;
   affectsPnl?: boolean;
   balanceImpact?: BalanceImpact;
+  // Manual amount editing fields
+  isAmountManuallyChanged?: boolean;
+  originalAmountValue?: number;
 }
 
 export interface ParseSummary {

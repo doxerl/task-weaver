@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -19,7 +20,7 @@ import {
   TooltipProvider,
   TooltipTrigger,
 } from '@/components/ui/tooltip';
-import { Save, CheckCircle, ArrowUpCircle, ArrowDownCircle, Sparkles, PenLine, Settings2, AlertTriangle, Info, BarChart3, FileText } from 'lucide-react';
+import { Save, CheckCircle, ArrowUpCircle, ArrowDownCircle, Sparkles, PenLine, Settings2, AlertTriangle, Info, BarChart3, FileText, Check, X } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { cn } from '@/lib/utils';
@@ -29,7 +30,6 @@ export interface EditableTransaction extends ParsedTransaction {
   categoryId: string | null;
   isSelected: boolean;
   isManuallyChanged?: boolean;
-  // AI fields inherited from ParsedTransaction
 }
 
 interface TransactionEditorProps {
@@ -43,9 +43,7 @@ const formatCurrency = (n: number) =>
 
 const formatDate = (d: string | null) => {
   if (!d) return '-';
-  // Already in DD.MM.YYYY format
   if (d.includes('.')) return d;
-  // Convert YYYY-MM-DD to DD.MM.YYYY
   const parts = d.split('-');
   if (parts.length === 3) {
     return `${parts[2]}.${parts[1]}.${parts[0]}`;
@@ -58,17 +56,19 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
   const [editableTransactions, setEditableTransactions] = useState<EditableTransaction[]>(
     transactions.map(t => ({ 
       ...t, 
-      categoryId: t.suggestedCategoryId || null, // AI önerisini varsayılan yap
+      categoryId: t.suggestedCategoryId || null,
       isSelected: false,
       isManuallyChanged: false
     }))
   );
   const [selectAll, setSelectAll] = useState(false);
+  
+  // Amount editing state
+  const [editingAmountIndex, setEditingAmountIndex] = useState<number | null>(null);
+  const [tempAmount, setTempAmount] = useState<string>('');
 
-  // İşlem tutarına göre ilgili kategorileri getir
   const getRelevantCategories = (amount: number) => {
     if (amount > 0) {
-      // Para girişi - Gelir kategorileri
       return {
         primary: { label: 'Gelir', items: grouped.income },
         partner: { 
@@ -84,7 +84,6 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
       };
     }
     
-    // Para çıkışı - Gider kategorileri
     return {
       primary: { label: 'Gider', items: grouped.expense },
       partner: { 
@@ -100,7 +99,6 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
     };
   };
 
-  // Toplu seçim için kategori belirleme
   const getBulkCategories = () => {
     const selectedTxs = editableTransactions.filter(t => t.isSelected);
     if (selectedTxs.length === 0) return null;
@@ -111,7 +109,6 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
     if (allPositive) return getRelevantCategories(1);
     if (allNegative) return getRelevantCategories(-1);
     
-    // Karışık seçim - tüm kategorileri göster
     return null;
   };
 
@@ -140,27 +137,56 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
     );
   };
 
+  // Amount editing handlers
+  const handleAmountEdit = (index: number) => {
+    const tx = editableTransactions[index];
+    setEditingAmountIndex(index);
+    setTempAmount(Math.abs(tx.amount).toString());
+  };
+
+  const handleAmountSave = (index: number, newAmount: number, isPositive: boolean) => {
+    const finalAmount = isPositive ? Math.abs(newAmount) : -Math.abs(newAmount);
+    setEditableTransactions(prev =>
+      prev.map((t, i) => {
+        if (i === index) {
+          return { 
+            ...t, 
+            amount: finalAmount,
+            isAmountManuallyChanged: true,
+            originalAmountValue: t.originalAmountValue ?? t.amount // Store original on first edit
+          };
+        }
+        return t;
+      })
+    );
+    setEditingAmountIndex(null);
+    setTempAmount('');
+  };
+
+  const handleAmountCancel = () => {
+    setEditingAmountIndex(null);
+    setTempAmount('');
+  };
+
   const selectedCount = editableTransactions.filter(t => t.isSelected).length;
   const categorizedCount = editableTransactions.filter(t => t.categoryId).length;
   const totalIncome = editableTransactions.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0);
   const totalExpense = editableTransactions.filter(t => t.amount < 0).reduce((s, t) => s + Math.abs(t.amount), 0);
   
-  // Calculate stats for summary card
   const pnlIncomeCount = editableTransactions.filter(t => t.affectsPnl && t.amount > 0).length;
   const pnlExpenseCount = editableTransactions.filter(t => t.affectsPnl && t.amount < 0).length;
   const balanceOnlyCount = editableTransactions.filter(t => t.affectsPnl === false).length;
   const lowConfidenceCount = editableTransactions.filter(t => (t.aiConfidence || 0) < 0.7).length;
+  const amountCorrectedCount = editableTransactions.filter(t => t.isAmountManuallyChanged).length;
 
-  // Sort transactions: low confidence first
   const sortedTransactions = useMemo(() => {
     return [...editableTransactions].sort((a, b) => {
       const aConf = a.aiConfidence || 1;
       const bConf = b.aiConfidence || 1;
-      return aConf - bConf; // Low confidence at top
+      return aConf - bConf;
     });
   }, [editableTransactions]);
 
-  // Get original index for a transaction
   const getOriginalIndex = (tx: EditableTransaction) => {
     return editableTransactions.findIndex(t => t.index === tx.index);
   };
@@ -201,7 +227,7 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
         {/* Summary Card */}
         <Card className="bg-muted/30 border-muted">
           <CardContent className="p-4">
-            <div className="grid grid-cols-2 md:grid-cols-5 gap-4 text-sm">
+            <div className="grid grid-cols-2 md:grid-cols-6 gap-4 text-sm">
               <div>
                 <p className="text-muted-foreground">Toplam</p>
                 <p className="text-xl font-bold">{editableTransactions.length}</p>
@@ -231,6 +257,17 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
                   lowConfidenceCount > 0 ? "text-amber-600" : "text-green-600"
                 )}>
                   {lowConfidenceCount}
+                </p>
+              </div>
+              <div>
+                <p className="text-muted-foreground flex items-center gap-1">
+                  <PenLine className="h-3 w-3" /> Tutar Düzeltildi
+                </p>
+                <p className={cn(
+                  "text-xl font-bold",
+                  amountCorrectedCount > 0 ? "text-purple-600" : "text-muted-foreground"
+                )}>
+                  {amountCorrectedCount}
                 </p>
               </div>
             </div>
@@ -265,7 +302,6 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
                 </SelectTrigger>
                 <SelectContent>
                   {bulkCategories ? (
-                    // Filtrelenmiş kategoriler (hepsi + veya hepsi -)
                     <>
                       {bulkCategories.primary.items.length > 0 && (
                         <SelectGroup>
@@ -309,7 +345,6 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
                       )}
                     </>
                   ) : (
-                    // Karışık seçim - tüm kategoriler
                     <>
                       <SelectGroup>
                         <SelectLabel>Gelir</SelectLabel>
@@ -343,190 +378,256 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
           )}
         </div>
 
-        {/* Transaction list - sorted by confidence (low first) */}
+        {/* Transaction list */}
         <div className="space-y-2 max-h-[60vh] overflow-y-auto">
           {sortedTransactions.map((tx) => {
             const originalIndex = getOriginalIndex(tx);
             const isLowConfidence = (tx.aiConfidence || 0) < 0.7;
+            const isEditingAmount = editingAmountIndex === originalIndex;
+            
             return (
-            <div
-              key={tx.index}
-              className={cn(
-                "flex items-center gap-3 p-3 border rounded-lg transition-colors",
-                tx.isSelected && "bg-muted/50 border-primary/50",
-                tx.categoryId && "border-green-500/30",
-                isLowConfidence && "bg-amber-50 dark:bg-amber-950/20 border-amber-300"
-              )}
-            >
-              <Checkbox
-                checked={tx.isSelected}
-                onCheckedChange={(checked) => handleSelectChange(originalIndex, checked as boolean)}
-              />
-              
-              <div className="flex-1 min-w-0">
-                <div className="flex items-start justify-between gap-4">
-                  <div className="min-w-0 flex-1">
-                    <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
-                    <p className="text-sm font-medium truncate">{tx.description}</p>
-                    {tx.counterparty && (
-                      <p className="text-xs text-muted-foreground truncate">→ {tx.counterparty}</p>
-                    )}
-                    {tx.reference && (
-                      <p className="text-xs text-muted-foreground">Ref: {tx.reference}</p>
-                    )}
-                  </div>
-                  <div className="text-right shrink-0">
-                    <p className={cn(
-                      "text-sm font-semibold",
-                      tx.amount > 0 ? "text-green-600" : "text-red-600"
-                    )}>
-                      {tx.amount > 0 ? '+' : '-'}{formatCurrency(tx.amount)} ₺
-                    </p>
-                    {tx.balance != null && (
-                      <p className="text-xs text-muted-foreground">Bakiye: {formatCurrency(tx.balance)} ₺</p>
-                    )}
+              <div
+                key={tx.index}
+                className={cn(
+                  "flex items-center gap-3 p-3 border rounded-lg transition-colors",
+                  tx.isSelected && "bg-muted/50 border-primary/50",
+                  tx.categoryId && "border-green-500/30",
+                  isLowConfidence && "bg-amber-50 dark:bg-amber-950/20 border-amber-300"
+                )}
+              >
+                <Checkbox
+                  checked={tx.isSelected}
+                  onCheckedChange={(checked) => handleSelectChange(originalIndex, checked as boolean)}
+                />
+                
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-start justify-between gap-4">
+                    <div className="min-w-0 flex-1">
+                      <p className="text-xs text-muted-foreground">{formatDate(tx.date)}</p>
+                      <p className="text-sm font-medium truncate">{tx.description}</p>
+                      {tx.counterparty && (
+                        <p className="text-xs text-muted-foreground truncate">→ {tx.counterparty}</p>
+                      )}
+                      {tx.reference && (
+                        <p className="text-xs text-muted-foreground">Ref: {tx.reference}</p>
+                      )}
+                    </div>
+                    
+                    {/* Amount section with edit capability */}
+                    <div className="text-right shrink-0 min-w-[140px]">
+                      {isEditingAmount ? (
+                        <div className="flex items-center gap-1">
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => handleAmountSave(originalIndex, parseFloat(tempAmount) || 0, true)}
+                            title="Gelir olarak kaydet (+)"
+                          >
+                            <ArrowUpCircle className="h-4 w-4 text-green-600" />
+                          </Button>
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={() => handleAmountSave(originalIndex, parseFloat(tempAmount) || 0, false)}
+                            title="Gider olarak kaydet (-)"
+                          >
+                            <ArrowDownCircle className="h-4 w-4 text-red-600" />
+                          </Button>
+                          <Input
+                            type="number"
+                            value={tempAmount}
+                            onChange={(e) => setTempAmount(e.target.value)}
+                            className="w-20 h-6 text-sm text-right"
+                            autoFocus
+                          />
+                          <Button 
+                            variant="ghost" 
+                            size="sm"
+                            className="h-6 w-6 p-0"
+                            onClick={handleAmountCancel}
+                          >
+                            <X className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-end gap-1">
+                          <div>
+                            <p className={cn(
+                              "text-sm font-semibold",
+                              tx.amount > 0 ? "text-green-600" : "text-red-600"
+                            )}>
+                              {tx.amount > 0 ? '+' : '-'}{formatCurrency(tx.amount)} ₺
+                            </p>
+                            {tx.isAmountManuallyChanged && tx.originalAmountValue !== undefined && (
+                              <p className="text-xs text-muted-foreground line-through">
+                                {tx.originalAmountValue > 0 ? '+' : '-'}{formatCurrency(tx.originalAmountValue)} ₺
+                              </p>
+                            )}
+                            {tx.balance != null && (
+                              <p className="text-xs text-muted-foreground">Bakiye: {formatCurrency(tx.balance)} ₺</p>
+                            )}
+                          </div>
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-5 w-5 p-0 opacity-50 hover:opacity-100"
+                            onClick={() => handleAmountEdit(originalIndex)}
+                            title="Tutarı düzelt"
+                          >
+                            <PenLine className="h-3 w-3" />
+                          </Button>
+                        </div>
+                      )}
+                      {tx.isAmountManuallyChanged && !isEditingAmount && (
+                        <Badge variant="outline" className="text-xs mt-1 text-purple-600 border-purple-300">
+                          Düzeltildi
+                        </Badge>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              {(() => {
-                const relevantCats = getRelevantCategories(tx.amount);
-                return (
-                  <Select
-                    value={tx.categoryId || undefined}
-                    onValueChange={(value) => handleCategoryChange(originalIndex, value)}
-                  >
-                    <SelectTrigger className="w-40 h-8 shrink-0">
-                      <SelectValue placeholder="Kategori seç">
-                        {getCategoryName(tx.categoryId)}
-                      </SelectValue>
-                    </SelectTrigger>
-                    <SelectContent>
-                      {relevantCats.primary.items.length > 0 && (
-                        <SelectGroup>
-                          <SelectLabel>{relevantCats.primary.label}</SelectLabel>
-                          {relevantCats.primary.items.map(c => (
-                            <SelectItem key={c.id} value={c.id}>
-                              <span className="flex items-center gap-2">
-                                <span>{c.icon}</span>
-                                <span>{c.name}</span>
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      )}
-                      {relevantCats.partner.items.length > 0 && (
-                        <SelectGroup>
-                          <SelectLabel>{relevantCats.partner.label}</SelectLabel>
-                          {relevantCats.partner.items.map(c => (
-                            <SelectItem key={c.id} value={c.id}>
-                              <span className="flex items-center gap-2">
-                                <span>{c.icon}</span>
-                                <span>{c.name}</span>
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      )}
-                      {'financing' in relevantCats && relevantCats.financing.items.length > 0 && (
-                        <SelectGroup>
-                          <SelectLabel>{relevantCats.financing.label}</SelectLabel>
-                          {relevantCats.financing.items.map(c => (
-                            <SelectItem key={c.id} value={c.id}>
-                              <span className="flex items-center gap-2">
-                                <span>{c.icon}</span>
-                                <span>{c.name}</span>
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      )}
-                      {'investment' in relevantCats && relevantCats.investment.items.length > 0 && (
-                        <SelectGroup>
-                          <SelectLabel>{relevantCats.investment.label}</SelectLabel>
-                          {relevantCats.investment.items.map(c => (
-                            <SelectItem key={c.id} value={c.id}>
-                              <span className="flex items-center gap-2">
-                                <span>{c.icon}</span>
-                                <span>{c.name}</span>
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      )}
-                      {relevantCats.excluded.items.length > 0 && (
-                        <SelectGroup>
-                          <SelectLabel>{relevantCats.excluded.label}</SelectLabel>
-                          {relevantCats.excluded.items.map(c => (
-                            <SelectItem key={c.id} value={c.id}>
-                              <span className="flex items-center gap-2">
-                                <span>{c.icon}</span>
-                                <span>{c.name}</span>
-                              </span>
-                            </SelectItem>
-                          ))}
-                        </SelectGroup>
-                      )}
-                    </SelectContent>
-                  </Select>
-                );
-              })()}
+                {(() => {
+                  const relevantCats = getRelevantCategories(tx.amount);
+                  return (
+                    <Select
+                      value={tx.categoryId || undefined}
+                      onValueChange={(value) => handleCategoryChange(originalIndex, value)}
+                    >
+                      <SelectTrigger className="w-40 h-8 shrink-0">
+                        <SelectValue placeholder="Kategori seç">
+                          {getCategoryName(tx.categoryId)}
+                        </SelectValue>
+                      </SelectTrigger>
+                      <SelectContent>
+                        {relevantCats.primary.items.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel>{relevantCats.primary.label}</SelectLabel>
+                            {relevantCats.primary.items.map(c => (
+                              <SelectItem key={c.id} value={c.id}>
+                                <span className="flex items-center gap-2">
+                                  <span>{c.icon}</span>
+                                  <span>{c.name}</span>
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
+                        {relevantCats.partner.items.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel>{relevantCats.partner.label}</SelectLabel>
+                            {relevantCats.partner.items.map(c => (
+                              <SelectItem key={c.id} value={c.id}>
+                                <span className="flex items-center gap-2">
+                                  <span>{c.icon}</span>
+                                  <span>{c.name}</span>
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
+                        {'financing' in relevantCats && relevantCats.financing.items.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel>{relevantCats.financing.label}</SelectLabel>
+                            {relevantCats.financing.items.map(c => (
+                              <SelectItem key={c.id} value={c.id}>
+                                <span className="flex items-center gap-2">
+                                  <span>{c.icon}</span>
+                                  <span>{c.name}</span>
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
+                        {'investment' in relevantCats && relevantCats.investment.items.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel>{relevantCats.investment.label}</SelectLabel>
+                            {relevantCats.investment.items.map(c => (
+                              <SelectItem key={c.id} value={c.id}>
+                                <span className="flex items-center gap-2">
+                                  <span>{c.icon}</span>
+                                  <span>{c.name}</span>
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
+                        {relevantCats.excluded.items.length > 0 && (
+                          <SelectGroup>
+                            <SelectLabel>{relevantCats.excluded.label}</SelectLabel>
+                            {relevantCats.excluded.items.map(c => (
+                              <SelectItem key={c.id} value={c.id}>
+                                <span className="flex items-center gap-2">
+                                  <span>{c.icon}</span>
+                                  <span>{c.name}</span>
+                                </span>
+                              </SelectItem>
+                            ))}
+                          </SelectGroup>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  );
+                })()}
 
-              {/* AI/Manual indicator with reasoning tooltip */}
-              <div className="flex items-center gap-1 shrink-0">
-                {/* Balance impact badge */}
-                {tx.affectsPnl !== undefined && (
-                  <Badge 
-                    variant="outline" 
-                    className={cn(
-                      "text-xs",
-                      tx.affectsPnl ? "border-blue-300 text-blue-700 dark:border-blue-600 dark:text-blue-400" : "border-muted-foreground/30 text-muted-foreground"
-                    )}
-                  >
-                    {tx.affectsPnl ? '📊 K/Z' : '📋 Bilanço'}
-                  </Badge>
-                )}
-                
-                {/* Confidence with reasoning tooltip */}
-                {tx.categoryId && tx.aiConfidence && tx.aiConfidence > 0 && !tx.isManuallyChanged && (
-                  <TooltipProvider>
-                    <Tooltip>
-                      <TooltipTrigger asChild>
-                        <Badge 
-                          variant="secondary" 
-                          className={cn(
-                            "text-xs gap-1 cursor-help",
-                            tx.aiConfidence >= 0.8 && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
-                            tx.aiConfidence >= 0.5 && tx.aiConfidence < 0.8 && "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
-                            tx.aiConfidence < 0.5 && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
-                          )}
-                        >
-                          <Sparkles className="h-3 w-3" />
-                          {Math.round(tx.aiConfidence * 100)}%
-                        </Badge>
-                      </TooltipTrigger>
-                      <TooltipContent side="left" className="max-w-xs">
-                        <p className="text-xs font-medium">AI Gerekçesi</p>
-                        <p className="text-xs text-muted-foreground">{tx.aiReasoning || 'Gerekçe belirtilmedi'}</p>
-                      </TooltipContent>
-                    </Tooltip>
-                  </TooltipProvider>
-                )}
-                
-                {tx.isManuallyChanged && (
-                  <Badge variant="outline" className="text-xs gap-1">
-                    <PenLine className="h-3 w-3" />
-                    Manuel
-                  </Badge>
-                )}
-                {tx.categoryId && (
-                  <CheckCircle className="h-4 w-4 text-green-500" />
-                )}
+                {/* AI/Manual indicator with reasoning tooltip */}
+                <div className="flex items-center gap-1 shrink-0">
+                  {/* Balance impact badge */}
+                  {tx.affectsPnl !== undefined && (
+                    <Badge 
+                      variant="outline" 
+                      className={cn(
+                        "text-xs",
+                        tx.affectsPnl ? "border-blue-300 text-blue-700 dark:border-blue-600 dark:text-blue-400" : "border-muted-foreground/30 text-muted-foreground"
+                      )}
+                    >
+                      {tx.affectsPnl ? '📊 K/Z' : '📋 Bilanço'}
+                    </Badge>
+                  )}
+                  
+                  {/* Confidence with reasoning tooltip */}
+                  {tx.categoryId && tx.aiConfidence && tx.aiConfidence > 0 && !tx.isManuallyChanged && (
+                    <TooltipProvider>
+                      <Tooltip>
+                        <TooltipTrigger asChild>
+                          <Badge 
+                            variant="secondary" 
+                            className={cn(
+                              "text-xs gap-1 cursor-help",
+                              tx.aiConfidence >= 0.8 && "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400",
+                              tx.aiConfidence >= 0.5 && tx.aiConfidence < 0.8 && "bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400",
+                              tx.aiConfidence < 0.5 && "bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-400"
+                            )}
+                          >
+                            <Sparkles className="h-3 w-3" />
+                            {Math.round(tx.aiConfidence * 100)}%
+                          </Badge>
+                        </TooltipTrigger>
+                        <TooltipContent side="left" className="max-w-xs">
+                          <p className="text-xs font-medium">AI Gerekçesi</p>
+                          <p className="text-xs text-muted-foreground">{tx.aiReasoning || 'Gerekçe belirtilmedi'}</p>
+                        </TooltipContent>
+                      </Tooltip>
+                    </TooltipProvider>
+                  )}
+                  
+                  {tx.isManuallyChanged && (
+                    <Badge variant="outline" className="text-xs gap-1">
+                      <PenLine className="h-3 w-3" />
+                      Manuel
+                    </Badge>
+                  )}
+                  {tx.categoryId && (
+                    <CheckCircle className="h-4 w-4 text-green-500" />
+                  )}
+                </div>
               </div>
-            </div>
-          );
+            );
           })}
         </div>
+
         {/* Save button */}
         <Button
           onClick={() => onSave(editableTransactions)}
