@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -6,9 +6,12 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, RotateCcw, Download, TrendingUp, Save, Plus, Loader2 } from 'lucide-react';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Progress } from '@/components/ui/progress';
+import { ArrowLeft, RotateCcw, Download, TrendingUp, Save, Plus, Loader2, FileText } from 'lucide-react';
 import { useGrowthSimulation } from '@/hooks/finance/useGrowthSimulation';
 import { useScenarios } from '@/hooks/finance/useScenarios';
+import { useSimulationPdf } from '@/hooks/finance/useSimulationPdf';
 import { SummaryCards } from '@/components/simulation/SummaryCards';
 import { ProjectionTable } from '@/components/simulation/ProjectionTable';
 import { AddItemDialog } from '@/components/simulation/AddItemDialog';
@@ -18,10 +21,15 @@ import { ScenarioSelector } from '@/components/simulation/ScenarioSelector';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SimulationScenario } from '@/types/simulation';
+import { toast } from 'sonner';
 
 function GrowthSimulationContent() {
   const simulation = useGrowthSimulation();
   const scenariosHook = useScenarios();
+  const { generatePdf, isGenerating, progress } = useSimulationPdf();
+  
+  // Ref for chart capture
+  const chartsContainerRef = useRef<HTMLDivElement>(null);
   
   const {
     scenarioName,
@@ -73,6 +81,32 @@ function GrowthSimulationContent() {
   const handleNewScenario = () => {
     resetToDefaults();
     scenariosHook.setCurrentScenarioId(null);
+  };
+
+  const handleExportPdf = async () => {
+    const success = await generatePdf(
+      {
+        scenarioName,
+        revenues,
+        expenses,
+        investments,
+        summary,
+        assumedExchangeRate,
+        notes,
+      },
+      {
+        chartsContainer: chartsContainerRef.current,
+      },
+      {
+        companyName: 'Şirket',
+      }
+    );
+
+    if (success) {
+      toast.success('PDF başarıyla oluşturuldu');
+    } else {
+      toast.error('PDF oluşturulurken hata oluştu');
+    }
   };
 
   return (
@@ -132,8 +166,18 @@ function GrowthSimulationContent() {
                 <RotateCcw className="h-4 w-4" />
                 Sıfırla
               </Button>
-              <Button variant="outline" size="sm" className="gap-2">
-                <Download className="h-4 w-4" />
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-2"
+                onClick={handleExportPdf}
+                disabled={isGenerating || isLoading}
+              >
+                {isGenerating ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <FileText className="h-4 w-4" />
+                )}
                 PDF
               </Button>
             </div>
@@ -241,7 +285,11 @@ function GrowthSimulationContent() {
           </TabsContent>
 
           <TabsContent value="charts">
-            <ComparisonChart revenues={revenues} expenses={expenses} />
+            <ComparisonChart 
+              ref={chartsContainerRef} 
+              revenues={revenues} 
+              expenses={expenses} 
+            />
           </TabsContent>
 
           <TabsContent value="capital">
@@ -255,6 +303,21 @@ function GrowthSimulationContent() {
           </TabsContent>
         </Tabs>
       </main>
+
+      {/* PDF Progress Dialog */}
+      <Dialog open={isGenerating}>
+        <DialogContent className="sm:max-w-md" onPointerDownOutside={(e) => e.preventDefault()}>
+          <DialogHeader>
+            <DialogTitle>PDF Oluşturuluyor</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <Progress value={(progress.current / progress.total) * 100} />
+            <p className="text-sm text-muted-foreground text-center">
+              {progress.stage} ({progress.current}/{progress.total})
+            </p>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

@@ -26,3 +26,4 @@ export { useVatReportPdf } from './useVatReportPdf';
 export { useFinancingSummaryPdf } from './useFinancingSummaryPdf';
 export { useDetailedIncomeStatementPdf } from './useDetailedIncomeStatementPdf';
 export { useFullReportPdf } from './useFullReportPdf';
+export { useSimulationPdf } from './useSimulationPdf';
