@@ -214,6 +214,11 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
   const lowConfidenceCount = editableTransactions.filter(t => (t.aiConfidence || 0) < 0.7).length;
   const amountCorrectedCount = editableTransactions.filter(t => t.isAmountManuallyChanged).length;
 
+  const getCategoryName = (categoryId: string | null) => {
+    if (!categoryId) return null;
+    return categories.find(c => c.id === categoryId)?.name;
+  };
+
   const sortedTransactions = useMemo(() => {
     return [...editableTransactions].sort((a, b) => {
       let comparison = 0;
@@ -258,11 +263,6 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
 
   const getOriginalIndex = (tx: EditableTransaction) => {
     return editableTransactions.findIndex(t => t.index === tx.index);
-  };
-
-  const getCategoryName = (categoryId: string | null) => {
-    if (!categoryId) return null;
-    return categories.find(c => c.id === categoryId)?.name;
   };
 
   const bulkCategories = getBulkCategories();
