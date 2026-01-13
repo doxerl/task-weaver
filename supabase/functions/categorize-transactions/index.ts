@@ -20,24 +20,77 @@ interface CategoryResult {
   balance_impact: string;
 }
 
-// Ultra-minimal prompt - let AI use its intuition
-const SYSTEM_PROMPT = `Sen Türk bankacılık işlemlerini kategorileyen bir uzmansın. Sezgisel karar ver.
+// Detaylı kural bazlı prompt - örnek bazlı
+const SYSTEM_PROMPT = `Sen Türk bankacılık işlemlerini kategorileyen bir uzmansın.
 
-KATEGORİLER:
-GELİR: SBT (danışmanlık), L&S, DANIS, ZDHC, MASRAF (yansıtma), BAYI, EGITIM_IN, RAPOR, FAIZ_IN, KIRA_IN, DOVIZ_IN, DIGER_IN
-GİDER: SEYAHAT, FUAR, HGS (otoyol), SIGORTA, TELEKOM, BANKA (EFT masrafı), OFIS, YEMEK, PERSONEL, YAZILIM, MUHASEBE, HUKUK, VERGI, KIRA_OUT, KARGO, HARICI, IADE, DOVIZ_OUT, KREDI_OUT, DIGER_OUT, DANIS_OUT
-ORTAK: ORTAK_OUT (ortağa ödeme/borç), ORTAK_IN (ortaktan tahsilat)
+## KRİTİK KURALLAR
+
+### 1. TUTAR MANTIĞI
+- POZİTİF (+) tutar = GELEN PARA = GELİR (müşteriden tahsilat, döviz satışı, vs.)
+- NEGATİF (-) tutar = GİDEN PARA = GİDER veya ÖDEME
+
+### 2. ORTAK İŞLEMLERİ (EMRE AKÇAOĞLU)
+- "borç" + "EMRE AKÇAOĞLU" + NEGATİF = ORTAK_OUT (categoryType: PARTNER, affects_pnl: false)
+- Örnek: "CEP ŞUBE-HVL-borç -EMRE AKÇAOĞLU" -50.000₺ → ORTAK_OUT
+- NOT: Ortağa yapılan ödemeler K/Z'yi ETKİLEMEZ
+
+### 3. BANKA KESİNTİLERİ
+- "KESİNTİ VE EKLERİ" + küçük tutar (genelde -6,39₺ veya -12,80₺) = BANKA
+- Bunlar EFT/havale masraflarıdır
+- Örnek: "KESİNTİ VE EKLERİ-borç Faiz / Komisyon" -6,39₺ → BANKA
+
+### 4. MÜŞTERİ TAHSİLATLARI (GELİRLER)
+- POZİTİF tutar + firma adı (TEKSTİL, SANAYİ, LTD, A.Ş.) = GELİR
+- Açıklamada "EF" + referans = müşteriden gelen EFT
+- Örnek: "EF1876110 FORTE BOYA VE APRE TEKSTİL" +105.840₺ → L&S veya DANIS
+- Örnek: "INT-HVL-emre performance - LEADERSHIP" +369.984₺ → L&S
+
+### 5. HGS/OTOYOL
+- "HGS Hesaptan Bakiye Yükleme" = HGS (categoryType: EXPENSE)
+- "HGS Hesaptan" ile başlayan her şey = HGS
+- Örnek: "HGS Hesaptan Bakiye Yükleme Gebze İzmir" -795₺ → HGS
+
+### 6. TELEKOM
+- "TRKCLL" veya "TURKCELL" = TELEKOM
+- Örnek: "TRKCLL 5314214216" -391,50₺ → TELEKOM
+
+### 7. SİGORTA
+- "Eureko", "KASKO", "Poliçe", "Prim" = SIGORTA
+- Örnek: "Eureko-KASKO Poliçesi Prim Tahsilatı" -2.904₺ → SIGORTA
+
+### 8. KREDİ
+- "KREDİ TAHS", "TİCARİ AMAÇLI KREDİ" = KREDI_OUT (affects_pnl: false, sadece anapara)
+- "KREDİLİ HESAP FAİZ TAHSİLATI" = FAIZ_OUT (affects_pnl: true)
+- Örnek: "O4-(TİCARİ AMAÇLI KREDİ TAHS.)" -41.262₺ → KREDI_OUT
+
+### 9. DÖVİZ
+- "DÖVİZ SATIŞ" + POZİTİF TL = DOVIZ_IN (döviz sattık, TL aldık)
+- Örnek: "Mobil DÖVİZ SATIŞ EUR:47.597" +10.471₺ → DOVIZ_IN
+
+### 10. OFİS GİDERLERİ
+- "KARTVİZİT BASIMI BEDELİ" (büyük tutar, ör: -1.080₺) = OFIS
+- NOT: Bunun yanındaki "KESİNTİ VE EKLERİ" (-6,39₺) ayrı BANKA kesintisidir
+
+### 11. DANIŞMANLIK GİDERİ
+- "DANIŞMANLIK HİZMET BEDELİ" + NEGATİF + kişi adı = DANIS_OUT
+- Örnek: "CEP ŞUBE-HVL-DANIŞMANLIK HİZMET BEDELİ -AKIN TAŞKIRAN" -18.840₺ → DANIS_OUT
+
+## KATEGORİ KODLARI
+GELİR: SBT, L&S, DANIS, ZDHC, MASRAF, BAYI, EGITIM_IN, RAPOR, FAIZ_IN, KIRA_IN, DOVIZ_IN, DIGER_IN
+GİDER: SEYAHAT, FUAR, HGS, SIGORTA, TELEKOM, BANKA, OFIS, YEMEK, PERSONEL, YAZILIM, MUHASEBE, HUKUK, VERGI, KIRA_OUT, KARGO, HARICI, IADE, DOVIZ_OUT, KREDI_OUT, DIGER_OUT, DANIS_OUT
+ORTAK: ORTAK_OUT, ORTAK_IN
 FİNANSMAN: KREDI_IN, LEASING, FAIZ_OUT
 HARİÇ: IC_TRANSFER, NAKIT_CEKME, EXCLUDED
 
-SEZGİSEL KARAR VER:
-- İşlemin özünü anla, açıklamayı oku
-- Pozitif = gelir, negatif = gider (genellikle)
-- "KESİNTİ VE EKLERİ" = BANKA (EFT masrafı)
-- "borç" + kişi adı (örn: EMRE AKÇAOĞLU) = ORTAK_OUT
-- "HGS Hesaptan" = HGS
-- affects_pnl: K/Z etkiler mi? (ortak, transfer, kredi anaparası = false)
-- balance_impact: equity_increase/decrease, liability_increase/decrease, none`;
+## affects_pnl KURALI
+- true: Gelirler, normal giderler (K/Z'yi etkiler)
+- false: Ortak işlemleri, kredi anaparası, iç transferler (bilanço hareketi)
+
+## counterparty TESPİTİ
+- Açıklamadaki firma/kişi adını yaz
+- "EMRE AKÇAOĞLU" ise = "EMRE AKÇAOĞLU"
+- "FORTE BOYA" ise = "FORTE BOYA VE APRE TEKSTİL"
+- Tespit edilemezse = null`;
 
 // Process a single batch
 async function processSingleBatch(
