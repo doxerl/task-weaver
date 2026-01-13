@@ -28,7 +28,7 @@ export interface RuleMatchResult {
   categoryCode: string;
   categoryType: string;
   confidence: number;
-  source: 'user_rule' | 'keyword' | 'context_rule' | 'amount_rule' | 'ai';
+  source: 'user_rule' | 'keyword' | 'context_rule' | 'amount_rule' | 'excel_label' | 'ai';
   reasoning: string;
   affectsPnl: boolean;
   balanceImpact: string;
@@ -396,6 +396,144 @@ function matchContextRules(tx: ParsedTransaction, categories: TransactionCategor
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
+// EXCEL ETİKET → KATEGORİ EŞLEŞTİRME
+// Excel dosyasındaki "Etiket" sütunu değerlerini kategori kodlarına eşler
+// ═══════════════════════════════════════════════════════════════════════════
+const EXCEL_LABEL_TO_CATEGORY: Record<string, { code: string; confidence: number }> = {
+  // Para hareketleri
+  'PARA TRANSFERİ': { code: 'IC_TRANSFER', confidence: 0.9 },
+  'PARA TRANSFERI': { code: 'IC_TRANSFER', confidence: 0.9 },
+  'HAVALE': { code: 'IC_TRANSFER', confidence: 0.85 },
+  'EFT': { code: 'IC_TRANSFER', confidence: 0.85 },
+  'TRANSFER': { code: 'IC_TRANSFER', confidence: 0.8 },
+  
+  // Banka işlemleri
+  'FAİZ / KOMİSYON': { code: 'BANKA', confidence: 0.95 },
+  'FAIZ / KOMISYON': { code: 'BANKA', confidence: 0.95 },
+  'FAİZ/KOMİSYON': { code: 'BANKA', confidence: 0.95 },
+  'FAIZ/KOMISYON': { code: 'BANKA', confidence: 0.95 },
+  'FAİZ': { code: 'FAIZ_OUT', confidence: 0.9 },
+  'FAIZ': { code: 'FAIZ_OUT', confidence: 0.9 },
+  'KOMİSYON': { code: 'BANKA', confidence: 0.9 },
+  'KOMISYON': { code: 'BANKA', confidence: 0.9 },
+  'BANKA': { code: 'BANKA', confidence: 0.85 },
+  
+  // Giderler
+  'SİGORTA': { code: 'SIGORTA', confidence: 0.95 },
+  'SIGORTA': { code: 'SIGORTA', confidence: 0.95 },
+  'ULAŞIM': { code: 'HGS', confidence: 0.9 },
+  'ULASIM': { code: 'HGS', confidence: 0.9 },
+  'TELEKOMÜNİKASYON': { code: 'TELEKOM', confidence: 0.95 },
+  'TELEKOMÜNIKASYON': { code: 'TELEKOM', confidence: 0.95 },
+  'TELEKOMUNIKASYON': { code: 'TELEKOM', confidence: 0.95 },
+  'KARGO': { code: 'KARGO', confidence: 0.95 },
+  'VERGİ': { code: 'VERGI', confidence: 0.95 },
+  'VERGI': { code: 'VERGI', confidence: 0.95 },
+  'EĞİTİM': { code: 'EGITIM_OUT', confidence: 0.85 },
+  'EGITIM': { code: 'EGITIM_OUT', confidence: 0.85 },
+  'PERSONEL': { code: 'PERSONEL', confidence: 0.95 },
+  'KİRA': { code: 'KIRA_OUT', confidence: 0.9 },
+  'KIRA': { code: 'KIRA_OUT', confidence: 0.9 },
+  'YEMEK': { code: 'YEMEK', confidence: 0.9 },
+  'OFİS': { code: 'OFIS', confidence: 0.9 },
+  'OFIS': { code: 'OFIS', confidence: 0.9 },
+  'HUKUK': { code: 'HUKUK', confidence: 0.95 },
+  'MUHASEBE': { code: 'MUHASEBE', confidence: 0.95 },
+  'DANIŞMANLIK': { code: 'DANISMANLIK', confidence: 0.9 },
+  'DANISMANLIK': { code: 'DANISMANLIK', confidence: 0.9 },
+  
+  // Gelirler (pozitif tutar kontrolü gerekir)
+  'GELİR': { code: 'DIGER_IN', confidence: 0.7 },
+  'GELIR': { code: 'DIGER_IN', confidence: 0.7 },
+  'TAHSİLAT': { code: 'DIGER_IN', confidence: 0.75 },
+  'TAHSILAT': { code: 'DIGER_IN', confidence: 0.75 },
+  
+  // Diğer
+  'DİĞER': { code: 'DIGER_OUT', confidence: 0.5 },
+  'DIGER': { code: 'DIGER_OUT', confidence: 0.5 },
+  'DİĞER GİDER': { code: 'DIGER_OUT', confidence: 0.6 },
+  'DIGER GIDER': { code: 'DIGER_OUT', confidence: 0.6 },
+};
+
+/**
+ * Excel etiket sütununu kategoriye eşler
+ * Context kurallarından sonra, keyword'lerden önce çalışır
+ */
+function matchExcelLabel(tx: ParsedTransaction, categories: TransactionCategory[]): RuleMatchResult | null {
+  const label = tx.excelLabel?.trim().toUpperCase();
+  if (!label) return null;
+  
+  // Exact match dene
+  let mapping = EXCEL_LABEL_TO_CATEGORY[label];
+  
+  // Fuzzy match: label içinde keyword ara
+  if (!mapping) {
+    for (const [key, value] of Object.entries(EXCEL_LABEL_TO_CATEGORY)) {
+      if (label.includes(key) || key.includes(label)) {
+        mapping = value;
+        break;
+      }
+    }
+  }
+  
+  if (!mapping) return null;
+  
+  const amount = tx.amount || 0;
+  let categoryCode = mapping.code;
+  
+  // Tutar yönüne göre kategori ayarla
+  // Örnek: "DİĞER" etiketi varsa, + tutar için DIGER_IN, - tutar için DIGER_OUT
+  if (categoryCode === 'DIGER_OUT' && amount > 0) {
+    categoryCode = 'DIGER_IN';
+  }
+  if (categoryCode === 'DIGER_IN' && amount < 0) {
+    categoryCode = 'DIGER_OUT';
+  }
+  // EĞİTİM için de benzer mantık
+  if (categoryCode === 'EGITIM_OUT' && amount > 0) {
+    categoryCode = 'EGITIM_IN';
+  }
+  if (categoryCode === 'EGITIM_IN' && amount < 0) {
+    categoryCode = 'EGITIM_OUT';
+  }
+  // FAİZ için de benzer mantık
+  if (categoryCode === 'FAIZ_OUT' && amount > 0) {
+    categoryCode = 'FAIZ_IN';
+  }
+  if (categoryCode === 'FAIZ_IN' && amount < 0) {
+    categoryCode = 'FAIZ_OUT';
+  }
+  // KİRA için de benzer mantık
+  if (categoryCode === 'KIRA_OUT' && amount > 0) {
+    categoryCode = 'KIRA_IN';
+  }
+  if (categoryCode === 'KIRA_IN' && amount < 0) {
+    categoryCode = 'KIRA_OUT';
+  }
+  
+  const cat = categories.find(c => c.code === categoryCode);
+  if (!cat) {
+    console.log(`⚠️ ExcelLabel: TX[${tx.index}] "${label}" → ${categoryCode} (kategori bulunamadı)`);
+    return null;
+  }
+  
+  console.log(`✅ ExcelLabel: TX[${tx.index}] "${label}" → ${categoryCode}`);
+  
+  return {
+    transactionIndex: tx.index,
+    categoryId: cat.id,
+    categoryCode: categoryCode,
+    categoryType: cat.type,
+    confidence: mapping.confidence,
+    source: 'excel_label',
+    reasoning: `Excel etiketi: "${tx.excelLabel}"`,
+    affectsPnl: getAffectsPnl(cat.type, cat.code),
+    balanceImpact: getBalanceImpact(amount, cat.type),
+    counterparty: extractCounterparty(tx)
+  };
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
 // ALFA ZEN GELİR KATEGORİLEME (Güncel Fiyatlandırma)
 // ═══════════════════════════════════════════════════════════════════════════
 function categorizeAlfaZenIncome(tx: ParsedTransaction, categories: TransactionCategory[]): RuleMatchResult | null {
@@ -673,7 +811,17 @@ export async function categorizeWithRules(
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // STAGE 3: Keyword matching (SPESİFİKLİK ÖNCELİKLİ)
+    // STAGE 3: Excel label matching (Banka etiketleri)
+    // ═══════════════════════════════════════════════════════════════════
+    const excelLabelMatch = matchExcelLabel(tx, sortedCategories);
+    if (excelLabelMatch) {
+      matched.push(excelLabelMatch);
+      found = true;
+      continue;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════
+    // STAGE 4: Keyword matching (SPESİFİKLİK ÖNCELİKLİ)
     // Tüm eşleşmeleri topla, en uzun keyword'ü seç
     // ═══════════════════════════════════════════════════════════════════
     interface KeywordMatch {
@@ -733,7 +881,7 @@ export async function categorizeWithRules(
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // STAGE 4: Alfa Zen income rules (tekstil/sanayi firması + tutar)
+    // STAGE 5: Alfa Zen income rules (tekstil/sanayi firması + tutar)
     // ═══════════════════════════════════════════════════════════════════
     const alfaZenMatch = categorizeAlfaZenIncome(tx, sortedCategories);
     if (alfaZenMatch) {
@@ -743,7 +891,7 @@ export async function categorizeWithRules(
     }
 
     // ═══════════════════════════════════════════════════════════════════
-    // STAGE 5: Send to AI
+    // STAGE 6: Send to AI
     // ═══════════════════════════════════════════════════════════════════
     needsAI.push(tx);
   }
@@ -768,6 +916,7 @@ export async function categorizeWithRules(
     bySource: {
       user_rule: matched.filter(m => m.source === 'user_rule').length,
       context_rule: matched.filter(m => m.source === 'context_rule').length,
+      excel_label: matched.filter(m => m.source === 'excel_label').length,
       keyword: matched.filter(m => m.source === 'keyword').length,
       amount_rule: matched.filter(m => m.source === 'amount_rule').length
     }
