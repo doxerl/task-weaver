@@ -246,15 +246,15 @@ export default function Receipts() {
   };
 
   const getEmptyMessage = () => {
-    if (activeTab === 'slip') return 'Henüz fiş yok.';
+    if (activeTab === 'slip') return 'Henüz alınan fiş yok.';
     if (activeTab === 'invoice') return 'Henüz alınan fatura yok.';
     return 'Henüz kesilen fatura yok.';
   };
 
   const getUploadLabel = () => {
-    if (activeTab === 'slip') return 'Fiş yükle';
-    if (activeTab === 'invoice') return 'Fatura yükle';
-    return 'Fatura yükle';
+    if (activeTab === 'slip') return 'Alınan fiş yükle';
+    if (activeTab === 'invoice') return 'Alınan fatura yükle';
+    return 'Kesilen fatura yükle';
   };
 
   return (
@@ -291,15 +291,21 @@ export default function Receipts() {
           <TabsList className="grid w-full grid-cols-3">
             <TabsTrigger value="slip" className="gap-1 text-xs sm:text-sm">
               <ReceiptIcon className="h-4 w-4" />
-              <span className="hidden sm:inline">Fiş</span> ({tabStats.slip.count})
+              <span className="hidden sm:inline">Alınan Fiş</span>
+              <span className="sm:hidden">Fiş</span>
+              <span className="text-muted-foreground">({tabStats.slip.count})</span>
             </TabsTrigger>
             <TabsTrigger value="invoice" className="gap-1 text-xs sm:text-sm">
               <FileCheck className="h-4 w-4" />
-              <span className="hidden sm:inline">Fatura</span> ({tabStats.invoice.count})
+              <span className="hidden sm:inline">Alınan Fatura</span>
+              <span className="sm:hidden">A.Fatura</span>
+              <span className="text-muted-foreground">({tabStats.invoice.count})</span>
             </TabsTrigger>
             <TabsTrigger value="issued" className="gap-1 text-xs sm:text-sm">
               <FileText className="h-4 w-4" />
-              <span className="hidden sm:inline">Kesilen</span> ({tabStats.issued.count})
+              <span className="hidden sm:inline">Kesilen Fatura</span>
+              <span className="sm:hidden">Kesilen</span>
+              <span className="text-muted-foreground">({tabStats.issued.count})</span>
             </TabsTrigger>
           </TabsList>
 
@@ -314,7 +320,8 @@ export default function Receipts() {
                 <Link to="/finance/receipts/upload?type=received&subtype=slip">
                   <Button size="sm" className="gap-1">
                     <Plus className="h-4 w-4" />
-                    Fiş Yükle
+                    <span className="hidden sm:inline">Alınan Fiş Yükle</span>
+                    <span className="sm:hidden">Yükle</span>
                   </Button>
                 </Link>
               </div>
@@ -332,7 +339,8 @@ export default function Receipts() {
                 <Link to="/finance/receipts/upload?type=received&subtype=invoice">
                   <Button size="sm" className="gap-1">
                     <Plus className="h-4 w-4" />
-                    Fatura Yükle
+                    <span className="hidden sm:inline">Alınan Fatura Yükle</span>
+                    <span className="sm:hidden">Yükle</span>
                   </Button>
                 </Link>
               </div>
@@ -350,7 +358,8 @@ export default function Receipts() {
                 <Link to="/finance/receipts/upload?type=issued">
                   <Button size="sm" className="gap-1 bg-green-600 hover:bg-green-700">
                     <Plus className="h-4 w-4" />
-                    Yükle
+                    <span className="hidden sm:inline">Kesilen Fatura Yükle</span>
+                    <span className="sm:hidden">Yükle</span>
                   </Button>
                 </Link>
               </div>
