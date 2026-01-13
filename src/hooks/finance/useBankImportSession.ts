@@ -485,20 +485,54 @@ export function useBankImportSession() {
     }
   });
 
-  // Cancel session
-  const cancelSession = useCallback(async () => {
-    if (!currentSessionId) return;
+  // Cancel session - completely remove session and its transactions from DB
+  const cancelSession = useMutation({
+    mutationFn: async () => {
+      if (!currentSessionId) return;
 
-    await supabase
-      .from('bank_import_sessions')
-      .update({ status: 'cancelled' })
-      .eq('id', currentSessionId);
+      // 1. Delete import transactions for this session
+      const { error: txError } = await supabase
+        .from('bank_import_transactions')
+        .delete()
+        .eq('session_id', currentSessionId);
 
-    localStorage.removeItem(LOCAL_STORAGE_KEY);
-    setCurrentSessionId(null);
-    queryClient.invalidateQueries({ queryKey: ['bankImportSession'] });
-    queryClient.invalidateQueries({ queryKey: ['activeImportSession'] });
-  }, [currentSessionId, queryClient]);
+      if (txError) {
+        console.error('Transaction silme hatası:', txError);
+        throw txError;
+      }
+
+      // 2. Delete the session itself
+      const { error: sessionError } = await supabase
+        .from('bank_import_sessions')
+        .delete()
+        .eq('id', currentSessionId);
+
+      if (sessionError) {
+        console.error('Session silme hatası:', sessionError);
+        throw sessionError;
+      }
+
+      // 3. Clear localStorage
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      setCurrentSessionId(null);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['bankImportSession'] });
+      queryClient.invalidateQueries({ queryKey: ['activeImportSession'] });
+      queryClient.invalidateQueries({ queryKey: ['bankImportTransactions'] });
+      toast({
+        title: '🗑️ Dosya Kaldırıldı',
+        description: 'Yüklenen dosya ve işlemler silindi'
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Hata',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
 
   // Clear session (without cancelling - just local state)
   const clearSession = useCallback(() => {
@@ -694,7 +728,7 @@ export function useBankImportSession() {
     saveCategorizations: saveCategorizations.mutateAsync,
     updateCategory: updateCategory.mutate,
     approveAndTransfer: approveAndTransfer.mutateAsync,
-    cancelSession,
+    cancelSession: cancelSession.mutateAsync,
     clearSession,
     getUncategorizedTransactions,
     recategorizeUncategorized: recategorizeUncategorized.mutateAsync,
@@ -707,6 +741,7 @@ export function useBankImportSession() {
     isSavingCategorizations: saveCategorizations.isPending,
     isApproving: approveAndTransfer.isPending,
     isUpdatingCategory: updateCategory.isPending,
-    isRecategorizing: recategorizeUncategorized.isPending
+    isRecategorizing: recategorizeUncategorized.isPending,
+    isCancelling: cancelSession.isPending
   };
 }
