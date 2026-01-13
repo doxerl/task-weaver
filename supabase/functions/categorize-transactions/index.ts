@@ -39,22 +39,11 @@ const SYSTEM_PROMPT = `Sen Türk bankacılık işlemlerini kategorileyen bir uzm
 - Bunlar EFT/havale masraflarıdır
 - Örnek: "KESİNTİ VE EKLERİ-borç Faiz / Komisyon" -6,39₺ → BANKA
 
-### 4. MÜŞTERİ TAHSİLATLARI (GELİRLER) - DANIŞMANLIK/DENETİM
-POZİTİF tutar + firma adı (TEKSTİL, SANAYİ, LTD, A.Ş.) = GELİR
-
-**ÖNCE İÇERİK KONTROL ET:**
-- Açıklamada "LEADERSHIP" veya "L&S" veya "L%S" (büyük/küçük harf farketmez) geçiyorsa → L&S
-
-**SONRA TUTAR KONTROL ET (sadece içerikte leadership YOKSA):**
-- Tutar > 125.000 TL → SBT (SBT Tracker denetim geliri)
-- Tutar < 75.000 TL → ZDHC (ZDHC InCheck denetim geliri)
-- Tutar 75.000 - 125.000 TL arası → DANIS (Genel danışmanlık geliri)
-
-Örnekler:
-- "INT-HVL-emre performance - LEADERSHIP" +369.984₺ → L&S (içerikte LEADERSHIP var)
-- "EF1876110 FORTE BOYA VE APRE TEKSTİL" +180.000₺ → SBT (içerikte leadership yok, 125k üstü)
-- "CEP ŞUBE-HVL-XYZ TEKSTİL SAN" +50.000₺ → ZDHC (içerikte leadership yok, 75k altı)
-- "EF9988123 ABC SANAYİ A.Ş." +95.000₺ → DANIS (içerikte leadership yok, 75k-125k arası)
+### 4. MÜŞTERİ TAHSİLATLARI (GELİRLER)
+- POZİTİF tutar + firma adı (TEKSTİL, SANAYİ, LTD, A.Ş.) = GELİR
+- Açıklamada "EF" + referans = müşteriden gelen EFT
+- Örnek: "EF1876110 FORTE BOYA VE APRE TEKSTİL" +105.840₺ → L&S veya DANIS
+- Örnek: "INT-HVL-emre performance - LEADERSHIP" +369.984₺ → L&S
 
 ### 5. HGS/OTOYOL
 - "HGS Hesaptan Bakiye Yükleme" = HGS (categoryType: EXPENSE)
