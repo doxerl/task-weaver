@@ -1223,6 +1223,7 @@ export type Database = {
           is_financing: boolean | null
           is_system: boolean | null
           keywords: string[] | null
+          match_priority: number | null
           name: string
           sort_order: number | null
           type: string
@@ -1241,6 +1242,7 @@ export type Database = {
           is_financing?: boolean | null
           is_system?: boolean | null
           keywords?: string[] | null
+          match_priority?: number | null
           name: string
           sort_order?: number | null
           type: string
@@ -1259,6 +1261,7 @@ export type Database = {
           is_financing?: boolean | null
           is_system?: boolean | null
           keywords?: string[] | null
+          match_priority?: number | null
           name?: string
           sort_order?: number | null
           type?: string

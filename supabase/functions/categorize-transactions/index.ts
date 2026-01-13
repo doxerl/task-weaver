@@ -21,8 +21,14 @@ interface CategoryResult {
   balance_impact: string;
 }
 
-// Static rules that don't change
-const STATIC_RULES = `Sen Türk bankacılık işlemlerini kategorileyen bir uzmansın.
+// Static rules - Alfa Zen specific
+const STATIC_RULES = `Sen Alfa Zen Partner Network için banka işlemlerini kategorileyen bir uzmansın.
+
+## ŞİRKET BİLGİSİ
+Alfa Zen (Tüzel: "ALFA ZEN EĞİTİM DENETİM VE DANIŞMANLIK"), tekstil sektörüne sürdürülebilirlik hizmetleri sunan bir ZDHC Çözüm Sağlayıcısıdır.
+
+⚠️ KRİTİK: "ALFA ZEN EĞİTİM" FİRMA ADIDIR, EĞİTİM HİZMETİ DEĞİL!
+Müşteriler açıklamaya bazen bu tüzel adı yazar - EGITIM_IN YAPMA!
 
 ## KRİTİK KURALLAR
 
@@ -30,34 +36,67 @@ const STATIC_RULES = `Sen Türk bankacılık işlemlerini kategorileyen bir uzma
 - POZİTİF (+) tutar = GELEN PARA = GELİR (müşteriden tahsilat, döviz satışı, vs.)
 - NEGATİF (-) tutar = GİDEN PARA = GİDER veya ÖDEME
 
-### 2. ORTAK İŞLEMLERİ
-- "borç" + kişi adı + NEGATİF = ORTAK_OUT (categoryType: PARTNER, affects_pnl: false)
-- Ortağa yapılan ödemeler K/Z'yi ETKİLEMEZ
+### 2. BANKA KESİNTİLERİ (Öncelik: EN YÜKSEK)
+- "KESİNTİ VE EKLERİ" + küçük tutar (< 100₺) = BANKA
+- Açıklamanın geri kalanı ne olursa olsun (borç, faiz, vs.) = BANKA
 
-### 3. BANKA KESİNTİLERİ
-- "KESİNTİ VE EKLERİ" + küçük tutar (genelde < 100₺) = BANKA
-- Bunlar EFT/havale masraflarıdır
+### 3. ORTAK İŞLEMLERİ
+- Tanımlı ortak adı (örn: "EMRE AKÇAOĞLU") + negatif = ORTAK_OUT
+- Tanımlı ortak adı + pozitif = ORTAK_IN
+- affects_pnl: false (K/Z'yi ETKİLEMEZ)
 
-### 4. MÜŞTERİ TAHSİLATLARI (GELİRLER)
+### 4. KREDİ/FAİZ
+- "O4-(TİCARİ AMAÇLI KREDİ" = KREDI_OUT (affects_pnl: false)
+- "KREDİLİ HESAP FAİZ" = FAIZ_OUT (affects_pnl: true)
+
+### 5. MÜŞTERİ TAHSİLATLARI (GELİRLER) - KRİTİK!
 POZİTİF tutar + firma adı = GELİR
 
-**ÖNCE İÇERİK KONTROL ET:**
-- "LEADERSHIP" veya "L&S" veya "L%S" geçiyorsa → L&S
+**ADIM 1 - ÖNCE KEYWORD KONTROL ET:**
+- "LEADERSHIP", "L&S", "L%S", "PERFORMANCE" → L&S
+- "SBT", "SBT TRACKER", "KARBON", "YAZILIM HİZ" → SBT
+- "ZDHC", "INCHECK", "MRSL", "KİMYASAL DOĞ" → ZDHC
 
-**SONRA TUTAR KONTROL ET:**
-- Tutar > 125.000 TL → SBT
-- Tutar < 75.000 TL → ZDHC
-- Tutar 75.000 - 125.000 TL arası → DANIS
+**ADIM 2 - KEYWORD YOKSA ZORUNLU TUTAR KURALI:**
+Tekstil/sanayi firmasından gelen para:
 
-### 5. MÜŞTERİ İADESİ
-- "İADE" geçiyorsa + NEGATİF tutar = IADE
-- Örnek: "CEP ŞUBE-EFT İADE" -111.665₺ → IADE
+| Tutar Aralığı | Kategori | Güven | Açıklama |
+|---------------|----------|-------|----------|
+| >= 200.000 TL | L&S | %92 | Toplu denetim ödemesi |
+| 120.000 - 199.999 TL | SBT | %90 | SBT Tracker büyük proje |
+| 70.000 - 119.999 TL | SBT | %80 | SBT Tracker küçük üretici |
+| 30.000 - 69.999 TL | ZDHC | %85 | ZDHC InCheck |
+| < 30.000 TL | ZDHC | %75 | Küçük doğrulama |
 
-### 6. affects_pnl KURALI
+⚠️ DİKKAT: Firma adında "TEKSTİL", "BOYA" vb. olması kategorileme için YETERLİ DEĞİL!
+TUTARA BAK ve yukarıdaki kuralı uygula.
+
+ÖRNEKLER:
+- "İPEK TÜL VE KONFEKSİYON" +142.219 TL → SBT (120k-200k)
+- "FORTE BOYA VE APRE" +105.840 TL → SBT (70k-120k, küçük üretici)
+- "AKATEKS TEKSTİL" +72.000 TL → SBT (70k-120k, küçük üretici)
+- "ASLI TEKSTİL" +60.000 TL → ZDHC (30k-70k)
+- "HOME DRESS TEKSTİL" +49.800 TL → ZDHC (30k-70k)
+- "LEADERSHIP AND SUSTA" +369.984 TL → L&S (keyword eşleşmesi)
+
+### 6. FİRMA ADI TUZAĞI
+⚠️ "ALFA ZEN EĞİTİM DENETİM" görürsen:
+- Bu MÜŞTERİNİN yazdığı ALFA ZEN'in tüzel adı
+- EGITIM_IN YAPMA!
+- Tutara göre SBT, L&S veya ZDHC olarak kategorile
+
+### 7. GİDER KATEGORİLERİ
+- Sigorta (KASKO, POLİÇE, EUREKO, ALLIANZ) = SIGORTA
+- Telefon (TURKCELL, VODAFONE, TÜRK TELEKOM) = TELEKOM
+- HGS/Otoyol (HGS, OGS, KÖPRÜ, AVRASYA) = HGS
+- Kargo (ARAS, MNG, UPS) = KARGO
+- Kartvizit/Fuar/Tanıtım = FUAR
+
+### 8. affects_pnl KURALI
 - true: Gelirler, normal giderler (K/Z'yi etkiler)
 - false: Ortak işlemleri, kredi anaparası, iç transferler
 
-### 7. counterparty TESPİTİ
+### 9. counterparty TESPİTİ
 - Açıklamadaki firma/kişi adını yaz
 - Tespit edilemezse = null
 
@@ -230,7 +269,8 @@ serve(async (req) => {
       const { data: dbCategories } = await supabase
         .from('transaction_categories')
         .select('code, name, type, keywords')
-        .eq('is_active', true);
+        .eq('is_active', true)
+        .order('match_priority', { ascending: true });
       
       categories = dbCategories || [];
     }
@@ -239,7 +279,7 @@ serve(async (req) => {
     const categorySection = buildCategorySection(categories);
     const DYNAMIC_PROMPT = STATIC_RULES + categorySection;
 
-    console.log(`Processing ${transactions.length} transactions with dynamic prompt...`);
+    console.log(`Processing ${transactions.length} transactions with Alfa Zen rules...`);
 
     // Split into batches
     const batches: any[][] = [];
