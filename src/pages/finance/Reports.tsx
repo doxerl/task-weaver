@@ -4,11 +4,12 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, TrendingUp, TrendingDown, Wallet, FileDown, BarChart3, PieChart, FileText, Users, Loader2 } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Wallet, FileDown, BarChart3, PieChart, FileText, Users, Loader2, Receipt } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/finance/useFinancialCalculations';
 import { useIncomeAnalysis } from '@/hooks/finance/useIncomeAnalysis';
 import { useExpenseAnalysis } from '@/hooks/finance/useExpenseAnalysis';
 import { useIncomeStatement } from '@/hooks/finance/useIncomeStatement';
+import { useVatCalculations } from '@/hooks/finance/useVatCalculations';
 import { usePdfExport } from '@/hooks/finance/usePdfExport';
 import { MonthlyTrendChart } from '@/components/finance/charts/MonthlyTrendChart';
 import { ServiceRevenueChart } from '@/components/finance/charts/ServiceRevenueChart';
@@ -28,6 +29,7 @@ export default function Reports() {
   const incomeAnalysis = useIncomeAnalysis(year);
   const expenseAnalysis = useExpenseAnalysis(year);
   const incomeStatement = useIncomeStatement(year);
+  const vatCalc = useVatCalculations(year);
   const { generatePdf, isGenerating } = usePdfExport();
 
   // Combine monthly data
@@ -107,20 +109,20 @@ export default function Reports() {
           </Button>
         </div>
 
-        {/* KPI Cards */}
+        {/* KPI Cards - Row 1: Income/Expense */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
           <Card className="bg-green-50 dark:bg-green-950/30">
             <CardContent className="p-3">
               <TrendingUp className="h-4 w-4 text-green-600 mb-1" />
-              <p className="text-xs text-muted-foreground">Toplam Gelir</p>
-              <p className="text-lg font-bold text-green-600">{formatCurrency(calc.totalIncome)}</p>
+              <p className="text-xs text-muted-foreground">Net Gelir (KDV Hariç)</p>
+              <p className="text-lg font-bold text-green-600">{formatCurrency(calc.netRevenue)}</p>
             </CardContent>
           </Card>
           <Card className="bg-red-50 dark:bg-red-950/30">
             <CardContent className="p-3">
               <TrendingDown className="h-4 w-4 text-red-600 mb-1" />
-              <p className="text-xs text-muted-foreground">Toplam Gider</p>
-              <p className="text-lg font-bold text-red-600">{formatCurrency(calc.totalExpenses)}</p>
+              <p className="text-xs text-muted-foreground">Net Gider (KDV Hariç)</p>
+              <p className="text-lg font-bold text-red-600">{formatCurrency(calc.netCost + calc.receiptTotal)}</p>
             </CardContent>
           </Card>
           <Card>
@@ -137,6 +139,39 @@ export default function Reports() {
               <BarChart3 className="h-4 w-4 text-primary mb-1" />
               <p className="text-xs text-muted-foreground">Kâr Marjı</p>
               <p className="text-lg font-bold">{calc.profitMargin.toFixed(1)}%</p>
+            </CardContent>
+          </Card>
+        </div>
+
+        {/* KPI Cards - Row 2: VAT Summary */}
+        <div className="grid grid-cols-3 gap-3">
+          <Card className="bg-blue-50 dark:bg-blue-950/30">
+            <CardContent className="p-3">
+              <Receipt className="h-4 w-4 text-blue-600 mb-1" />
+              <p className="text-xs text-muted-foreground">Hesaplanan KDV</p>
+              <p className="text-base font-bold text-blue-600">{formatCurrency(vatCalc.totalCalculatedVat)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Fatura: {formatCurrency(vatCalc.receiptCalculatedVat)} | Banka: {formatCurrency(vatCalc.bankCalculatedVat)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className="bg-orange-50 dark:bg-orange-950/30">
+            <CardContent className="p-3">
+              <Receipt className="h-4 w-4 text-orange-600 mb-1" />
+              <p className="text-xs text-muted-foreground">İndirilecek KDV</p>
+              <p className="text-base font-bold text-orange-600">{formatCurrency(vatCalc.totalDeductibleVat)}</p>
+              <p className="text-xs text-muted-foreground mt-1">
+                Fatura: {formatCurrency(vatCalc.receiptDeductibleVat)} | Banka: {formatCurrency(vatCalc.bankDeductibleVat)}
+              </p>
+            </CardContent>
+          </Card>
+          <Card className={vatCalc.netVatPayable >= 0 ? 'bg-purple-50 dark:bg-purple-950/30' : 'bg-green-50 dark:bg-green-950/30'}>
+            <CardContent className="p-3">
+              <Wallet className="h-4 w-4 text-purple-600 mb-1" />
+              <p className="text-xs text-muted-foreground">Net KDV</p>
+              <p className={`text-base font-bold ${vatCalc.netVatPayable >= 0 ? 'text-purple-600' : 'text-green-600'}`}>
+                {vatCalc.netVatPayable >= 0 ? 'Ödenecek' : 'Devreden'}: {formatCurrency(Math.abs(vatCalc.netVatPayable))}
+              </p>
             </CardContent>
           </Card>
         </div>

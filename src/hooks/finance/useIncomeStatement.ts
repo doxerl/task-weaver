@@ -71,20 +71,25 @@ export function useIncomeStatement(year: number) {
     // Process income transactions
     const grossSales = { sbt: 0, ls: 0, zdhc: 0, danis: 0, diger: 0, total: 0 };
     
+    // Process income transactions - use NET amount (KDV hariç)
     transactions.forEach(tx => {
       if (!tx.amount || tx.amount <= 0 || tx.is_excluded || excludedCategoryIds.has(tx.category_id || '')) return;
       
       const category = categories.find(c => c.id === tx.category_id);
       const code = category?.code || '';
-      const amount = tx.amount;
-
-      if (matchesCode(code, INCOME_CODES.SBT)) grossSales.sbt += amount;
-      else if (matchesCode(code, INCOME_CODES.LS)) grossSales.ls += amount;
-      else if (matchesCode(code, INCOME_CODES.ZDHC)) grossSales.zdhc += amount;
-      else if (matchesCode(code, INCOME_CODES.DANIS)) grossSales.danis += amount;
-      else grossSales.diger += amount;
       
-      grossSales.total += amount;
+      // Use net_amount if available, otherwise calculate (KDV hariç)
+      const netAmount = tx.net_amount !== undefined && tx.net_amount !== null
+        ? tx.net_amount
+        : (tx.is_commercial !== false ? tx.amount / 1.20 : tx.amount);
+
+      if (matchesCode(code, INCOME_CODES.SBT)) grossSales.sbt += netAmount;
+      else if (matchesCode(code, INCOME_CODES.LS)) grossSales.ls += netAmount;
+      else if (matchesCode(code, INCOME_CODES.ZDHC)) grossSales.zdhc += netAmount;
+      else if (matchesCode(code, INCOME_CODES.DANIS)) grossSales.danis += netAmount;
+      else grossSales.diger += netAmount;
+      
+      grossSales.total += netAmount;
     });
 
     // Process expense transactions
@@ -93,43 +98,59 @@ export function useIncomeStatement(year: number) {
       ofis: 0, muhasebe: 0, yazilim: 0, banka: 0, diger: 0, total: 0,
     };
 
+    // Process expense transactions - use NET amount (KDV hariç)
     transactions.forEach(tx => {
       if (!tx.amount || tx.amount >= 0 || tx.is_excluded || excludedCategoryIds.has(tx.category_id || '')) return;
       
       const category = categories.find(c => c.id === tx.category_id);
       const code = category?.code || '';
-      const amount = Math.abs(tx.amount);
+      
+      // Use net_amount if available, otherwise calculate (KDV hariç)
+      const absAmount = Math.abs(tx.amount);
+      const netAmount = tx.net_amount !== undefined && tx.net_amount !== null
+        ? Math.abs(tx.net_amount)
+        : (tx.is_commercial !== false ? absAmount / 1.20 : absAmount);
 
-      if (matchesCode(code, EXPENSE_CODES.PERSONEL)) operatingExpenses.personel += amount;
-      else if (matchesCode(code, EXPENSE_CODES.KIRA)) operatingExpenses.kira += amount;
-      else if (matchesCode(code, EXPENSE_CODES.ULASIM)) operatingExpenses.ulasim += amount;
-      else if (matchesCode(code, EXPENSE_CODES.TELEKOM)) operatingExpenses.telekom += amount;
-      else if (matchesCode(code, EXPENSE_CODES.SIGORTA)) operatingExpenses.sigorta += amount;
-      else if (matchesCode(code, EXPENSE_CODES.OFIS)) operatingExpenses.ofis += amount;
-      else if (matchesCode(code, EXPENSE_CODES.MUHASEBE)) operatingExpenses.muhasebe += amount;
-      else if (matchesCode(code, EXPENSE_CODES.YAZILIM)) operatingExpenses.yazilim += amount;
-      else if (matchesCode(code, EXPENSE_CODES.BANKA)) operatingExpenses.banka += amount;
-      else operatingExpenses.diger += amount;
+      if (matchesCode(code, EXPENSE_CODES.PERSONEL)) operatingExpenses.personel += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.KIRA)) operatingExpenses.kira += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.ULASIM)) operatingExpenses.ulasim += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.TELEKOM)) operatingExpenses.telekom += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.SIGORTA)) operatingExpenses.sigorta += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.OFIS)) operatingExpenses.ofis += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.MUHASEBE)) operatingExpenses.muhasebe += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.YAZILIM)) operatingExpenses.yazilim += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.BANKA)) operatingExpenses.banka += netAmount;
+      else operatingExpenses.diger += netAmount;
     });
 
-    // Add receipt expenses
+    // Add receipt expenses (all received receipts, even if not linked to bank)
+    // Use NET amount (excluding VAT) to avoid double counting VAT
     receipts.forEach(receipt => {
-      if (!receipt.total_amount || receipt.linked_bank_transaction_id || receipt.is_included_in_report === false) return;
+      // Only include "received" type receipts (alınan faturalar)
+      // Skip issued invoices (they are income, not expense)
+      if (!receipt.total_amount || receipt.document_type === 'issued') return;
+      
+      // Skip if already linked to bank transaction (would be double counting)
+      if (receipt.linked_bank_transaction_id) return;
       
       const category = categories.find(c => c.id === receipt.category_id);
       const code = category?.code || '';
-      const amount = receipt.total_amount;
+      
+      // Use KDV hariç (net) amount
+      const netAmount = receipt.vat_amount 
+        ? receipt.total_amount - receipt.vat_amount 
+        : receipt.total_amount / 1.20; // Fallback: assume 20% VAT
 
-      if (matchesCode(code, EXPENSE_CODES.PERSONEL)) operatingExpenses.personel += amount;
-      else if (matchesCode(code, EXPENSE_CODES.KIRA)) operatingExpenses.kira += amount;
-      else if (matchesCode(code, EXPENSE_CODES.ULASIM)) operatingExpenses.ulasim += amount;
-      else if (matchesCode(code, EXPENSE_CODES.TELEKOM)) operatingExpenses.telekom += amount;
-      else if (matchesCode(code, EXPENSE_CODES.SIGORTA)) operatingExpenses.sigorta += amount;
-      else if (matchesCode(code, EXPENSE_CODES.OFIS)) operatingExpenses.ofis += amount;
-      else if (matchesCode(code, EXPENSE_CODES.MUHASEBE)) operatingExpenses.muhasebe += amount;
-      else if (matchesCode(code, EXPENSE_CODES.YAZILIM)) operatingExpenses.yazilim += amount;
-      else if (matchesCode(code, EXPENSE_CODES.BANKA)) operatingExpenses.banka += amount;
-      else operatingExpenses.diger += amount;
+      if (matchesCode(code, EXPENSE_CODES.PERSONEL)) operatingExpenses.personel += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.KIRA)) operatingExpenses.kira += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.ULASIM)) operatingExpenses.ulasim += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.TELEKOM)) operatingExpenses.telekom += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.SIGORTA)) operatingExpenses.sigorta += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.OFIS)) operatingExpenses.ofis += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.MUHASEBE)) operatingExpenses.muhasebe += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.YAZILIM)) operatingExpenses.yazilim += netAmount;
+      else if (matchesCode(code, EXPENSE_CODES.BANKA)) operatingExpenses.banka += netAmount;
+      else operatingExpenses.diger += netAmount;
     });
 
     operatingExpenses.total = Object.values(operatingExpenses).reduce((a, b) => a + b, 0) - operatingExpenses.total;
