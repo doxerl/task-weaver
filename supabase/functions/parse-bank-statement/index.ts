@@ -76,8 +76,20 @@ serve(async (req) => {
 TÜRK BANKASI FORMAT KURALLARI:
 - Binlik ayracı: nokta (.) → 1.234.567 = 1234567
 - Ondalık ayracı: virgül (,) → 1.234,56 = 1234.56
-- "Borç", "Çıkış", "Çekilen" → amount NEGATİF
-- "Alacak", "Giriş", "Yatırılan" → amount POZİTİF
+
+⚠️ KRİTİK TUTAR KORUMA KURALI:
+- Excel'deki sayısal değerin İŞARETİNİ %100 KORU
+- Eğer Excel'de tutar POZİTİF yazılmışsa → amount POZİTİF kalmalı
+- Eğer Excel'de tutar NEGATİF yazılmışsa → amount NEGATİF kalmalı
+- ASLA açıklamadaki "GİDEN", "GELEN", "EFT", "HAVALE" gibi kelimelere göre işaret DEĞİŞTİRME
+- Sayının işaretini YALNIZCA Excel'deki sayısal değerden al
+
+SÜTUN YAPISI ANALİZİ (SADECE AYRI SÜTUNLAR İÇİN):
+- Bazı bankalar (İş Bankası, Akbank, Ziraat) Borç ve Alacak sütunlarını AYRI tutar
+- Bu durumda sayılar her zaman pozitif yazılır
+- Borç/Çıkış/Çekilen sütunundaki değer → NEGATİF yapılmalı
+- Alacak/Giriş/Yatırılan sütunundaki değer → POZİTİF kalmalı
+- TEK SÜTUN VARSA (Garanti gibi): Sayının işaretine dokunma!
 
 İŞLEM TÜRLERİ: EFT, HAVALE, FAST, POS, ATM, VIRMAN, FAIZ, KOMISYON, MAAS, KIRA, FATURA, VERGI, KREDI, OTHER
 
@@ -233,10 +245,32 @@ SADECE JSON döndür, markdown code block kullanma, Türkçe karakterleri koru.`
 
     // Normalize transactions
     const normalizedTransactions = result.transactions.map((t: any, index: number) => {
-      // Parse amount
+      // Parse original_amount first (this is the raw value from Excel)
+      let originalAmountRaw = t.original_amount || String(t.amount) || '';
+      let originalAmountParsed: number | null = null;
+      if (typeof originalAmountRaw === 'string' && originalAmountRaw.trim()) {
+        originalAmountParsed = parseFloat(originalAmountRaw.replace(/\./g, '').replace(',', '.'));
+      } else if (typeof originalAmountRaw === 'number') {
+        originalAmountParsed = originalAmountRaw;
+      }
+      
+      // Parse amount from AI response
       let amount = t.amount;
       if (typeof amount === 'string') {
         amount = parseFloat(amount.replace(/\./g, '').replace(',', '.'));
+      }
+      
+      // ⚠️ KRİTİK: Excel'deki işareti koru!
+      // Eğer original_amount pozitif ama AI amount'u negatif yaptıysa (veya tersi),
+      // bu muhtemelen AI'ın hatalı yorumudur. Original değeri koru!
+      if (originalAmountParsed !== null && typeof amount === 'number' && !isNaN(originalAmountParsed)) {
+        const originalIsPositive = originalAmountParsed > 0;
+        const amountIsPositive = amount > 0;
+        
+        if (originalIsPositive !== amountIsPositive && originalAmountParsed !== 0 && amount !== 0) {
+          console.warn(`⚠️ İşaret uyumsuzluğu tespit edildi - Satır ${t.row_number || index + 1}: original=${originalAmountParsed}, AI_amount=${amount}, korunan=${originalAmountParsed}`);
+          amount = originalAmountParsed; // Orijinal Excel değerini koru
+        }
       }
       
       // Parse balance
@@ -251,8 +285,8 @@ SADECE JSON döndür, markdown code block kullanma, Türkçe karakterleri koru.`
         date: t.date || null,
         original_date: t.original_date || t.date || '',
         description: t.description || '',
-        amount: typeof amount === 'number' ? amount : 0,
-        original_amount: t.original_amount || String(t.amount) || '',
+        amount: typeof amount === 'number' && !isNaN(amount) ? amount : 0,
+        original_amount: originalAmountRaw,
         balance: typeof balance === 'number' ? balance : null,
         reference: t.reference || null,
         counterparty: t.counterparty || null,
