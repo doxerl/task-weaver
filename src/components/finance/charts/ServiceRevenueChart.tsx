@@ -87,23 +87,25 @@ export function ServiceRevenueChart({ data, formatAmount }: ServiceRevenueChartP
           {processedData.map((item, index) => (
             <div 
               key={index} 
-              className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors"
+              className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors gap-4"
             >
-              <div className="flex items-center gap-2">
+              {/* Sol taraf: Renk + İsim */}
+              <div className="flex items-center gap-2 flex-1 min-w-0">
                 <div 
                   className="w-3 h-3 rounded-full flex-shrink-0" 
                   style={{ backgroundColor: item.color }} 
                 />
-                <span className="text-sm font-medium truncate max-w-[120px]">
+                <span className="text-sm font-medium" style={{ wordBreak: 'break-word' }}>
                   {item.name}
                 </span>
               </div>
-              <div className="flex items-center gap-3 text-right">
-                <span className="text-sm font-semibold">
+              {/* Sağ taraf: Değer + Yüzde */}
+              <div className="flex items-center gap-3 flex-shrink-0">
+                <span className="text-sm font-semibold whitespace-nowrap">
                   {formatter(item.amount)}
                 </span>
-                <span className="text-xs text-muted-foreground w-10">
-                  %{item.percentage.toFixed(0)}
+                <span className="text-xs text-muted-foreground whitespace-nowrap min-w-[45px] text-right">
+                  ({item.percentage.toFixed(1)}%)
                 </span>
               </div>
             </div>
