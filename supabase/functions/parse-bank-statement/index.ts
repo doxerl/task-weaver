@@ -73,12 +73,23 @@ serve(async (req) => {
 ═══════════════════════════════════════════════════════════════════
 ⚠️ EN ÖNEMLİ KURAL - ASLA İHLAL ETME:
 ═══════════════════════════════════════════════════════════════════
-1. HİÇBİR İŞLEM SATIRI ES GEÇİLMEYECEK
+1. HİÇBİR İŞLEM SATIRI ES GEÇİLMEYECEK - [ROW X] ile başlayan HER satır işlenmeli
 2. Para hareketi içeren HER SATIR çıktıda olmalı
 3. Şüpheli satırları da dahil et, "needs_review": true işaretle
 4. Toplam işlem sayısını doğrulama için raporla
 5. [ROW X] formatındaki HER satırı işle - hiçbirini atlama
+6. HEADER satırını işleme (HEADER: ile başlayan satır sütun başlıklarıdır)
 ═══════════════════════════════════════════════════════════════════
+
+HEADER SATIRI:
+- "HEADER:" ile başlayan satır SÜTUN BAŞLIKLARIDIR
+- Bu satırı veri olarak işleme, sadece sütun yapısını anlamak için kullan
+- Örnek: "HEADER:\tTarih\tAçıklama\tEtiket\tTutar\tBakiye"
+
+ETİKET SÜTUNU - ÖNEMLİ:
+- Eğer Excel'de "Etiket" sütunu varsa bu değeri "excel_label" alanına kopyala
+- Etiket değerleri: "Para Transferi", "Faiz / Komisyon", "Sigorta", "Ulaşım", "Telekomünikasyon", "Diğer" vb.
+- Bu etiketler kategorilendirmede kullanılacak
 
 ÇİFT SATIRLI İŞLEMLER - KRİTİK:
 - Bazı işlemler 2 satıra yayılmış olabilir (ana satır + açıklama devamı)
@@ -103,6 +114,7 @@ serve(async (req) => {
       "counterparty": "string | null",
       "transaction_type": "string",
       "channel": "string | null",
+      "excel_label": "string | null",
       "needs_review": boolean,
       "confidence": number
     }
@@ -345,6 +357,7 @@ SADECE JSON döndür, markdown code block kullanma, Türkçe karakterleri koru.`
         counterparty: t.counterparty || null,
         transaction_type: t.transaction_type || 'OTHER',
         channel: t.channel || null,
+        excel_label: t.excel_label || null,
         needs_review: t.needs_review || false,
         confidence: t.confidence || 0.8
       };
