@@ -1008,6 +1008,78 @@ export type Database = {
         }
         Relationships: []
       }
+      payroll_accruals: {
+        Row: {
+          created_at: string | null
+          employee_sgk_payable: number | null
+          employer_contribution: number | null
+          employer_sgk_payable: number | null
+          gross_salary: number | null
+          id: string
+          income_tax_payable: number | null
+          is_net_paid: boolean | null
+          is_sgk_paid: boolean | null
+          is_tax_paid: boolean | null
+          month: number
+          net_paid_date: string | null
+          net_payable: number | null
+          notes: string | null
+          sgk_paid_date: string | null
+          stamp_tax_payable: number | null
+          tax_paid_date: string | null
+          unemployment_payable: number | null
+          updated_at: string | null
+          user_id: string
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          employee_sgk_payable?: number | null
+          employer_contribution?: number | null
+          employer_sgk_payable?: number | null
+          gross_salary?: number | null
+          id?: string
+          income_tax_payable?: number | null
+          is_net_paid?: boolean | null
+          is_sgk_paid?: boolean | null
+          is_tax_paid?: boolean | null
+          month: number
+          net_paid_date?: string | null
+          net_payable?: number | null
+          notes?: string | null
+          sgk_paid_date?: string | null
+          stamp_tax_payable?: number | null
+          tax_paid_date?: string | null
+          unemployment_payable?: number | null
+          updated_at?: string | null
+          user_id: string
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          employee_sgk_payable?: number | null
+          employer_contribution?: number | null
+          employer_sgk_payable?: number | null
+          gross_salary?: number | null
+          id?: string
+          income_tax_payable?: number | null
+          is_net_paid?: boolean | null
+          is_sgk_paid?: boolean | null
+          is_tax_paid?: boolean | null
+          month?: number
+          net_paid_date?: string | null
+          net_payable?: number | null
+          notes?: string | null
+          sgk_paid_date?: string | null
+          stamp_tax_payable?: number | null
+          tax_paid_date?: string | null
+          unemployment_payable?: number | null
+          updated_at?: string | null
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
       plan_items: {
         Row: {
           carry_over_count: number | null

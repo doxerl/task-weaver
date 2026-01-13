@@ -43,11 +43,122 @@ export function useDetailedIncomeStatement(year: number) {
     // E - FAALİYET GİDERLERİ (63x)
     const opExpTotal = statement.operatingExpenses.total;
     lines.push({ code: 'E', name: 'FAALİYET GİDERLERİ (-)', totalAmount: -Math.abs(opExpTotal), isHeader: true, isBold: true, isNegative: true });
+    
     if (statement.operatingExpenses.pazarlama > 0) {
       lines.push({ code: '1', name: 'Pazarlama Satış Dağıtım Gid. (-)', subAmount: -Math.abs(statement.operatingExpenses.pazarlama), isSubItem: true, isNegative: true });
     }
+    
     if (statement.operatingExpenses.genelYonetim > 0) {
-      lines.push({ code: '3', name: 'Genel Yönetim Giderleri (-)', subAmount: -Math.abs(statement.operatingExpenses.genelYonetim), isSubItem: true, isNegative: true });
+      // Genel Yönetim - ana satır (genişletilebilir)
+      lines.push({ 
+        code: '3', 
+        name: 'Genel Yönetim Giderleri (-)', 
+        subAmount: -Math.abs(statement.operatingExpenses.genelYonetim), 
+        isSubItem: true, 
+        isNegative: true,
+        isExpandable: true,
+      });
+      
+      // Alt kategoriler (genişletildiğinde görünür)
+      if (statement.operatingExpenses.personel > 0) {
+        lines.push({ 
+          code: '3.1', 
+          name: '└ Personel Giderleri', 
+          subAmount: -Math.abs(statement.operatingExpenses.personel), 
+          isSubItem: true, 
+          isNegative: true,
+          parentCode: '3',
+          depth: 1,
+        });
+      }
+      if (statement.operatingExpenses.kira > 0) {
+        lines.push({ 
+          code: '3.2', 
+          name: '└ Kira Giderleri', 
+          subAmount: -Math.abs(statement.operatingExpenses.kira), 
+          isSubItem: true, 
+          isNegative: true,
+          parentCode: '3',
+          depth: 1,
+        });
+      }
+      if (statement.operatingExpenses.ulasim > 0) {
+        lines.push({ 
+          code: '3.3', 
+          name: '└ Ulaşım Giderleri', 
+          subAmount: -Math.abs(statement.operatingExpenses.ulasim), 
+          isSubItem: true, 
+          isNegative: true,
+          parentCode: '3',
+          depth: 1,
+        });
+      }
+      if (statement.operatingExpenses.telekom > 0) {
+        lines.push({ 
+          code: '3.5', 
+          name: '└ Telekomünikasyon', 
+          subAmount: -Math.abs(statement.operatingExpenses.telekom), 
+          isSubItem: true, 
+          isNegative: true,
+          parentCode: '3',
+          depth: 1,
+        });
+      }
+      if (statement.operatingExpenses.sigorta > 0) {
+        lines.push({ 
+          code: '3.6', 
+          name: '└ Sigorta Giderleri', 
+          subAmount: -Math.abs(statement.operatingExpenses.sigorta), 
+          isSubItem: true, 
+          isNegative: true,
+          parentCode: '3',
+          depth: 1,
+        });
+      }
+      if (statement.operatingExpenses.ofis > 0) {
+        lines.push({ 
+          code: '3.7', 
+          name: '└ Ofis Malzemeleri', 
+          subAmount: -Math.abs(statement.operatingExpenses.ofis), 
+          isSubItem: true, 
+          isNegative: true,
+          parentCode: '3',
+          depth: 1,
+        });
+      }
+      if (statement.operatingExpenses.muhasebe > 0) {
+        lines.push({ 
+          code: '3.8', 
+          name: '└ Muhasebe/Hukuk', 
+          subAmount: -Math.abs(statement.operatingExpenses.muhasebe), 
+          isSubItem: true, 
+          isNegative: true,
+          parentCode: '3',
+          depth: 1,
+        });
+      }
+      if (statement.operatingExpenses.yazilim > 0) {
+        lines.push({ 
+          code: '3.11', 
+          name: '└ Yazılım/IT Giderleri', 
+          subAmount: -Math.abs(statement.operatingExpenses.yazilim), 
+          isSubItem: true, 
+          isNegative: true,
+          parentCode: '3',
+          depth: 1,
+        });
+      }
+      if (statement.operatingExpenses.diger > 0) {
+        lines.push({ 
+          code: '3.99', 
+          name: '└ Diğer Giderler', 
+          subAmount: -Math.abs(statement.operatingExpenses.diger), 
+          isSubItem: true, 
+          isNegative: true,
+          parentCode: '3',
+          depth: 1,
+        });
+      }
     }
 
     // FAALİYET KÂRI

@@ -251,6 +251,12 @@ export interface DetailedIncomeStatementLine {
   isSubItem?: boolean;
   isNegative?: boolean;
   isBold?: boolean;
+  // Genişletilebilir alt kategoriler için
+  isExpandable?: boolean;
+  isExpanded?: boolean;
+  children?: DetailedIncomeStatementLine[];
+  depth?: number;
+  parentCode?: string;
 }
 
 export interface DetailedIncomeStatementData {
@@ -259,4 +265,30 @@ export interface DetailedIncomeStatementData {
   periodEnd: string;
   year: number;
   lines: DetailedIncomeStatementLine[];
+}
+
+// Payroll Accrual Types (Bilanço bordro tahakkukları)
+export interface PayrollAccrual {
+  id: string;
+  year: number;
+  month: number;
+  grossSalary: number;
+  employerContribution: number;
+  netPayable: number;
+  incomeTaxPayable: number;
+  stampTaxPayable: number;
+  employeeSgkPayable: number;
+  employerSgkPayable: number;
+  unemploymentPayable: number;
+  isNetPaid: boolean;
+  isTaxPaid: boolean;
+  isSgkPaid: boolean;
+}
+
+export interface PayrollAccrualSummary {
+  totalNetPayable: number;      // 335 Personele Borçlar
+  totalTaxPayable: number;      // 360 Ödenecek Vergi
+  totalSgkPayable: number;      // 361 Ödenecek SGK
+  totalGrossSalary: number;     // Toplam Brüt Ücret
+  totalEmployerContribution: number; // Toplam İşveren Primi
 }

@@ -1,6 +1,8 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { DetailedIncomeStatementData } from '@/types/reports';
+import { DetailedIncomeStatementData, DetailedIncomeStatementLine } from '@/types/reports';
+import { ChevronDown, ChevronRight } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 interface Props {
   data: DetailedIncomeStatementData;
@@ -9,6 +11,20 @@ interface Props {
 
 export const DetailedIncomeStatementTable = forwardRef<HTMLDivElement, Props>(
   ({ data, formatAmount }, ref) => {
+    const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+
+    const toggleRow = (code: string) => {
+      setExpandedRows(prev => {
+        const next = new Set(prev);
+        if (next.has(code)) {
+          next.delete(code);
+        } else {
+          next.add(code);
+        }
+        return next;
+      });
+    };
+
     // Format value with parentheses for negative
     const formatValue = (value: number | undefined, isNegative?: boolean) => {
       if (value === undefined) return '';
@@ -18,18 +34,54 @@ export const DetailedIncomeStatementTable = forwardRef<HTMLDivElement, Props>(
       return isNegative || value < 0 ? `(${formatted})` : formatted;
     };
 
-    // Filter out empty sub-items (keep headers and rows with values)
-    const visibleLines = data.lines.filter(line => {
-      // Always show headers and bold total rows
-      if (line.isBold || line.isHeader) return true;
-      // Show sub-items only if they have a value
-      if (line.isSubItem) {
-        return line.subAmount !== undefined && line.subAmount !== 0;
+    // Build visible lines with expansion logic
+    const getVisibleLines = (): DetailedIncomeStatementLine[] => {
+      const result: DetailedIncomeStatementLine[] = [];
+      
+      for (const line of data.lines) {
+        // Skip empty sub-items
+        if (line.isSubItem && !line.isExpandable) {
+          if (line.subAmount === undefined || line.subAmount === 0) continue;
+        }
+        
+        // Always show headers, bold totals, and expandable items
+        if (line.isBold || line.isHeader || line.isExpandable) {
+          result.push(line);
+        } else if (line.isSubItem) {
+          // Check if parent is expanded
+          if (line.parentCode && expandedRows.has(line.parentCode)) {
+            result.push(line);
+          } else if (!line.parentCode) {
+            // No parent code = always visible
+            if (line.subAmount !== undefined && line.subAmount !== 0) {
+              result.push(line);
+            }
+          }
+        } else {
+          // Other rows with values
+          if ((line.subAmount !== undefined && line.subAmount !== 0) || 
+              (line.totalAmount !== undefined && line.totalAmount !== 0)) {
+            result.push(line);
+          }
+        }
       }
-      // Show other rows if they have any value
-      return (line.subAmount !== undefined && line.subAmount !== 0) || 
-             (line.totalAmount !== undefined && line.totalAmount !== 0);
-    });
+      
+      return result;
+    };
+
+    const visibleLines = getVisibleLines();
+
+    // Calculate indentation based on depth
+    const getIndentClass = (line: DetailedIncomeStatementLine) => {
+      const depth = line.depth || 0;
+      if (line.isSubItem) {
+        return `pl-${8 + depth * 4}`;
+      }
+      if (depth > 0) {
+        return `pl-${depth * 4}`;
+      }
+      return '';
+    };
 
     return (
       <div ref={ref} className="bg-background rounded-lg border overflow-hidden">
@@ -59,17 +111,43 @@ export const DetailedIncomeStatementTable = forwardRef<HTMLDivElement, Props>(
               // Determine the display value (use subAmount for sub-items, totalAmount for headers/totals)
               const displayValue = line.isSubItem ? line.subAmount : line.totalAmount;
               const isNegativeValue = line.isNegative || (displayValue !== undefined && displayValue < 0);
+              const isExpanded = expandedRows.has(line.code);
+              const depth = line.depth || 0;
               
               return (
                 <TableRow 
                   key={idx} 
-                  className={line.isBold && !line.isHeader ? 'bg-muted/20 font-semibold' : ''}
+                  className={`
+                    ${line.isBold && !line.isHeader ? 'bg-muted/20 font-semibold' : ''}
+                    ${line.isExpandable ? 'cursor-pointer hover:bg-muted/10' : ''}
+                    ${depth > 0 ? 'bg-muted/5' : ''}
+                  `}
+                  onClick={line.isExpandable ? () => toggleRow(line.code) : undefined}
                 >
                   <TableCell className="text-center font-mono text-sm">
                     {line.code}
                   </TableCell>
                   <TableCell className={`${line.isSubItem ? 'pl-8' : ''} ${line.isBold ? 'font-semibold' : ''}`}>
-                    {line.name}
+                    <div className="flex items-center gap-1" style={{ paddingLeft: depth > 0 ? `${depth * 16}px` : undefined }}>
+                      {line.isExpandable && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-5 w-5 p-0"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            toggleRow(line.code);
+                          }}
+                        >
+                          {isExpanded ? (
+                            <ChevronDown className="h-4 w-4" />
+                          ) : (
+                            <ChevronRight className="h-4 w-4" />
+                          )}
+                        </Button>
+                      )}
+                      <span>{line.name}</span>
+                    </div>
                   </TableCell>
                   <TableCell className={`text-right font-mono text-sm ${isNegativeValue ? 'text-destructive' : ''} ${line.isBold ? 'font-semibold' : ''}`}>
                     {formatValue(displayValue, line.isNegative)}
