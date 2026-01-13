@@ -733,17 +733,26 @@ export type Database = {
         Row: {
           accumulated_depreciation: number | null
           bank_loans: number | null
+          calculated_vat_payable: number | null
           cash_on_hand: number | null
           created_at: string | null
+          deferred_tax_liabilities: number | null
           equipment_value: number | null
           fiscal_year_start: number | null
+          fixtures_value: number | null
           id: string
           inventory_value: number | null
+          legal_reserves: number | null
           notes: string | null
+          other_vat: number | null
           paid_capital: number | null
+          personnel_payables: number | null
           retained_earnings: number | null
+          social_security_payables: number | null
+          tax_payables: number | null
           trade_payables: number | null
           trade_receivables: number | null
+          unpaid_capital: number | null
           updated_at: string | null
           user_id: string
           vehicles_value: number | null
@@ -751,17 +760,26 @@ export type Database = {
         Insert: {
           accumulated_depreciation?: number | null
           bank_loans?: number | null
+          calculated_vat_payable?: number | null
           cash_on_hand?: number | null
           created_at?: string | null
+          deferred_tax_liabilities?: number | null
           equipment_value?: number | null
           fiscal_year_start?: number | null
+          fixtures_value?: number | null
           id?: string
           inventory_value?: number | null
+          legal_reserves?: number | null
           notes?: string | null
+          other_vat?: number | null
           paid_capital?: number | null
+          personnel_payables?: number | null
           retained_earnings?: number | null
+          social_security_payables?: number | null
+          tax_payables?: number | null
           trade_payables?: number | null
           trade_receivables?: number | null
+          unpaid_capital?: number | null
           updated_at?: string | null
           user_id: string
           vehicles_value?: number | null
@@ -769,17 +787,26 @@ export type Database = {
         Update: {
           accumulated_depreciation?: number | null
           bank_loans?: number | null
+          calculated_vat_payable?: number | null
           cash_on_hand?: number | null
           created_at?: string | null
+          deferred_tax_liabilities?: number | null
           equipment_value?: number | null
           fiscal_year_start?: number | null
+          fixtures_value?: number | null
           id?: string
           inventory_value?: number | null
+          legal_reserves?: number | null
           notes?: string | null
+          other_vat?: number | null
           paid_capital?: number | null
+          personnel_payables?: number | null
           retained_earnings?: number | null
+          social_security_payables?: number | null
+          tax_payables?: number | null
           trade_payables?: number | null
           trade_receivables?: number | null
+          unpaid_capital?: number | null
           updated_at?: string | null
           user_id?: string
           vehicles_value?: number | null

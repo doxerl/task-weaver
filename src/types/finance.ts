@@ -270,12 +270,22 @@ export interface FinancialSettings {
   fiscal_year_start: number;
   cash_on_hand: number;
   inventory_value: number;
-  equipment_value: number;
-  vehicles_value: number;
+  equipment_value: number;        // Demirbaşlar (geçmiş)
+  vehicles_value: number;         // Taşıtlar (geçmiş)
   accumulated_depreciation: number;
   bank_loans: number;
-  trade_receivables: number;  // Ticari Alacaklar - Manuel giriş
-  trade_payables: number;     // Ticari Borçlar - Manuel giriş
+  trade_receivables: number;      // Ticari Alacaklar - Manuel giriş
+  trade_payables: number;         // Ticari Borçlar - Manuel giriş
+  // New fields for detailed balance sheet
+  unpaid_capital: number;         // Ödenmemiş Sermaye (-)
+  legal_reserves: number;         // Yasal Yedekler
+  other_vat: number;              // Diğer KDV
+  personnel_payables: number;     // Personele Borçlar
+  tax_payables: number;           // Ödenecek Vergi ve Fonlar
+  social_security_payables: number; // Ödenecek SGK Kesintileri
+  deferred_tax_liabilities: number; // Vadesi Geçmiş Ert. Vergi
+  calculated_vat_payable: number; // Hesaplanan KDV
+  fixtures_value: number;         // Demirbaşlar (yeni alan)
   notes: string | null;
   created_at: string | null;
   updated_at: string | null;
