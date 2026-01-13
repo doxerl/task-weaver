@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -12,9 +12,11 @@ import { useIncomeAnalysis } from '@/hooks/finance/useIncomeAnalysis';
 import { useExpenseAnalysis } from '@/hooks/finance/useExpenseAnalysis';
 import { useIncomeStatement } from '@/hooks/finance/useIncomeStatement';
 import { useDetailedIncomeStatement } from '@/hooks/finance/useDetailedIncomeStatement';
+import { useFixedExpenses } from '@/hooks/finance/useFixedExpenses';
 import { usePdfExport } from '@/hooks/finance/usePdfExport';
 import { useIncomeStatementPdfExport } from '@/hooks/finance/useIncomeStatementPdfExport';
 import { useDetailedIncomeStatementPdf } from '@/hooks/finance/useDetailedIncomeStatementPdf';
+import { useFinancingSummaryPdf } from '@/hooks/finance/useFinancingSummaryPdf';
 import { MonthlyTrendChart } from '@/components/finance/charts/MonthlyTrendChart';
 import { ServiceRevenueChart } from '@/components/finance/charts/ServiceRevenueChart';
 import { ExpenseCategoryChart } from '@/components/finance/charts/ExpenseCategoryChart';
@@ -24,11 +26,14 @@ import { BottomTabBar } from '@/components/BottomTabBar';
 import { CurrencyToggle } from '@/components/finance/CurrencyToggle';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { ReportPeriod, FullReportData, MonthlyDataPoint, MONTH_NAMES_SHORT_TR } from '@/types/reports';
+import { captureElementToPdf } from '@/lib/pdfCapture';
 import { toast } from 'sonner';
 
 export default function Reports() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [period, setPeriod] = useState<ReportPeriod>('yearly');
+  const [isDashboardPdfGenerating, setIsDashboardPdfGenerating] = useState(false);
+  const dashboardRef = useRef<HTMLDivElement>(null);
   
   // Use unified data hub
   const hub = useFinancialDataHub(year);
@@ -36,9 +41,11 @@ export default function Reports() {
   const expenseAnalysis = useExpenseAnalysis(year);
   const incomeStatement = useIncomeStatement(year);
   const detailedStatement = useDetailedIncomeStatement(year);
+  const { definitions: fixedExpensesList } = useFixedExpenses();
   const { generatePdf, isGenerating } = usePdfExport();
   const { generateIncomeStatementPdf, isGenerating: isIncomeStatementPdfGenerating } = useIncomeStatementPdfExport();
   const { generatePdf: generateDetailedPdf, isGenerating: isDetailedPdfGenerating } = useDetailedIncomeStatementPdf();
+  const { generatePdf: generateFinancingPdf, isGenerating: isFinancingPdfGenerating } = useFinancingSummaryPdf();
   const { currency, formatAmount, getAvailableMonthsCount, yearlyAverageRate } = useCurrency();
   
   const availableMonths = getAvailableMonthsCount(year);
@@ -132,6 +139,61 @@ export default function Reports() {
         yearlyAverageRate,
       });
       toast.success(`Ayrıntılı Gelir Tablosu PDF oluşturuldu (${currency})`);
+    } catch {
+      toast.error('PDF oluşturulamadı');
+    }
+  };
+
+  const handleDashboardPdf = async () => {
+    if (!dashboardRef.current) return;
+    setIsDashboardPdfGenerating(true);
+    try {
+      const success = await captureElementToPdf(dashboardRef.current, {
+        filename: `Dashboard_${year}_${currency}.pdf`,
+        orientation: 'landscape',
+        fitToPage: false,
+        scale: 2,
+      });
+      if (success) {
+        toast.success(`Dashboard PDF oluşturuldu (${currency})`);
+      } else {
+        toast.error('PDF oluşturulamadı');
+      }
+    } catch {
+      toast.error('PDF oluşturulamadı');
+    } finally {
+      setIsDashboardPdfGenerating(false);
+    }
+  };
+
+  const handleFinancingPdf = async () => {
+    try {
+      await generateFinancingPdf({
+        partnerSummary: {
+          deposits: hub.partnerSummary.deposits,
+          withdrawals: hub.partnerSummary.withdrawals,
+          balance: hub.partnerSummary.balance,
+        },
+        financingSummary: {
+          creditIn: hub.financingSummary.creditIn,
+          creditOut: hub.financingSummary.creditOut,
+          leasingOut: hub.financingSummary.leasingOut,
+          interestPaid: hub.financingSummary.interestPaid,
+          remainingDebt: hub.financingSummary.remainingDebt,
+        },
+        investmentSummary: {
+          vehicles: hub.investmentSummary.vehicles,
+          equipment: hub.investmentSummary.equipment,
+          fixtures: hub.investmentSummary.other,
+          totalInvestment: hub.investmentSummary.total,
+        },
+        fixedExpenses: fixedExpensesList || [],
+      }, year, {
+        currency,
+        formatAmount: (n) => formatAmount(n, undefined, year),
+        yearlyAverageRate,
+      });
+      toast.success(`Finansman Raporu PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
     }
@@ -258,19 +320,33 @@ export default function Reports() {
 
           {/* Tab 1: Dashboard */}
           <TabsContent value="dashboard" className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Aylık Gelir vs Gider</CardTitle></CardHeader>
-              <CardContent><MonthlyTrendChart data={monthlyData} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
-            </Card>
-            <div className="grid md:grid-cols-2 gap-4">
+            <div className="flex justify-end">
+              <Button 
+                onClick={handleDashboardPdf} 
+                disabled={isDashboardPdfGenerating} 
+                size="sm" 
+                variant="outline"
+                className="gap-1"
+              >
+                {isDashboardPdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                Grafik PDF
+              </Button>
+            </div>
+            <div ref={dashboardRef} className="space-y-4 bg-background p-4 rounded-lg">
               <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm">Hizmet Bazlı Gelir</CardTitle></CardHeader>
-                <CardContent><ServiceRevenueChart data={incomeAnalysis.serviceRevenue} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
+                <CardHeader className="pb-2"><CardTitle className="text-sm">Aylık Gelir vs Gider - {year}</CardTitle></CardHeader>
+                <CardContent><MonthlyTrendChart data={monthlyData} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
               </Card>
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm">Gider Kategorileri</CardTitle></CardHeader>
-                <CardContent><ExpenseCategoryChart data={expenseAnalysis.topCategories} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
-              </Card>
+              <div className="grid md:grid-cols-2 gap-4">
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm">Hizmet Bazlı Gelir</CardTitle></CardHeader>
+                  <CardContent><ServiceRevenueChart data={incomeAnalysis.serviceRevenue} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
+                </Card>
+                <Card>
+                  <CardHeader className="pb-2"><CardTitle className="text-sm">Gider Kategorileri</CardTitle></CardHeader>
+                  <CardContent><ExpenseCategoryChart data={expenseAnalysis.topCategories} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
+                </Card>
+              </div>
             </div>
           </TabsContent>
 
@@ -347,6 +423,18 @@ export default function Reports() {
 
           {/* Tab 6: Financing - Detailed */}
           <TabsContent value="financing" className="space-y-4">
+            <div className="flex justify-end">
+              <Button 
+                onClick={handleFinancingPdf} 
+                disabled={isFinancingPdfGenerating} 
+                size="sm" 
+                variant="outline"
+                className="gap-1"
+              >
+                {isFinancingPdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                PDF
+              </Button>
+            </div>
             {/* Partner Account */}
             <Card>
               <CardHeader className="pb-2">

@@ -22,3 +22,6 @@ export { useExchangeRates } from './useExchangeRates';
 export { separateVat, calculateVatFromGross, calculateVatFromNet } from './utils/vatSeparation';
 export { usePayrollAccruals } from './usePayrollAccruals';
 export { useDetailedIncomeStatement } from './useDetailedIncomeStatement';
+export { useVatReportPdf } from './useVatReportPdf';
+export { useFinancingSummaryPdf } from './useFinancingSummaryPdf';
+export { useDetailedIncomeStatementPdf } from './useDetailedIncomeStatementPdf';
