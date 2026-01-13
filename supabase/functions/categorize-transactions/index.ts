@@ -20,34 +20,24 @@ interface CategoryResult {
   balance_impact: string;
 }
 
-// Minimal, intuitive prompt - let AI use its knowledge
+// Ultra-minimal prompt - let AI use its intuition
 const SYSTEM_PROMPT = `Sen Türk bankacılık işlemlerini kategorileyen bir uzmansın. Sezgisel karar ver.
 
 KATEGORİLER:
-GELİR: SBT, L&S, DANIS, ZDHC, MASRAF, BAYI, EGITIM_IN, RAPOR, FAIZ_IN, KIRA_IN, DOVIZ_IN, DIGER_IN
-GİDER: SEYAHAT, FUAR, HGS, SIGORTA, TELEKOM, BANKA, OFIS, YEMEK, PERSONEL, YAZILIM, MUHASEBE, HUKUK, VERGI, KIRA_OUT, KARGO, HARICI, IADE, DOVIZ_OUT, KREDI_OUT, DIGER_OUT, DANIS_OUT
-ORTAK: ORTAK_OUT (ortağa ödeme), ORTAK_IN (ortaktan tahsilat)
+GELİR: SBT (danışmanlık), L&S, DANIS, ZDHC, MASRAF (yansıtma), BAYI, EGITIM_IN, RAPOR, FAIZ_IN, KIRA_IN, DOVIZ_IN, DIGER_IN
+GİDER: SEYAHAT, FUAR, HGS (otoyol), SIGORTA, TELEKOM, BANKA (EFT masrafı), OFIS, YEMEK, PERSONEL, YAZILIM, MUHASEBE, HUKUK, VERGI, KIRA_OUT, KARGO, HARICI, IADE, DOVIZ_OUT, KREDI_OUT, DIGER_OUT, DANIS_OUT
+ORTAK: ORTAK_OUT (ortağa ödeme/borç), ORTAK_IN (ortaktan tahsilat)
 FİNANSMAN: KREDI_IN, LEASING, FAIZ_OUT
 HARİÇ: IC_TRANSFER, NAKIT_CEKME, EXCLUDED
 
-KARAR VERME:
-1. İşlem açıklamasını oku, ne olduğunu anla
-2. Pozitif tutar = genelde gelir, negatif = genelde gider
-3. Karşı tarafı tespit et (firma/kişi adı)
-4. affects_pnl: Kar/Zarar'ı etkiler mi? (ortak, kredi anaparası, transfer = false)
-5. balance_impact: equity_increase (gelir), equity_decrease (gider), liability_increase/decrease, asset_increase, none
-
-ÇIKTI: Her işlem için JSON objesi:
-{
-  "index": 0,
-  "categoryCode": "BANKA",
-  "categoryType": "EXPENSE",
-  "confidence": 0.95,
-  "reasoning": "Kısa açıklama",
-  "counterparty": "Karşı taraf adı veya null",
-  "affects_pnl": true,
-  "balance_impact": "equity_decrease"
-}`;
+SEZGİSEL KARAR VER:
+- İşlemin özünü anla, açıklamayı oku
+- Pozitif = gelir, negatif = gider (genellikle)
+- "KESİNTİ VE EKLERİ" = BANKA (EFT masrafı)
+- "borç" + kişi adı (örn: EMRE AKÇAOĞLU) = ORTAK_OUT
+- "HGS Hesaptan" = HGS
+- affects_pnl: K/Z etkiler mi? (ortak, transfer, kredi anaparası = false)
+- balance_impact: equity_increase/decrease, liability_increase/decrease, none`;
 
 // Process a single batch
 async function processSingleBatch(
