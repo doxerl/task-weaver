@@ -29,7 +29,7 @@ export interface ResumeState {
 }
 
 const PARSE_BATCH_SIZE = 10; // 10 satır per parse batch
-const PARALLEL_BATCH_COUNT = 3; // 3 batch aynı anda işlenecek (parse & categorize)
+const PARALLEL_BATCH_COUNT = 10; // 10 batch aynı anda işlenecek (parse & categorize)
 const CATEGORIZE_BATCH_SIZE = 25;
 const ESTIMATED_SECONDS_PER_PARSE_BATCH = 5; // Paralel işleme ile daha hızlı
 const ESTIMATED_SECONDS_PER_CATEGORIZE_GROUP = 4; // Paralel gruplar için
