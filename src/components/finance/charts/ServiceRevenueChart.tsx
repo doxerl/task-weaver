@@ -4,9 +4,10 @@ import { useMemo } from 'react';
 
 interface ServiceRevenueChartProps {
   data: ServiceRevenue[];
+  formatAmount?: (value: number) => string;
 }
 
-const formatCurrency = (value: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(value);
+const defaultFormatCurrency = (value: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(value);
 
 const COLORS = [
   'hsl(var(--chart-1))',
@@ -17,7 +18,9 @@ const COLORS = [
   'hsl(var(--muted-foreground))',
 ];
 
-export function ServiceRevenueChart({ data }: ServiceRevenueChartProps) {
+export function ServiceRevenueChart({ data, formatAmount }: ServiceRevenueChartProps) {
+  const formatter = formatAmount || defaultFormatCurrency;
+
   // Group small items (< 3%) into "Diğer"
   const processedData = useMemo(() => {
     const threshold = 3;
@@ -66,7 +69,7 @@ export function ServiceRevenueChart({ data }: ServiceRevenueChartProps) {
               ))}
             </Pie>
             <Tooltip 
-              formatter={(value: number) => formatCurrency(value)} 
+              formatter={(value: number) => formatter(value)} 
               contentStyle={{ 
                 backgroundColor: 'hsl(var(--card))', 
                 border: '1px solid hsl(var(--border))',
@@ -97,7 +100,7 @@ export function ServiceRevenueChart({ data }: ServiceRevenueChartProps) {
               </div>
               <div className="flex items-center gap-3 text-right">
                 <span className="text-sm font-semibold">
-                  {formatCurrency(item.amount)}
+                  {formatter(item.amount)}
                 </span>
                 <span className="text-xs text-muted-foreground w-10">
                   %{item.percentage.toFixed(0)}
