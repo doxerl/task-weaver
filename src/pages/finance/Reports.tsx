@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, TrendingUp, TrendingDown, Wallet, FileDown, BarChart3, FileText, Users, Loader2, Receipt, CreditCard, Car, Building, AlertTriangle } from 'lucide-react';
+import { ArrowLeft, TrendingUp, TrendingDown, Wallet, FileDown, BarChart3, FileText, Users, Loader2, Receipt, CreditCard, Car, Building, AlertTriangle, Info } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFinancialDataHub } from '@/hooks/finance/useFinancialDataHub';
 import { useIncomeAnalysis } from '@/hooks/finance/useIncomeAnalysis';
@@ -17,10 +17,10 @@ import { ServiceRevenueChart } from '@/components/finance/charts/ServiceRevenueC
 import { ExpenseCategoryChart } from '@/components/finance/charts/ExpenseCategoryChart';
 import { IncomeStatementTable } from '@/components/finance/tables/IncomeStatementTable';
 import { BottomTabBar } from '@/components/BottomTabBar';
+import { CurrencyToggle } from '@/components/finance/CurrencyToggle';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import { ReportPeriod, FullReportData, MonthlyDataPoint, MONTH_NAMES_SHORT_TR } from '@/types/reports';
 import { toast } from 'sonner';
-
-const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
 
 export default function Reports() {
   const [year, setYear] = useState(new Date().getFullYear());
@@ -32,6 +32,10 @@ export default function Reports() {
   const expenseAnalysis = useExpenseAnalysis(year);
   const incomeStatement = useIncomeStatement(year);
   const { generatePdf, isGenerating } = usePdfExport();
+  const { currency, formatAmount, getAvailableMonthsCount } = useCurrency();
+  
+  const availableMonths = getAvailableMonthsCount(year);
+  const missingMonths = 12 - availableMonths;
 
   // Combine monthly data from hub
   const monthlyData = useMemo((): MonthlyDataPoint[] => {
@@ -98,6 +102,7 @@ export default function Reports() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold flex-1">Finansal Rapor</h1>
+          <CurrencyToggle year={year} />
           <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
             <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -109,6 +114,16 @@ export default function Reports() {
             PDF
           </Button>
         </div>
+
+        {/* USD Conversion Warning */}
+        {currency === 'USD' && missingMonths > 0 && (
+          <Alert className="bg-amber-50 dark:bg-amber-950/30 border-amber-200">
+            <Info className="h-4 w-4 text-amber-600" />
+            <AlertDescription className="text-amber-700 dark:text-amber-400">
+              {missingMonths} ay için kur verisi bulunmuyor. Sadece {availableMonths} ay USD'ye dönüştürüldü.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Uncategorized Transaction Warning */}
         {hub.uncategorizedCount > 0 && (
@@ -131,14 +146,14 @@ export default function Reports() {
             <CardContent className="p-3">
               <TrendingUp className="h-4 w-4 text-green-600 mb-1" />
               <p className="text-xs text-muted-foreground">Net Gelir (KDV Hariç)</p>
-              <p className="text-lg font-bold text-green-600">{formatCurrency(hub.incomeSummary.net)}</p>
+              <p className="text-lg font-bold text-green-600">{formatAmount(hub.incomeSummary.net)}</p>
             </CardContent>
           </Card>
           <Card className="bg-red-50 dark:bg-red-950/30">
             <CardContent className="p-3">
               <TrendingDown className="h-4 w-4 text-red-600 mb-1" />
               <p className="text-xs text-muted-foreground">Net Gider (KDV Hariç)</p>
-              <p className="text-lg font-bold text-red-600">{formatCurrency(hub.expenseSummary.net)}</p>
+              <p className="text-lg font-bold text-red-600">{formatAmount(hub.expenseSummary.net)}</p>
             </CardContent>
           </Card>
           <Card>
@@ -146,7 +161,7 @@ export default function Reports() {
               <Wallet className="h-4 w-4 text-primary mb-1" />
               <p className="text-xs text-muted-foreground">Net Kâr</p>
               <p className={`text-lg font-bold ${hub.operatingProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(hub.operatingProfit)}
+                {formatAmount(hub.operatingProfit)}
               </p>
             </CardContent>
           </Card>
@@ -165,14 +180,14 @@ export default function Reports() {
             <CardContent className="p-3">
               <Receipt className="h-4 w-4 text-blue-600 mb-1" />
               <p className="text-xs text-muted-foreground">Hesaplanan KDV</p>
-              <p className="text-base font-bold text-blue-600">{formatCurrency(hub.vatSummary.calculated)}</p>
+              <p className="text-base font-bold text-blue-600">{formatAmount(hub.vatSummary.calculated)}</p>
             </CardContent>
           </Card>
           <Card className="bg-orange-50 dark:bg-orange-950/30">
             <CardContent className="p-3">
               <Receipt className="h-4 w-4 text-orange-600 mb-1" />
               <p className="text-xs text-muted-foreground">İndirilecek KDV</p>
-              <p className="text-base font-bold text-orange-600">{formatCurrency(hub.vatSummary.deductible)}</p>
+              <p className="text-base font-bold text-orange-600">{formatAmount(hub.vatSummary.deductible)}</p>
             </CardContent>
           </Card>
           <Card className={hub.vatSummary.net >= 0 ? 'bg-purple-50 dark:bg-purple-950/30' : 'bg-green-50 dark:bg-green-950/30'}>
@@ -180,7 +195,7 @@ export default function Reports() {
               <Wallet className="h-4 w-4 text-purple-600 mb-1" />
               <p className="text-xs text-muted-foreground">Net KDV</p>
               <p className={`text-base font-bold ${hub.vatSummary.net >= 0 ? 'text-purple-600' : 'text-green-600'}`}>
-                {hub.vatSummary.net >= 0 ? 'Ödenecek' : 'Devreden'}: {formatCurrency(Math.abs(hub.vatSummary.net))}
+                {hub.vatSummary.net >= 0 ? 'Ödenecek' : 'Devreden'}: {formatAmount(Math.abs(hub.vatSummary.net))}
               </p>
             </CardContent>
           </Card>
@@ -232,13 +247,13 @@ export default function Reports() {
               <Card>
                 <CardContent className="p-3">
                   <p className="text-xs text-muted-foreground">Sabit Gider</p>
-                  <p className="text-lg font-bold">{formatCurrency(hub.expenseSummary.fixed)}</p>
+                  <p className="text-lg font-bold">{formatAmount(hub.expenseSummary.fixed)}</p>
                 </CardContent>
               </Card>
               <Card>
                 <CardContent className="p-3">
                   <p className="text-xs text-muted-foreground">Değişken Gider</p>
-                  <p className="text-lg font-bold">{formatCurrency(hub.expenseSummary.variable)}</p>
+                  <p className="text-lg font-bold">{formatAmount(hub.expenseSummary.variable)}</p>
                 </CardContent>
               </Card>
             </div>
@@ -262,17 +277,17 @@ export default function Reports() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Ortaktan Tahsilat</span>
-                  <span className="text-green-600">+{formatCurrency(hub.partnerSummary.deposits)}</span>
+                  <span className="text-green-600">+{formatAmount(hub.partnerSummary.deposits)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Ortağa Ödeme</span>
-                  <span className="text-red-600">-{formatCurrency(hub.partnerSummary.withdrawals)}</span>
+                  <span className="text-red-600">-{formatAmount(hub.partnerSummary.withdrawals)}</span>
                 </div>
                 <hr />
                 <div className="flex justify-between font-medium">
                   <span>Net Bakiye</span>
                   <span className={hub.partnerSummary.balance >= 0 ? 'text-green-600' : 'text-red-600'}>
-                    {formatCurrency(hub.partnerSummary.balance)}
+                    {formatAmount(hub.partnerSummary.balance)}
                   </span>
                 </div>
               </CardContent>
@@ -290,20 +305,20 @@ export default function Reports() {
                 <div className="space-y-2 text-sm">
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Toplam Kredi</span>
-                    <span className="font-medium">{formatCurrency(hub.financingSummary.creditDetails.totalCredit)}</span>
+                    <span className="font-medium">{formatAmount(hub.financingSummary.creditDetails.totalCredit)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Ödenen Taksit</span>
-                    <span className="text-green-600">-{formatCurrency(hub.financingSummary.creditOut)}</span>
+                    <span className="text-green-600">-{formatAmount(hub.financingSummary.creditOut)}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Leasing Ödemesi</span>
-                    <span className="text-green-600">-{formatCurrency(hub.financingSummary.leasingOut)}</span>
+                    <span className="text-green-600">-{formatAmount(hub.financingSummary.leasingOut)}</span>
                   </div>
                   <hr />
                   <div className="flex justify-between font-medium">
                     <span>Kalan Borç</span>
-                    <span className="text-red-600">{formatCurrency(hub.financingSummary.remainingDebt)}</span>
+                    <span className="text-red-600">{formatAmount(hub.financingSummary.remainingDebt)}</span>
                   </div>
                 </div>
                 
@@ -326,7 +341,7 @@ export default function Reports() {
                     />
                     {hub.financingSummary.creditDetails.monthlyPayment > 0 && (
                       <p className="text-xs text-muted-foreground mt-1">
-                        Aylık Taksit: {formatCurrency(hub.financingSummary.creditDetails.monthlyPayment)}
+                        Aylık Taksit: {formatAmount(hub.financingSummary.creditDetails.monthlyPayment)}
                       </p>
                     )}
                   </div>
@@ -348,25 +363,25 @@ export default function Reports() {
                     <span className="text-muted-foreground flex items-center gap-1">
                       <Car className="h-3 w-3" /> Araçlar
                     </span>
-                    <span className="font-medium">{formatCurrency(hub.investmentSummary.vehicles)}</span>
+                    <span className="font-medium">{formatAmount(hub.investmentSummary.vehicles)}</span>
                   </div>
                 )}
                 {hub.investmentSummary.equipment > 0 && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Ekipman</span>
-                    <span className="font-medium">{formatCurrency(hub.investmentSummary.equipment)}</span>
+                    <span className="font-medium">{formatAmount(hub.investmentSummary.equipment)}</span>
                   </div>
                 )}
                 {hub.investmentSummary.other > 0 && (
                   <div className="flex justify-between">
                     <span className="text-muted-foreground">Diğer</span>
-                    <span className="font-medium">{formatCurrency(hub.investmentSummary.other)}</span>
+                    <span className="font-medium">{formatAmount(hub.investmentSummary.other)}</span>
                   </div>
                 )}
                 <hr />
                 <div className="flex justify-between font-medium">
                   <span>Toplam Yatırım</span>
-                  <span>{formatCurrency(hub.investmentSummary.total)}</span>
+                  <span>{formatAmount(hub.investmentSummary.total)}</span>
                 </div>
               </CardContent>
             </Card>
@@ -382,20 +397,20 @@ export default function Reports() {
               <CardContent className="space-y-2 text-sm">
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Aylık Sabit Gider</span>
-                  <span className="font-medium">{formatCurrency(hub.fixedExpenses.monthlyFixed)}</span>
+                  <span className="font-medium">{formatAmount(hub.fixedExpenses.monthlyFixed)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-muted-foreground">Aylık Taksitler</span>
-                  <span className="font-medium">{formatCurrency(hub.fixedExpenses.monthlyInstallments)}</span>
+                  <span className="font-medium">{formatAmount(hub.fixedExpenses.monthlyInstallments)}</span>
                 </div>
                 <hr />
                 <div className="flex justify-between font-medium">
                   <span>Toplam Aylık</span>
-                  <span className="text-red-600">{formatCurrency(hub.fixedExpenses.totalMonthly)}</span>
+                  <span className="text-red-600">{formatAmount(hub.fixedExpenses.totalMonthly)}</span>
                 </div>
                 <div className="flex justify-between text-xs text-muted-foreground">
                   <span>Yıllık Projeksiyon</span>
-                  <span>{formatCurrency(hub.fixedExpenses.yearlyProjected)}</span>
+                  <span>{formatAmount(hub.fixedExpenses.yearlyProjected)}</span>
                 </div>
                 
                 {hub.fixedExpenses.installmentDetails.length > 0 && (
@@ -405,11 +420,11 @@ export default function Reports() {
                       <div key={i} className="bg-muted/50 rounded p-2 text-xs">
                         <div className="flex justify-between">
                           <span className="font-medium">{item.definition.expense_name}</span>
-                          <span>{formatCurrency(item.monthlyAmount)}/ay</span>
+                          <span>{formatAmount(item.monthlyAmount)}/ay</span>
                         </div>
                         <div className="flex justify-between text-muted-foreground mt-1">
                           <span>Kalan: {item.remainingMonths} ay</span>
-                          <span>{formatCurrency(item.remainingTotal)}</span>
+                          <span>{formatAmount(item.remainingTotal)}</span>
                         </div>
                       </div>
                     ))}

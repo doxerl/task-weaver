@@ -17,4 +17,5 @@ export { usePdfExport } from './usePdfExport';
 export { useBalanceSheetPdfExport } from './useBalanceSheetPdfExport';
 export { useFinancialDataHub } from './useFinancialDataHub';
 export { useFixedExpenses } from './useFixedExpenses';
+export { useExchangeRates } from './useExchangeRates';
 export { separateVat, calculateVatFromGross, calculateVatFromNet } from './utils/vatSeparation';
