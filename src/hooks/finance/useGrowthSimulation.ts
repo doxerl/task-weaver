@@ -13,9 +13,11 @@ const generateId = () => Math.random().toString(36).substr(2, 9);
 // Category mapping from database codes to simulation categories
 const REVENUE_CATEGORY_MAP: Record<string, string> = {
   'SBT': 'SBT Tracker',
-  'LSD': 'Leadership Denetim',
-  'DANISMANLIK': 'Danışmanlık',
+  'L&S': 'Leadership Denetim',
+  'DANIS': 'Danışmanlık',
   'ZDHC': 'ZDHC InCheck',
+  'FAIZ_IN': 'Faiz Geliri',
+  'LISANS': 'Lisans/Telif',
 };
 
 const EXPENSE_CATEGORY_MAP: Record<string, string> = {
