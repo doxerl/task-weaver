@@ -25,3 +25,4 @@ export { useDetailedIncomeStatement } from './useDetailedIncomeStatement';
 export { useVatReportPdf } from './useVatReportPdf';
 export { useFinancingSummaryPdf } from './useFinancingSummaryPdf';
 export { useDetailedIncomeStatementPdf } from './useDetailedIncomeStatementPdf';
+export { useFullReportPdf } from './useFullReportPdf';
