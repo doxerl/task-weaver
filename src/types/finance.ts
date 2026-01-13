@@ -1,5 +1,7 @@
 export type CategoryType = 'INCOME' | 'EXPENSE' | 'PARTNER' | 'FINANCING' | 'INVESTMENT' | 'EXCLUDED';
 
+export type CostCenter = 'DELIVERY' | 'ADMIN' | 'SALES' | null;
+
 export interface TransactionCategory {
   id: string;
   user_id: string | null;
@@ -17,6 +19,11 @@ export interface TransactionCategory {
   is_active: boolean;
   is_system: boolean;
   created_at: string;
+  // Tekdüzen Hesap Planı fields
+  account_code: string | null;      // e.g., '600', '622', '632'
+  account_subcode: string | null;   // e.g., '632.01', '632.02'
+  cost_center: CostCenter;          // DELIVERY, ADMIN, SALES
+  is_kkeg: boolean;                 // Kanunen Kabul Edilmeyen Gider
 }
 
 export interface UploadedBankFile {

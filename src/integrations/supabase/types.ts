@@ -1343,9 +1343,12 @@ export type Database = {
       }
       transaction_categories: {
         Row: {
+          account_code: string | null
+          account_subcode: string | null
           affects_partner_account: boolean | null
           code: string
           color: string | null
+          cost_center: string | null
           created_at: string | null
           expense_behavior: string | null
           icon: string | null
@@ -1353,6 +1356,7 @@ export type Database = {
           is_active: boolean | null
           is_excluded: boolean | null
           is_financing: boolean | null
+          is_kkeg: boolean | null
           is_system: boolean | null
           keywords: string[] | null
           match_priority: number | null
@@ -1363,9 +1367,12 @@ export type Database = {
           vendor_patterns: string[] | null
         }
         Insert: {
+          account_code?: string | null
+          account_subcode?: string | null
           affects_partner_account?: boolean | null
           code: string
           color?: string | null
+          cost_center?: string | null
           created_at?: string | null
           expense_behavior?: string | null
           icon?: string | null
@@ -1373,6 +1380,7 @@ export type Database = {
           is_active?: boolean | null
           is_excluded?: boolean | null
           is_financing?: boolean | null
+          is_kkeg?: boolean | null
           is_system?: boolean | null
           keywords?: string[] | null
           match_priority?: number | null
@@ -1383,9 +1391,12 @@ export type Database = {
           vendor_patterns?: string[] | null
         }
         Update: {
+          account_code?: string | null
+          account_subcode?: string | null
           affects_partner_account?: boolean | null
           code?: string
           color?: string | null
+          cost_center?: string | null
           created_at?: string | null
           expense_behavior?: string | null
           icon?: string | null
@@ -1393,6 +1404,7 @@ export type Database = {
           is_active?: boolean | null
           is_excluded?: boolean | null
           is_financing?: boolean | null
+          is_kkeg?: boolean | null
           is_system?: boolean | null
           keywords?: string[] | null
           match_priority?: number | null
