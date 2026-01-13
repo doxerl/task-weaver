@@ -19,6 +19,15 @@ export interface BatchProgress {
   totalTransactions: number;
   estimatedTimeLeft: number;
   stage: 'parsing' | 'categorizing';
+  // Extended tracking fields
+  totalRowsInFile: number;         // Total rows in Excel file
+  expectedTransactions: number;    // Expected transaction count (excluding header)
+  successfulBatches: number;       // Successfully processed batches
+  failedBatches: number;           // Permanently failed batches
+  retriedBatches: number;          // Batches that succeeded after retry
+  currentRetryAttempt: number;     // Current retry attempt (0 = first attempt)
+  parallelCount: number;           // Parallel processing count
+  lastBatchDuration: number;       // Duration of last batch (ms)
 }
 
 export interface ResumeState {
@@ -28,6 +37,7 @@ export interface ResumeState {
   fileName: string;
   collectedTransactions: ParsedTransaction[];
   failedBatches: FailedBatch[];
+  totalRowsInFile: number;
 }
 
 const PARSE_BATCH_SIZE = 10; // 10 satır per parse batch
@@ -67,6 +77,14 @@ export function useBankFileUpload() {
     totalTransactions: 0,
     estimatedTimeLeft: 0,
     stage: 'parsing',
+    totalRowsInFile: 0,
+    expectedTransactions: 0,
+    successfulBatches: 0,
+    failedBatches: 0,
+    retriedBatches: 0,
+    currentRetryAttempt: 0,
+    parallelCount: PARALLEL_BATCH_COUNT,
+    lastBatchDuration: 0,
   });
   const [canResume, setCanResume] = useState(false);
   const [pausedTransactionCount, setPausedTransactionCount] = useState(0);
@@ -111,6 +129,14 @@ export function useBankFileUpload() {
       totalTransactions: 0,
       estimatedTimeLeft: 0,
       stage: 'parsing',
+      totalRowsInFile: 0,
+      expectedTransactions: 0,
+      successfulBatches: 0,
+      failedBatches: 0,
+      retriedBatches: 0,
+      currentRetryAttempt: 0,
+      parallelCount: PARALLEL_BATCH_COUNT,
+      lastBatchDuration: 0,
     });
     
     // Cache invalidation
@@ -126,12 +152,19 @@ export function useBankFileUpload() {
     ext: string,
     fileName: string,
     totalBatches: number,
-    maxRetries: number = MAX_BATCH_RETRIES
-  ): Promise<{ batchIndex: number; transactions: ParsedTransaction[]; summary: ParseSummary | null; bank_info: BankInfo | null; success: boolean; retryCount: number; error?: string }> => {
+    maxRetries: number = MAX_BATCH_RETRIES,
+    onRetryAttempt?: (batchIndex: number, attempt: number) => void
+  ): Promise<{ batchIndex: number; transactions: ParsedTransaction[]; summary: ParseSummary | null; bank_info: BankInfo | null; success: boolean; retryCount: number; wasRetried: boolean; error?: string }> => {
     let lastError = '';
+    const startTime = Date.now();
     
     for (let attempt = 0; attempt <= maxRetries; attempt++) {
       try {
+        // Notify about retry attempt for UI updates
+        if (attempt > 0 && onRetryAttempt) {
+          onRetryAttempt(batchIndex, attempt);
+        }
+        
         console.log(`Processing parse batch ${batchIndex + 1}/${totalBatches}${attempt > 0 ? ` (retry ${attempt})` : ''}`);
 
         const { data: parseData, error: parseError } = await supabase.functions.invoke('parse-bank-statement', {
@@ -155,7 +188,7 @@ export function useBankFileUpload() {
             await new Promise(r => setTimeout(r, delay));
             continue;
           }
-          return { batchIndex, transactions: [], summary: null, bank_info: null, success: false, retryCount: attempt + 1, error: lastError };
+          return { batchIndex, transactions: [], summary: null, bank_info: null, success: false, retryCount: attempt + 1, wasRetried: attempt > 0, error: lastError };
         }
 
         if (parseData?.success && parseData?.transactions?.length > 0) {
@@ -164,14 +197,16 @@ export function useBankFileUpload() {
             ...t,
             index: (batchIndex * PARSE_BATCH_SIZE) + idx
           }));
-          console.log(`Batch ${batchIndex + 1}: Got ${parseData.transactions.length} transactions${attempt > 0 ? ` after ${attempt} retries` : ''}`);
+          const duration = Date.now() - startTime;
+          console.log(`Batch ${batchIndex + 1}: Got ${parseData.transactions.length} transactions${attempt > 0 ? ` after ${attempt} retries` : ''} (${duration}ms)`);
           return { 
             batchIndex, 
             transactions: offsetTransactions, 
             summary: parseData.summary || null,
             bank_info: parseData.bank_info || null,
             success: true,
-            retryCount: attempt
+            retryCount: attempt,
+            wasRetried: attempt > 0
           };
         } else {
           // No transactions returned - might be a parsing issue, retry
@@ -184,7 +219,7 @@ export function useBankFileUpload() {
             await new Promise(r => setTimeout(r, delay));
             continue;
           }
-          return { batchIndex, transactions: [], summary: null, bank_info: null, success: false, retryCount: attempt + 1, error: lastError };
+          return { batchIndex, transactions: [], summary: null, bank_info: null, success: false, retryCount: attempt + 1, wasRetried: attempt > 0, error: lastError };
         }
       } catch (batchErr) {
         lastError = batchErr instanceof Error ? batchErr.message : 'Unknown error';
@@ -196,12 +231,12 @@ export function useBankFileUpload() {
           await new Promise(r => setTimeout(r, delay));
           continue;
         }
-        return { batchIndex, transactions: [], summary: null, bank_info: null, success: false, retryCount: attempt + 1, error: lastError };
+        return { batchIndex, transactions: [], summary: null, bank_info: null, success: false, retryCount: attempt + 1, wasRetried: attempt > 0, error: lastError };
       }
     }
     
     // Should not reach here, but return failure just in case
-    return { batchIndex, transactions: [], summary: null, bank_info: null, success: false, retryCount: maxRetries + 1, error: lastError };
+    return { batchIndex, transactions: [], summary: null, bank_info: null, success: false, retryCount: maxRetries + 1, wasRetried: true, error: lastError };
   };
 
   // Process batches from a starting index with parallel execution and retry mechanism
@@ -211,12 +246,16 @@ export function useBankFileUpload() {
     ext: string,
     fileName: string,
     existingTransactions: ParsedTransaction[],
-    existingFailedBatches: FailedBatch[] = []
+    existingFailedBatches: FailedBatch[] = [],
+    totalRowsInFile: number = 0
   ): Promise<{ transactions: ParsedTransaction[]; failedBatches: FailedBatch[] }> => {
     const totalParseBatches = batches.length;
     const transactionMap: Map<number, ParsedTransaction[]> = new Map();
     const failedBatchList: FailedBatch[] = [...existingFailedBatches];
     let completedBatches = startIndex;
+    let successfulBatchCount = 0;
+    let retriedBatchCount = 0;
+    let lastBatchDuration = 0;
 
     // Add existing transactions to map
     existingTransactions.forEach(t => {
@@ -227,15 +266,38 @@ export function useBankFileUpload() {
       transactionMap.get(batchIdx)!.push(t);
     });
 
-    // Initialize batch progress for parsing
+    // Count existing successful batches
+    const existingSuccessfulBatches = new Set(existingTransactions.map(t => Math.floor(t.index / PARSE_BATCH_SIZE))).size;
+    successfulBatchCount = existingSuccessfulBatches;
+
+    // Calculate expected transactions (total rows minus header)
+    const expectedTransactions = totalRowsInFile > 0 ? totalRowsInFile - 1 : totalParseBatches * PARSE_BATCH_SIZE;
+
+    // Initialize batch progress for parsing with extended info
     setBatchProgress({
       current: startIndex,
       total: totalParseBatches,
       processedTransactions: existingTransactions.length,
-      totalTransactions: totalParseBatches * PARSE_BATCH_SIZE,
+      totalTransactions: expectedTransactions,
       estimatedTimeLeft: Math.ceil((totalParseBatches - startIndex) / PARALLEL_BATCH_COUNT) * ESTIMATED_SECONDS_PER_PARSE_BATCH,
       stage: 'parsing',
+      totalRowsInFile: totalRowsInFile,
+      expectedTransactions: expectedTransactions,
+      successfulBatches: successfulBatchCount,
+      failedBatches: existingFailedBatches.length,
+      retriedBatches: retriedBatchCount,
+      currentRetryAttempt: 0,
+      parallelCount: PARALLEL_BATCH_COUNT,
+      lastBatchDuration: 0,
     });
+
+    // Callback for retry attempts - update UI
+    const handleRetryAttempt = (batchIndex: number, attempt: number) => {
+      setBatchProgress(prev => ({
+        ...prev,
+        currentRetryAttempt: attempt,
+      }));
+    };
 
     // Process batches in parallel groups
     for (let i = startIndex; i < batches.length; i += PARALLEL_BATCH_COUNT) {
@@ -251,6 +313,7 @@ export function useBankFileUpload() {
           fileName,
           collectedTransactions,
           failedBatches: failedBatchList,
+          totalRowsInFile: totalRowsInFile,
         };
         setCanResume(true);
         setPausedTransactionCount(collectedTransactions.length);
@@ -275,19 +338,29 @@ export function useBankFileUpload() {
         processedTransactions: currentTransactionCount,
         estimatedTimeLeft: Math.max(0, Math.ceil((totalParseBatches - i) / PARALLEL_BATCH_COUNT) * ESTIMATED_SECONDS_PER_PARSE_BATCH),
         stage: 'parsing',
+        currentRetryAttempt: 0, // Reset retry indicator at start of each group
       }));
 
-      // Process batches in parallel
+      // Process batches in parallel with retry callback
+      const groupStartTime = Date.now();
       const parallelPromises = parallelIndices.map(batchIdx => 
-        processSingleBatch(batches[batchIdx], batchIdx, ext, fileName, totalParseBatches)
+        processSingleBatch(batches[batchIdx], batchIdx, ext, fileName, totalParseBatches, MAX_BATCH_RETRIES, handleRetryAttempt)
       );
 
       const results = await Promise.all(parallelPromises);
+      lastBatchDuration = Date.now() - groupStartTime;
 
       // Collect results
       for (const result of results) {
         if (result.success && result.transactions.length > 0) {
           transactionMap.set(result.batchIndex, result.transactions);
+          successfulBatchCount++;
+          
+          // Track if this batch was retried successfully
+          if (result.wasRetried) {
+            retriedBatchCount++;
+            console.log(`✅ Batch ${result.batchIndex + 1} succeeded after ${result.retryCount} retries`);
+          }
         } else {
           // Track failed batch with row range
           const rowStart = result.batchIndex * PARSE_BATCH_SIZE + 2; // +2 for header offset (Excel row 1 = header)
@@ -305,6 +378,20 @@ export function useBankFileUpload() {
         completedBatches++;
       }
 
+      // Update progress with all stats after each group
+      const updatedTransactionCount = Array.from(transactionMap.values()).flat().length;
+      setBatchProgress(prev => ({
+        ...prev,
+        current: completedBatches,
+        processedTransactions: updatedTransactionCount,
+        successfulBatches: successfulBatchCount,
+        failedBatches: failedBatchList.length,
+        retriedBatches: retriedBatchCount,
+        currentRetryAttempt: 0,
+        lastBatchDuration: lastBatchDuration,
+        estimatedTimeLeft: Math.max(0, Math.ceil((totalParseBatches - completedBatches) / PARALLEL_BATCH_COUNT) * ESTIMATED_SECONDS_PER_PARSE_BATCH),
+      }));
+
       // Update overall progress
       const parseProgress = 30 + (completedBatches / totalParseBatches) * 35;
       setProgress(parseProgress);
@@ -318,13 +405,17 @@ export function useBankFileUpload() {
     // Update failed row ranges state for UI
     setFailedRowRanges(failedBatchList);
 
-    // Parsing complete or stopped
+    // Final batch progress update
     setBatchProgress(prev => ({
       ...prev,
       current: abortRef.current ? prev.current : totalParseBatches,
       processedTransactions: allTransactions.length,
       estimatedTimeLeft: 0,
       stage: 'parsing',
+      successfulBatches: successfulBatchCount,
+      failedBatches: failedBatchList.length,
+      retriedBatches: retriedBatchCount,
+      currentRetryAttempt: 0,
     }));
 
     // If stopped by user
@@ -343,7 +434,11 @@ export function useBankFileUpload() {
       });
     }
 
-    console.log(`Parsing complete: ${allTransactions.length} transactions from ${totalParseBatches - failedBatchList.length}/${totalParseBatches} batches (${PARALLEL_BATCH_COUNT}x parallel)`);
+    if (retriedBatchCount > 0) {
+      console.log(`🔄 ${retriedBatchCount} batches succeeded after retry`);
+    }
+
+    console.log(`Parsing complete: ${allTransactions.length} transactions from ${successfulBatchCount}/${totalParseBatches} batches (${PARALLEL_BATCH_COUNT}x parallel)`);
     return { transactions: allTransactions, failedBatches: failedBatchList };
   };
 
@@ -392,14 +487,15 @@ export function useBankFileUpload() {
     // If no transactions need AI, return early
     if (needsAI.length === 0) {
       console.log('✨ All transactions matched by rules/keywords, skipping AI call');
-      setBatchProgress({
+      setBatchProgress(prev => ({
+        ...prev,
         current: 1,
         total: 1,
         processedTransactions: parsed.length,
         totalTransactions: parsed.length,
         estimatedTimeLeft: 0,
         stage: 'categorizing',
-      });
+      }));
       return categorizedFromRules;
     }
 
@@ -408,14 +504,15 @@ export function useBankFileUpload() {
     const totalParallelGroups = Math.ceil(totalCatBatches / PARALLEL_BATCH_COUNT);
 
     // Initialize batch progress for categorization
-    setBatchProgress({
+    setBatchProgress(prev => ({
+      ...prev,
       current: 0,
       total: totalCatBatches,
       processedTransactions: matched.length,
       totalTransactions: parsed.length,
       estimatedTimeLeft: totalParallelGroups * ESTIMATED_SECONDS_PER_CATEGORIZE_GROUP,
       stage: 'categorizing',
-    });
+    }));
 
     // Start simulated progress interval for categorization
     let simulatedGroup = 0;
@@ -544,7 +641,7 @@ export function useBankFileUpload() {
         throw new Error('Devam edilecek işlem bulunamadı');
       }
 
-      const { batches, currentIndex, ext, fileName, collectedTransactions, failedBatches: existingFailedBatches } = resumeState;
+      const { batches, currentIndex, ext, fileName, collectedTransactions, failedBatches: existingFailedBatches, totalRowsInFile } = resumeState;
       
       // CRITICAL: Reset abort flag BEFORE setting status
       abortRef.current = false;
@@ -560,7 +657,8 @@ export function useBankFileUpload() {
           ext,
           fileName,
           collectedTransactions,
-          existingFailedBatches
+          existingFailedBatches,
+          totalRowsInFile
         );
 
         if (result.transactions.length === 0) {
@@ -724,6 +822,7 @@ export function useBankFileUpload() {
         const lines = fileContent.split('\n').filter(line => line.trim());
         const headerLine = lines[0] || '';
         const dataLines = lines.slice(1);
+        const totalRowsInFile = lines.length; // Total including header
 
         console.log(`Total lines: ${lines.length}, Data lines: ${dataLines.length}`);
 
@@ -736,8 +835,8 @@ export function useBankFileUpload() {
 
         console.log(`Created ${batches.length} parse batches`);
 
-        // 5. Process batches
-        const batchResult = await processBatches(batches, 0, fileExt, file.name, []);
+        // 5. Process batches with totalRowsInFile for accurate progress
+        const batchResult = await processBatches(batches, 0, fileExt, file.name, [], [], totalRowsInFile);
         const allTransactions = batchResult.transactions;
 
         if (allTransactions.length === 0) {
