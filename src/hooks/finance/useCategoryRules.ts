@@ -183,6 +183,55 @@ function matchContextRules(tx: ParsedTransaction, categories: TransactionCategor
   const amount = Math.abs(tx.amount || 0);
   const isPositive = (tx.amount || 0) > 0;
 
+  // ═══════════════════════════════════════════════════════════════════════════
+  // ORTAK: EMRE AKÇAOĞLU (Hardcoded Partner)
+  // Havale/EFT işlemleri - kesinlikle SEYAHAT olmamalı!
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (/EMRE AKÇAOĞLU|EMRE AKCAOGLU|EMRE AKCAOĞLU|EMRE AKÇAOGLU/i.test(desc)) {
+    const categoryCode = isPositive ? 'ORTAK_IN' : 'ORTAK_OUT';
+    const cat = categories.find(c => c.code === categoryCode);
+    if (cat) {
+      console.log(`✅ Context: TX[${tx.index}] "EMRE AKÇAOĞLU" → ${categoryCode}`);
+      return {
+        transactionIndex: tx.index,
+        categoryId: cat.id,
+        categoryCode: categoryCode,
+        categoryType: 'PARTNER',
+        confidence: 1.0,
+        source: 'context_rule',
+        reasoning: `Ortak EMRE AKÇAOĞLU → ${isPositive ? 'sermaye girişi' : 'ödeme'}`,
+        affectsPnl: false,
+        balanceImpact: isPositive ? 'liability_decrease' : 'liability_increase',
+        counterparty: 'EMRE AKÇAOĞLU'
+      };
+    }
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // İADE: Negatif tutar + İADE kelimesi (MEVDUAT/FAİZ/DEPOSIT hariç)
+  // ═══════════════════════════════════════════════════════════════════════════
+  if (/\bİADE\b|\bIADE\b|REFUND|RETURN\b/i.test(desc) && !isPositive) {
+    const isExcluded = /MEVDUAT|VADELİ HESAP|FAİZ|DEPOSIT|TAAHHÜT/i.test(desc);
+    if (!isExcluded) {
+      const cat = categories.find(c => c.code === 'IADE');
+      if (cat) {
+        console.log(`✅ Context: TX[${tx.index}] "İADE" pattern → IADE`);
+        return {
+          transactionIndex: tx.index,
+          categoryId: cat.id,
+          categoryCode: 'IADE',
+          categoryType: 'EXPENSE',
+          confidence: 0.95,
+          source: 'context_rule',
+          reasoning: `İade pattern (mevduat/faiz hariç)`,
+          affectsPnl: true,
+          balanceImpact: 'equity_decrease',
+          counterparty: extractCounterparty(tx)
+        };
+      }
+    }
+  }
+
   // BANKA KESİNTİSİ: "KESİNTİ VE EKLERİ" + küçük tutar (< 100 TL)
   if (desc.startsWith('KESİNTİ VE EKLERİ') && amount < 100) {
     const cat = categories.find(c => c.code === 'BANKA');
