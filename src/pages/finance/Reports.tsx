@@ -17,6 +17,8 @@ import { usePdfExport } from '@/hooks/finance/usePdfExport';
 import { useIncomeStatementPdfExport } from '@/hooks/finance/useIncomeStatementPdfExport';
 import { useDetailedIncomeStatementPdf } from '@/hooks/finance/useDetailedIncomeStatementPdf';
 import { useFinancingSummaryPdf } from '@/hooks/finance/useFinancingSummaryPdf';
+import { useFullReportPdf } from '@/hooks/finance/useFullReportPdf';
+import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { MonthlyTrendChart } from '@/components/finance/charts/MonthlyTrendChart';
 import { ServiceRevenueChart } from '@/components/finance/charts/ServiceRevenueChart';
 import { ExpenseCategoryChart } from '@/components/finance/charts/ExpenseCategoryChart';
@@ -33,7 +35,14 @@ export default function Reports() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [period, setPeriod] = useState<ReportPeriod>('yearly');
   const [isDashboardPdfGenerating, setIsDashboardPdfGenerating] = useState(false);
+  const [isIncomePdfGenerating, setIsIncomePdfGenerating] = useState(false);
+  const [isExpensePdfGenerating, setIsExpensePdfGenerating] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
+  const incomeRef = useRef<HTMLDivElement>(null);
+  const expenseRef = useRef<HTMLDivElement>(null);
+  const trendChartRef = useRef<HTMLDivElement>(null);
+  const incomeChartRef = useRef<HTMLDivElement>(null);
+  const expenseChartRef = useRef<HTMLDivElement>(null);
   
   // Use unified data hub
   const hub = useFinancialDataHub(year);
@@ -42,10 +51,12 @@ export default function Reports() {
   const incomeStatement = useIncomeStatement(year);
   const detailedStatement = useDetailedIncomeStatement(year);
   const { definitions: fixedExpensesList } = useFixedExpenses();
+  const { balanceSheet } = useBalanceSheet(year);
   const { generatePdf, isGenerating } = usePdfExport();
   const { generateIncomeStatementPdf, isGenerating: isIncomeStatementPdfGenerating } = useIncomeStatementPdfExport();
   const { generatePdf: generateDetailedPdf, isGenerating: isDetailedPdfGenerating } = useDetailedIncomeStatementPdf();
   const { generatePdf: generateFinancingPdf, isGenerating: isFinancingPdfGenerating } = useFinancingSummaryPdf();
+  const { generateFullReport, isGenerating: isFullReportGenerating, progress: fullReportProgress } = useFullReportPdf();
   const { currency, formatAmount, getAvailableMonthsCount, yearlyAverageRate } = useCurrency();
   
   const availableMonths = getAvailableMonthsCount(year);
@@ -69,7 +80,66 @@ export default function Reports() {
     });
   }, [hub.byMonth]);
 
-  // yearlyAverageRate is now imported from useCurrency above
+  const handleFullReportPdf = async () => {
+    const reportData: FullReportData = {
+      year,
+      period,
+      generatedAt: new Date().toISOString(),
+      kpis: {
+        totalIncome: { value: hub.incomeSummary.gross, trend: 'neutral' },
+        totalExpenses: { value: hub.expenseSummary.gross, trend: 'neutral' },
+        netProfit: { value: hub.operatingProfit, trend: hub.operatingProfit >= 0 ? 'up' : 'down' },
+        profitMargin: { value: hub.profitMargin, trend: 'neutral' },
+      },
+      monthlyData,
+      serviceRevenue: incomeAnalysis.serviceRevenue,
+      expenseCategories: expenseAnalysis.expenseCategories,
+      incomeStatement: incomeStatement.statement,
+      partnerAccount: {
+        transactions: [],
+        totalDebit: hub.partnerSummary.withdrawals,
+        totalCredit: hub.partnerSummary.deposits,
+        balance: hub.partnerSummary.balance,
+      },
+      financing: {
+        creditUsed: hub.financingSummary.creditIn,
+        creditPaid: hub.financingSummary.creditOut,
+        leasingPaid: hub.financingSummary.leasingOut,
+        interestPaid: hub.financingSummary.interestPaid,
+        remainingDebt: hub.financingSummary.remainingDebt,
+      },
+    };
+
+    const chartRefs = {
+      trendChart: trendChartRef.current,
+      incomeChart: incomeChartRef.current,
+      expenseChart: expenseChartRef.current,
+    };
+
+    const additionalData = {
+      balanceSheet: {
+        totalAssets: balanceSheet.totalAssets,
+        totalLiabilities: balanceSheet.totalLiabilities,
+        currentAssets: balanceSheet.currentAssets,
+        fixedAssets: balanceSheet.fixedAssets,
+        shortTermLiabilities: balanceSheet.shortTermLiabilities,
+        longTermLiabilities: balanceSheet.longTermLiabilities,
+        equity: balanceSheet.equity,
+      },
+      vatSummary: hub.vatSummary,
+    };
+
+    try {
+      await generateFullReport(reportData, chartRefs, additionalData, {
+        currency,
+        formatAmount: (n) => formatAmount(n, undefined, year),
+        yearlyAverageRate,
+      });
+      toast.success(`Kapsamlı rapor PDF oluşturuldu (${currency})`);
+    } catch {
+      toast.error('PDF oluşturulamadı');
+    }
+  };
 
   const handleExportPdf = async () => {
     const reportData: FullReportData = {
@@ -166,6 +236,50 @@ export default function Reports() {
     }
   };
 
+  const handleIncomePdf = async () => {
+    if (!incomeRef.current) return;
+    setIsIncomePdfGenerating(true);
+    try {
+      const success = await captureElementToPdf(incomeRef.current, {
+        filename: `Gelir_Dagilimi_${year}_${currency}.pdf`,
+        orientation: 'landscape',
+        fitToPage: true,
+        scale: 2,
+      });
+      if (success) {
+        toast.success(`Gelir dağılımı PDF oluşturuldu (${currency})`);
+      } else {
+        toast.error('PDF oluşturulamadı');
+      }
+    } catch {
+      toast.error('PDF oluşturulamadı');
+    } finally {
+      setIsIncomePdfGenerating(false);
+    }
+  };
+
+  const handleExpensePdf = async () => {
+    if (!expenseRef.current) return;
+    setIsExpensePdfGenerating(true);
+    try {
+      const success = await captureElementToPdf(expenseRef.current, {
+        filename: `Gider_Dagilimi_${year}_${currency}.pdf`,
+        orientation: 'landscape',
+        fitToPage: true,
+        scale: 2,
+      });
+      if (success) {
+        toast.success(`Gider dağılımı PDF oluşturuldu (${currency})`);
+      } else {
+        toast.error('PDF oluşturulamadı');
+      }
+    } catch {
+      toast.error('PDF oluşturulamadı');
+    } finally {
+      setIsExpensePdfGenerating(false);
+    }
+  };
+
   const handleFinancingPdf = async () => {
     try {
       await generateFinancingPdf({
@@ -215,9 +329,18 @@ export default function Reports() {
               {[2026, 2025, 2024].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Button onClick={handleExportPdf} disabled={isGenerating} size="sm" className="gap-1">
-            {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-            PDF
+          <Button onClick={handleFullReportPdf} disabled={isFullReportGenerating} size="sm" className="gap-1">
+            {isFullReportGenerating ? (
+              <>
+                <Loader2 className="h-4 w-4 animate-spin" />
+                <span className="text-xs hidden sm:inline">{fullReportProgress.stage} ({fullReportProgress.current}/{fullReportProgress.total})</span>
+              </>
+            ) : (
+              <>
+                <FileDown className="h-4 w-4" />
+                <span className="hidden sm:inline">Tam Rapor</span>
+              </>
+            )}
           </Button>
         </div>
 
@@ -335,16 +458,28 @@ export default function Reports() {
             <div ref={dashboardRef} className="space-y-4 bg-background p-4 rounded-lg">
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Aylık Gelir vs Gider - {year}</CardTitle></CardHeader>
-                <CardContent><MonthlyTrendChart data={monthlyData} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
+                <CardContent>
+                  <div ref={trendChartRef}>
+                    <MonthlyTrendChart data={monthlyData} formatAmount={(n) => formatAmount(n, undefined, year)} />
+                  </div>
+                </CardContent>
               </Card>
               <div className="grid md:grid-cols-2 gap-4">
                 <Card>
                   <CardHeader className="pb-2"><CardTitle className="text-sm">Hizmet Bazlı Gelir</CardTitle></CardHeader>
-                  <CardContent><ServiceRevenueChart data={incomeAnalysis.serviceRevenue} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
+                  <CardContent>
+                    <div ref={incomeChartRef}>
+                      <ServiceRevenueChart data={incomeAnalysis.serviceRevenue} formatAmount={(n) => formatAmount(n, undefined, year)} />
+                    </div>
+                  </CardContent>
                 </Card>
                 <Card>
                   <CardHeader className="pb-2"><CardTitle className="text-sm">Gider Kategorileri</CardTitle></CardHeader>
-                  <CardContent><ExpenseCategoryChart data={expenseAnalysis.topCategories} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
+                  <CardContent>
+                    <div ref={expenseChartRef}>
+                      <ExpenseCategoryChart data={expenseAnalysis.topCategories} formatAmount={(n) => formatAmount(n, undefined, year)} />
+                    </div>
+                  </CardContent>
                 </Card>
               </div>
             </div>
@@ -352,31 +487,59 @@ export default function Reports() {
 
           {/* Tab 2: Income */}
           <TabsContent value="income" className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Hizmet Bazlı Gelir Dağılımı</CardTitle></CardHeader>
-              <CardContent><ServiceRevenueChart data={incomeAnalysis.serviceRevenue} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
-            </Card>
+            <div className="flex justify-end">
+              <Button 
+                onClick={handleIncomePdf} 
+                disabled={isIncomePdfGenerating} 
+                size="sm" 
+                variant="outline"
+                className="gap-1"
+              >
+                {isIncomePdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                Grafik PDF
+              </Button>
+            </div>
+            <div ref={incomeRef} className="bg-background p-4 rounded-lg">
+              <Card>
+                <CardHeader className="pb-2"><CardTitle className="text-sm">Hizmet Bazlı Gelir Dağılımı</CardTitle></CardHeader>
+                <CardContent><ServiceRevenueChart data={incomeAnalysis.serviceRevenue} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
+              </Card>
+            </div>
           </TabsContent>
 
           {/* Tab 3: Expense */}
           <TabsContent value="expense" className="space-y-4">
-            <Card>
-              <CardHeader className="pb-2"><CardTitle className="text-sm">Gider Kategorileri</CardTitle></CardHeader>
-              <CardContent><ExpenseCategoryChart data={expenseAnalysis.topCategories} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
-            </Card>
-            <div className="grid grid-cols-2 gap-3">
+            <div className="flex justify-end">
+              <Button 
+                onClick={handleExpensePdf} 
+                disabled={isExpensePdfGenerating} 
+                size="sm" 
+                variant="outline"
+                className="gap-1"
+              >
+                {isExpensePdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                Grafik PDF
+              </Button>
+            </div>
+            <div ref={expenseRef} className="space-y-4 bg-background p-4 rounded-lg">
               <Card>
-                <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground">Sabit Gider</p>
-                  <p className="text-lg font-bold">{formatAmount(hub.expenseSummary.fixed)}</p>
-                </CardContent>
+                <CardHeader className="pb-2"><CardTitle className="text-sm">Gider Kategorileri</CardTitle></CardHeader>
+                <CardContent><ExpenseCategoryChart data={expenseAnalysis.topCategories} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
               </Card>
-              <Card>
-                <CardContent className="p-3">
-                  <p className="text-xs text-muted-foreground">Değişken Gider</p>
-                  <p className="text-lg font-bold">{formatAmount(hub.expenseSummary.variable)}</p>
-                </CardContent>
-              </Card>
+              <div className="grid grid-cols-2 gap-3">
+                <Card>
+                  <CardContent className="p-3">
+                    <p className="text-xs text-muted-foreground">Sabit Gider</p>
+                    <p className="text-lg font-bold">{formatAmount(hub.expenseSummary.fixed)}</p>
+                  </CardContent>
+                </Card>
+                <Card>
+                  <CardContent className="p-3">
+                    <p className="text-xs text-muted-foreground">Değişken Gider</p>
+                    <p className="text-lg font-bold">{formatAmount(hub.expenseSummary.variable)}</p>
+                  </CardContent>
+                </Card>
+              </div>
             </div>
           </TabsContent>
 

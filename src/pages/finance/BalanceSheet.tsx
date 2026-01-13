@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, FileDown, Settings, CheckCircle, AlertTriangle, Loader2, Info } from 'lucide-react';
+import { ArrowLeft, FileDown, Settings, CheckCircle, AlertTriangle, Loader2, Info, BarChart3 } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { useFinancialSettings } from '@/hooks/finance/useFinancialSettings';
@@ -19,14 +19,20 @@ import { DetailedBalanceSheet } from '@/components/finance/DetailedBalanceSheet'
 import { CurrencyToggle } from '@/components/finance/CurrencyToggle';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { cn } from '@/lib/utils';
+import { BalanceAssetChart } from '@/components/finance/charts/BalanceAssetChart';
+import { BalanceLiabilityChart } from '@/components/finance/charts/BalanceLiabilityChart';
+import { captureElementToPdf } from '@/lib/pdfCapture';
+import { toast as sonnerToast } from 'sonner';
 
 export default function BalanceSheet() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('summary');
   const [isGenerating, setIsGenerating] = useState(false);
+  const [isGraphicPdfGenerating, setIsGraphicPdfGenerating] = useState(false);
   const [pdfProgress, setPdfProgress] = useState('');
   const contentRef = useRef<HTMLDivElement>(null);
+  const chartRef = useRef<HTMLDivElement>(null);
   
   const { balanceSheet, isLoading, uncategorizedCount, uncategorizedTotal } = useBalanceSheet(year);
   const { settings, upsertSettings } = useFinancialSettings();
@@ -125,6 +131,29 @@ export default function BalanceSheet() {
       setPdfProgress('');
     }
   };
+
+  const handleGraphicPdf = async () => {
+    if (!chartRef.current) return;
+    setIsGraphicPdfGenerating(true);
+    try {
+      const success = await captureElementToPdf(chartRef.current, {
+        filename: `Bilanco_Grafik_${year}_${currency}.pdf`,
+        orientation: 'landscape',
+        fitToPage: true,
+        scale: 2,
+      });
+      if (success) {
+        sonnerToast.success(`Bilanço grafik PDF oluşturuldu (${currency})`);
+      } else {
+        sonnerToast.error('PDF oluşturulamadı');
+      }
+    } catch (error) {
+      console.error('Graphic PDF export error:', error);
+      sonnerToast.error('PDF oluşturulamadı');
+    } finally {
+      setIsGraphicPdfGenerating(false);
+    }
+  };
   
   const [formData, setFormData] = useState({
     paid_capital: settings.paid_capital,
@@ -181,6 +210,30 @@ export default function BalanceSheet() {
 
   // Get data from balance sheet
   const { totalAssets, totalLiabilities, isBalanced, difference } = balanceSheet;
+
+  // Prepare chart data
+  const assetChartData = {
+    cashAndBanks: balanceSheet.currentAssets.cash + balanceSheet.currentAssets.banks,
+    receivables: balanceSheet.currentAssets.receivables,
+    partnerReceivables: balanceSheet.currentAssets.partnerReceivables || 0,
+    vatReceivable: balanceSheet.currentAssets.vatReceivable,
+    otherVat: (balanceSheet.currentAssets as any).otherVat || 0,
+    fixedAssetsNet: balanceSheet.fixedAssets.total,
+  };
+
+  const liabilityChartData = {
+    shortTermTotal: balanceSheet.shortTermLiabilities.total,
+    longTermTotal: balanceSheet.longTermLiabilities.total,
+    equityTotal: balanceSheet.equity.total,
+    loanInstallments: balanceSheet.shortTermLiabilities.loanInstallments,
+    tradePayables: balanceSheet.shortTermLiabilities.payables,
+    partnerPayables: balanceSheet.shortTermLiabilities.partnerPayables,
+    vatPayable: balanceSheet.shortTermLiabilities.vatPayable,
+    bankLoans: balanceSheet.longTermLiabilities.bankLoans,
+    paidCapital: balanceSheet.equity.paidCapital - ((balanceSheet.equity as any).unpaidCapital || 0),
+    retainedEarnings: balanceSheet.equity.retainedEarnings,
+    currentProfit: balanceSheet.equity.currentProfit,
+  };
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -421,6 +474,26 @@ export default function BalanceSheet() {
           {/* PDF için yakalanacak içerik */}
           <div ref={contentRef} className="bg-background">
           <TabsContent value="summary" className="space-y-4 mt-4">
+
+            {/* Asset & Liability Distribution Charts */}
+            <div ref={chartRef} className="grid md:grid-cols-2 gap-4 p-4 bg-background rounded-lg">
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-green-600">Varlık Dağılımı</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <BalanceAssetChart data={assetChartData} formatAmount={formatValue} />
+                </CardContent>
+              </Card>
+              <Card>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm text-blue-600">Kaynak Dağılımı</CardTitle>
+                </CardHeader>
+                <CardContent>
+                  <BalanceLiabilityChart data={liabilityChartData} formatAmount={formatValue} />
+                </CardContent>
+              </Card>
+            </div>
 
         {/* AKTİF (VARLIKLAR) */}
         <Card>
@@ -719,15 +792,25 @@ export default function BalanceSheet() {
           </div>
         </Tabs>
 
-        {/* Export */}
-        <Button className="w-full" onClick={handleExportPdf} disabled={isGenerating}>
-          {isGenerating ? (
-            <Loader2 className="h-5 w-5 mr-2 animate-spin" />
-          ) : (
-            <FileDown className="h-5 w-5 mr-2" />
-          )}
-          {isGenerating ? pdfProgress || 'PDF Oluşturuluyor...' : 'PDF İndir'}
-        </Button>
+        {/* Export Buttons */}
+        <div className="grid grid-cols-2 gap-3">
+          <Button onClick={handleExportPdf} disabled={isGenerating}>
+            {isGenerating ? (
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            ) : (
+              <FileDown className="h-5 w-5 mr-2" />
+            )}
+            {isGenerating ? pdfProgress || 'PDF Oluşturuluyor...' : 'Tablo PDF'}
+          </Button>
+          <Button onClick={handleGraphicPdf} disabled={isGraphicPdfGenerating} variant="outline">
+            {isGraphicPdfGenerating ? (
+              <Loader2 className="h-5 w-5 mr-2 animate-spin" />
+            ) : (
+              <BarChart3 className="h-5 w-5 mr-2" />
+            )}
+            {isGraphicPdfGenerating ? 'Oluşturuluyor...' : 'Grafik PDF'}
+          </Button>
+        </div>
       </div>
       <BottomTabBar />
     </div>
