@@ -513,14 +513,31 @@ serve(async (req) => {
     let successfulBatches = 0;
     let failedBatches = 0;
 
-    // Process batches in parallel groups
+    // Process batches in parallel groups with retry mechanism
     for (let i = 0; i < batches.length; i += PARALLEL_BATCH_COUNT) {
       const parallelBatches = batches.slice(i, i + PARALLEL_BATCH_COUNT);
       
-      const promises = parallelBatches.map((batch, idx) => {
+      const promises = parallelBatches.map(async (batch, idx) => {
         const batchIndex = i + idx;
         const startIdx = batchIndex * BATCH_SIZE;
-        return processSingleBatch(batch, startIdx, batchIndex, batches.length, apiKey);
+        
+        // First attempt
+        let result = await processSingleBatch(batch, startIdx, batchIndex, batches.length, apiKey);
+        
+        // Retry once if failed
+        if (!result.success) {
+          console.log(`Batch ${batchIndex + 1} failed, retrying after 2s...`);
+          await new Promise(resolve => setTimeout(resolve, 2000));
+          result = await processSingleBatch(batch, startIdx, batchIndex, batches.length, apiKey);
+          
+          if (result.success) {
+            console.log(`Batch ${batchIndex + 1} retry succeeded!`);
+          } else {
+            console.log(`Batch ${batchIndex + 1} retry also failed`);
+          }
+        }
+        
+        return result;
       });
 
       const batchResults = await Promise.all(promises);

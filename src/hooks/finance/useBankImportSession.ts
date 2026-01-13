@@ -522,37 +522,149 @@ export function useBankImportSession() {
     return data || [];
   }, [currentSessionId]);
 
+  // Recategorize uncategorized transactions
+  const recategorizeUncategorized = useMutation({
+    mutationFn: async () => {
+      if (!currentSessionId) throw new Error('No active session');
+      
+      // Get uncategorized transactions
+      const uncategorized = await getUncategorizedTransactions();
+      
+      if (!uncategorized || uncategorized.length === 0) {
+        return { count: 0, message: 'No uncategorized transactions' };
+      }
+      
+      console.log(`Recategorizing ${uncategorized.length} transactions...`);
+      
+      // Fetch fresh categories
+      const { data: freshCategories } = await supabase
+        .from('transaction_categories')
+        .select('*')
+        .eq('is_active', true);
+      
+      // Call AI categorization
+      const { data: catData, error } = await supabase.functions.invoke('categorize-transactions', {
+        body: { 
+          transactions: uncategorized.map(tx => ({
+            index: tx.row_number - 1,
+            date: tx.transaction_date,
+            description: tx.description,
+            amount: tx.amount,
+            counterparty: tx.counterparty,
+            reference: tx.reference
+          })),
+          categories: freshCategories || []
+        }
+      });
+      
+      if (error || !catData?.results) {
+        throw new Error('AI kategorilendirme başarısız: ' + (error?.message || 'Unknown error'));
+      }
+      
+      console.log(`AI returned ${catData.results.length} categorizations`);
+      
+      // Update transactions in DB
+      let updatedCount = 0;
+      for (const result of catData.results) {
+        const tx = uncategorized.find(t => t.row_number - 1 === result.index);
+        if (tx && result.categoryCode) {
+          const { error: updateError } = await supabase
+            .from('bank_import_transactions')
+            .update({
+              ai_category_code: result.categoryCode,
+              ai_category_type: result.categoryType,
+              ai_confidence: result.confidence,
+              ai_reasoning: result.reasoning,
+              ai_affects_pnl: result.affects_pnl,
+              ai_balance_impact: result.balance_impact,
+              ai_counterparty: result.counterparty,
+              needs_review: result.confidence < 0.7
+            })
+            .eq('id', tx.id);
+          
+          if (!updateError) {
+            updatedCount++;
+          }
+        }
+      }
+      
+      // Update session stats
+      await supabase
+        .from('bank_import_sessions')
+        .update({
+          categorized_count: (transactions?.filter(t => t.ai_category_code !== null).length || 0) + updatedCount,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', currentSessionId);
+      
+      return { count: updatedCount, message: `${updatedCount} işlem kategorilendi` };
+    },
+    onSuccess: (result) => {
+      toast({
+        title: 'Tekrar Kategorilendirme Tamamlandı',
+        description: result.message
+      });
+      queryClient.invalidateQueries({ queryKey: ['bankImportTransactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bankImportSession'] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: 'Hata',
+        description: error.message,
+        variant: 'destructive'
+      });
+    }
+  });
+
   // Convert DB transactions to ParsedTransaction format
   const convertToParsedTransactions = useCallback((): ParsedTransaction[] => {
-    if (!transactions) return [];
+    // Wait for both transactions and categories to load
+    if (!transactions || categories.length === 0) {
+      console.log('Waiting for data to load - transactions:', !!transactions, 'categories:', categories.length);
+      return [];
+    }
 
-    return transactions.map(tx => ({
-      index: tx.row_number - 1,
-      row_number: tx.row_number,
-      date: tx.transaction_date,
-      original_date: tx.original_date || tx.transaction_date,
-      description: tx.description,
-      amount: tx.amount,
-      original_amount: tx.original_amount || String(tx.amount),
-      balance: tx.balance,
-      reference: tx.reference,
-      counterparty: tx.ai_counterparty || tx.counterparty,
-      transaction_type: tx.transaction_type || '',
-      channel: tx.channel,
-      needs_review: tx.needs_review,
-      confidence: tx.ai_confidence || 0,
-      suggestedCategoryId: tx.user_category_id || 
-        (tx.ai_category_code && categories.find(c => c.code === tx.ai_category_code)?.id) || null,
-      aiConfidence: tx.ai_confidence || 0,
-      aiReasoning: tx.ai_reasoning || undefined,
-      affectsPnl: tx.ai_affects_pnl ?? undefined,
-      balanceImpact: (tx.ai_balance_impact as BalanceImpact) || undefined
-    }));
+    return transactions.map(tx => {
+      // Match category by user selection first, then AI code
+      const matchedCategory = tx.user_category_id 
+        ? categories.find(c => c.id === tx.user_category_id)
+        : tx.ai_category_code 
+          ? categories.find(c => c.code === tx.ai_category_code)
+          : null;
+      
+      return {
+        index: tx.row_number - 1,
+        row_number: tx.row_number,
+        date: tx.transaction_date,
+        original_date: tx.original_date || tx.transaction_date,
+        description: tx.description,
+        amount: tx.amount,
+        original_amount: tx.original_amount || String(tx.amount),
+        balance: tx.balance,
+        reference: tx.reference,
+        counterparty: tx.ai_counterparty || tx.counterparty,
+        transaction_type: tx.transaction_type || '',
+        channel: tx.channel,
+        needs_review: tx.needs_review,
+        confidence: tx.ai_confidence || 0,
+        suggestedCategoryId: matchedCategory?.id || null,
+        aiCategoryCode: tx.ai_category_code || undefined, // Debug field
+        aiConfidence: tx.ai_confidence || 0,
+        aiReasoning: tx.ai_reasoning || undefined,
+        affectsPnl: tx.ai_affects_pnl ?? undefined,
+        balanceImpact: (tx.ai_balance_impact as BalanceImpact) || undefined
+      };
+    });
   }, [transactions, categories]);
 
   // =====================================================
   // RETURN
   // =====================================================
+
+  // Count uncategorized transactions
+  const uncategorizedCount = transactions?.filter(tx => 
+    !tx.user_category_id && !tx.ai_category_code
+  ).length || 0;
 
   return {
     // State
@@ -564,6 +676,7 @@ export function useBankImportSession() {
 
     // Converted data
     parsedTransactions: convertToParsedTransactions(),
+    uncategorizedCount,
 
     // Actions
     createSession: createSession.mutateAsync,
@@ -574,6 +687,7 @@ export function useBankImportSession() {
     cancelSession,
     clearSession,
     getUncategorizedTransactions,
+    recategorizeUncategorized: recategorizeUncategorized.mutateAsync,
     refetchSession,
     refetchTransactions,
 
@@ -582,6 +696,7 @@ export function useBankImportSession() {
     isSavingTransactions: saveTransactions.isPending,
     isSavingCategorizations: saveCategorizations.isPending,
     isApproving: approveAndTransfer.isPending,
-    isUpdatingCategory: updateCategory.isPending
+    isUpdatingCategory: updateCategory.isPending,
+    isRecategorizing: recategorizeUncategorized.isPending
   };
 }

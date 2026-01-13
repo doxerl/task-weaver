@@ -47,7 +47,10 @@ export default function BankImport() {
     isLoading: sessionLoading,
     approveAndTransfer,
     cancelSession,
-    isApproving
+    isApproving,
+    uncategorizedCount,
+    recategorizeUncategorized,
+    isRecategorizing
   } = useBankImportSession();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -195,6 +198,29 @@ export default function BankImport() {
               </p>
             </div>
           </div>
+
+          {/* Recategorize uncategorized transactions */}
+          {uncategorizedCount > 0 && (
+            <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800">
+              <AlertCircle className="h-4 w-4 text-amber-600" />
+              <AlertDescription className="flex items-center justify-between">
+                <span>{uncategorizedCount} işlem kategorilendirilemedi</span>
+                <Button 
+                  size="sm" 
+                  variant="outline"
+                  onClick={() => recategorizeUncategorized()}
+                  disabled={isRecategorizing}
+                >
+                  {isRecategorizing ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  Tekrar Dene
+                </Button>
+              </AlertDescription>
+            </Alert>
+          )}
 
           {error && (
             <Alert variant="destructive">
