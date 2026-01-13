@@ -278,6 +278,15 @@ export function useBankFileUpload() {
 
   // Categorize transactions and save to DB
   const categorizeTransactions = async (parsed: ParsedTransaction[]): Promise<ParsedTransaction[]> => {
+    // CRITICAL: Fetch fresh categories to avoid stale closure issue
+    const { data: freshCategories } = await supabase
+      .from('transaction_categories')
+      .select('*')
+      .eq('is_active', true);
+    
+    const categoryList = freshCategories || [];
+    console.log('Fresh categories loaded:', categoryList.length, categoryList.map(c => c.code));
+
     const totalCatBatches = Math.ceil(parsed.length / CATEGORIZE_BATCH_SIZE);
     const totalParallelGroups = Math.ceil(totalCatBatches / PARALLEL_BATCH_COUNT);
 
@@ -311,7 +320,7 @@ export function useBankFileUpload() {
 
     try {
       const { data: catData, error: catError } = await supabase.functions.invoke('categorize-transactions', {
-        body: { transactions: parsed, categories }
+        body: { transactions: parsed, categories: categoryList }
       });
 
       // Kategorilendirme tamamlandı
@@ -326,16 +335,20 @@ export function useBankFileUpload() {
 
       if (!catError && catData?.results) {
         console.log(`AI categorized ${catData.results.length} transactions`);
+        console.log('Available category codes:', categoryList.map(c => c.code));
 
-        // Map AI suggestions to transactions with new fields
+        // Map AI suggestions to transactions with new fields - USE freshCategories!
         const categorized = parsed.map((tx, i) => {
           const suggestion = catData.results.find((r: CategorizationResult) => r.index === i);
           if (suggestion) {
-            const cat = categories.find(c => c.code === suggestion.categoryCode);
+            // Use categoryList (fresh), NOT stale categories from closure
+            const cat = categoryList.find(c => c.code === suggestion.categoryCode);
+            console.log(`TX ${i}: AI=${suggestion.categoryCode}, Match=${cat?.code || 'NOT FOUND'}, ID=${cat?.id || 'null'}`);
             return {
               ...tx,
               suggestedCategoryId: cat?.id || null,
               aiConfidence: suggestion.confidence || 0,
+              aiCategoryCode: suggestion.categoryCode, // Store for debugging
               // New AI categorization fields
               aiReasoning: suggestion.reasoning || undefined,
               affectsPnl: suggestion.affects_pnl,

@@ -205,6 +205,8 @@ export interface ParsedTransaction {
   confidence: number;
   suggestedCategoryId?: string | null;
   aiConfidence?: number;
+  // AI category code for debugging
+  aiCategoryCode?: string;
   // New AI categorization fields
   aiReasoning?: string;
   affectsPnl?: boolean;
