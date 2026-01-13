@@ -24,6 +24,11 @@ export interface TransactionCategory {
   account_subcode: string | null;   // e.g., '632.01', '632.02'
   cost_center: CostCenter;          // DELIVERY, ADMIN, SALES
   is_kkeg: boolean;                 // Kanunen Kabul Edilmeyen Gider
+  // Parent-child relationship for sub-categories
+  parent_category_id: string | null;
+  depth: number;
+  // Virtual property for children (populated client-side)
+  children?: TransactionCategory[];
 }
 
 export interface UploadedBankFile {

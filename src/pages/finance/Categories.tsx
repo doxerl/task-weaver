@@ -99,55 +99,101 @@ export default function Categories() {
           </div>
         ) : (
           <div className="space-y-6">
-            {Object.entries(grouped).filter(([key]) => key !== 'all').map(([type, cats]) => (
-              <div key={type}>
-                <h2 className="text-sm font-semibold text-muted-foreground mb-2">
-                  {typeLabels[type.toUpperCase()] || type}
-                </h2>
-                <Card>
-                  <CardContent className="p-2 space-y-1">
-                    {cats.map(cat => (
-                      <div key={cat.id} className="flex items-center gap-3 p-2 rounded hover:bg-accent group">
-                        <span className="text-lg">{cat.icon}</span>
-                        <span className="flex-1">{cat.name}</span>
-                        <span className="text-xs text-muted-foreground">{cat.code}</span>
-                        <div 
-                          className="w-4 h-4 rounded-full flex-shrink-0" 
-                          style={{ backgroundColor: cat.color }}
-                        />
-                        {cat.is_system ? (
-                          <Lock className="h-4 w-4 text-muted-foreground" />
-                        ) : (
-                          <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7"
-                              onClick={() => handleEdit(cat)}
-                            >
-                              <Pencil className="h-3.5 w-3.5" />
-                            </Button>
-                            <Button
-                              size="icon"
-                              variant="ghost"
-                              className="h-7 w-7 text-destructive hover:text-destructive"
-                              onClick={() => setDeletingCategory(cat)}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                            </Button>
+            {Object.entries(grouped).filter(([key]) => key !== 'all').map(([type, cats]) => {
+              // Separate parent and child categories
+              const parentCats = cats.filter(c => !c.parent_category_id);
+              const childCats = cats.filter(c => c.parent_category_id);
+              
+              return (
+                <div key={type}>
+                  <h2 className="text-sm font-semibold text-muted-foreground mb-2">
+                    {typeLabels[type.toUpperCase()] || type}
+                  </h2>
+                  <Card>
+                    <CardContent className="p-2 space-y-1">
+                      {parentCats.map(cat => {
+                        const children = childCats.filter(c => c.parent_category_id === cat.id);
+                        return (
+                          <div key={cat.id}>
+                            <div className="flex items-center gap-3 p-2 rounded hover:bg-accent group">
+                              <span className="text-lg">{cat.icon}</span>
+                              <span className="flex-1 font-medium">{cat.name}</span>
+                              <span className="text-xs text-muted-foreground">{cat.account_subcode || cat.code}</span>
+                              <div 
+                                className="w-4 h-4 rounded-full flex-shrink-0" 
+                                style={{ backgroundColor: cat.color }}
+                              />
+                              {cat.is_system ? (
+                                <Lock className="h-4 w-4 text-muted-foreground" />
+                              ) : (
+                                <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7"
+                                    onClick={() => handleEdit(cat)}
+                                  >
+                                    <Pencil className="h-3.5 w-3.5" />
+                                  </Button>
+                                  <Button
+                                    size="icon"
+                                    variant="ghost"
+                                    className="h-7 w-7 text-destructive hover:text-destructive"
+                                    onClick={() => setDeletingCategory(cat)}
+                                  >
+                                    <Trash2 className="h-3.5 w-3.5" />
+                                  </Button>
+                                </div>
+                              )}
+                            </div>
+                            {/* Child categories */}
+                            {children.length > 0 && (
+                              <div className="ml-6 border-l-2 border-border pl-3 space-y-1">
+                                {children.map(child => (
+                                  <div key={child.id} className="flex items-center gap-3 p-2 rounded hover:bg-accent group">
+                                    <span className="text-muted-foreground">├</span>
+                                    <span className="text-sm">{child.icon}</span>
+                                    <span className="flex-1 text-sm">{child.name}</span>
+                                    <span className="text-xs text-muted-foreground">{child.account_subcode || child.code}</span>
+                                    {child.is_system ? (
+                                      <Lock className="h-3 w-3 text-muted-foreground" />
+                                    ) : (
+                                      <div className="flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-6 w-6"
+                                          onClick={() => handleEdit(child)}
+                                        >
+                                          <Pencil className="h-3 w-3" />
+                                        </Button>
+                                        <Button
+                                          size="icon"
+                                          variant="ghost"
+                                          className="h-6 w-6 text-destructive hover:text-destructive"
+                                          onClick={() => setDeletingCategory(child)}
+                                        >
+                                          <Trash2 className="h-3 w-3" />
+                                        </Button>
+                                      </div>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
                           </div>
-                        )}
-                      </div>
-                    ))}
-                    {cats.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Bu türde kategori yok
-                      </p>
-                    )}
-                  </CardContent>
-                </Card>
-              </div>
-            ))}
+                        );
+                      })}
+                      {parentCats.length === 0 && (
+                        <p className="text-sm text-muted-foreground text-center py-4">
+                          Bu türde kategori yok
+                        </p>
+                      )}
+                    </CardContent>
+                  </Card>
+                </div>
+              );
+            })}
           </div>
         )}
       </div>
