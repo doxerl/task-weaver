@@ -13,7 +13,7 @@ export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isL
         currentAssets: { cash: 0, banks: 0, receivables: 0, partnerReceivables: 0, vatReceivable: 0, inventory: 0, prepaidExpenses: 0, total: 0 },
         fixedAssets: { equipment: 0, vehicles: 0, depreciation: 0, total: 0 },
         totalAssets: 0,
-        shortTermLiabilities: { payables: 0, vatPayable: 0, taxPayable: 0, partnerPayables: 0, total: 0 },
+        shortTermLiabilities: { payables: 0, vatPayable: 0, taxPayable: 0, partnerPayables: 0, loanInstallments: 0, total: 0 },
         longTermLiabilities: { bankLoans: 0, total: 0 },
         equity: { paidCapital: 0, retainedEarnings: 0, currentProfit: 0, total: 0 },
         totalLiabilities: 0,
@@ -49,6 +49,7 @@ export function useBalanceSheet(year: number): { balanceSheet: BalanceSheet; isL
       vatPayable: balanceData.vatPayable,
       taxPayable: balanceData.taxPayable,
       partnerPayables: balanceData.partnerPayables,
+      loanInstallments: balanceData.shortTermLoanDebt,
       total: balanceData.shortTermTotal,
     };
 

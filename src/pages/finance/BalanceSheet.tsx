@@ -307,6 +307,12 @@ export default function BalanceSheet() {
                   <span>C. Ortaklara Borçlar</span>
                   <span>{formatCurrency(shortTermLiabilities.partnerPayables)}</span>
                 </div>
+                {shortTermLiabilities.loanInstallments > 0 && (
+                  <div className="flex justify-between mt-2">
+                    <span>D. Kredi Taksitleri (12 Aylık)</span>
+                    <span>{formatCurrency(shortTermLiabilities.loanInstallments)}</span>
+                  </div>
+                )}
               </div>
               <div className="flex justify-between font-medium border-t mt-2 pt-2">
                 <span>TOPLAM KISA VADELİ</span>

@@ -311,6 +311,7 @@ export interface BalanceSheet {
     vatPayable: number;
     taxPayable: number;
     partnerPayables: number;
+    loanInstallments: number;  // Önümüzdeki 12 ay içinde ödenecek kredi taksitleri
     total: number;
   };
   longTermLiabilities: {

@@ -108,6 +108,7 @@ export interface BalanceData {
   vatPayable: number;
   taxPayable: number;
   partnerPayables: number;
+  shortTermLoanDebt: number;  // Önümüzdeki 12 ay içinde ödenecek kredi taksitleri
   shortTermTotal: number;
   
   // Uzun Vadeli Borçlar
@@ -308,23 +309,37 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
 
     // Financing summary
     const creditIn = financing.filter(t => t.isIncome && t.categoryCode?.includes('KREDI')).reduce((sum, t) => sum + t.gross, 0);
-    const creditOut = financing.filter(t => !t.isIncome && t.categoryCode?.includes('KREDI')).reduce((sum, t) => sum + t.gross, 0);
-    const leasingOut = financing.filter(t => !t.isIncome && t.categoryCode?.includes('LEASING')).reduce((sum, t) => sum + t.gross, 0);
-    const interestPaid = financing.filter(t => !t.isIncome && t.categoryCode?.includes('FAIZ')).reduce((sum, t) => sum + t.gross, 0);
+    
+    // Kredi ödemelerini hesapla - BR.KAMP transfer işlemlerini hariç tut (hesaplar arası aktarım)
+    const creditOut = financing
+      .filter(t => !t.isIncome && t.categoryCode?.includes('KREDI'))
+      .filter(t => !t.description?.toUpperCase().includes('BR.KAMP')) // Transfer işlemini hariç tut
+      .reduce((sum, t) => sum + Math.abs(t.gross), 0);
+    
+    const leasingOut = financing.filter(t => !t.isIncome && t.categoryCode?.includes('LEASING')).reduce((sum, t) => sum + Math.abs(t.gross), 0);
+    const interestPaid = financing.filter(t => !t.isIncome && t.categoryCode?.includes('FAIZ')).reduce((sum, t) => sum + Math.abs(t.gross), 0);
+    
+    // Kredi kalan borç hesaplama
+    // Ana para: creditIn veya settings'ten gelen değer
+    const initialLoanAmount = creditIn || (settings?.bank_loans || 0);
+    const remainingDebt = Math.max(0, initialLoanAmount - creditOut);
+    
+    // Aylık taksit tutarı (fixedExpenses'tan veya varsayılan)
+    const monthlyInstallment = fixedExpenses.installmentDetails[0]?.monthlyAmount || 41262.64;
     
     const financingSummary: FinancingSummary = {
       creditIn,
       creditOut,
       leasingOut,
       interestPaid,
-      remainingDebt: (settings?.bank_loans || 0) + creditIn - creditOut - leasingOut,
+      remainingDebt,
       creditDetails: {
-        totalCredit: creditIn || (settings?.bank_loans || 0),
+        totalCredit: initialLoanAmount,
         paidAmount: creditOut,
-        remainingAmount: (settings?.bank_loans || 0) + creditIn - creditOut,
-        monthlyPayment: fixedExpenses.installmentDetails[0]?.monthlyAmount || 0,
-        paidMonths: fixedExpenses.installmentDetails[0]?.definition.installments_paid || 0,
-        remainingMonths: fixedExpenses.installmentDetails[0]?.remainingMonths || 0
+        remainingAmount: remainingDebt,
+        monthlyPayment: monthlyInstallment,
+        paidMonths: creditOut > 0 ? Math.round(creditOut / monthlyInstallment) : 0,
+        remainingMonths: remainingDebt > 0 ? Math.ceil(remainingDebt / monthlyInstallment) : 0
       }
     };
 
@@ -483,10 +498,16 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     
     // Short term liabilities
     const tradePayables = settings?.trade_payables || 0;
-    const shortTermTotal = tradePayables + vatPayable + partnerPayables;
     
-    // Long term liabilities
-    const bankLoansBalance = Math.max(0, financingSummary.remainingDebt);
+    // Kısa vadeli kredi borcu - önümüzdeki 12 ay içinde ödenecek taksitler
+    const monthlyInstallmentAmount = financingSummary.creditDetails.monthlyPayment;
+    const shortTermLoanDebt = Math.min(monthlyInstallmentAmount * 12, financingSummary.remainingDebt);
+    
+    const shortTermTotal = tradePayables + vatPayable + partnerPayables + shortTermLoanDebt;
+    
+    // Long term liabilities - 12 aydan sonra kalan kredi borcu
+    const longTermLoanDebt = Math.max(0, financingSummary.remainingDebt - shortTermLoanDebt);
+    const bankLoansBalance = longTermLoanDebt;
     const longTermTotal = bankLoansBalance;
     
     // Equity
@@ -515,6 +536,7 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       vatPayable,
       taxPayable: 0,
       partnerPayables,
+      shortTermLoanDebt,
       shortTermTotal,
       bankLoans: bankLoansBalance,
       longTermTotal,
@@ -572,6 +594,7 @@ function createEmptyHub(fixedExpenses: FixedExpenseSummary): FinancialDataHub {
     vatPayable: 0,
     taxPayable: 0,
     partnerPayables: 0,
+    shortTermLoanDebt: 0,
     shortTermTotal: 0,
     bankLoans: 0,
     longTermTotal: 0,
