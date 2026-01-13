@@ -6,8 +6,9 @@ import { useToast } from '@/hooks/use-toast';
 import { useCategories } from './useCategories';
 import { useBankImportSession, SaveTransactionParams, SaveCategorizationParams } from './useBankImportSession';
 import { parseFile } from '@/lib/fileParser';
-import { ParsedTransaction, ParseResult, ParseSummary, BankInfo, CategorizationResult, BalanceImpact } from '@/types/finance';
+import { ParsedTransaction, ParseResult, ParseSummary, BankInfo, CategorizationResult, BalanceImpact, TransactionCategory } from '@/types/finance';
 import { EditableTransaction } from '@/components/finance/TransactionEditor';
+import { categorizeWithRules, RuleMatchResult } from './useCategoryRules';
 
 export type UploadStatus = 'idle' | 'uploading' | 'parsing' | 'categorizing' | 'saving' | 'completed' | 'error' | 'cancelled' | 'paused';
 
@@ -282,31 +283,76 @@ export function useBankFileUpload() {
     return allTransactions;
   };
 
-  // Categorize transactions and save to DB
+  // Categorize transactions using hybrid approach: Rules -> Keywords -> AI
   const categorizeTransactions = async (parsed: ParsedTransaction[]): Promise<ParsedTransaction[]> => {
+    if (!user?.id) {
+      console.warn('No user ID, skipping categorization');
+      return parsed;
+    }
+
     // CRITICAL: Fetch fresh categories to avoid stale closure issue
     const { data: freshCategories } = await supabase
       .from('transaction_categories')
       .select('*')
       .eq('is_active', true);
     
-    const categoryList = freshCategories || [];
+    const categoryList = (freshCategories || []) as TransactionCategory[];
     console.log('Fresh categories loaded:', categoryList.length, categoryList.map(c => c.code));
 
-    const totalCatBatches = Math.ceil(parsed.length / CATEGORIZE_BATCH_SIZE);
+    // STAGE 1 & 2: Rule and Keyword matching (client-side, instant)
+    console.log('🔍 Starting rule/keyword matching...');
+    const { matched, needsAI } = await categorizeWithRules(parsed, user.id, categoryList);
+    
+    console.log(`✅ Rule/Keyword matched: ${matched.length}/${parsed.length}`);
+    console.log(`🤖 Sending to AI: ${needsAI.length}/${parsed.length}`);
+
+    // Apply matched results to transactions
+    const categorizedFromRules = parsed.map((tx) => {
+      const match = matched.find(m => m.transactionIndex === tx.index);
+      if (match) {
+        return {
+          ...tx,
+          suggestedCategoryId: match.categoryId,
+          aiConfidence: match.confidence,
+          aiCategoryCode: match.categoryCode,
+          aiReasoning: `[${match.source}] ${match.reasoning}`,
+          affectsPnl: match.affectsPnl,
+          balanceImpact: match.balanceImpact as BalanceImpact,
+          counterparty: match.counterparty || tx.counterparty
+        };
+      }
+      return tx;
+    });
+
+    // If no transactions need AI, return early
+    if (needsAI.length === 0) {
+      console.log('✨ All transactions matched by rules/keywords, skipping AI call');
+      setBatchProgress({
+        current: 1,
+        total: 1,
+        processedTransactions: parsed.length,
+        totalTransactions: parsed.length,
+        estimatedTimeLeft: 0,
+        stage: 'categorizing',
+      });
+      return categorizedFromRules;
+    }
+
+    // STAGE 3: AI categorization for unmatched transactions
+    const totalCatBatches = Math.ceil(needsAI.length / CATEGORIZE_BATCH_SIZE);
     const totalParallelGroups = Math.ceil(totalCatBatches / PARALLEL_BATCH_COUNT);
 
     // Initialize batch progress for categorization
     setBatchProgress({
       current: 0,
       total: totalCatBatches,
-      processedTransactions: 0,
+      processedTransactions: matched.length,
       totalTransactions: parsed.length,
       estimatedTimeLeft: totalParallelGroups * ESTIMATED_SECONDS_PER_CATEGORIZE_GROUP,
       stage: 'categorizing',
     });
 
-    // Start simulated progress interval for categorization (now faster with parallel)
+    // Start simulated progress interval for categorization
     let simulatedGroup = 0;
     clearProgressInterval();
     progressIntervalRef.current = setInterval(() => {
@@ -318,15 +364,16 @@ export function useBankFileUpload() {
       setBatchProgress(prev => ({
         ...prev,
         current: simulatedBatch,
-        processedTransactions: Math.min(simulatedBatch * CATEGORIZE_BATCH_SIZE, parsed.length),
+        processedTransactions: matched.length + Math.min(simulatedBatch * CATEGORIZE_BATCH_SIZE, needsAI.length),
         estimatedTimeLeft: Math.max(0, (totalParallelGroups - simulatedGroup) * ESTIMATED_SECONDS_PER_CATEGORIZE_GROUP),
         stage: 'categorizing',
       }));
     }, ESTIMATED_SECONDS_PER_CATEGORIZE_GROUP * 1000);
 
     try {
+      // Only send unmatched transactions to AI
       const { data: catData, error: catError } = await supabase.functions.invoke('categorize-transactions', {
-        body: { transactions: parsed, categories: categoryList }
+        body: { transactions: needsAI, categories: categoryList }
       });
 
       // Kategorilendirme tamamlandı
@@ -340,61 +387,87 @@ export function useBankFileUpload() {
       }));
 
       if (!catError && catData?.results) {
-        console.log(`AI categorized ${catData.results.length} transactions`);
-        console.log('Available category codes:', categoryList.map(c => c.code));
+        console.log(`🤖 AI categorized ${catData.results.length} transactions`);
 
-        // Map AI suggestions to transactions with new fields - USE freshCategories!
-        const categorized = parsed.map((tx, i) => {
-          const suggestion = catData.results.find((r: CategorizationResult) => r.index === i);
-          if (suggestion) {
-            // Use categoryList (fresh), NOT stale categories from closure
-            const cat = categoryList.find(c => c.code === suggestion.categoryCode);
-            console.log(`TX ${i}: AI=${suggestion.categoryCode}, Match=${cat?.code || 'NOT FOUND'}, ID=${cat?.id || 'null'}`);
+        // Create a map of AI results by original index
+        const aiResultsMap = new Map<number, CategorizationResult>();
+        catData.results.forEach((r: CategorizationResult) => {
+          aiResultsMap.set(r.index, r);
+        });
+
+        // Merge AI results with rule-matched results
+        const finalCategorized = categorizedFromRules.map((tx) => {
+          // Skip if already matched by rules/keywords
+          if (matched.some(m => m.transactionIndex === tx.index)) {
+            return tx;
+          }
+
+          // Find AI result for this transaction
+          const aiResult = aiResultsMap.get(tx.index);
+          if (aiResult) {
+            const cat = categoryList.find(c => c.code === aiResult.categoryCode);
+            console.log(`TX ${tx.index}: AI=${aiResult.categoryCode}, Match=${cat?.code || 'NOT FOUND'}`);
             return {
               ...tx,
               suggestedCategoryId: cat?.id || null,
-              aiConfidence: suggestion.confidence || 0,
-              aiCategoryCode: suggestion.categoryCode, // Store for debugging
-              // New AI categorization fields
-              aiReasoning: suggestion.reasoning || undefined,
-              affectsPnl: suggestion.affects_pnl,
-              balanceImpact: suggestion.balance_impact as BalanceImpact,
-              // Update counterparty if AI found a better one
-              counterparty: suggestion.counterparty || tx.counterparty
+              aiConfidence: aiResult.confidence || 0,
+              aiCategoryCode: aiResult.categoryCode,
+              aiReasoning: `[ai] ${aiResult.reasoning || ''}`,
+              affectsPnl: aiResult.affects_pnl,
+              balanceImpact: aiResult.balance_impact as BalanceImpact,
+              counterparty: aiResult.counterparty || tx.counterparty
             };
           }
           return tx;
         });
 
-        // Save categorization results to DB if we have an active session
+        // Save all categorization results to DB if we have an active session
         if (currentSessionIdRef.current) {
           try {
-            const categorizationParams: SaveCategorizationParams[] = catData.results.map((r: CategorizationResult) => ({
-              row_number: parsed[r.index]?.row_number || r.index + 1,
-              category_code: r.categoryCode,
-              category_type: r.categoryType,
-              confidence: r.confidence,
-              reasoning: r.reasoning || '',
-              counterparty: r.counterparty,
-              affects_pnl: r.affects_pnl,
-              balance_impact: r.balance_impact
-            }));
-            await bankImportSession.saveCategorizations(categorizationParams);
-            console.log('Categorization results saved to DB');
+            // Combine rule matches and AI results for DB save
+            const allCategorizationResults: SaveCategorizationParams[] = [
+              // Rule/Keyword matches
+              ...matched.map(m => {
+                const tx = parsed.find(t => t.index === m.transactionIndex);
+                return {
+                  row_number: tx?.row_number || m.transactionIndex + 1,
+                  category_code: m.categoryCode,
+                  category_type: m.categoryType,
+                  confidence: m.confidence,
+                  reasoning: `[${m.source}] ${m.reasoning}`,
+                  counterparty: m.counterparty || null,
+                  affects_pnl: m.affectsPnl,
+                  balance_impact: m.balanceImpact
+                };
+              }),
+              // AI results
+              ...catData.results.map((r: CategorizationResult) => ({
+                row_number: needsAI.find(t => t.index === r.index)?.row_number || r.index + 1,
+                category_code: r.categoryCode,
+                category_type: r.categoryType,
+                confidence: r.confidence,
+                reasoning: `[ai] ${r.reasoning || ''}`,
+                counterparty: r.counterparty,
+                affects_pnl: r.affects_pnl,
+                balance_impact: r.balance_impact
+              }))
+            ];
+            await bankImportSession.saveCategorizations(allCategorizationResults);
+            console.log('All categorization results saved to DB');
           } catch (saveErr) {
             console.warn('Failed to save categorizations to DB:', saveErr);
           }
         }
 
-        return categorized;
+        return finalCategorized;
       } else {
         console.warn('AI kategorilendirme atlandı:', catError?.message);
-        return parsed;
+        return categorizedFromRules;
       }
     } catch (catErr) {
       clearProgressInterval();
       console.warn('AI kategorilendirme hatası:', catErr);
-      return parsed;
+      return categorizedFromRules;
     }
   };
 

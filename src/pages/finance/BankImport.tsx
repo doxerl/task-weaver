@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle, PlayCircle, Eye, RefreshCw, Trash2 } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle, PlayCircle, Eye, RefreshCw, Trash2, UserPlus } from 'lucide-react';
 import { useBankFileUpload } from '@/hooks/finance/useBankFileUpload';
 import { useBankImportSession } from '@/hooks/finance/useBankImportSession';
 import { TransactionEditor, EditableTransaction } from '@/components/finance/TransactionEditor';
@@ -12,6 +12,7 @@ import { BottomTabBar } from '@/components/BottomTabBar';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { ParsedTransactionList } from '@/components/finance/ParsedTransactionList';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { PartnerRuleDialog } from '@/components/finance/PartnerRuleDialog';
 
 type ViewMode = 'upload' | 'preview' | 'completed';
 
@@ -222,6 +223,14 @@ export default function BankImport() {
                 )}
               </p>
             </div>
+            <PartnerRuleDialog 
+              trigger={
+                <Button variant="outline" size="sm" title="Ortak tanımla">
+                  <UserPlus className="h-4 w-4" />
+                </Button>
+              }
+              onSuccess={() => recategorizeAll()}
+            />
             <Button
               variant="outline"
               size="sm"
