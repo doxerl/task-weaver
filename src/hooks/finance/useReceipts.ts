@@ -41,6 +41,20 @@ export function useReceipts(year?: number, month?: number) {
     enabled: !!user?.id
   });
 
+  // Helper to check for duplicate receipts by receipt_no
+  const checkDuplicateReceipt = async (receiptNo: string): Promise<Receipt | null> => {
+    if (!receiptNo || !user?.id) return null;
+    
+    const { data } = await supabase
+      .from('receipts')
+      .select('*, category:transaction_categories!category_id(*)')
+      .eq('user_id', user.id)
+      .eq('receipt_no', receiptNo)
+      .maybeSingle();
+    
+    return data as Receipt | null;
+  };
+
   // Helper to save a single receipt from parsed data
   const saveReceiptFromOCR = async (
     ocr: Record<string, any>,
@@ -48,8 +62,22 @@ export function useReceipts(year?: number, month?: number) {
     fileName: string,
     fileType: string,
     documentType: DocumentType,
-    receiptSubtype?: ReceiptSubtype
-  ) => {
+    receiptSubtype?: ReceiptSubtype,
+    skipDuplicateCheck = false
+  ): Promise<{ receipt: Receipt | null; skipped: boolean; duplicateInfo?: string }> => {
+    // Duplicate check
+    if (!skipDuplicateCheck && ocr.receiptNo) {
+      const existing = await checkDuplicateReceipt(ocr.receiptNo);
+      if (existing) {
+        const sellerInfo = existing.seller_name || existing.vendor_name || 'Bilinmeyen satıcı';
+        return { 
+          receipt: null, 
+          skipped: true, 
+          duplicateInfo: `${ocr.receiptNo} (${sellerInfo})`
+        };
+      }
+    }
+
     let receiptDate = null;
     let receiptMonth = new Date().getMonth() + 1;
     let receiptYear = new Date().getFullYear();
@@ -114,7 +142,7 @@ export function useReceipts(year?: number, month?: number) {
       .single();
     
     if (insertError) throw insertError;
-    return receipt;
+    return { receipt: receipt as Receipt, skipped: false };
   };
 
   const uploadReceipt = useMutation({
@@ -153,12 +181,13 @@ export function useReceipts(year?: number, month?: number) {
         
         const results = zipData?.results || [];
         const savedReceipts: Receipt[] = [];
+        const skippedDuplicates: string[] = [];
         
         for (let i = 0; i < results.length; i++) {
           const result = results[i];
           if (result.success && result.result) {
             try {
-              const receipt = await saveReceiptFromOCR(
+              const saveResult = await saveReceiptFromOCR(
                 result.result,
                 publicUrl, // Use ZIP URL as reference
                 result.fileName,
@@ -166,12 +195,25 @@ export function useReceipts(year?: number, month?: number) {
                 documentType,
                 receiptSubtype
               );
-              if (receipt) savedReceipts.push(receipt as Receipt);
+              if (saveResult.skipped && saveResult.duplicateInfo) {
+                skippedDuplicates.push(saveResult.duplicateInfo);
+              } else if (saveResult.receipt) {
+                savedReceipts.push(saveResult.receipt);
+              }
             } catch (e) {
               console.warn('Failed to save receipt from ZIP:', result.fileName, e);
             }
           }
           setUploadProgress(30 + ((i + 1) / results.length) * 60);
+        }
+        
+        // Show duplicate warning if any
+        if (skippedDuplicates.length > 0) {
+          toast({ 
+            title: 'Bazı belgeler zaten mevcut', 
+            description: `${skippedDuplicates.length} duplike atlandı: ${skippedDuplicates.slice(0, 3).join(', ')}${skippedDuplicates.length > 3 ? '...' : ''}`,
+            variant: 'default'
+          });
         }
         
         setUploadProgress(100);
@@ -192,10 +234,14 @@ export function useReceipts(year?: number, month?: number) {
         setUploadProgress(80);
         
         const ocr = xmlData?.result || {};
-        const receipt = await saveReceiptFromOCR(ocr, publicUrl, file.name, 'xml', documentType, 'invoice');
+        const saveResult = await saveReceiptFromOCR(ocr, publicUrl, file.name, 'xml', documentType, 'invoice');
+        
+        if (saveResult.skipped && saveResult.duplicateInfo) {
+          throw new Error(`Bu fatura zaten yüklenmiş: ${saveResult.duplicateInfo}`);
+        }
         
         setUploadProgress(100);
-        return receipt as Receipt;
+        return saveResult.receipt as Receipt;
       }
 
       // Handle images and PDFs (existing logic)
@@ -210,7 +256,7 @@ export function useReceipts(year?: number, month?: number) {
       
       setUploadProgress(80);
 
-      const receipt = await saveReceiptFromOCR(
+      const saveResult = await saveReceiptFromOCR(
         ocr,
         publicUrl,
         file.name,
@@ -219,8 +265,12 @@ export function useReceipts(year?: number, month?: number) {
         receiptSubtype
       );
       
+      if (saveResult.skipped && saveResult.duplicateInfo) {
+        throw new Error(`Bu belge zaten yüklenmiş: ${saveResult.duplicateInfo}`);
+      }
+      
       setUploadProgress(100);
-      return receipt as Receipt;
+      return saveResult.receipt as Receipt;
     },
     onSuccess: async (result) => {
       queryClient.invalidateQueries({ queryKey: ['receipts'] });
