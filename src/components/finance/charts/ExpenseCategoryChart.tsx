@@ -4,15 +4,16 @@ import { useMemo } from 'react';
 
 interface ExpenseCategoryChartProps {
   data: ExpenseCategory[];
+  formatAmount?: (value: number) => string;
 }
 
-const formatCurrency = (value: number) => {
+const defaultFormatCurrency = (value: number) => {
   if (value >= 1000000) return `₺${(value / 1000000).toFixed(1)}M`;
   if (value >= 1000) return `₺${(value / 1000).toFixed(0)}K`;
   return `₺${value.toFixed(0)}`;
 };
 
-const formatFullCurrency = (value: number) => new Intl.NumberFormat('tr-TR', { 
+const defaultFormatFullCurrency = (value: number) => new Intl.NumberFormat('tr-TR', { 
   style: 'currency', 
   currency: 'TRY', 
   maximumFractionDigits: 0 
@@ -32,7 +33,26 @@ const GRADIENT_COLORS = [
   'hsl(var(--muted))',
 ];
 
-export function ExpenseCategoryChart({ data }: ExpenseCategoryChartProps) {
+export function ExpenseCategoryChart({ data, formatAmount }: ExpenseCategoryChartProps) {
+  const formatter = formatAmount || defaultFormatFullCurrency;
+  
+  // Create short format based on whether we have custom formatAmount
+  const formatShort = useMemo(() => {
+    if (formatAmount) {
+      // Extract currency symbol from formatted output
+      return (value: number) => {
+        const formatted = formatAmount(value);
+        // Try to detect if it's USD or TRY based on the symbol
+        const isUsd = formatted.includes('$');
+        const symbol = isUsd ? '$' : '₺';
+        if (value >= 1000000) return `${symbol}${(value / 1000000).toFixed(1)}M`;
+        if (value >= 1000) return `${symbol}${(value / 1000).toFixed(0)}K`;
+        return `${symbol}${value.toFixed(0)}`;
+      };
+    }
+    return defaultFormatCurrency;
+  }, [formatAmount]);
+
   const top7 = useMemo(() => {
     return data.slice(0, 7).map((item, index) => ({
       ...item,
@@ -51,7 +71,7 @@ export function ExpenseCategoryChart({ data }: ExpenseCategoryChartProps) {
         <XAxis 
           type="number" 
           tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
-          tickFormatter={formatCurrency} 
+          tickFormatter={formatShort} 
           axisLine={false}
           tickLine={false}
         />
@@ -64,7 +84,7 @@ export function ExpenseCategoryChart({ data }: ExpenseCategoryChartProps) {
           tickLine={false}
         />
         <Tooltip 
-          formatter={(value: number) => formatFullCurrency(value)} 
+          formatter={(value: number) => formatter(value)} 
           contentStyle={{ 
             backgroundColor: 'hsl(var(--card))', 
             border: '1px solid hsl(var(--border))',

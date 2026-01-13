@@ -260,16 +260,16 @@ export default function Reports() {
           <TabsContent value="dashboard" className="space-y-4">
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Aylık Gelir vs Gider</CardTitle></CardHeader>
-              <CardContent><MonthlyTrendChart data={monthlyData} /></CardContent>
+              <CardContent><MonthlyTrendChart data={monthlyData} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
             </Card>
             <div className="grid md:grid-cols-2 gap-4">
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Hizmet Bazlı Gelir</CardTitle></CardHeader>
-                <CardContent><ServiceRevenueChart data={incomeAnalysis.serviceRevenue} /></CardContent>
+                <CardContent><ServiceRevenueChart data={incomeAnalysis.serviceRevenue} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
               </Card>
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Gider Kategorileri</CardTitle></CardHeader>
-                <CardContent><ExpenseCategoryChart data={expenseAnalysis.topCategories} /></CardContent>
+                <CardContent><ExpenseCategoryChart data={expenseAnalysis.topCategories} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
               </Card>
             </div>
           </TabsContent>
@@ -278,7 +278,7 @@ export default function Reports() {
           <TabsContent value="income" className="space-y-4">
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Hizmet Bazlı Gelir Dağılımı</CardTitle></CardHeader>
-              <CardContent><ServiceRevenueChart data={incomeAnalysis.serviceRevenue} /></CardContent>
+              <CardContent><ServiceRevenueChart data={incomeAnalysis.serviceRevenue} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
             </Card>
           </TabsContent>
 
@@ -286,7 +286,7 @@ export default function Reports() {
           <TabsContent value="expense" className="space-y-4">
             <Card>
               <CardHeader className="pb-2"><CardTitle className="text-sm">Gider Kategorileri</CardTitle></CardHeader>
-              <CardContent><ExpenseCategoryChart data={expenseAnalysis.topCategories} /></CardContent>
+              <CardContent><ExpenseCategoryChart data={expenseAnalysis.topCategories} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
             </Card>
             <div className="grid grid-cols-2 gap-3">
               <Card>
