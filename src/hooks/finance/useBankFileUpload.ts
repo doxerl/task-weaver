@@ -97,6 +97,7 @@ export function useBankFileUpload() {
     setCanResume(false);
     setPausedTransactionCount(0);
     resumeStateRef.current = null;
+    currentSessionIdRef.current = null;
     setBatchProgress({
       current: 0,
       total: 0,
@@ -105,7 +106,12 @@ export function useBankFileUpload() {
       estimatedTimeLeft: 0,
       stage: 'parsing',
     });
-  }, [clearProgressInterval]);
+    
+    // Cache invalidation
+    queryClient.invalidateQueries({ queryKey: ['bankImportSession'] });
+    queryClient.invalidateQueries({ queryKey: ['bankImportTransactions'] });
+    queryClient.invalidateQueries({ queryKey: ['activeImportSession'] });
+  }, [clearProgressInterval, queryClient]);
 
   // Process a single batch
   const processSingleBatch = async (

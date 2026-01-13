@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle, PlayCircle, Eye, RefreshCw } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle, PlayCircle, Eye, RefreshCw, Trash2 } from 'lucide-react';
 import { useBankFileUpload } from '@/hooks/finance/useBankFileUpload';
 import { useBankImportSession } from '@/hooks/finance/useBankImportSession';
 import { TransactionEditor, EditableTransaction } from '@/components/finance/TransactionEditor';
@@ -50,7 +50,8 @@ export default function BankImport() {
     isApproving,
     uncategorizedCount,
     recategorizeUncategorized,
-    isRecategorizing
+    isRecategorizing,
+    isCancelling
   } = useBankImportSession();
 
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
@@ -143,11 +144,23 @@ export default function BankImport() {
     }
   };
 
-  const handleClear = () => {
-    setSelectedFile(null);
-    setError(null);
-    setViewMode('upload');
-    reset();
+  const handleClear = async () => {
+    try {
+      // 1. Delete session and its transactions from DB
+      if (hasActiveSession) {
+        await cancelSession();
+      }
+      
+      // 2. Reset React states
+      setSelectedFile(null);
+      setError(null);
+      setViewMode('upload');
+      
+      // 3. Reset upload hook state (includes cache invalidation)
+      reset();
+    } catch (err) {
+      console.error('Reset failed:', err);
+    }
   };
 
   const statusText: Record<string, string> = {
@@ -178,15 +191,25 @@ export default function BankImport() {
   }
 
   // Preview mode - show transaction editor with tabs
+  const isClearing = isCancelling;
+
   if (viewMode === 'preview' && effectiveTransactions.length > 0) {
     return (
       <div className="min-h-screen bg-background pb-20">
         <div className="p-4 space-y-4">
           <div className="flex items-center gap-3">
-            <button onClick={handleClear} className="p-2 hover:bg-accent rounded-lg">
-              <ArrowLeft className="h-5 w-5" />
+            <button 
+              onClick={handleClear} 
+              disabled={isSaving || isClearing}
+              className="p-2 hover:bg-accent rounded-lg disabled:opacity-50"
+            >
+              {isClearing ? (
+                <Loader2 className="h-5 w-5 animate-spin" />
+              ) : (
+                <ArrowLeft className="h-5 w-5" />
+              )}
             </button>
-            <div>
+            <div className="flex-1">
               <h1 className="text-xl font-bold">İşlemleri Düzenle</h1>
               <p className="text-sm text-muted-foreground">
                 {effectiveTransactions.length} işlem bulundu - kategorileri seçin
@@ -197,6 +220,18 @@ export default function BankImport() {
                 )}
               </p>
             </div>
+            <Button
+              variant="destructive"
+              size="sm"
+              onClick={handleClear}
+              disabled={isSaving || isClearing}
+            >
+              {isClearing ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Trash2 className="h-4 w-4" />
+              )}
+            </Button>
           </div>
 
           {/* Recategorize uncategorized transactions */}
