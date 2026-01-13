@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -14,7 +14,68 @@ import { useFixedExpenses } from '@/hooks/finance/useFixedExpenses';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { cn } from '@/lib/utils';
 
-const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
+const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { 
+  minimumFractionDigits: 2, 
+  maximumFractionDigits: 2 
+}).format(n);
+
+// Row component for consistent styling
+const BalanceRow = ({ 
+  label, 
+  value, 
+  level = 0, 
+  isTotal = false, 
+  isNegative = false,
+  isSectionTotal = false,
+  isMainTotal = false,
+}: { 
+  label: string; 
+  value: number; 
+  level?: number; 
+  isTotal?: boolean; 
+  isNegative?: boolean;
+  isSectionTotal?: boolean;
+  isMainTotal?: boolean;
+}) => {
+  const paddingLeft = level * 16;
+  
+  if (isMainTotal) {
+    return (
+      <div className="flex justify-between font-bold text-base border-t-2 border-b-2 py-2 my-2">
+        <span>{label}</span>
+        <span>{formatCurrency(value)}</span>
+      </div>
+    );
+  }
+  
+  if (isSectionTotal) {
+    return (
+      <div className="flex justify-between font-semibold text-sm border-t pt-1 mt-1">
+        <span>{label}</span>
+        <span>{formatCurrency(value)}</span>
+      </div>
+    );
+  }
+  
+  if (isTotal) {
+    return (
+      <div className="flex justify-between font-medium text-sm">
+        <span style={{ paddingLeft }}>{label}</span>
+        <span>{formatCurrency(value)}</span>
+      </div>
+    );
+  }
+  
+  return (
+    <div className={cn(
+      "flex justify-between text-sm",
+      isNegative && "text-destructive"
+    )}>
+      <span style={{ paddingLeft }}>{label}</span>
+      <span>{isNegative ? `(${formatCurrency(Math.abs(value))})` : formatCurrency(value)}</span>
+    </div>
+  );
+};
 
 export default function BalanceSheet() {
   const [year, setYear] = useState(new Date().getFullYear());
@@ -26,16 +87,40 @@ export default function BalanceSheet() {
   
   const [formData, setFormData] = useState({
     paid_capital: settings.paid_capital,
+    unpaid_capital: (settings as any).unpaid_capital || 0,
     retained_earnings: settings.retained_earnings,
+    legal_reserves: (settings as any).legal_reserves || 0,
     cash_on_hand: settings.cash_on_hand,
-    inventory_value: settings.inventory_value,
-    equipment_value: settings.equipment_value,
-    vehicles_value: settings.vehicles_value,
-    accumulated_depreciation: settings.accumulated_depreciation,
-    bank_loans: settings.bank_loans,
     trade_receivables: settings.trade_receivables,
+    other_vat: (settings as any).other_vat || 0,
+    vehicles_value: settings.vehicles_value,
+    fixtures_value: (settings as any).fixtures_value || settings.equipment_value,
+    accumulated_depreciation: settings.accumulated_depreciation,
     trade_payables: settings.trade_payables,
+    personnel_payables: (settings as any).personnel_payables || 0,
+    tax_payables: (settings as any).tax_payables || 0,
+    social_security_payables: (settings as any).social_security_payables || 0,
   });
+
+  // Sync formData when settings load
+  useEffect(() => {
+    setFormData({
+      paid_capital: settings.paid_capital,
+      unpaid_capital: (settings as any).unpaid_capital || 0,
+      retained_earnings: settings.retained_earnings,
+      legal_reserves: (settings as any).legal_reserves || 0,
+      cash_on_hand: settings.cash_on_hand,
+      trade_receivables: settings.trade_receivables,
+      other_vat: (settings as any).other_vat || 0,
+      vehicles_value: settings.vehicles_value,
+      fixtures_value: (settings as any).fixtures_value || settings.equipment_value,
+      accumulated_depreciation: settings.accumulated_depreciation,
+      trade_payables: settings.trade_payables,
+      personnel_payables: (settings as any).personnel_payables || 0,
+      tax_payables: (settings as any).tax_payables || 0,
+      social_security_payables: (settings as any).social_security_payables || 0,
+    });
+  }, [settings]);
 
   const handleSaveSettings = () => {
     upsertSettings.mutate(formData);
@@ -50,7 +135,8 @@ export default function BalanceSheet() {
     );
   }
 
-  const { currentAssets, fixedAssets, totalAssets, shortTermLiabilities, longTermLiabilities, equity, totalLiabilities, isBalanced, difference } = balanceSheet;
+  // Get data from balance sheet
+  const { totalAssets, totalLiabilities, isBalanced, difference } = balanceSheet;
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -72,97 +158,144 @@ export default function BalanceSheet() {
                 <SheetTitle>Bilanço Ayarları</SheetTitle>
               </SheetHeader>
               <div className="space-y-4 mt-4">
-                <div className="space-y-2">
-                  <Label>Ödenmiş Sermaye (₺)</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.paid_capital}
-                    onChange={e => setFormData(p => ({ ...p, paid_capital: Number(e.target.value) }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Geçmiş Yıllar Kârları (₺)</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.retained_earnings}
-                    onChange={e => setFormData(p => ({ ...p, retained_earnings: Number(e.target.value) }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Kasa (₺)</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.cash_on_hand}
-                    onChange={e => setFormData(p => ({ ...p, cash_on_hand: Number(e.target.value) }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Stoklar (₺)</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.inventory_value}
-                    onChange={e => setFormData(p => ({ ...p, inventory_value: Number(e.target.value) }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Demirbaşlar (₺)</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.equipment_value}
-                    onChange={e => setFormData(p => ({ ...p, equipment_value: Number(e.target.value) }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Taşıtlar (₺)</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.vehicles_value}
-                    onChange={e => setFormData(p => ({ ...p, vehicles_value: Number(e.target.value) }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Birikmiş Amortisman (₺)</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.accumulated_depreciation}
-                    onChange={e => setFormData(p => ({ ...p, accumulated_depreciation: Number(e.target.value) }))}
-                  />
-                </div>
-                <div className="space-y-2">
-                  <Label>Banka Kredileri (₺)</Label>
-                  <Input 
-                    type="number" 
-                    value={formData.bank_loans}
-                    onChange={e => setFormData(p => ({ ...p, bank_loans: Number(e.target.value) }))}
-                  />
+                {/* Özkaynaklar */}
+                <div className="border-b pb-3 mb-3">
+                  <h4 className="font-medium mb-3 text-sm text-muted-foreground">ÖZKAYNAKLAR</h4>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label>Sermaye (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.paid_capital}
+                        onChange={e => setFormData(p => ({ ...p, paid_capital: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Ödenmemiş Sermaye (-) (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.unpaid_capital}
+                        onChange={e => setFormData(p => ({ ...p, unpaid_capital: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Yasal Yedekler (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.legal_reserves}
+                        onChange={e => setFormData(p => ({ ...p, legal_reserves: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Geçmiş Yıllar Kârları (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.retained_earnings}
+                        onChange={e => setFormData(p => ({ ...p, retained_earnings: Number(e.target.value) }))}
+                      />
+                    </div>
+                  </div>
                 </div>
                 
-                {/* Bilanço Kalemleri - Manuel Giriş */}
-                <div className="border-t pt-4 mt-4">
-                  <h4 className="font-medium mb-3 text-sm text-muted-foreground">
-                    Ticari Alacak/Borç (Fatura Eşleştirmesi Yoksa)
-                  </h4>
-                  <div className="space-y-2">
-                    <Label>Ticari Alacaklar (₺)</Label>
-                    <Input 
-                      type="number" 
-                      value={formData.trade_receivables}
-                      onChange={e => setFormData(p => ({ ...p, trade_receivables: Number(e.target.value) }))}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Müşterilerden tahsil edilmemiş fatura tutarları
-                    </p>
+                {/* Dönen Varlıklar */}
+                <div className="border-b pb-3 mb-3">
+                  <h4 className="font-medium mb-3 text-sm text-muted-foreground">DÖNEN VARLIKLAR</h4>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label>Kasa (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.cash_on_hand}
+                        onChange={e => setFormData(p => ({ ...p, cash_on_hand: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Ticari Alacaklar - Alıcılar (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.trade_receivables}
+                        onChange={e => setFormData(p => ({ ...p, trade_receivables: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Diğer KDV (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.other_vat}
+                        onChange={e => setFormData(p => ({ ...p, other_vat: Number(e.target.value) }))}
+                      />
+                    </div>
                   </div>
-                  <div className="space-y-2 mt-3">
-                    <Label>Ticari Borçlar (₺)</Label>
-                    <Input 
-                      type="number" 
-                      value={formData.trade_payables}
-                      onChange={e => setFormData(p => ({ ...p, trade_payables: Number(e.target.value) }))}
-                    />
-                    <p className="text-xs text-muted-foreground">
-                      Tedarikçilere ödenmemiş fatura tutarları
-                    </p>
+                </div>
+                
+                {/* Duran Varlıklar */}
+                <div className="border-b pb-3 mb-3">
+                  <h4 className="font-medium mb-3 text-sm text-muted-foreground">DURAN VARLIKLAR</h4>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label>Taşıtlar (2024 ve öncesi) (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.vehicles_value}
+                        onChange={e => setFormData(p => ({ ...p, vehicles_value: Number(e.target.value) }))}
+                      />
+                      <p className="text-xs text-muted-foreground">Yıl içi alımlar otomatik eklenir</p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Demirbaşlar (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.fixtures_value}
+                        onChange={e => setFormData(p => ({ ...p, fixtures_value: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Birikmiş Amortismanlar (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.accumulated_depreciation}
+                        onChange={e => setFormData(p => ({ ...p, accumulated_depreciation: Number(e.target.value) }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Kısa Vadeli Borçlar */}
+                <div className="border-b pb-3 mb-3">
+                  <h4 className="font-medium mb-3 text-sm text-muted-foreground">KISA VADELİ BORÇLAR</h4>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label>Satıcılar (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.trade_payables}
+                        onChange={e => setFormData(p => ({ ...p, trade_payables: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Personele Borçlar (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.personnel_payables}
+                        onChange={e => setFormData(p => ({ ...p, personnel_payables: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Ödenecek Vergi ve Fonlar (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.tax_payables}
+                        onChange={e => setFormData(p => ({ ...p, tax_payables: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Ödenecek SGK Kesintileri (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.social_security_payables}
+                        onChange={e => setFormData(p => ({ ...p, social_security_payables: Number(e.target.value) }))}
+                      />
+                    </div>
                   </div>
                 </div>
                 
@@ -188,8 +321,7 @@ export default function BalanceSheet() {
             <AlertTriangle className="h-4 w-4" />
             <AlertTitle>Kategorisiz İşlem Var</AlertTitle>
             <AlertDescription>
-              {uncategorizedCount} adet işlem ({formatCurrency(uncategorizedTotal)}) kategorilendirilememiş. 
-              Bu işlemler bilançoya dahil edilmiyor.{' '}
+              {uncategorizedCount} adet işlem (₺{formatCurrency(uncategorizedTotal)}) kategorilendirilememiş.{' '}
               <Link to="/finance/bank-transactions" className="underline font-medium">
                 Kategorilendirmeye Git
               </Link>
@@ -198,9 +330,9 @@ export default function BalanceSheet() {
         )}
 
         {/* Date indicator */}
-        <p className="text-sm text-muted-foreground text-center">
-          31 Aralık {year} itibarıyla
-        </p>
+        <div className="text-center">
+          <p className="text-base font-semibold">31.12.{year} TARİHLİ AYRINTILI BİLANÇO</p>
+        </div>
 
         {/* Balance Check */}
         <Card className={cn(
@@ -214,206 +346,287 @@ export default function BalanceSheet() {
                 <AlertTriangle className="h-5 w-5 text-yellow-600" />
               )}
               <span className="text-sm font-medium">
-                {isBalanced ? 'Aktif = Pasif (Denklik Sağlandı)' : `Denklik Farkı: ${formatCurrency(difference)}`}
+                {isBalanced ? 'Aktif = Pasif (Denklik Sağlandı)' : `Denklik Farkı: ₺${formatCurrency(difference)}`}
               </span>
             </div>
           </CardContent>
         </Card>
 
-        {/* ASSETS */}
+        {/* AKTİF (VARLIKLAR) */}
         <Card>
-          <CardHeader className="pb-2 bg-blue-50 dark:bg-blue-950/20">
-            <CardTitle className="text-center text-blue-700 dark:text-blue-400">
+          <CardHeader className="pb-2 bg-primary/10">
+            <CardTitle className="text-center text-primary">
               AKTİF (VARLIKLAR)
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-4 space-y-4">
-            {/* Current Assets */}
+          <CardContent className="p-4 space-y-3">
+            {/* I - DÖNEN VARLIKLAR */}
             <div>
-              <h3 className="font-medium text-sm mb-2">I. DÖNEN VARLIKLAR</h3>
-              <div className="space-y-1 text-sm pl-4">
-                <div className="text-muted-foreground mb-1">A. Hazır Değerler</div>
-                <div className="flex justify-between pl-4">
-                  <span>1. Kasa</span>
-                  <span>{formatCurrency(currentAssets.cash)}</span>
-                </div>
-                <div className="flex justify-between pl-4">
-                  <span>2. Bankalar</span>
-                  <span>{formatCurrency(currentAssets.banks)}</span>
-                </div>
-                <div className="text-muted-foreground mb-1 mt-2">B. Ticari Alacaklar</div>
-                <div className="flex justify-between pl-4">
-                  <span>1. Müşterilerden Alacaklar</span>
-                  <span>{formatCurrency(currentAssets.receivables)}</span>
-                </div>
-                <div className="flex justify-between pl-4">
-                  <span>2. Ortaklardan Alacaklar</span>
-                  <span>{formatCurrency(currentAssets.partnerReceivables)}</span>
-                </div>
-                {currentAssets.vatReceivable > 0 && (
-                  <div className="flex justify-between pl-4">
-                    <span>3. Devreden KDV</span>
-                    <span>{formatCurrency(currentAssets.vatReceivable)}</span>
-                  </div>
+              <div className="font-semibold text-sm mb-2">I - DÖNEN VARLIKLAR</div>
+              
+              {/* A - Hazır Değerler */}
+              <div className="mb-2">
+                <BalanceRow 
+                  label="A - Hazır Değerler" 
+                  value={balanceSheet.currentAssets.cash + balanceSheet.currentAssets.banks} 
+                  isTotal 
+                />
+                <BalanceRow label="1 - Kasa" value={balanceSheet.currentAssets.cash} level={2} />
+                <BalanceRow label="3 - Bankalar" value={balanceSheet.currentAssets.banks} level={2} />
+              </div>
+              
+              {/* C - Ticari Alacaklar */}
+              <div className="mb-2">
+                <BalanceRow 
+                  label="C - Ticari Alacaklar" 
+                  value={balanceSheet.currentAssets.receivables} 
+                  isTotal 
+                />
+                <BalanceRow label="1 - Alıcılar" value={balanceSheet.currentAssets.receivables} level={2} />
+              </div>
+              
+              {/* H - Diğer Dönen Varlıklar */}
+              <div className="mb-2">
+                <BalanceRow 
+                  label="H - Diğer Dönen Varlıklar" 
+                  value={balanceSheet.currentAssets.vatReceivable + (balanceSheet.currentAssets as any).otherVat || balanceSheet.currentAssets.vatReceivable} 
+                  isTotal 
+                />
+                <BalanceRow label="2 - İndirilecek KDV" value={balanceSheet.currentAssets.vatReceivable} level={2} />
+                {((balanceSheet.currentAssets as any).otherVat || 0) > 0 && (
+                  <BalanceRow label="3 - Diğer KDV" value={(balanceSheet.currentAssets as any).otherVat || 0} level={2} />
                 )}
-                <div className="flex justify-between mt-2">
-                  <span>C. Stoklar</span>
-                  <span>{formatCurrency(currentAssets.inventory)}</span>
-                </div>
               </div>
-              <div className="flex justify-between font-medium border-t mt-2 pt-2">
-                <span>TOPLAM DÖNEN VARLIKLAR</span>
-                <span>{formatCurrency(currentAssets.total)}</span>
-              </div>
+              
+              <BalanceRow 
+                label="DÖNEN VARLIKLAR TOPLAMI" 
+                value={balanceSheet.currentAssets.total} 
+                isSectionTotal 
+              />
             </div>
 
-            {/* Fixed Assets */}
+            {/* II - DURAN VARLIKLAR */}
             <div>
-              <h3 className="font-medium text-sm mb-2">II. DURAN VARLIKLAR</h3>
-              <div className="space-y-1 text-sm pl-4">
-                <div className="text-muted-foreground mb-1">A. Maddi Duran Varlıklar</div>
-                <div className="flex justify-between pl-4">
-                  <span>1. Demirbaşlar</span>
-                  <span>{formatCurrency(fixedAssets.equipment)}</span>
-                </div>
-                <div className="flex justify-between pl-4">
-                  <span>2. Taşıtlar</span>
-                  <span>{formatCurrency(fixedAssets.vehicles)}</span>
-                </div>
-                <div className="flex justify-between pl-4 text-destructive">
-                  <span>3. Birikmiş Amortismanlar (-)</span>
-                  <span>-{formatCurrency(fixedAssets.depreciation)}</span>
-                </div>
+              <div className="font-semibold text-sm mb-2">II - DURAN VARLIKLAR</div>
+              
+              {/* D - Maddi Duran Varlıklar */}
+              <div className="mb-2">
+                <BalanceRow 
+                  label="D - Maddi Duran Varlıklar" 
+                  value={balanceSheet.fixedAssets.total} 
+                  isTotal 
+                />
+                <BalanceRow label="5 - Taşıtlar" value={balanceSheet.fixedAssets.vehicles} level={2} />
+                <BalanceRow label="6 - Demirbaşlar" value={balanceSheet.fixedAssets.equipment} level={2} />
+                <BalanceRow 
+                  label="8 - Birikmiş Amortismanlar (-)" 
+                  value={balanceSheet.fixedAssets.depreciation} 
+                  level={2} 
+                  isNegative 
+                />
               </div>
-              <div className="flex justify-between font-medium border-t mt-2 pt-2">
-                <span>TOPLAM DURAN VARLIKLAR</span>
-                <span>{formatCurrency(fixedAssets.total)}</span>
-              </div>
+              
+              <BalanceRow 
+                label="DURAN VARLIKLAR TOPLAMI" 
+                value={balanceSheet.fixedAssets.total} 
+                isSectionTotal 
+              />
             </div>
 
-            {/* Total Assets */}
-            <div className="flex justify-between font-bold text-lg border-t-2 pt-2 text-blue-700 dark:text-blue-400">
-              <span>TOPLAM AKTİF</span>
-              <span>{formatCurrency(totalAssets)}</span>
-            </div>
+            <BalanceRow 
+              label="AKTİF (VARLIKLAR) TOPLAMI" 
+              value={totalAssets} 
+              isMainTotal 
+            />
           </CardContent>
         </Card>
 
-        {/* LIABILITIES */}
+        {/* PASİF (KAYNAKLAR) */}
         <Card>
-          <CardHeader className="pb-2 bg-purple-50 dark:bg-purple-950/20">
-            <CardTitle className="text-center text-purple-700 dark:text-purple-400">
+          <CardHeader className="pb-2 bg-secondary/30">
+            <CardTitle className="text-center text-secondary-foreground">
               PASİF (KAYNAKLAR)
             </CardTitle>
           </CardHeader>
-          <CardContent className="p-4 space-y-4">
-            {/* Short Term Liabilities */}
+          <CardContent className="p-4 space-y-3">
+            {/* I - KISA VADELİ YABANCI KAYNAKLAR */}
             <div>
-              <h3 className="font-medium text-sm mb-2">I. KISA VADELİ YABANCI KAYNAKLAR</h3>
-              <div className="space-y-1 text-sm pl-4">
-                <div className="text-muted-foreground mb-1">A. Ticari Borçlar</div>
-                <div className="flex justify-between pl-4">
-                  <span>1. Satıcılara Borçlar</span>
-                  <span>{formatCurrency(shortTermLiabilities.payables)}</span>
+              <div className="font-semibold text-sm mb-2">I - KISA VADELİ YABANCI KAYNAKLAR</div>
+              
+              {/* A - Mali Borçlar */}
+              {balanceSheet.shortTermLiabilities.loanInstallments > 0 && (
+                <div className="mb-2">
+                  <BalanceRow 
+                    label="A - Mali Borçlar" 
+                    value={balanceSheet.shortTermLiabilities.loanInstallments} 
+                    isTotal 
+                  />
+                  <BalanceRow label="1 - Banka Kredileri" value={balanceSheet.shortTermLiabilities.loanInstallments} level={2} />
                 </div>
-                <div className="text-muted-foreground mb-1 mt-2">B. Ödenecek Vergi ve Fonlar</div>
-                <div className="flex justify-between pl-4">
-                  <span>1. Ödenecek KDV</span>
-                  <span>{formatCurrency(shortTermLiabilities.vatPayable)}</span>
-                </div>
-                <div className="flex justify-between mt-2">
-                  <span>C. Ortaklara Borçlar</span>
-                  <span>{formatCurrency(shortTermLiabilities.partnerPayables)}</span>
-                </div>
-                {shortTermLiabilities.loanInstallments > 0 && (
-                  <>
-                    <div className="text-muted-foreground mb-1 mt-2">D. Taksitli Borçlar (12 Ay İçi)</div>
-                    {fixedExpensesSummary.installmentDetails.map(detail => {
-                      const shortTermMonths = Math.min(12, detail.remainingMonths);
-                      const shortTermAmount = shortTermMonths * detail.monthlyAmount;
-                      if (shortTermAmount <= 0) return null;
-                      return (
-                        <div key={detail.definition.id} className="flex justify-between pl-4 text-sm">
-                          <span className="truncate mr-2">
-                            {detail.definition.expense_name} ({shortTermMonths} ay)
-                          </span>
-                          <span className="whitespace-nowrap">{formatCurrency(shortTermAmount)}</span>
-                        </div>
-                      );
-                    })}
-                  </>
-                )}
+              )}
+              
+              {/* B - Ticari Borçlar */}
+              <div className="mb-2">
+                <BalanceRow 
+                  label="B - Ticari Borçlar" 
+                  value={balanceSheet.shortTermLiabilities.payables} 
+                  isTotal 
+                />
+                <BalanceRow label="1 - Satıcılar" value={balanceSheet.shortTermLiabilities.payables} level={2} />
               </div>
-              <div className="flex justify-between font-medium border-t mt-2 pt-2">
-                <span>TOPLAM KISA VADELİ</span>
-                <span>{formatCurrency(shortTermLiabilities.total)}</span>
-              </div>
+              
+              {/* C - Diğer Borçlar */}
+              {(balanceSheet.shortTermLiabilities.partnerPayables > 0 || (balanceSheet.shortTermLiabilities as any).personnelPayables > 0) && (
+                <div className="mb-2">
+                  <BalanceRow 
+                    label="C - Diğer Borçlar" 
+                    value={balanceSheet.shortTermLiabilities.partnerPayables + ((balanceSheet.shortTermLiabilities as any).personnelPayables || 0)} 
+                    isTotal 
+                  />
+                  {balanceSheet.shortTermLiabilities.partnerPayables > 0 && (
+                    <BalanceRow label="1 - Ortaklara Borçlar" value={balanceSheet.shortTermLiabilities.partnerPayables} level={2} />
+                  )}
+                  {((balanceSheet.shortTermLiabilities as any).personnelPayables || 0) > 0 && (
+                    <BalanceRow label="4 - Personele Borçlar" value={(balanceSheet.shortTermLiabilities as any).personnelPayables || 0} level={2} />
+                  )}
+                </div>
+              )}
+              
+              {/* F - Ödenecek Vergi ve Diğer Yükümlülükler */}
+              {(balanceSheet.shortTermLiabilities.taxPayable > 0 || (balanceSheet.shortTermLiabilities as any).taxPayables > 0 || (balanceSheet.shortTermLiabilities as any).socialSecurityPayables > 0) && (
+                <div className="mb-2">
+                  <BalanceRow 
+                    label="F - Ödenecek Vergi ve Diğer Yükümlülükler" 
+                    value={(balanceSheet.shortTermLiabilities as any).taxPayables || 0 + (balanceSheet.shortTermLiabilities as any).socialSecurityPayables || 0} 
+                    isTotal 
+                  />
+                  {((balanceSheet.shortTermLiabilities as any).taxPayables || 0) > 0 && (
+                    <BalanceRow label="1 - Ödenecek Vergi ve Fonlar" value={(balanceSheet.shortTermLiabilities as any).taxPayables || 0} level={2} />
+                  )}
+                  {((balanceSheet.shortTermLiabilities as any).socialSecurityPayables || 0) > 0 && (
+                    <BalanceRow label="2 - Ödenecek Sosyal Güvenlik Kesintileri" value={(balanceSheet.shortTermLiabilities as any).socialSecurityPayables || 0} level={2} />
+                  )}
+                </div>
+              )}
+              
+              {/* I - Diğer Kısa Vadeli Yabancı Kaynaklar */}
+              {balanceSheet.shortTermLiabilities.vatPayable > 0 && (
+                <div className="mb-2">
+                  <BalanceRow 
+                    label="I - Diğer Kısa Vadeli Yabancı Kaynaklar" 
+                    value={balanceSheet.shortTermLiabilities.vatPayable} 
+                    isTotal 
+                  />
+                  <BalanceRow label="1 - Hesaplanan KDV" value={balanceSheet.shortTermLiabilities.vatPayable} level={2} />
+                </div>
+              )}
+              
+              <BalanceRow 
+                label="KISA VADELİ YABANCI KAY. TOPLAMI" 
+                value={balanceSheet.shortTermLiabilities.total} 
+                isSectionTotal 
+              />
             </div>
 
-            {/* Long Term Liabilities */}
+            {/* II - UZUN VADELİ YABANCI KAYNAKLAR */}
+            {balanceSheet.longTermLiabilities.total > 0 && (
+              <div>
+                <div className="font-semibold text-sm mb-2">II - UZUN VADELİ YABANCI KAYNAKLAR</div>
+                
+                <div className="mb-2">
+                  <BalanceRow 
+                    label="A - Mali Borçlar" 
+                    value={balanceSheet.longTermLiabilities.bankLoans} 
+                    isTotal 
+                  />
+                  <BalanceRow label="1 - Banka Kredileri" value={balanceSheet.longTermLiabilities.bankLoans} level={2} />
+                </div>
+                
+                <BalanceRow 
+                  label="UZUN VADELİ YABANCI KAY. TOPLAMI" 
+                  value={balanceSheet.longTermLiabilities.total} 
+                  isSectionTotal 
+                />
+              </div>
+            )}
+
+            {/* III - ÖZKAYNAKLAR */}
             <div>
-              <h3 className="font-medium text-sm mb-2">II. UZUN VADELİ YABANCI KAYNAKLAR</h3>
-              <div className="space-y-1 text-sm pl-4">
-                {longTermLiabilities.bankLoans > 0 ? (
-                  <>
-                    <div className="text-muted-foreground mb-1">A. Taksitli Borçlar (12 Ay Sonrası)</div>
-                    {fixedExpensesSummary.installmentDetails.map(detail => {
-                      const longTermMonths = Math.max(0, detail.remainingMonths - 12);
-                      const longTermAmount = longTermMonths * detail.monthlyAmount;
-                      if (longTermAmount <= 0) return null;
-                      return (
-                        <div key={detail.definition.id} className="flex justify-between pl-4 text-sm">
-                          <span className="truncate mr-2">
-                            {detail.definition.expense_name} ({longTermMonths} ay kaldı)
-                          </span>
-                          <span className="whitespace-nowrap">{formatCurrency(longTermAmount)}</span>
-                        </div>
-                      );
-                    })}
-                  </>
+              <div className="font-semibold text-sm mb-2">III - ÖZKAYNAKLAR</div>
+              
+              {/* A - Ödenmiş Sermaye */}
+              <div className="mb-2">
+                <BalanceRow 
+                  label="A - Ödenmiş Sermaye" 
+                  value={balanceSheet.equity.paidCapital - ((balanceSheet.equity as any).unpaidCapital || 0)} 
+                  isTotal 
+                />
+                <BalanceRow label="1 - Sermaye" value={balanceSheet.equity.paidCapital} level={2} />
+                {((balanceSheet.equity as any).unpaidCapital || 0) > 0 && (
+                  <BalanceRow 
+                    label="2 - Ödenmemiş Sermaye (-)" 
+                    value={(balanceSheet.equity as any).unpaidCapital || 0} 
+                    level={2} 
+                    isNegative 
+                  />
+                )}
+              </div>
+              
+              {/* C - Kar Yedekleri */}
+              {((balanceSheet.equity as any).legalReserves || 0) > 0 && (
+                <div className="mb-2">
+                  <BalanceRow 
+                    label="C - Kar Yedekleri" 
+                    value={(balanceSheet.equity as any).legalReserves || 0} 
+                    isTotal 
+                  />
+                  <BalanceRow label="1 - Yasal Yedekler" value={(balanceSheet.equity as any).legalReserves || 0} level={2} />
+                </div>
+              )}
+              
+              {/* D - Geçmiş Yıllar Karları */}
+              {balanceSheet.equity.retainedEarnings !== 0 && (
+                <div className="mb-2">
+                  <BalanceRow 
+                    label="D - Geçmiş Yıllar Karları" 
+                    value={balanceSheet.equity.retainedEarnings} 
+                    isTotal 
+                  />
+                  <BalanceRow label="1 - Geçmiş Yıllar Karları" value={balanceSheet.equity.retainedEarnings} level={2} />
+                </div>
+              )}
+              
+              {/* F - Dönem Net Karı (Zararı) */}
+              <div className="mb-2">
+                <BalanceRow 
+                  label="F - Dönem Net Karı (Zararı)" 
+                  value={balanceSheet.equity.currentProfit} 
+                  isTotal 
+                />
+                {balanceSheet.equity.currentProfit >= 0 ? (
+                  <BalanceRow label="1 - Dönem Net Karı" value={balanceSheet.equity.currentProfit} level={2} />
                 ) : (
-                  <div className="flex justify-between text-muted-foreground">
-                    <span>A. Banka Kredileri</span>
-                    <span>{formatCurrency(0)}</span>
-                  </div>
+                  <BalanceRow 
+                    label="2 - Dönem Net Zararı (-)" 
+                    value={Math.abs(balanceSheet.equity.currentProfit)} 
+                    level={2} 
+                    isNegative 
+                  />
                 )}
               </div>
-              <div className="flex justify-between font-medium border-t mt-2 pt-2">
-                <span>TOPLAM UZUN VADELİ</span>
-                <span>{formatCurrency(longTermLiabilities.total)}</span>
-              </div>
+              
+              <BalanceRow 
+                label="ÖZKAYNAKLAR TOPLAMI" 
+                value={balanceSheet.equity.total} 
+                isSectionTotal 
+              />
             </div>
 
-            {/* Equity */}
-            <div>
-              <h3 className="font-medium text-sm mb-2">III. ÖZKAYNAKLAR</h3>
-              <div className="space-y-1 text-sm pl-4">
-                <div className="flex justify-between">
-                  <span>A. Ödenmiş Sermaye</span>
-                  <span>{formatCurrency(equity.paidCapital)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>B. Geçmiş Yıllar Kârları</span>
-                  <span>{formatCurrency(equity.retainedEarnings)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span>C. Dönem Net Kârı</span>
-                  <span className={equity.currentProfit >= 0 ? "text-green-600" : "text-destructive"}>
-                    {formatCurrency(equity.currentProfit)}
-                  </span>
-                </div>
-              </div>
-              <div className="flex justify-between font-medium border-t mt-2 pt-2">
-                <span>TOPLAM ÖZKAYNAKLAR</span>
-                <span>{formatCurrency(equity.total)}</span>
-              </div>
-            </div>
-
-            {/* Total Liabilities */}
-            <div className="flex justify-between font-bold text-lg border-t-2 pt-2 text-purple-700 dark:text-purple-400">
-              <span>TOPLAM PASİF</span>
-              <span>{formatCurrency(totalLiabilities)}</span>
-            </div>
+            <BalanceRow 
+              label="PASİF (KAYNAKLAR) TOPLAMI" 
+              value={totalLiabilities} 
+              isMainTotal 
+            />
           </CardContent>
         </Card>
 

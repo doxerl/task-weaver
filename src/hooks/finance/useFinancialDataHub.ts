@@ -85,40 +85,94 @@ export interface VatSummary {
 }
 
 export interface BalanceData {
-  // Dönen Varlıklar
-  bankBalance: number;
-  cashOnHand: number;
-  inventory: number;
-  tradeReceivables: number;
-  partnerReceivables: number;
-  vatReceivable: number;
+  // I - DÖNEN VARLIKLAR
+  // A - Hazır Değerler
+  cashOnHand: number;           // 1 - Kasa
+  bankBalance: number;          // 3 - Bankalar
+  readyValuesTotal: number;
+  
+  // C - Ticari Alacaklar
+  tradeReceivables: number;     // 1 - Alıcılar
+  tradeReceivablesTotal: number;
+  
+  // H - Diğer Dönen Varlıklar
+  vatDeductible: number;        // 2 - İndirilecek KDV
+  otherVat: number;             // 3 - Diğer KDV
+  otherCurrentAssetsTotal: number;
+  
   currentAssetsTotal: number;
   
-  // Duran Varlıklar
-  equipment: number;
-  vehicles: number;
-  depreciation: number;
+  // II - DURAN VARLIKLAR
+  // D - Maddi Duran Varlıklar
+  vehicles: number;             // 5 - Taşıtlar
+  fixtures: number;             // 6 - Demirbaşlar
+  depreciation: number;         // 8 - Birikmiş Amortismanlar (-)
+  tangibleAssetsTotal: number;
   fixedAssetsTotal: number;
   
   // Toplam Aktif
   totalAssets: number;
   
-  // Kısa Vadeli Borçlar
-  tradePayables: number;
-  vatPayable: number;
-  taxPayable: number;
-  partnerPayables: number;
-  shortTermLoanDebt: number;  // Önümüzdeki 12 ay içinde ödenecek kredi taksitleri
+  // Legacy fields for compatibility
+  inventory: number;
+  partnerReceivables: number;
+  vatReceivable: number;
+  equipment: number;
+  
+  // I - KISA VADELİ YABANCI KAYNAKLAR
+  // A - Mali Borçlar
+  shortTermBankCredits: number; // 1 - Banka Kredileri
+  financialDebtsTotal: number;
+  
+  // B - Ticari Borçlar
+  tradePayables: number;        // 1 - Satıcılar
+  tradePayablesTotal: number;
+  
+  // C - Diğer Borçlar
+  partnerPayables: number;      // 1 - Ortaklara Borçlar
+  personnelPayables: number;    // 4 - Personele Borçlar
+  otherDebtsTotal: number;
+  
+  // F - Ödenecek Vergi ve Diğer Yükümlülükler
+  taxPayables: number;          // 1 - Ödenecek Vergi ve Fonlar
+  socialSecurityPayables: number; // 2 - Ödenecek SGK
+  deferredTaxLiabilities: number; // 3 - Vadesi Geçmiş Ert.
+  taxLiabilitiesTotal: number;
+  
+  // G - Borç ve Gider Karşılıkları
+  taxProvision: number;         // 1 - Dön.Karı Vergi ve Diğ. Yas. Yük. Kar.
+  
+  // I - Diğer Kısa Vadeli Yabancı Kaynaklar
+  calculatedVatPayable: number; // 1 - Hesaplanan KDV
+  otherShortTermTotal: number;
+  
+  shortTermLoanDebt: number;    // Legacy
   shortTermTotal: number;
   
-  // Uzun Vadeli Borçlar
-  bankLoans: number;
+  // II - UZUN VADELİ YABANCI KAYNAKLAR
+  longTermBankLoans: number;
+  bankLoans: number;            // Legacy
   longTermTotal: number;
   
-  // Özkaynaklar
-  paidCapital: number;
-  retainedEarnings: number;
-  currentProfit: number;
+  // III - ÖZKAYNAKLAR
+  // A - Ödenmiş Sermaye
+  paidCapital: number;          // 1 - Sermaye
+  unpaidCapital: number;        // 2 - Ödenmemiş Sermaye (-)
+  paidCapitalTotal: number;
+  
+  // C - Kar Yedekleri
+  legalReserves: number;        // 1 - Yasal Yedekler
+  profitReservesTotal: number;
+  
+  // D - Geçmiş Yıllar Karları
+  retainedEarnings: number;     // 1 - Geçmiş Yıllar Karları
+  retainedEarningsTotal: number;
+  
+  // F - Dönem Net Karı (Zararı)
+  currentProfit: number;        // 1 - Dönem Net Karı
+  currentLoss: number;          // 2 - Dönem Net Zararı
+  periodResultTotal: number;
+  
   equityTotal: number;
   
   // Toplam Pasif
@@ -127,6 +181,10 @@ export interface BalanceData {
   // Denge kontrolü
   isBalanced: boolean;
   difference: number;
+  
+  // Legacy - for vatPayable
+  vatPayable: number;
+  taxPayable: number;
 }
 
 export interface FinancialDataHub {
@@ -456,7 +514,8 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     const netProfit = operatingProfit - interestPaid;
     const profitMargin = incomeSummary.net > 0 ? (operatingProfit / incomeSummary.net) * 100 : 0;
 
-    // Balance sheet data calculation
+    // Balance sheet data calculation - Türk Tekdüzen Hesap Planı formatında
+    
     // Bank balance - use last balance if available, otherwise calculate cumulatively
     const sortedBankTx = [...bankTx].sort((a, b) => 
       new Date(b.transaction_date || 0).getTime() - new Date(a.transaction_date || 0).getTime()
@@ -476,6 +535,20 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       }, 0);
     }
     
+    // I - DÖNEN VARLIKLAR
+    // A - Hazır Değerler
+    const cashOnHand = settings?.cash_on_hand || 0;
+    const readyValuesTotal = cashOnHand + bankBalance;
+    
+    // C - Ticari Alacaklar
+    const tradeReceivables = settings?.trade_receivables || 0;
+    const tradeReceivablesTotal = tradeReceivables;
+    
+    // H - Diğer Dönen Varlıklar
+    const vatDeductible = expenseSummary.vat;  // İndirilecek KDV
+    const otherVat = (settings as any)?.other_vat || 0;
+    const otherCurrentAssetsTotal = vatDeductible + otherVat;
+    
     // Partner receivables/payables - net calculation
     const partnerReceivables = partnerSummary.withdrawals > partnerSummary.deposits 
       ? partnerSummary.withdrawals - partnerSummary.deposits 
@@ -484,89 +557,165 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       ? partnerSummary.deposits - partnerSummary.withdrawals 
       : 0;
     
-    // VAT - positive = payable, negative = receivable
-    const vatPayable = vatSummary.net > 0 ? vatSummary.net : 0;
+    // Legacy inventory and vat receivable
+    const inventoryValue = settings?.inventory_value || 0;
     const vatReceivable = vatSummary.net < 0 ? Math.abs(vatSummary.net) : 0;
     
-    // Current assets
-    const cashOnHand = settings?.cash_on_hand || 0;
-    const inventoryValue = settings?.inventory_value || 0;
-    const tradeReceivables = settings?.trade_receivables || 0;
-    const currentAssetsTotal = cashOnHand + bankBalance + tradeReceivables + partnerReceivables + vatReceivable + inventoryValue;
+    const currentAssetsTotal = readyValuesTotal + tradeReceivablesTotal + otherCurrentAssetsTotal;
     
-    // Fixed assets - include year purchases
-    const equipmentPurchases = investment.filter(t => t.categoryCode?.includes('EKIPMAN')).reduce((sum, t) => sum + t.gross, 0);
+    // II - DURAN VARLIKLAR
+    // D - Maddi Duran Varlıklar
     const vehiclePurchases = investment.filter(t => t.categoryCode?.includes('ARAC')).reduce((sum, t) => sum + t.gross, 0);
-    const equipmentTotal = (settings?.equipment_value || 0) + equipmentPurchases;
     const vehiclesTotal = (settings?.vehicles_value || 0) + vehiclePurchases;
+    
+    const equipmentPurchases = investment.filter(t => t.categoryCode?.includes('EKIPMAN')).reduce((sum, t) => sum + t.gross, 0);
+    const fixturesValue = ((settings as any)?.fixtures_value || settings?.equipment_value || 0) + equipmentPurchases;
+    
     const depreciationTotal = settings?.accumulated_depreciation || 0;
-    const fixedAssetsTotal = equipmentTotal + vehiclesTotal - depreciationTotal;
+    const tangibleAssetsTotal = vehiclesTotal + fixturesValue - depreciationTotal;
+    const fixedAssetsTotal = tangibleAssetsTotal;
     
     const totalAssets = currentAssetsTotal + fixedAssetsTotal;
     
-    // Short term liabilities
-    const tradePayables = settings?.trade_payables || 0;
-    
-    // Taksitli borç hesaplaması - fixed_expense_definitions tablosundan
-    // Tüm aktif taksitli tanımları al ve kısa/uzun vadeli olarak ayır
+    // I - KISA VADELİ YABANCI KAYNAKLAR
+    // A - Mali Borçlar (Banka Kredileri - 12 ay içi)
     let totalShortTermInstallments = 0;
     let totalLongTermInstallments = 0;
     
     fixedExpenses.installmentDetails.forEach(detail => {
       const { remainingMonths, monthlyAmount } = detail;
-      // Kısa vadeli: Önümüzdeki 12 ay içinde ödenecek
       const shortTermMonths = Math.min(12, remainingMonths);
-      // Uzun vadeli: 12 aydan sonra kalan
       const longTermMonths = Math.max(0, remainingMonths - 12);
-      
       totalShortTermInstallments += shortTermMonths * monthlyAmount;
       totalLongTermInstallments += longTermMonths * monthlyAmount;
     });
     
-    const shortTermLoanDebt = totalShortTermInstallments;
-    const shortTermTotal = tradePayables + vatPayable + partnerPayables + shortTermLoanDebt;
+    const shortTermBankCredits = totalShortTermInstallments;
+    const financialDebtsTotal = shortTermBankCredits;
     
-    // Long term liabilities - 12 aydan sonra kalan taksitli borçlar
-    const bankLoansBalance = totalLongTermInstallments;
-    const longTermTotal = bankLoansBalance;
+    // B - Ticari Borçlar
+    const tradePayables = settings?.trade_payables || 0;
+    const tradePayablesTotal = tradePayables;
     
-    // Equity
+    // C - Diğer Borçlar
+    const personnelPayables = (settings as any)?.personnel_payables || 0;
+    const otherDebtsTotal = partnerPayables + personnelPayables;
+    
+    // F - Ödenecek Vergi ve Diğer Yükümlülükler
+    const taxPayables = (settings as any)?.tax_payables || 0;
+    const socialSecurityPayables = (settings as any)?.social_security_payables || 0;
+    const deferredTaxLiabilities = (settings as any)?.deferred_tax_liabilities || 0;
+    const taxLiabilitiesTotal = taxPayables + socialSecurityPayables + deferredTaxLiabilities;
+    
+    // G - Borç ve Gider Karşılıkları
+    const taxProvision = 0; // Dönem karı vergi karşılığı - hesaplanabilir
+    
+    // I - Diğer Kısa Vadeli Yabancı Kaynaklar
+    const vatPayable = vatSummary.net > 0 ? vatSummary.net : 0;
+    const calculatedVatPayable = (settings as any)?.calculated_vat_payable || vatPayable;
+    const otherShortTermTotal = calculatedVatPayable;
+    
+    const shortTermLoanDebt = shortTermBankCredits;
+    const shortTermTotal = financialDebtsTotal + tradePayablesTotal + otherDebtsTotal + taxLiabilitiesTotal + otherShortTermTotal;
+    
+    // II - UZUN VADELİ YABANCI KAYNAKLAR
+    const longTermBankLoans = totalLongTermInstallments;
+    const longTermTotal = longTermBankLoans;
+    
+    // III - ÖZKAYNAKLAR
+    // A - Ödenmiş Sermaye
     const paidCapital = settings?.paid_capital || 0;
+    const unpaidCapital = (settings as any)?.unpaid_capital || 0;
+    const paidCapitalTotal = paidCapital - unpaidCapital;
+    
+    // C - Kar Yedekleri
+    const legalReserves = (settings as any)?.legal_reserves || 0;
+    const profitReservesTotal = legalReserves;
+    
+    // D - Geçmiş Yıllar Karları
     const retainedEarnings = settings?.retained_earnings || 0;
-    const equityTotal = paidCapital + retainedEarnings + operatingProfit;
+    const retainedEarningsTotal = retainedEarnings;
+    
+    // F - Dönem Net Karı (Zararı)
+    const currentProfit = operatingProfit >= 0 ? operatingProfit : 0;
+    const currentLoss = operatingProfit < 0 ? Math.abs(operatingProfit) : 0;
+    const periodResultTotal = currentProfit - currentLoss;
+    
+    const equityTotal = paidCapitalTotal + profitReservesTotal + retainedEarningsTotal + periodResultTotal;
     
     const totalLiabilities = shortTermTotal + longTermTotal + equityTotal;
     const difference = totalAssets - totalLiabilities;
     const isBalanced = Math.abs(difference) < 0.01;
     
     const balanceData: BalanceData = {
-      bankBalance,
+      // I - Dönen Varlıklar
       cashOnHand,
-      inventory: inventoryValue,
+      bankBalance,
+      readyValuesTotal,
       tradeReceivables,
-      partnerReceivables,
-      vatReceivable,
+      tradeReceivablesTotal,
+      vatDeductible,
+      otherVat,
+      otherCurrentAssetsTotal,
       currentAssetsTotal,
-      equipment: equipmentTotal,
+      
+      // II - Duran Varlıklar
       vehicles: vehiclesTotal,
+      fixtures: fixturesValue,
       depreciation: depreciationTotal,
+      tangibleAssetsTotal,
       fixedAssetsTotal,
       totalAssets,
+      
+      // Legacy fields
+      inventory: inventoryValue,
+      partnerReceivables,
+      vatReceivable,
+      equipment: fixturesValue,
+      
+      // I - Kısa Vadeli Yabancı Kaynaklar
+      shortTermBankCredits,
+      financialDebtsTotal,
       tradePayables,
-      vatPayable,
-      taxPayable: 0,
+      tradePayablesTotal,
       partnerPayables,
+      personnelPayables,
+      otherDebtsTotal,
+      taxPayables,
+      socialSecurityPayables,
+      deferredTaxLiabilities,
+      taxLiabilitiesTotal,
+      taxProvision,
+      calculatedVatPayable,
+      otherShortTermTotal,
       shortTermLoanDebt,
       shortTermTotal,
-      bankLoans: bankLoansBalance,
+      
+      // II - Uzun Vadeli Yabancı Kaynaklar
+      longTermBankLoans,
+      bankLoans: longTermBankLoans,
       longTermTotal,
+      
+      // III - Özkaynaklar
       paidCapital,
+      unpaidCapital,
+      paidCapitalTotal,
+      legalReserves,
+      profitReservesTotal,
       retainedEarnings,
-      currentProfit: operatingProfit,
+      retainedEarningsTotal,
+      currentProfit: periodResultTotal,
+      currentLoss,
+      periodResultTotal,
       equityTotal,
+      
       totalLiabilities,
       isBalanced,
-      difference
+      difference,
+      
+      // Legacy
+      vatPayable,
+      taxPayable: taxPayables,
     };
 
     return {
@@ -600,33 +749,74 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
 
 function createEmptyHub(fixedExpenses: FixedExpenseSummary): FinancialDataHub {
   const emptyBalanceData: BalanceData = {
-    bankBalance: 0,
+    // I - Dönen Varlıklar
     cashOnHand: 0,
-    inventory: 0,
+    bankBalance: 0,
+    readyValuesTotal: 0,
     tradeReceivables: 0,
-    partnerReceivables: 0,
-    vatReceivable: 0,
+    tradeReceivablesTotal: 0,
+    vatDeductible: 0,
+    otherVat: 0,
+    otherCurrentAssetsTotal: 0,
     currentAssetsTotal: 0,
-    equipment: 0,
+    
+    // II - Duran Varlıklar
     vehicles: 0,
+    fixtures: 0,
     depreciation: 0,
+    tangibleAssetsTotal: 0,
     fixedAssetsTotal: 0,
     totalAssets: 0,
+    
+    // Legacy fields
+    inventory: 0,
+    partnerReceivables: 0,
+    vatReceivable: 0,
+    equipment: 0,
+    
+    // I - Kısa Vadeli Yabancı Kaynaklar
+    shortTermBankCredits: 0,
+    financialDebtsTotal: 0,
     tradePayables: 0,
-    vatPayable: 0,
-    taxPayable: 0,
+    tradePayablesTotal: 0,
     partnerPayables: 0,
+    personnelPayables: 0,
+    otherDebtsTotal: 0,
+    taxPayables: 0,
+    socialSecurityPayables: 0,
+    deferredTaxLiabilities: 0,
+    taxLiabilitiesTotal: 0,
+    taxProvision: 0,
+    calculatedVatPayable: 0,
+    otherShortTermTotal: 0,
     shortTermLoanDebt: 0,
     shortTermTotal: 0,
+    
+    // II - Uzun Vadeli Yabancı Kaynaklar
+    longTermBankLoans: 0,
     bankLoans: 0,
     longTermTotal: 0,
+    
+    // III - Özkaynaklar
     paidCapital: 0,
+    unpaidCapital: 0,
+    paidCapitalTotal: 0,
+    legalReserves: 0,
+    profitReservesTotal: 0,
     retainedEarnings: 0,
+    retainedEarningsTotal: 0,
     currentProfit: 0,
+    currentLoss: 0,
+    periodResultTotal: 0,
     equityTotal: 0,
+    
     totalLiabilities: 0,
     isBalanced: true,
-    difference: 0
+    difference: 0,
+    
+    // Legacy
+    vatPayable: 0,
+    taxPayable: 0,
   };
 
   return {
