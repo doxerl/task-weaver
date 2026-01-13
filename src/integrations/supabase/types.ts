@@ -1089,6 +1089,7 @@ export type Database = {
           processing_status: string | null
           receipt_date: string | null
           receipt_no: string | null
+          receipt_subtype: string | null
           seller_address: string | null
           seller_name: string | null
           seller_tax_no: string | null
@@ -1132,6 +1133,7 @@ export type Database = {
           processing_status?: string | null
           receipt_date?: string | null
           receipt_no?: string | null
+          receipt_subtype?: string | null
           seller_address?: string | null
           seller_name?: string | null
           seller_tax_no?: string | null
@@ -1175,6 +1177,7 @@ export type Database = {
           processing_status?: string | null
           receipt_date?: string | null
           receipt_no?: string | null
+          receipt_subtype?: string | null
           seller_address?: string | null
           seller_name?: string | null
           seller_tax_no?: string | null

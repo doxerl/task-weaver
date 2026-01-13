@@ -2,11 +2,11 @@ import { useCallback, useState, useRef } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code } from 'lucide-react';
+import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code, FileCheck } from 'lucide-react';
 import { useReceipts } from '@/hooks/finance/useReceipts';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
-import { DocumentType, Receipt } from '@/types/finance';
+import { DocumentType, Receipt, ReceiptSubtype } from '@/types/finance';
 import { UploadedReceiptCard } from '@/components/finance/UploadedReceiptCard';
 import { ReceiptEditSheet } from '@/components/finance/ReceiptEditSheet';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -26,6 +26,7 @@ export default function ReceiptUpload() {
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [searchParams] = useSearchParams();
   const initialType = (searchParams.get('type') as DocumentType) || 'received';
+  const initialSubtype = (searchParams.get('subtype') as ReceiptSubtype) || 'slip';
   
   // Fetch recent receipts from DB (last 20)
   const { 
@@ -41,6 +42,7 @@ export default function ReceiptUpload() {
   } = useReceipts();
   
   const [documentType, setDocumentType] = useState<DocumentType>(initialType);
+  const [receiptSubtype, setReceiptSubtype] = useState<ReceiptSubtype>(initialSubtype);
   const [files, setFiles] = useState<File[]>([]);
   const [previews, setPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
@@ -60,8 +62,21 @@ export default function ReceiptUpload() {
     const selected = Array.from(e.target.files || []);
     setFiles(prev => [...prev, ...selected]);
     
-    // Generate previews
+    // Generate previews and auto-detect subtype
     selected.forEach(file => {
+      // Auto-detect subtype based on file type
+      const fileInfo = getFileTypeInfo(file);
+      if (documentType === 'received') {
+        if (fileInfo.type === 'pdf' || fileInfo.type === 'xml') {
+          setReceiptSubtype('invoice');
+        } else if (fileInfo.type === 'image') {
+          // Keep current or default to slip for images
+          if (receiptSubtype !== 'invoice') {
+            setReceiptSubtype('slip');
+          }
+        }
+      }
+      
       if (file.type.startsWith('image/')) {
         const url = URL.createObjectURL(file);
         setPreviews(prev => [...prev, url]);
@@ -69,7 +84,7 @@ export default function ReceiptUpload() {
         setPreviews(prev => [...prev, '']);
       }
     });
-  }, []);
+  }, [documentType, receiptSubtype]);
 
   const removeFile = (index: number) => {
     // Revoke object URL to prevent memory leaks
@@ -86,7 +101,11 @@ export default function ReceiptUpload() {
     const uploadedIds: string[] = [];
     
     for (const file of files) {
-      const result = await uploadReceipt.mutateAsync({ file, documentType });
+      const result = await uploadReceipt.mutateAsync({ 
+        file, 
+        documentType,
+        receiptSubtype: documentType === 'received' ? receiptSubtype : undefined
+      });
       // Handle both single receipt and array (from ZIP)
       if (Array.isArray(result)) {
         uploadedIds.push(...result.map(r => r.id));
@@ -125,8 +144,6 @@ export default function ReceiptUpload() {
 
   const handleReprocess = async (id: string) => {
     await reprocessReceipt.mutateAsync(id);
-    // Refresh the receipt data
-    // For now, we'll just leave it as is - the user can refresh or the query will update
   };
 
   const handleToggleInclude = async (id: string, include: boolean) => {
@@ -147,10 +164,13 @@ export default function ReceiptUpload() {
           <h1 className="text-xl font-bold">Fiş/Fatura Yükle</h1>
         </div>
 
-        {/* Document Type Selection */}
+        {/* Document Type Selection - Kesilen / Alınan */}
         <div className="grid grid-cols-2 gap-3">
           <button
-            onClick={() => setDocumentType('received')}
+            onClick={() => {
+              setDocumentType('received');
+              setReceiptSubtype('slip');
+            }}
             disabled={uploading}
             className={cn(
               "p-4 rounded-xl border-2 transition-all text-left",
@@ -187,6 +207,49 @@ export default function ReceiptUpload() {
             </p>
           </button>
         </div>
+
+        {/* Receipt Subtype Selection - Only for "Alınan" */}
+        {documentType === 'received' && (
+          <div className="grid grid-cols-2 gap-3">
+            <button
+              onClick={() => setReceiptSubtype('slip')}
+              disabled={uploading}
+              className={cn(
+                "p-3 rounded-lg border-2 transition-all text-left",
+                receiptSubtype === 'slip' 
+                  ? "border-orange-500 bg-orange-500/10" 
+                  : "border-border hover:border-orange-500/50"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <ReceiptIcon className="h-4 w-4 text-orange-500" />
+                <span className="font-medium text-sm">Fiş</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                Market, restoran, benzin vb.
+              </p>
+            </button>
+            
+            <button
+              onClick={() => setReceiptSubtype('invoice')}
+              disabled={uploading}
+              className={cn(
+                "p-3 rounded-lg border-2 transition-all text-left",
+                receiptSubtype === 'invoice' 
+                  ? "border-blue-500 bg-blue-500/10" 
+                  : "border-border hover:border-blue-500/50"
+              )}
+            >
+              <div className="flex items-center gap-2">
+                <FileCheck className="h-4 w-4 text-blue-500" />
+                <span className="font-medium text-sm">Fatura</span>
+              </div>
+              <p className="text-xs text-muted-foreground mt-1">
+                e-Fatura, e-Arşiv, PDF
+              </p>
+            </button>
+          </div>
+        )}
 
         {/* File Upload Area */}
         <Card>
@@ -251,7 +314,9 @@ export default function ReceiptUpload() {
                     className="w-full flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors border-muted-foreground/25 hover:border-primary/50"
                   >
                     <Upload className="h-10 w-10 text-muted-foreground" />
-                    <p className="text-sm font-medium">Fiş/Fatura seçin</p>
+                    <p className="text-sm font-medium">
+                      {receiptSubtype === 'slip' ? 'Fiş seçin' : 'Fatura seçin'}
+                    </p>
                     <p className="text-xs text-muted-foreground">JPG, PNG, PDF, XML, ZIP</p>
                   </button>
                 )}
@@ -300,14 +365,19 @@ export default function ReceiptUpload() {
                               {(file.size / 1024).toFixed(0)} KB • {fileInfo.label}
                             </p>
                             <div className="flex items-center gap-1 mt-2 flex-wrap">
-                              <span className={cn(
-                                "text-xs px-2 py-0.5 rounded-full",
-                                documentType === 'received' 
-                                  ? "bg-primary/10 text-primary" 
-                                  : "bg-green-500/10 text-green-600"
-                              )}>
-                                {documentType === 'received' ? '📥 Alınan' : '📤 Kesilen'}
-                              </span>
+                              {documentType === 'issued' ? (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600">
+                                  📤 Kesilen
+                                </span>
+                              ) : receiptSubtype === 'slip' ? (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600">
+                                  🧾 Fiş
+                                </span>
+                              ) : (
+                                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600">
+                                  📄 Fatura
+                                </span>
+                              )}
                               {fileInfo.type === 'zip' && (
                                 <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600">
                                   📦 Çoklu dosya

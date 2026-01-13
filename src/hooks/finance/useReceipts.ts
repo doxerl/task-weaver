@@ -2,7 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
-import { Receipt, DocumentType } from '@/types/finance';
+import { Receipt, DocumentType, ReceiptSubtype } from '@/types/finance';
 import { useState, useCallback } from 'react';
 
 export function useReceipts(year?: number, month?: number) {
@@ -47,7 +47,8 @@ export function useReceipts(year?: number, month?: number) {
     fileUrl: string,
     fileName: string,
     fileType: string,
-    documentType: DocumentType
+    documentType: DocumentType,
+    receiptSubtype?: ReceiptSubtype
   ) => {
     let receiptDate = null;
     let receiptMonth = new Date().getMonth() + 1;
@@ -64,6 +65,16 @@ export function useReceipts(year?: number, month?: number) {
       }
     }
 
+    // Determine subtype from OCR or fallback logic
+    let finalSubtype: ReceiptSubtype = receiptSubtype || 'slip';
+    if (!receiptSubtype && ocr.documentSubtype) {
+      finalSubtype = ocr.documentSubtype === 'invoice' ? 'invoice' : 'slip';
+    } else if (!receiptSubtype) {
+      // Fallback: PDF/XML -> invoice, images -> slip
+      const isPdfOrXml = fileType === 'pdf' || fileType === 'xml' || fileName.endsWith('.pdf') || fileName.endsWith('.xml');
+      finalSubtype = isPdfOrXml ? 'invoice' : 'slip';
+    }
+
     const { data: receipt, error: insertError } = await supabase
       .from('receipts')
       .insert({
@@ -73,6 +84,7 @@ export function useReceipts(year?: number, month?: number) {
         file_url: fileUrl,
         thumbnail_url: fileType === 'image' ? fileUrl : null,
         document_type: documentType,
+        receipt_subtype: finalSubtype,
         seller_name: ocr.sellerName || null,
         seller_tax_no: ocr.sellerTaxNo || null,
         seller_address: ocr.sellerAddress || null,
@@ -106,7 +118,7 @@ export function useReceipts(year?: number, month?: number) {
   };
 
   const uploadReceipt = useMutation({
-    mutationFn: async ({ file, documentType = 'received' }: { file: File; documentType?: DocumentType }): Promise<Receipt | Receipt[]> => {
+    mutationFn: async ({ file, documentType = 'received', receiptSubtype }: { file: File; documentType?: DocumentType; receiptSubtype?: ReceiptSubtype }): Promise<Receipt | Receipt[]> => {
       if (!user?.id) throw new Error('Giriş yapmalısınız');
       
       setUploadProgress(10);
@@ -151,7 +163,8 @@ export function useReceipts(year?: number, month?: number) {
                 publicUrl, // Use ZIP URL as reference
                 result.fileName,
                 result.fileType,
-                documentType
+                documentType,
+                receiptSubtype
               );
               if (receipt) savedReceipts.push(receipt as Receipt);
             } catch (e) {
@@ -179,7 +192,7 @@ export function useReceipts(year?: number, month?: number) {
         setUploadProgress(80);
         
         const ocr = xmlData?.result || {};
-        const receipt = await saveReceiptFromOCR(ocr, publicUrl, file.name, 'xml', documentType);
+        const receipt = await saveReceiptFromOCR(ocr, publicUrl, file.name, 'xml', documentType, 'invoice');
         
         setUploadProgress(100);
         return receipt as Receipt;
@@ -202,7 +215,8 @@ export function useReceipts(year?: number, month?: number) {
         publicUrl,
         file.name,
         isImage ? 'image' : 'pdf',
-        documentType
+        documentType,
+        receiptSubtype
       );
       
       setUploadProgress(100);

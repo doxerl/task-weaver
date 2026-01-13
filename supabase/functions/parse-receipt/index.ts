@@ -101,13 +101,21 @@ DİĞER:
 - currency: Para birimi (varsayılan TRY)
 - confidence: Güven skoru (0-1 arası)
 
-İPUÇLARI:
-- "TOPLAM", "GENEL TOPLAM", "ÖDENECEK" → totalAmount
-- "ARA TOPLAM", "MAL HİZMET" → subtotal
-- "KDV", "%8 KDV", "%20 KDV" → vatRate ve vatAmount
-- "STOPAJ", "TEVKİFAT" → withholdingTaxRate/Amount
-- "DAMGA VERGİSİ" → stampTaxAmount
-- VKN: Vergi Kimlik No (10-11 hane)
+BELGE TİPİ TESPİTİ:
+- documentSubtype: "slip" veya "invoice"
+
+FİŞ İPUÇLARI (slip) - Aşağıdakilerden biri varsa "slip":
+- İçerik kelimeleri: YEMEK, BENZIN, BENZİN, DİZEL, MOTORIN, MOTORİN, AKARYAKIT, İÇECEK, KAHVE, SU, EKMEK, SİGARA, HAMBURGER, DÖNER, PİDE, LAHMACUN, AYRAN, COLA, KOLA, ÇAY, SANDVIÇ, TOST, PIZZA
+- Mekan türleri: BÜFE, MARKET, RESTORAN, LOKANTA, ECZANE, PETROL, AKARYAKIT İSTASYONU, CAFE, KAFETERYA, BAKKAL, MANAV, KASAP, FIRIN
+- Belge formatı: FİŞ, FİŞ NO, POS, EKÜ NO, Z NO, YAZAR KASA, PERAKENDESATIŞFİŞİ, ÖKC, PERAKENDE SATIŞ FİŞİ
+- Kısa, basit format, tek sayfa, VKN ile başlayan
+
+FATURA İPUÇLARI (invoice) - Aşağıdakilerden biri varsa "invoice":
+- Kelimeler: FATURA, E-FATURA, E-ARŞİV, SATIŞ FATURASI, İRSALİYE, FATURA NO, GIB, TEVKİFAT, STOPAJ
+- GIB numarası (uzun alfanumerik kod)
+- Detaylı alıcı/satıcı bilgileri (her ikisinin de VKN ve adresi var)
+- Stopaj veya damga vergisi bilgisi
+- Uzun, resmi format, birden fazla sayfa olabilir
 
 ÇIKTI FORMAT:
 Sadece JSON object döndür:
@@ -128,7 +136,8 @@ Sadece JSON object döndür:
   "stampTaxAmount": null,
   "totalAmount": 1200.00,
   "currency": "TRY",
-  "confidence": 0.9
+  "confidence": 0.9,
+  "documentSubtype": "slip"
 }
 
 Okunamayan alanlar için null kullan.`;
@@ -217,6 +226,18 @@ Okunamayan alanlar için null kullan.`;
         }
         if (result.withholdingTaxRate && typeof result.withholdingTaxRate === 'string') {
           result.withholdingTaxRate = parseFloat(result.withholdingTaxRate.replace('%', ''));
+        }
+        
+        // Ensure documentSubtype is valid
+        if (!result.documentSubtype || !['slip', 'invoice'].includes(result.documentSubtype)) {
+          // Fallback detection based on parsed content
+          const hasInvoiceMarkers = 
+            result.buyerTaxNo || 
+            result.withholdingTaxAmount || 
+            result.stampTaxAmount ||
+            (result.receiptNo && result.receiptNo.length > 15);
+          
+          result.documentSubtype = hasInvoiceMarkers ? 'invoice' : 'slip';
         }
         
       } catch (parseError) {
