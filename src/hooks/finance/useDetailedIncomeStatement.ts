@@ -10,15 +10,19 @@ export function useDetailedIncomeStatement(year: number) {
   const data = useMemo((): DetailedIncomeStatementData => {
     const lines: DetailedIncomeStatementLine[] = [];
 
-    // A - BRÜT SATIŞLAR
+    // A - BRÜT SATIŞLAR (60x)
     lines.push({ code: 'A', name: 'BRÜT SATIŞLAR', totalAmount: statement.grossSales.total, isHeader: true, isBold: true });
-    if (statement.grossSales.sbt > 0) lines.push({ code: '1', name: 'Yurtiçi Satışlar - SBT', subAmount: statement.grossSales.sbt, isSubItem: true });
-    if (statement.grossSales.ls > 0) lines.push({ code: '2', name: 'Yurtiçi Satışlar - LS', subAmount: statement.grossSales.ls, isSubItem: true });
-    if (statement.grossSales.zdhc > 0) lines.push({ code: '3', name: 'Yurtiçi Satışlar - ZDHC', subAmount: statement.grossSales.zdhc, isSubItem: true });
-    if (statement.grossSales.danis > 0) lines.push({ code: '4', name: 'Yurtiçi Satışlar - Danışmanlık', subAmount: statement.grossSales.danis, isSubItem: true });
-    if (statement.grossSales.diger > 0) lines.push({ code: '5', name: 'Diğer Gelirler', subAmount: statement.grossSales.diger, isSubItem: true });
+    if (statement.grossSales.yurtici > 0) {
+      lines.push({ code: '1', name: 'Yurtiçi Satışlar', subAmount: statement.grossSales.yurtici, isSubItem: true });
+    }
+    if (statement.grossSales.yurtdisi > 0) {
+      lines.push({ code: '2', name: 'Yurtdışı Satışlar', subAmount: statement.grossSales.yurtdisi, isSubItem: true });
+    }
+    if (statement.grossSales.diger > 0) {
+      lines.push({ code: '3', name: 'Diğer Gelirler', subAmount: statement.grossSales.diger, isSubItem: true });
+    }
 
-    // B - SATIŞ İNDİRİMLERİ
+    // B - SATIŞ İNDİRİMLERİ (61x)
     if (statement.salesReturns !== 0) {
       lines.push({ code: 'B', name: 'SATIŞ İNDİRİMLERİ (-)', totalAmount: -Math.abs(statement.salesReturns), isHeader: true, isBold: true, isNegative: true });
       lines.push({ code: '1', name: 'Satıştan İadeler (-)', subAmount: -Math.abs(statement.salesReturns), isSubItem: true, isNegative: true });
@@ -27,7 +31,7 @@ export function useDetailedIncomeStatement(year: number) {
     // C - NET SATIŞLAR
     lines.push({ code: 'C', name: 'NET SATIŞLAR', totalAmount: statement.netSales, isHeader: true, isBold: true });
 
-    // D - SATIŞLARIN MALİYETİ
+    // D - SATIŞLARIN MALİYETİ (62x)
     if (statement.costOfSales !== 0) {
       lines.push({ code: 'D', name: 'SATIŞLARIN MALİYETİ (-)', totalAmount: -Math.abs(statement.costOfSales), isHeader: true, isBold: true, isNegative: true });
       lines.push({ code: '3', name: 'Satılan Hizmet Maliyeti (-)', subAmount: -Math.abs(statement.costOfSales), isSubItem: true, isNegative: true });
@@ -36,34 +40,20 @@ export function useDetailedIncomeStatement(year: number) {
     // BRÜT SATIŞ KÂRI
     lines.push({ code: '', name: 'BRÜT SATIŞ KARI VEYA ZARARI', totalAmount: statement.grossProfit, isBold: true });
 
-    // E - FAALİYET GİDERLERİ
+    // E - FAALİYET GİDERLERİ (63x)
     const opExpTotal = statement.operatingExpenses.total;
     lines.push({ code: 'E', name: 'FAALİYET GİDERLERİ (-)', totalAmount: -Math.abs(opExpTotal), isHeader: true, isBold: true, isNegative: true });
-    
-    // Operating expense sub-items
-    const opExpItems = [
-      { code: '1', name: 'Personel Giderleri (-)', amount: statement.operatingExpenses.personel },
-      { code: '2', name: 'Kira Giderleri (-)', amount: statement.operatingExpenses.kira },
-      { code: '3', name: 'Ulaşım Giderleri (-)', amount: statement.operatingExpenses.ulasim },
-      { code: '4', name: 'İletişim Giderleri (-)', amount: statement.operatingExpenses.telekom },
-      { code: '5', name: 'Sigorta Giderleri (-)', amount: statement.operatingExpenses.sigorta },
-      { code: '6', name: 'Ofis Giderleri (-)', amount: statement.operatingExpenses.ofis },
-      { code: '7', name: 'Muhasebe/Danışmanlık Giderleri (-)', amount: statement.operatingExpenses.muhasebe },
-      { code: '8', name: 'Yazılım/Teknoloji Giderleri (-)', amount: statement.operatingExpenses.yazilim },
-      { code: '9', name: 'Banka/Komisyon Giderleri (-)', amount: statement.operatingExpenses.banka },
-      { code: '10', name: 'Diğer Genel Yönetim Giderleri (-)', amount: statement.operatingExpenses.diger },
-    ];
-    
-    opExpItems.forEach(item => {
-      if (item.amount !== 0) {
-        lines.push({ code: item.code, name: item.name, subAmount: -Math.abs(item.amount), isSubItem: true, isNegative: true });
-      }
-    });
+    if (statement.operatingExpenses.pazarlama > 0) {
+      lines.push({ code: '1', name: 'Pazarlama Satış Dağıtım Gid. (-)', subAmount: -Math.abs(statement.operatingExpenses.pazarlama), isSubItem: true, isNegative: true });
+    }
+    if (statement.operatingExpenses.genelYonetim > 0) {
+      lines.push({ code: '3', name: 'Genel Yönetim Giderleri (-)', subAmount: -Math.abs(statement.operatingExpenses.genelYonetim), isSubItem: true, isNegative: true });
+    }
 
     // FAALİYET KÂRI
     lines.push({ code: '', name: 'FAALİYET KARI VEYA ZARARI', totalAmount: statement.operatingProfit, isBold: true });
 
-    // F - DİĞER FAALİYET GELİRLERİ
+    // F - DİĞER FAALİYET GELİRLERİ (64x)
     const otherIncomeTotal = statement.otherIncome.total;
     if (otherIncomeTotal !== 0) {
       lines.push({ code: 'F', name: 'DİĞ. FAAL. OLAĞAN GELİR VE KARLAR', totalAmount: otherIncomeTotal, isHeader: true, isBold: true });
@@ -73,37 +63,51 @@ export function useDetailedIncomeStatement(year: number) {
       if (statement.otherIncome.kurFarki !== 0) {
         lines.push({ code: '7', name: 'Kambiyo Karları', subAmount: statement.otherIncome.kurFarki, isSubItem: true });
       }
+      if (statement.otherIncome.diger !== 0) {
+        lines.push({ code: '10', name: 'Diğer Olağan Gelir ve Karlar', subAmount: statement.otherIncome.diger, isSubItem: true });
+      }
     }
 
-    // G - DİĞER FAALİYET GİDERLERİ (skip if zero)
+    // 65x - DİĞER FAALİYET GİDERLERİ
     const otherExpenseTotal = statement.otherExpenses.total;
     if (otherExpenseTotal !== 0) {
       lines.push({ code: 'G', name: 'DİĞER FAALİYET GİDERLERİ (-)', totalAmount: -Math.abs(otherExpenseTotal), isHeader: true, isBold: true, isNegative: true });
+      if (statement.otherExpenses.komisyon !== 0) {
+        lines.push({ code: '3', name: 'Komisyon Giderleri (-)', subAmount: -Math.abs(statement.otherExpenses.komisyon), isSubItem: true, isNegative: true });
+      }
       if (statement.otherExpenses.kurFarki !== 0) {
         lines.push({ code: '7', name: 'Kambiyo Zararları (-)', subAmount: -Math.abs(statement.otherExpenses.kurFarki), isSubItem: true, isNegative: true });
       }
     }
 
-    // H - FİNANSMAN GİDERLERİ
-    const financeExpense = statement.otherExpenses.faiz;
-    if (financeExpense !== 0) {
-      lines.push({ code: 'H', name: 'FİNANSMAN GİDERLERİ (-)', totalAmount: -Math.abs(financeExpense), isHeader: true, isBold: true, isNegative: true });
-      lines.push({ code: '1', name: 'Kısa Vadeli Borçlanma Giderleri (-)', subAmount: -Math.abs(financeExpense), isSubItem: true, isNegative: true });
+    // H - FİNANSMAN GİDERLERİ (66x)
+    if (statement.financeExpenses !== 0) {
+      lines.push({ code: 'H', name: 'FİNANSMAN GİDERLERİ (-)', totalAmount: -Math.abs(statement.financeExpenses), isHeader: true, isBold: true, isNegative: true });
+      lines.push({ code: '1', name: 'Kısa Vadeli Borçlanma Giderleri (-)', subAmount: -Math.abs(statement.financeExpenses), isSubItem: true, isNegative: true });
     }
 
     // OLAĞAN KÂR
-    const ordinaryProfit = statement.operatingProfit + otherIncomeTotal - otherExpenseTotal - financeExpense;
-    lines.push({ code: '', name: 'OLAĞAN KAR VEYA ZARAR', totalAmount: ordinaryProfit, isBold: true });
+    lines.push({ code: '', name: 'OLAĞAN KAR VEYA ZARAR', totalAmount: statement.ordinaryProfit, isBold: true });
 
-    // I - OLAĞANDIŞI GELİRLER (placeholder)
-    // J - OLAĞANDIŞI GİDERLER (placeholder)
+    // I - OLAĞANDIŞI GELİRLER (67x)
+    if (statement.extraordinaryIncome !== 0) {
+      lines.push({ code: 'I', name: 'OLAĞANDIŞI GELİR VE KARLAR', totalAmount: statement.extraordinaryIncome, isHeader: true, isBold: true });
+      lines.push({ code: '2', name: 'Diğer Olağandışı Gelir ve Karlar', subAmount: statement.extraordinaryIncome, isSubItem: true });
+    }
+
+    // J - OLAĞANDIŞI GİDERLER (68x)
+    if (statement.extraordinaryExpenses !== 0) {
+      lines.push({ code: 'J', name: 'OLAĞANDIŞI GİDER VE ZARARLAR (-)', totalAmount: -Math.abs(statement.extraordinaryExpenses), isHeader: true, isBold: true, isNegative: true });
+      lines.push({ code: '3', name: 'Diğer Olağandışı Gider ve Zararlar (-)', subAmount: -Math.abs(statement.extraordinaryExpenses), isSubItem: true, isNegative: true });
+    }
 
     // DÖNEM KÂRI
     lines.push({ code: '', name: 'DÖNEM KARI VEYA ZARARI', totalAmount: statement.preTaxProfit, isBold: true });
 
-    // K - VERGİ
+    // K - VERGİ (69x)
     if (statement.taxExpense !== 0) {
       lines.push({ code: 'K', name: "DÖN. KARI VERGİ VE Dİ.YA.YÜK.KAR.(-)", totalAmount: -Math.abs(statement.taxExpense), isHeader: true, isBold: true, isNegative: true });
+      lines.push({ code: '1', name: 'Dön.Karı Vergi ve Diğ. Yas. Yük. Karş.', subAmount: -Math.abs(statement.taxExpense), isSubItem: true, isNegative: true });
     } else {
       lines.push({ code: 'K', name: "DÖN. KARI VERGİ VE Dİ.YA.YÜK.KAR.(-)", totalAmount: 0, isHeader: true, isBold: true });
     }

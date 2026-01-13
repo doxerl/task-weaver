@@ -24,6 +24,11 @@ export interface ProcessedTransaction {
   isIncome: boolean;
   month: number;
   source: 'bank' | 'receipt';
+  // Tekdüzen Hesap Planı fields
+  accountCode: string | null;        // e.g., '600', '622', '632'
+  accountSubcode: string | null;     // e.g., '632.01', '632.02'
+  costCenter: 'DELIVERY' | 'ADMIN' | 'SALES' | null;
+  isKkeg: boolean;
 }
 
 export interface CategorySummary {
@@ -307,7 +312,12 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
         vatRate: vatResult.vatRate,
         isIncome,
         month,
-        source: 'bank'
+        source: 'bank',
+        // Tekdüzen Hesap Planı fields
+        accountCode: (cat as any)?.account_code || null,
+        accountSubcode: (cat as any)?.account_subcode || null,
+        costCenter: (cat as any)?.cost_center || null,
+        isKkeg: (cat as any)?.is_kkeg || false,
       });
     });
 
@@ -340,7 +350,12 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
           vatRate: vatResult.vatRate,
           isIncome: false,
           month,
-          source: 'receipt'
+          source: 'receipt',
+          // Tekdüzen Hesap Planı fields
+          accountCode: (cat as any)?.account_code || null,
+          accountSubcode: (cat as any)?.account_subcode || null,
+          costCenter: (cat as any)?.cost_center || null,
+          isKkeg: (cat as any)?.is_kkeg || false,
         });
       });
 

@@ -86,25 +86,39 @@ export interface FinancingSummary {
   remainingDebt: number;
 }
 
-// Income Statement Data
+// Income Statement Data - Tekdüzen Hesap Planı Format
 export interface IncomeStatementData {
-  // A. Gross Sales
+  // A - BRÜT SATIŞLAR (60x)
   grossSales: {
+    yurtici: number;        // 600 - Yurtiçi Satışlar
+    yurtdisi: number;       // 601 - Yurtdışı Satışlar
+    diger: number;          // 602 - Diğer Gelirler
+    total: number;
+    // Legacy fields for compatibility
     sbt: number;
     ls: number;
     zdhc: number;
     danis: number;
-    diger: number;
-    total: number;
   };
-  // B. Sales Returns
-  salesReturns: number;
+  
+  // B - SATIŞ İNDİRİMLERİ (61x)
+  salesReturns: number;     // 610 - Satıştan İadeler
+  
+  // C - NET SATIŞLAR
   netSales: number;
-  // C. Cost of Sales
-  costOfSales: number;
+  
+  // D - SATIŞLARIN MALİYETİ (62x)
+  costOfSales: number;      // 622 - Satılan Hizmet Maliyeti
+  
+  // BRÜT KAR
   grossProfit: number;
-  // D. Operating Expenses
+  
+  // E - FAALİYET GİDERLERİ (63x)
   operatingExpenses: {
+    pazarlama: number;      // 631 - Pazarlama Satış Dağıtım
+    genelYonetim: number;   // 632 - Genel Yönetim Giderleri
+    total: number;
+    // Legacy fields for compatibility
     personel: number;
     kira: number;
     ulasim: number;
@@ -115,31 +129,56 @@ export interface IncomeStatementData {
     yazilim: number;
     banka: number;
     diger: number;
-    total: number;
   };
-  operatingProfit: number; // EBIT
-  // E. Other Income
+  
+  // FAALİYET KARI (EBIT)
+  operatingProfit: number;
+  
+  // F - DİĞER FAALİYET GELİRLERİ (64x)
   otherIncome: {
-    faiz: number;
-    kurFarki: number;
+    faiz: number;           // 642 - Faiz Gelirleri
+    kurFarki: number;       // 646 - Kambiyo Karları
+    diger: number;          // 649 - Diğer Olağan Gelirler
     total: number;
   };
-  // F. Other Expenses
+  
+  // 65x - DİĞER FAALİYET GİDERLERİ
   otherExpenses: {
-    faiz: number;
-    kurFarki: number;
+    komisyon: number;       // 653 - Komisyon Giderleri
+    kurFarki: number;       // 656 - Kambiyo Zararları
+    diger: number;          // 659 - Diğer Olağan Giderler
+    faiz: number;           // Legacy compatibility
     total: number;
   };
-  // Pre-tax Profit
+  
+  // H - FİNANSMAN GİDERLERİ (66x)
+  financeExpenses: number;  // 660 - Kısa Vadeli Borçlanma Giderleri
+  
+  // OLAĞAN KAR
+  ordinaryProfit: number;
+  
+  // I - OLAĞANDIŞI GELİRLER (67x)
+  extraordinaryIncome: number;  // 679
+  
+  // J - OLAĞANDIŞI GİDERLER (68x)
+  extraordinaryExpenses: number; // 689
+  
+  // DÖNEM KARI
   preTaxProfit: number;
-  // G. Tax
-  taxExpense: number;
-  // Net Profit
+  
+  // K - VERGİ (69x)
+  taxExpense: number;       // 691 - Dönem Karı Vergi Karşılığı
+  
+  // DÖNEM NET KARI
   netProfit: number;
+  
   // Margins
   profitMargin: number;
   ebitMargin: number;
   grossMargin: number;
+  
+  // KKEG Özeti (ek bilgi)
+  kkegTotal: number;
 }
 
 // KPI Card Data

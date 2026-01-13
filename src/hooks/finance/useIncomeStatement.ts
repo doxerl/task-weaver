@@ -2,29 +2,58 @@ import { useMemo } from 'react';
 import { useFinancialDataHub, ProcessedTransaction } from './useFinancialDataHub';
 import { IncomeStatementData, IncomeStatementLine } from '@/types/reports';
 
-// Category code mappings for income statement
-const INCOME_CODES = {
+// Tekdüzen Hesap Planı - Account Code Groups
+const ACCOUNT_GROUPS = {
+  // 60 - Brüt Satışlar
+  GROSS_SALES_600: '600',      // Yurtiçi Satışlar
+  GROSS_SALES_601: '601',      // Yurtdışı Satışlar
+  GROSS_SALES_602: '602',      // Diğer Gelirler
+  
+  // 61 - Satış İndirimleri
+  SALES_RETURNS: '610',        // Satıştan İadeler
+  
+  // 62 - Satışların Maliyeti
+  COST_OF_SALES: '622',        // Satılan Hizmet Maliyeti
+  
+  // 63 - Faaliyet Giderleri
+  MARKETING: '631',            // Pazarlama Satış Dağıtım
+  GENERAL_ADMIN: '632',        // Genel Yönetim
+  
+  // 64 - Diğer Faaliyet Gelirleri
+  INTEREST_INCOME: '642',      // Faiz Gelirleri
+  FX_GAIN: '646',              // Kambiyo Karları
+  OTHER_INCOME: '649',         // Diğer Olağan Gelirler
+  
+  // 65 - Diğer Faaliyet Giderleri
+  COMMISSION_EXP: '653',       // Komisyon Giderleri
+  FX_LOSS: '656',              // Kambiyo Zararları
+  OTHER_EXPENSE: '659',        // Diğer Olağan Giderler
+  
+  // 66 - Finansman Giderleri
+  FINANCE_EXP: '660',          // Kısa Vadeli Borçlanma
+  
+  // 67 - Olağandışı Gelirler
+  EXTRAORDINARY_INCOME: '679',
+  
+  // 68 - Olağandışı Giderler
+  EXTRAORDINARY_EXPENSE: '689',
+};
+
+// Helper to check if account code starts with given prefix
+const matchesAccountCode = (accountCode: string | null | undefined, prefix: string): boolean => {
+  if (!accountCode) return false;
+  return accountCode.startsWith(prefix);
+};
+
+// Legacy category code mappings for backwards compatibility
+const LEGACY_INCOME_CODES = {
   SBT: ['SBT', 'SBT_TRACKER'],
   LS: ['L&S', 'LS', 'LEADERSHIP'],
   ZDHC: ['ZDHC', 'INCHECK'],
   DANIS: ['DANIS', 'DANISMANLIK'],
 };
 
-const EXPENSE_CODES = {
-  PERSONEL: ['PERSONEL', 'MAAS', 'SSK'],
-  KIRA: ['KIRA_OUT', 'KIRA'],
-  ULASIM: ['HGS', 'YAKIT', 'ULASIM', 'SEYAHAT'],
-  TELEKOM: ['TELEKOM', 'INTERNET', 'TELEFON'],
-  SIGORTA: ['SIGORTA'],
-  OFIS: ['OFIS', 'MALZEME'],
-  MUHASEBE: ['MUHASEBE', 'HUKUK', 'SMM'],
-  YAZILIM: ['YAZILIM', 'ABONELIK'],
-  BANKA: ['BANKA', 'MASRAF', 'KOMISYON'],
-  VERGI: ['VERGI', 'KDV', 'DAMGA'],
-};
-
-// Helper to check if category matches codes
-const matchesCode = (categoryCode: string | undefined | null, codes: string[]) => {
+const matchesLegacyCode = (categoryCode: string | undefined | null, codes: string[]) => {
   if (!categoryCode) return false;
   return codes.some(c => categoryCode.toUpperCase().includes(c));
 };
@@ -34,111 +63,210 @@ export function useIncomeStatement(year: number) {
 
   const statement = useMemo((): IncomeStatementData => {
     const empty: IncomeStatementData = {
-      grossSales: { sbt: 0, ls: 0, zdhc: 0, danis: 0, diger: 0, total: 0 },
+      grossSales: { yurtici: 0, yurtdisi: 0, diger: 0, total: 0, sbt: 0, ls: 0, zdhc: 0, danis: 0 },
       salesReturns: 0,
       netSales: 0,
       costOfSales: 0,
       grossProfit: 0,
       operatingExpenses: {
+        pazarlama: 0, genelYonetim: 0, total: 0,
         personel: 0, kira: 0, ulasim: 0, telekom: 0, sigorta: 0,
-        ofis: 0, muhasebe: 0, yazilim: 0, banka: 0, diger: 0, total: 0,
+        ofis: 0, muhasebe: 0, yazilim: 0, banka: 0, diger: 0,
       },
       operatingProfit: 0,
-      otherIncome: { faiz: 0, kurFarki: 0, total: 0 },
-      otherExpenses: { faiz: 0, kurFarki: 0, total: 0 },
+      otherIncome: { faiz: 0, kurFarki: 0, diger: 0, total: 0 },
+      otherExpenses: { komisyon: 0, kurFarki: 0, diger: 0, faiz: 0, total: 0 },
+      financeExpenses: 0,
+      ordinaryProfit: 0,
+      extraordinaryIncome: 0,
+      extraordinaryExpenses: 0,
       preTaxProfit: 0,
       taxExpense: 0,
       netProfit: 0,
       profitMargin: 0,
       ebitMargin: 0,
       grossMargin: 0,
+      kkegTotal: 0,
     };
 
     if (hub.isLoading) return empty;
 
-    // Process income from hub - using pre-calculated NET amounts (VAT excluded)
-    const grossSales = { sbt: 0, ls: 0, zdhc: 0, danis: 0, diger: 0, total: 0 };
-    
+    // Initialize accumulators
+    const grossSales = { yurtici: 0, yurtdisi: 0, diger: 0, total: 0, sbt: 0, ls: 0, zdhc: 0, danis: 0 };
+    let salesReturns = 0;
+    let costOfSales = 0;
+    const operatingExpenses = {
+      pazarlama: 0, genelYonetim: 0, total: 0,
+      personel: 0, kira: 0, ulasim: 0, telekom: 0, sigorta: 0,
+      ofis: 0, muhasebe: 0, yazilim: 0, banka: 0, diger: 0,
+    };
+    const otherIncome = { faiz: 0, kurFarki: 0, diger: 0, total: 0 };
+    const otherExpenses = { komisyon: 0, kurFarki: 0, diger: 0, faiz: 0, total: 0 };
+    let financeExpenses = 0;
+    let extraordinaryIncome = 0;
+    let extraordinaryExpenses = 0;
+    let kkegTotal = 0;
+
+    // Process INCOME transactions using account_code
     hub.income.forEach(tx => {
-      const code = tx.categoryCode || '';
+      const accountCode = tx.accountCode;
+      const categoryCode = tx.categoryCode || '';
       const netAmount = tx.net;
 
-      if (matchesCode(code, INCOME_CODES.SBT)) grossSales.sbt += netAmount;
-      else if (matchesCode(code, INCOME_CODES.LS)) grossSales.ls += netAmount;
-      else if (matchesCode(code, INCOME_CODES.ZDHC)) grossSales.zdhc += netAmount;
-      else if (matchesCode(code, INCOME_CODES.DANIS)) grossSales.danis += netAmount;
-      else grossSales.diger += netAmount;
+      // Track KKEG
+      if (tx.isKkeg) {
+        kkegTotal += netAmount;
+      }
+
+      // Group by account code
+      if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.GROSS_SALES_600)) {
+        // 600 - Yurtiçi Satışlar
+        grossSales.yurtici += netAmount;
+        
+        // Also populate legacy fields for backwards compatibility
+        if (matchesLegacyCode(categoryCode, LEGACY_INCOME_CODES.SBT)) grossSales.sbt += netAmount;
+        else if (matchesLegacyCode(categoryCode, LEGACY_INCOME_CODES.LS)) grossSales.ls += netAmount;
+        else if (matchesLegacyCode(categoryCode, LEGACY_INCOME_CODES.ZDHC)) grossSales.zdhc += netAmount;
+        else if (matchesLegacyCode(categoryCode, LEGACY_INCOME_CODES.DANIS)) grossSales.danis += netAmount;
+      } else if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.GROSS_SALES_601)) {
+        // 601 - Yurtdışı Satışlar
+        grossSales.yurtdisi += netAmount;
+      } else if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.GROSS_SALES_602)) {
+        // 602 - Diğer Gelirler
+        grossSales.diger += netAmount;
+      } else if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.INTEREST_INCOME)) {
+        // 642 - Faiz Gelirleri
+        otherIncome.faiz += netAmount;
+      } else if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.FX_GAIN)) {
+        // 646 - Kambiyo Karları
+        otherIncome.kurFarki += netAmount;
+      } else if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.OTHER_INCOME)) {
+        // 649 - Diğer Olağan Gelirler
+        otherIncome.diger += netAmount;
+      } else if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.EXTRAORDINARY_INCOME)) {
+        // 679 - Olağandışı Gelirler
+        extraordinaryIncome += netAmount;
+      } else {
+        // Default: assume yurtiçi satış if no account code
+        grossSales.yurtici += netAmount;
+      }
       
       grossSales.total += netAmount;
     });
 
-    // Process expenses from hub - using pre-calculated NET amounts (VAT excluded)
-    const operatingExpenses = {
-      personel: 0, kira: 0, ulasim: 0, telekom: 0, sigorta: 0,
-      ofis: 0, muhasebe: 0, yazilim: 0, banka: 0, diger: 0, total: 0,
-    };
-
+    // Process EXPENSE transactions using account_code
     hub.expense.forEach(tx => {
-      const code = tx.categoryCode || '';
+      const accountCode = tx.accountCode;
       const netAmount = tx.net;
 
-      if (matchesCode(code, EXPENSE_CODES.PERSONEL)) operatingExpenses.personel += netAmount;
-      else if (matchesCode(code, EXPENSE_CODES.KIRA)) operatingExpenses.kira += netAmount;
-      else if (matchesCode(code, EXPENSE_CODES.ULASIM)) operatingExpenses.ulasim += netAmount;
-      else if (matchesCode(code, EXPENSE_CODES.TELEKOM)) operatingExpenses.telekom += netAmount;
-      else if (matchesCode(code, EXPENSE_CODES.SIGORTA)) operatingExpenses.sigorta += netAmount;
-      else if (matchesCode(code, EXPENSE_CODES.OFIS)) operatingExpenses.ofis += netAmount;
-      else if (matchesCode(code, EXPENSE_CODES.MUHASEBE)) operatingExpenses.muhasebe += netAmount;
-      else if (matchesCode(code, EXPENSE_CODES.YAZILIM)) operatingExpenses.yazilim += netAmount;
-      else if (matchesCode(code, EXPENSE_CODES.BANKA)) operatingExpenses.banka += netAmount;
-      else operatingExpenses.diger += netAmount;
-    });
+      // Track KKEG
+      if (tx.isKkeg) {
+        kkegTotal += netAmount;
+      }
 
-    operatingExpenses.total = operatingExpenses.personel + operatingExpenses.kira + 
-      operatingExpenses.ulasim + operatingExpenses.telekom + operatingExpenses.sigorta +
-      operatingExpenses.ofis + operatingExpenses.muhasebe + operatingExpenses.yazilim +
-      operatingExpenses.banka + operatingExpenses.diger;
-
-    // Calculate derived values
-    const netSales = grossSales.total;
-    const costOfSales = 0; // Would need separate tracking
-    const grossProfit = netSales - costOfSales;
-    const operatingProfit = grossProfit - operatingExpenses.total;
-
-    // Other income/expenses from financing transactions
-    let otherIncomeTotal = 0;
-    let otherExpenseTotal = 0;
-
-    hub.financing.forEach(tx => {
-      if (tx.isIncome) {
-        otherIncomeTotal += tx.gross;
+      // Group by account code
+      if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.SALES_RETURNS)) {
+        // 610 - Satıştan İadeler
+        salesReturns += netAmount;
+      } else if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.COST_OF_SALES)) {
+        // 622 - Satılan Hizmet Maliyeti
+        costOfSales += netAmount;
+      } else if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.MARKETING)) {
+        // 631 - Pazarlama Satış Dağıtım
+        operatingExpenses.pazarlama += netAmount;
+      } else if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.GENERAL_ADMIN)) {
+        // 632 - Genel Yönetim
+        operatingExpenses.genelYonetim += netAmount;
+        
+        // Also populate legacy fields based on subcategory
+        const subcode = tx.accountSubcode;
+        if (subcode === '632.01') operatingExpenses.personel += netAmount;
+        else if (subcode === '632.02') operatingExpenses.kira += netAmount;
+        else if (subcode === '632.03' || subcode === '632.04') operatingExpenses.ulasim += netAmount;
+        else if (subcode === '632.05') operatingExpenses.telekom += netAmount;
+        else if (subcode === '632.06') operatingExpenses.sigorta += netAmount;
+        else if (subcode === '632.07') operatingExpenses.ofis += netAmount;
+        else if (subcode === '632.08' || subcode === '632.10') operatingExpenses.muhasebe += netAmount;
+        else if (subcode === '632.11') operatingExpenses.yazilim += netAmount;
+        else operatingExpenses.diger += netAmount;
+      } else if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.COMMISSION_EXP)) {
+        // 653 - Komisyon Giderleri
+        otherExpenses.komisyon += netAmount;
+        operatingExpenses.banka += netAmount; // Legacy field
+      } else if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.FX_LOSS)) {
+        // 656 - Kambiyo Zararları
+        otherExpenses.kurFarki += netAmount;
+      } else if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.OTHER_EXPENSE)) {
+        // 659 - Diğer Olağan Giderler
+        otherExpenses.diger += netAmount;
+      } else if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.EXTRAORDINARY_EXPENSE)) {
+        // 689 - Olağandışı Giderler
+        extraordinaryExpenses += netAmount;
       } else {
-        otherExpenseTotal += tx.gross;
+        // Default: assume genel yönetim if no account code
+        operatingExpenses.genelYonetim += netAmount;
+        operatingExpenses.diger += netAmount;
       }
     });
 
-    const preTaxProfit = operatingProfit + otherIncomeTotal - otherExpenseTotal;
+    // Process FINANCING transactions
+    hub.financing.forEach(tx => {
+      const accountCode = tx.accountCode;
+      
+      // Track KKEG
+      if (tx.isKkeg) {
+        kkegTotal += Math.abs(tx.gross);
+      }
+
+      if (!tx.isIncome) {
+        // 660 - Finansman Giderleri
+        if (matchesAccountCode(accountCode, ACCOUNT_GROUPS.FINANCE_EXP) || 
+            tx.categoryCode?.includes('FAIZ_OUT') ||
+            tx.categoryCode?.includes('FAKTORING') ||
+            tx.categoryCode?.includes('LEASING')) {
+          financeExpenses += Math.abs(tx.gross);
+          otherExpenses.faiz = financeExpenses; // Legacy field
+        }
+      }
+    });
+
+    // Calculate totals
+    operatingExpenses.total = operatingExpenses.pazarlama + operatingExpenses.genelYonetim;
+    otherIncome.total = otherIncome.faiz + otherIncome.kurFarki + otherIncome.diger;
+    otherExpenses.total = otherExpenses.komisyon + otherExpenses.kurFarki + otherExpenses.diger;
+
+    // Calculate derived values according to official format
+    const netSales = grossSales.total - salesReturns;
+    const grossProfit = netSales - costOfSales;
+    const operatingProfit = grossProfit - operatingExpenses.total;
+    const ordinaryProfit = operatingProfit + otherIncome.total - otherExpenses.total - financeExpenses;
+    const preTaxProfit = ordinaryProfit + extraordinaryIncome - extraordinaryExpenses;
     
-    // Estimate tax (simplified)
+    // Estimate tax (simplified - 25% if positive)
     const taxExpense = preTaxProfit > 0 ? preTaxProfit * 0.25 : 0;
     const netProfit = preTaxProfit - taxExpense;
 
     return {
       grossSales,
-      salesReturns: 0,
+      salesReturns,
       netSales,
       costOfSales,
       grossProfit,
       operatingExpenses,
       operatingProfit,
-      otherIncome: { faiz: otherIncomeTotal, kurFarki: 0, total: otherIncomeTotal },
-      otherExpenses: { faiz: otherExpenseTotal, kurFarki: 0, total: otherExpenseTotal },
+      otherIncome,
+      otherExpenses,
+      financeExpenses,
+      ordinaryProfit,
+      extraordinaryIncome,
+      extraordinaryExpenses,
       preTaxProfit,
       taxExpense,
       netProfit,
       profitMargin: netSales > 0 ? (netProfit / netSales) * 100 : 0,
       ebitMargin: netSales > 0 ? (operatingProfit / netSales) * 100 : 0,
       grossMargin: netSales > 0 ? (grossProfit / netSales) * 100 : 0,
+      kkegTotal,
     };
   }, [hub]);
 
@@ -160,46 +288,51 @@ export function useIncomeStatement(year: number) {
 
     return [
       formatLine('A', 'BRÜT SATIŞLAR', 0, 0, { isSubtotal: true }),
-      formatLine('A1', 'SBT Tracker Geliri', statement.grossSales.sbt, 1),
-      formatLine('A2', 'Leadership & Sustainability Geliri', statement.grossSales.ls, 1),
-      formatLine('A3', 'ZDHC InCheck Geliri', statement.grossSales.zdhc, 1),
-      formatLine('A4', 'Danışmanlık Geliri', statement.grossSales.danis, 1),
-      formatLine('A5', 'Diğer Gelirler', statement.grossSales.diger, 1),
+      formatLine('A1', 'Yurtiçi Satışlar (600)', statement.grossSales.yurtici, 1),
+      formatLine('A2', 'Yurtdışı Satışlar (601)', statement.grossSales.yurtdisi, 1),
+      formatLine('A3', 'Diğer Gelirler (602)', statement.grossSales.diger, 1),
       formatLine('AT', 'BRÜT SATIŞLAR TOPLAMI', statement.grossSales.total, 0, { isTotal: true }),
       
       formatLine('B', 'SATIŞ İNDİRİMLERİ (-)', 0, 0, { isSubtotal: true }),
-      formatLine('B1', 'İadeler', statement.salesReturns, 1, { isNegative: true }),
+      formatLine('B1', 'Satıştan İadeler (610)', statement.salesReturns, 1, { isNegative: true }),
       formatLine('NS', 'NET SATIŞLAR', statement.netSales, 0, { isTotal: true }),
       
-      formatLine('C', 'SATIŞLARIN MALİYETİ (-)', 0, 0, { isSubtotal: true }),
-      formatLine('C1', 'Harici Hizmet Maliyeti', statement.costOfSales, 1, { isNegative: true }),
+      formatLine('D', 'SATIŞLARIN MALİYETİ (-)', 0, 0, { isSubtotal: true }),
+      formatLine('D1', 'Satılan Hizmet Maliyeti (622)', statement.costOfSales, 1, { isNegative: true }),
       formatLine('GP', 'BRÜT KÂR', statement.grossProfit, 0, { isTotal: true }),
       
-      formatLine('D', 'FAALİYET GİDERLERİ (-)', 0, 0, { isSubtotal: true }),
-      formatLine('D1', 'Personel Giderleri', statement.operatingExpenses.personel, 1, { isNegative: true }),
-      formatLine('D2', 'Kira Giderleri', statement.operatingExpenses.kira, 1, { isNegative: true }),
-      formatLine('D3', 'Ulaşım Giderleri (HGS, Yakıt)', statement.operatingExpenses.ulasim, 1, { isNegative: true }),
-      formatLine('D4', 'Telekomünikasyon', statement.operatingExpenses.telekom, 1, { isNegative: true }),
-      formatLine('D5', 'Sigorta Giderleri', statement.operatingExpenses.sigorta, 1, { isNegative: true }),
-      formatLine('D6', 'Ofis & Malzeme', statement.operatingExpenses.ofis, 1, { isNegative: true }),
-      formatLine('D7', 'Muhasebe & Hukuk', statement.operatingExpenses.muhasebe, 1, { isNegative: true }),
-      formatLine('D8', 'Yazılım & Abonelik', statement.operatingExpenses.yazilim, 1, { isNegative: true }),
-      formatLine('D9', 'Banka Masrafları', statement.operatingExpenses.banka, 1, { isNegative: true }),
-      formatLine('D10', 'Diğer Faaliyet Giderleri', statement.operatingExpenses.diger, 1, { isNegative: true }),
-      formatLine('DT', 'FAALİYET GİDERLERİ TOPLAMI', statement.operatingExpenses.total, 0, { isTotal: true, isNegative: true }),
+      formatLine('E', 'FAALİYET GİDERLERİ (-)', 0, 0, { isSubtotal: true }),
+      formatLine('E1', 'Pazarlama Satış Dağıtım (631)', statement.operatingExpenses.pazarlama, 1, { isNegative: true }),
+      formatLine('E2', 'Genel Yönetim Giderleri (632)', statement.operatingExpenses.genelYonetim, 1, { isNegative: true }),
+      formatLine('ET', 'FAALİYET GİDERLERİ TOPLAMI', statement.operatingExpenses.total, 0, { isTotal: true, isNegative: true }),
       
       formatLine('EBIT', 'FAALİYET KÂRI (EBIT)', statement.operatingProfit, 0, { isTotal: true }),
       
-      formatLine('E', 'DİĞER FAALİYET GELİRLERİ (+)', 0, 0, { isSubtotal: true }),
-      formatLine('E1', 'Faiz Geliri', statement.otherIncome.faiz, 1),
+      formatLine('F', 'DİĞER FAALİYET GELİRLERİ (+)', 0, 0, { isSubtotal: true }),
+      formatLine('F1', 'Faiz Gelirleri (642)', statement.otherIncome.faiz, 1),
+      formatLine('F2', 'Kambiyo Karları (646)', statement.otherIncome.kurFarki, 1),
+      formatLine('F3', 'Diğer Olağan Gelirler (649)', statement.otherIncome.diger, 1),
       
-      formatLine('F', 'DİĞER FAALİYET GİDERLERİ (-)', 0, 0, { isSubtotal: true }),
-      formatLine('F1', 'Faiz Gideri', statement.otherExpenses.faiz, 1, { isNegative: true }),
+      formatLine('G', 'DİĞER FAALİYET GİDERLERİ (-)', 0, 0, { isSubtotal: true }),
+      formatLine('G1', 'Komisyon Giderleri (653)', statement.otherExpenses.komisyon, 1, { isNegative: true }),
+      formatLine('G2', 'Kambiyo Zararları (656)', statement.otherExpenses.kurFarki, 1, { isNegative: true }),
+      formatLine('G3', 'Diğer Olağan Giderler (659)', statement.otherExpenses.diger, 1, { isNegative: true }),
+      
+      formatLine('H', 'FİNANSMAN GİDERLERİ (-)', 0, 0, { isSubtotal: true }),
+      formatLine('H1', 'Kısa Vadeli Borçlanma (660)', statement.financeExpenses, 1, { isNegative: true }),
+      
+      formatLine('OK', 'OLAĞAN KÂR', statement.ordinaryProfit, 0, { isTotal: true }),
+      
+      formatLine('I', 'OLAĞANDIŞI GELİRLER (+)', 0, 0, { isSubtotal: true }),
+      formatLine('I1', 'Olağandışı Gelirler (679)', statement.extraordinaryIncome, 1),
+      
+      formatLine('J', 'OLAĞANDIŞI GİDERLER (-)', 0, 0, { isSubtotal: true }),
+      formatLine('J1', 'Olağandışı Giderler (689)', statement.extraordinaryExpenses, 1, { isNegative: true }),
       
       formatLine('PBT', 'VERGİ ÖNCESİ KÂR', statement.preTaxProfit, 0, { isTotal: true }),
       
-      formatLine('G', 'VERGİ GİDERİ (-)', 0, 0, { isSubtotal: true }),
-      formatLine('G1', 'Kurumlar Vergisi (%25)', statement.taxExpense, 1, { isNegative: true }),
+      formatLine('K', 'VERGİ GİDERİ (-)', 0, 0, { isSubtotal: true }),
+      formatLine('K1', 'Kurumlar Vergisi (%25)', statement.taxExpense, 1, { isNegative: true }),
       
       formatLine('NP', 'DÖNEM NET KÂRI', statement.netProfit, 0, { isTotal: true }),
     ];
