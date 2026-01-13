@@ -4,6 +4,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
 import Today from "./pages/Today";
@@ -28,29 +29,31 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        <Toaster />
-        <Sonner position="top-center" />
-        <BrowserRouter>
-          <Routes>
-            <Route path="/" element={<Navigate to="/finance" replace />} />
-            <Route path="/auth" element={<Auth />} />
-            <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />
-            <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
-            <Route path="/week" element={<ProtectedRoute><Week /></ProtectedRoute>} />
-            <Route path="/finance" element={<ProtectedRoute><FinanceDashboard /></ProtectedRoute>} />
-            <Route path="/finance/bank-import" element={<ProtectedRoute><BankImport /></ProtectedRoute>} />
-            <Route path="/finance/bank-transactions" element={<ProtectedRoute><BankTransactions /></ProtectedRoute>} />
-            <Route path="/finance/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
-            <Route path="/finance/receipts/upload" element={<ProtectedRoute><ReceiptUpload /></ProtectedRoute>} />
-            <Route path="/finance/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
-            <Route path="/finance/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-            <Route path="/finance/vat-report" element={<ProtectedRoute><VatReport /></ProtectedRoute>} />
-            <Route path="/finance/manual-entry" element={<ProtectedRoute><ManualEntry /></ProtectedRoute>} />
-            <Route path="/finance/receipts/:id" element={<ProtectedRoute><ReceiptDetail /></ProtectedRoute>} />
-            <Route path="/finance/balance-sheet" element={<ProtectedRoute><BalanceSheet /></ProtectedRoute>} />
-            <Route path="*" element={<NotFound />} />
-          </Routes>
-        </BrowserRouter>
+        <CurrencyProvider>
+          <Toaster />
+          <Sonner position="top-center" />
+          <BrowserRouter>
+            <Routes>
+              <Route path="/" element={<Navigate to="/finance" replace />} />
+              <Route path="/auth" element={<Auth />} />
+              <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />
+              <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
+              <Route path="/week" element={<ProtectedRoute><Week /></ProtectedRoute>} />
+              <Route path="/finance" element={<ProtectedRoute><FinanceDashboard /></ProtectedRoute>} />
+              <Route path="/finance/bank-import" element={<ProtectedRoute><BankImport /></ProtectedRoute>} />
+              <Route path="/finance/bank-transactions" element={<ProtectedRoute><BankTransactions /></ProtectedRoute>} />
+              <Route path="/finance/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
+              <Route path="/finance/receipts/upload" element={<ProtectedRoute><ReceiptUpload /></ProtectedRoute>} />
+              <Route path="/finance/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
+              <Route path="/finance/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+              <Route path="/finance/vat-report" element={<ProtectedRoute><VatReport /></ProtectedRoute>} />
+              <Route path="/finance/manual-entry" element={<ProtectedRoute><ManualEntry /></ProtectedRoute>} />
+              <Route path="/finance/receipts/:id" element={<ProtectedRoute><ReceiptDetail /></ProtectedRoute>} />
+              <Route path="/finance/balance-sheet" element={<ProtectedRoute><BalanceSheet /></ProtectedRoute>} />
+              <Route path="*" element={<NotFound />} />
+            </Routes>
+          </BrowserRouter>
+        </CurrencyProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

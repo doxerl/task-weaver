@@ -975,6 +975,39 @@ export type Database = {
           },
         ]
       }
+      monthly_exchange_rates: {
+        Row: {
+          created_at: string | null
+          currency_pair: string
+          id: string
+          month: number
+          rate: number
+          source: string | null
+          updated_at: string | null
+          year: number
+        }
+        Insert: {
+          created_at?: string | null
+          currency_pair?: string
+          id?: string
+          month: number
+          rate: number
+          source?: string | null
+          updated_at?: string | null
+          year: number
+        }
+        Update: {
+          created_at?: string | null
+          currency_pair?: string
+          id?: string
+          month?: number
+          rate?: number
+          source?: string | null
+          updated_at?: string | null
+          year?: number
+        }
+        Relationships: []
+      }
       plan_items: {
         Row: {
           carry_over_count: number | null
