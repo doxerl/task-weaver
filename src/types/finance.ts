@@ -216,6 +216,8 @@ export interface ParsedTransaction {
   // Manual amount editing fields
   isAmountManuallyChanged?: boolean;
   originalAmountValue?: number;
+  // Excel label column (if available)
+  excelLabel?: string;
 }
 
 export interface ParseSummary {

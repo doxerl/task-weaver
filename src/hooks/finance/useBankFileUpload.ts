@@ -5,7 +5,7 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { useCategories } from './useCategories';
 import { useBankImportSession, SaveTransactionParams, SaveCategorizationParams } from './useBankImportSession';
-import { parseFile } from '@/lib/fileParser';
+import { parseFile, ParsedFileResult } from '@/lib/fileParser';
 import { ParsedTransaction, ParseResult, ParseSummary, BankInfo, CategorizationResult, BalanceImpact, TransactionCategory, FailedBatch } from '@/types/finance';
 import { EditableTransaction } from '@/components/finance/TransactionEditor';
 import { categorizeWithRules, RuleMatchResult } from './useCategoryRules';
@@ -812,28 +812,37 @@ export function useBankFileUpload() {
         setProgress(25);
 
         // 3. Read file content (parse XLSX/PDF to text)
-        const fileContent = await parseFile(file);
-        console.log('File content length:', fileContent.length);
+        const parseResult = await parseFile(file);
+        const { content: fileContent, headerRow, dataRowCount, totalRowCount } = parseResult;
+        
+        console.log(`📊 File parsed: ${totalRowCount} total rows, ${dataRowCount} data rows`);
+        console.log(`📋 Header: "${headerRow.substring(0, 80)}..."`);
+        console.log(`📄 Content length: ${fileContent.length} chars`);
 
         // 4. Split into batches (10 lines each)
         setStatus('parsing');
         setProgress(30);
 
-        const lines = fileContent.split('\n').filter(line => line.trim());
-        const headerLine = lines[0] || '';
-        const dataLines = lines.slice(1);
-        const totalRowsInFile = lines.length; // Total including header
+        // Get data lines (already have [ROW X] prefix from parseFile)
+        const dataLines = fileContent.split('\n').filter(line => line.startsWith('[ROW'));
+        const totalRowsInFile = totalRowCount;
+        
+        console.log(`📊 Data lines found: ${dataLines.length} (expected: ${dataRowCount})`);
+        
+        // Validate line count
+        if (dataLines.length !== dataRowCount) {
+          console.warn(`⚠️ Line count mismatch: found ${dataLines.length}, expected ${dataRowCount}`);
+        }
 
-        console.log(`Total lines: ${lines.length}, Data lines: ${dataLines.length}`);
-
-        // Create batches of 10 data lines
+        // Create batches of 10 data lines, prepending header to each batch
         const batches: string[] = [];
         for (let i = 0; i < dataLines.length; i += PARSE_BATCH_SIZE) {
           const batchLines = dataLines.slice(i, i + PARSE_BATCH_SIZE);
-          batches.push([headerLine, ...batchLines].join('\n'));
+          // Prepend header as "HEADER:" line for AI context
+          batches.push([`HEADER:\t${headerRow}`, ...batchLines].join('\n'));
         }
 
-        console.log(`Created ${batches.length} parse batches`);
+        console.log(`✅ Created ${batches.length} parse batches (${PARSE_BATCH_SIZE} rows each)`);
 
         // 5. Process batches with totalRowsInFile for accurate progress
         const batchResult = await processBatches(batches, 0, fileExt, file.name, [], [], totalRowsInFile);
