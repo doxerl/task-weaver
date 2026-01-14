@@ -34,7 +34,7 @@ function GrowthSimulationContent() {
   const { generatePdf, isGenerating, progress } = useSimulationPdf();
   const [showComparison, setShowComparison] = useState(false);
   
-  // Ref for chart capture
+  // Chart ref (no longer needed for PDF, kept for potential future use)
   const chartsContainerRef = useRef<HTMLDivElement>(null);
   
   const [showNextYearDialog, setShowNextYearDialog] = useState(false);
@@ -141,9 +141,7 @@ function GrowthSimulationContent() {
         assumedExchangeRate,
         notes,
       },
-      {
-        chartsContainer: chartsContainerRef.current,
-      },
+      {}, // No longer need chart refs - charts are drawn with jsPDF
       {
         companyName: 'Şirket',
       }

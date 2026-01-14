@@ -13,7 +13,9 @@ export interface SimulationPdfData {
   notes: string;
 }
 
+// Chart refs no longer needed - we draw charts with jsPDF directly
 export interface SimulationChartRefs {
+  // Kept for backward compatibility but not used
   chartsContainer?: HTMLElement | null;
 }
 
@@ -44,24 +46,172 @@ const formatTRY = (n: number): string =>
 
 const formatPercent = (n: number): string => `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
 
-// Capture chart element to image
-async function captureChartToImage(element: HTMLElement): Promise<string | null> {
-  try {
-    const html2canvasModule = await import('html2canvas');
-    const html2canvas = html2canvasModule.default;
+// Draw comparison bar chart using jsPDF
+function drawComparisonBarChart(
+  doc: jsPDF,
+  baseRevenue: number,
+  projectedRevenue: number,
+  baseExpense: number,
+  projectedExpense: number,
+  margin: number,
+  startY: number
+): number {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const chartWidth = pageWidth - margin * 2;
+  const barHeight = 25;
+  const groupSpacing = 15;
+  const labelWidth = 50;
+  
+  let y = startY;
+  
+  // Title
+  doc.setFontSize(12);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(0, 0, 0);
+  doc.text(normalizeTurkish('Gelir ve Gider Karsilastirmasi'), margin, y);
+  y += 12;
+  
+  const maxValue = Math.max(baseRevenue, projectedRevenue, baseExpense, projectedExpense);
+  const barAreaWidth = chartWidth - labelWidth - 40;
+  
+  // Helper function to draw a bar group
+  const drawBarGroup = (label: string, base: number, projected: number, yPos: number, color: [number, number, number]) => {
+    // Label
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(0, 0, 0);
+    doc.text(normalizeTurkish(label), margin, yPos + 8);
     
-    const canvas = await html2canvas(element, {
-      scale: 2,
-      useCORS: true,
-      backgroundColor: '#ffffff',
-      logging: false,
-    });
+    const barX = margin + labelWidth;
     
-    return canvas.toDataURL('image/png', 1.0);
-  } catch (error) {
-    console.error('Chart capture error:', error);
-    return null;
-  }
+    // 2025 bar (lighter)
+    const baseWidth = (base / maxValue) * barAreaWidth;
+    doc.setFillColor(color[0], color[1], color[2], 0.5);
+    doc.setFillColor(Math.min(255, color[0] + 80), Math.min(255, color[1] + 80), Math.min(255, color[2] + 80));
+    doc.roundedRect(barX, yPos, Math.max(baseWidth, 2), 10, 2, 2, 'F');
+    
+    // 2025 value
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.text(formatUSD(base), barX + baseWidth + 3, yPos + 7);
+    doc.setFontSize(6);
+    doc.text('2025', barX + baseWidth + 3, yPos + 3);
+    
+    // 2026 bar (darker)
+    const projectedWidth = (projected / maxValue) * barAreaWidth;
+    doc.setFillColor(...color);
+    doc.roundedRect(barX, yPos + 12, Math.max(projectedWidth, 2), 10, 2, 2, 'F');
+    
+    // 2026 value
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'bold');
+    doc.text(formatUSD(projected), barX + projectedWidth + 3, yPos + 19);
+    doc.setFontSize(6);
+    doc.setFont('helvetica', 'normal');
+    doc.text('2026', barX + projectedWidth + 3, yPos + 15);
+  };
+  
+  // Revenue bars
+  drawBarGroup('Gelir', baseRevenue, projectedRevenue, y, [34, 197, 94]);
+  y += barHeight + groupSpacing;
+  
+  // Expense bars
+  drawBarGroup('Gider', baseExpense, projectedExpense, y, [239, 68, 68]);
+  y += barHeight + groupSpacing;
+  
+  // Net profit comparison
+  const baseProfit = baseRevenue - baseExpense;
+  const projectedProfit = projectedRevenue - projectedExpense;
+  
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text(normalizeTurkish('Net Kar'), margin, y + 8);
+  
+  const profitX = margin + labelWidth;
+  
+  // Profit indicator boxes
+  doc.setFillColor(59, 130, 246);
+  doc.roundedRect(profitX, y, 80, 20, 3, 3, 'F');
+  doc.setTextColor(255, 255, 255);
+  doc.setFontSize(8);
+  doc.text('2025: ' + formatUSD(baseProfit), profitX + 5, y + 8);
+  doc.text('2026: ' + formatUSD(projectedProfit), profitX + 5, y + 16);
+  
+  // Growth indicator
+  const profitGrowth = baseProfit !== 0 ? ((projectedProfit - baseProfit) / Math.abs(baseProfit)) * 100 : 0;
+  doc.setFillColor(profitGrowth >= 0 ? 34 : 239, profitGrowth >= 0 ? 197 : 68, profitGrowth >= 0 ? 94 : 68);
+  doc.roundedRect(profitX + 85, y, 35, 20, 3, 3, 'F');
+  doc.setFontSize(10);
+  doc.setFont('helvetica', 'bold');
+  doc.text(formatPercent(profitGrowth), profitX + 87, y + 13);
+  
+  y += 35;
+  
+  return y;
+}
+
+// Draw category growth bars
+function drawCategoryGrowthBars(
+  doc: jsPDF,
+  items: ProjectionItem[],
+  type: 'revenue' | 'expense',
+  margin: number,
+  startY: number
+): number {
+  const pageWidth = doc.internal.pageSize.getWidth();
+  const chartWidth = pageWidth - margin * 2;
+  let y = startY;
+  
+  // Title
+  doc.setFontSize(11);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(type === 'revenue' ? 34 : 239, type === 'revenue' ? 197 : 68, type === 'revenue' ? 94 : 68);
+  doc.text(normalizeTurkish(type === 'revenue' ? 'Gelir Kategorileri Buyume' : 'Gider Kategorileri Degisim'), margin, y);
+  y += 10;
+  
+  const barHeight = 6;
+  const labelWidth = 55;
+  const valueWidth = 30;
+  const barAreaWidth = chartWidth - labelWidth - valueWidth - 10;
+  
+  // Sort by growth
+  const sortedItems = [...items]
+    .map(item => ({
+      ...item,
+      growth: item.baseAmount > 0 ? ((item.projectedAmount - item.baseAmount) / item.baseAmount) * 100 : 0
+    }))
+    .sort((a, b) => b.growth - a.growth)
+    .slice(0, 8); // Top 8 items
+  
+  const maxGrowth = Math.max(...sortedItems.map(i => Math.abs(i.growth)), 1);
+  
+  sortedItems.forEach((item) => {
+    // Category name (truncated)
+    doc.setFontSize(7);
+    doc.setFont('helvetica', 'normal');
+    doc.setTextColor(0, 0, 0);
+    const displayName = item.category.length > 20 ? item.category.substring(0, 17) + '...' : item.category;
+    doc.text(normalizeTurkish(displayName), margin, y + 4);
+    
+    // Growth bar
+    const barX = margin + labelWidth;
+    const barWidth = (Math.abs(item.growth) / maxGrowth) * barAreaWidth * 0.8;
+    const color: [number, number, number] = type === 'revenue'
+      ? (item.growth >= 0 ? [34, 197, 94] : [239, 68, 68])
+      : (item.growth >= 0 ? [239, 68, 68] : [34, 197, 94]); // Inverted for expenses
+    
+    doc.setFillColor(...color);
+    doc.roundedRect(barX, y, Math.max(barWidth, 2), barHeight, 1, 1, 'F');
+    
+    // Growth percentage
+    doc.setFont('helvetica', 'bold');
+    doc.setTextColor(...color);
+    doc.text(formatPercent(item.growth), barX + barWidth + 3, y + 4);
+    
+    y += barHeight + 4;
+  });
+  
+  return y + 5;
 }
 
 export function useSimulationPdf() {
@@ -415,32 +565,41 @@ export function useSimulationPdf() {
       addPageNumber();
 
       // ==========================================
-      // PAGE 5: CHARTS
+      // PAGE 5: CHARTS (drawn with jsPDF)
       // ==========================================
       doc.addPage();
-      setProgress({ current: 5, total: 8, stage: 'Grafikler yakalaniyor...' });
+      setProgress({ current: 5, total: 8, stage: 'Grafikler olusturuluyor...' });
 
       drawSectionHeader('KARSILASTIRMA GRAFIKLERI', [59, 130, 246]);
 
-      // Capture charts if available
-      if (chartRefs.chartsContainer) {
-        const chartImage = await captureChartToImage(chartRefs.chartsContainer);
-        if (chartImage) {
-          // Calculate dimensions to fit on page
-          const imgWidth = pageWidth - margin * 2;
-          const imgHeight = 180; // Approximate height
-          doc.addImage(chartImage, 'PNG', margin, 35, imgWidth, imgHeight);
-        } else {
-          doc.setFontSize(12);
-          doc.setTextColor(128, 128, 128);
-          doc.text(normalizeTurkish('Grafikler yuklenemedi'), pageWidth / 2, 100, { align: 'center' });
-        }
-      } else {
-        // Show text-based chart alternative
-        doc.setFontSize(12);
-        doc.setTextColor(100, 100, 100);
-        doc.text(normalizeTurkish('Grafik goruntuleme icin uygulamayi ziyaret edin'), pageWidth / 2, 100, { align: 'center' });
-      }
+      // Draw comparison bar chart using jsPDF
+      const baseRevenue = data.summary.base.totalRevenue;
+      const projectedRevenue = data.summary.projected.totalRevenue;
+      const baseExpense = data.summary.base.totalExpense;
+      const projectedExpense = data.summary.projected.totalExpense;
+
+      let chartY = 40;
+      
+      // Main comparison chart
+      chartY = drawComparisonBarChart(
+        doc,
+        baseRevenue,
+        projectedRevenue,
+        baseExpense,
+        projectedExpense,
+        margin,
+        chartY
+      );
+      
+      chartY += 10;
+      
+      // Revenue category growth
+      chartY = drawCategoryGrowthBars(doc, data.revenues, 'revenue', margin, chartY);
+      
+      chartY += 5;
+      
+      // Expense category growth
+      chartY = drawCategoryGrowthBars(doc, data.expenses, 'expense', margin, chartY);
 
       addPageNumber();
 
