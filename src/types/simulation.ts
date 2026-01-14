@@ -182,6 +182,7 @@ export interface AdvancedCapitalAnalysis {
   monthlyProjections: CashFlowProjection[];
   breakEven: BreakEvenAnalysis;
   capitalNeeds: EnhancedCapitalNeeds;
+  burnRateAnalysis?: BurnRateAnalysis;
 }
 
 /** Payback period calculation */

@@ -286,25 +286,27 @@ export function CapitalAnalysis({
           </Card>
         </TabsContent>
 
-        {/* TAB 2: Cash Flow */}
+        {/* TAB 2: Cash Flow - Quarterly View */}
         <TabsContent value="cashflow" className="space-y-4">
-          {hasAdvanced ? (
+          {hasAdvanced && advancedAnalysis.burnRateAnalysis ? (
             <>
               <CashFlowChart 
-                projections={advancedAnalysis.monthlyProjections}
-                breakEvenMonth={advancedAnalysis.breakEven.breakEvenMonth}
+                quarterlyProjections={advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment}
+                currentCash={advancedAnalysis.currentCash.totalLiquidity}
+                safetyBuffer={advancedAnalysis.workingCapital.safetyBuffer}
+                breakEvenQuarter={advancedAnalysis.burnRateAnalysis.criticalQuarter}
               />
               
-              {/* Monthly projection table */}
+              {/* Quarterly projection table */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">12 Aylık Nakit Akış Tablosu</CardTitle>
+                  <CardTitle className="text-base">Çeyreklik Nakit Akış Tablosu</CardTitle>
                 </CardHeader>
                 <CardContent className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Ay</TableHead>
+                        <TableHead>Dönem</TableHead>
                         <TableHead className="text-right">Açılış</TableHead>
                         <TableHead className="text-right text-green-600">Gelir</TableHead>
                         <TableHead className="text-right text-red-600">Gider</TableHead>
@@ -314,11 +316,19 @@ export function CapitalAnalysis({
                       </TableRow>
                     </TableHeader>
                     <TableBody>
-                      {advancedAnalysis.monthlyProjections.map((p) => (
-                        <TableRow key={p.month} className={cn(
-                          p.closingBalance < 0 && "bg-red-50/50 dark:bg-red-950/20"
+                      {advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.map((p) => (
+                        <TableRow key={p.quarter} className={cn(
+                          p.closingBalance < 0 && "bg-red-50/50 dark:bg-red-950/20",
+                          p.quarter === advancedAnalysis.burnRateAnalysis?.criticalQuarter && "bg-yellow-50/50 dark:bg-yellow-950/20"
                         )}>
-                          <TableCell className="font-medium">{p.monthName}</TableCell>
+                          <TableCell className="font-medium">
+                            <div>
+                              <span>{p.quarter}</span>
+                              <span className="text-xs text-muted-foreground ml-1">
+                                ({p.months.join('-')})
+                              </span>
+                            </div>
+                          </TableCell>
                           <TableCell className="text-right">{formatUSD(p.openingBalance)}</TableCell>
                           <TableCell className="text-right text-green-600">{formatUSD(p.revenue)}</TableCell>
                           <TableCell className="text-right text-red-600">{formatUSD(p.expense)}</TableCell>
@@ -339,10 +349,56 @@ export function CapitalAnalysis({
                           </TableCell>
                         </TableRow>
                       ))}
+                      {/* Year-end summary row */}
+                      <TableRow className="bg-muted/50 font-semibold border-t-2">
+                        <TableCell>YIL SONU</TableCell>
+                        <TableCell className="text-right">
+                          {formatUSD(advancedAnalysis.currentCash.totalLiquidity)}
+                        </TableCell>
+                        <TableCell className="text-right text-green-600">
+                          {formatUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.reduce((sum, p) => sum + p.revenue, 0))}
+                        </TableCell>
+                        <TableCell className="text-right text-red-600">
+                          {formatUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.reduce((sum, p) => sum + p.expense, 0))}
+                        </TableCell>
+                        <TableCell className="text-right text-orange-600">
+                          {formatUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.reduce((sum, p) => sum + p.investment, 0))}
+                        </TableCell>
+                        <TableCell className={cn(
+                          "text-right",
+                          advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.reduce((sum, p) => sum + p.netCashFlow, 0) >= 0 
+                            ? "text-green-600" : "text-red-600"
+                        )}>
+                          {formatUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.reduce((sum, p) => sum + p.netCashFlow, 0))}
+                        </TableCell>
+                        <TableCell className="text-right">
+                          {formatUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment[3]?.closingBalance || 0)}
+                        </TableCell>
+                      </TableRow>
                     </TableBody>
                   </Table>
                 </CardContent>
               </Card>
+
+              {/* Critical quarter warning */}
+              {advancedAnalysis.burnRateAnalysis.criticalQuarter && (
+                <Card className="border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/20">
+                  <CardContent className="pt-4">
+                    <div className="flex items-start gap-3">
+                      <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
+                      <div>
+                        <p className="font-medium text-yellow-800 dark:text-yellow-200">Kritik Dönem Uyarısı</p>
+                        <p className="text-sm text-yellow-700 dark:text-yellow-300">
+                          <strong>{advancedAnalysis.burnRateAnalysis.criticalQuarter}</strong> döneminde nakit en düşük seviyeye ulaşacak.
+                          {advancedAnalysis.burnRateAnalysis.cashDeficitWithoutInvestment > 0 && (
+                            <> Yatırım yapılmazsa yıl sonunda <strong>{formatUSD(advancedAnalysis.burnRateAnalysis.cashDeficitWithoutInvestment)}</strong> fazla nakit olacak.</>
+                          )}
+                        </p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              )}
 
               {/* Peak deficit warning */}
               {advancedAnalysis.capitalNeeds.peakCashDeficit > 0 && (
@@ -353,7 +409,6 @@ export function CapitalAnalysis({
                       <div>
                         <p className="font-medium text-red-800 dark:text-red-200">Nakit Açığı Uyarısı</p>
                         <p className="text-sm text-red-700 dark:text-red-300">
-                          {MONTH_NAMES[(advancedAnalysis.capitalNeeds.deficitMonth || 1) - 1]} ayında{' '}
                           <strong>{formatUSD(advancedAnalysis.capitalNeeds.peakCashDeficit)}</strong>{' '}
                           nakit açığı oluşabilir. Yatırım zamanlamasını veya finansman planını gözden geçirin.
                         </p>
