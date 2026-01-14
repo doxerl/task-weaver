@@ -1,11 +1,49 @@
+// Quarterly breakdown
+export interface QuarterlyAmounts {
+  q1: number;  // Jan-Mar
+  q2: number;  // Apr-Jun
+  q3: number;  // Jul-Sep
+  q4: number;  // Oct-Dec
+}
+
 export interface ProjectionItem {
   id: string;
   category: string;
   baseAmount: number;      // 2025 actual (USD)
   projectedAmount: number; // 2026 target (USD)
+  baseQuarterly?: QuarterlyAmounts;      // Quarterly base values
+  projectedQuarterly?: QuarterlyAmounts; // Quarterly projected values
   description: string;
   isNew: boolean;
   startMonth?: number;     // 1-12 for new items
+}
+
+// Quarterly cash flow projection
+export interface QuarterlyProjection {
+  quarter: 'Q1' | 'Q2' | 'Q3' | 'Q4';
+  months: string[];
+  revenue: number;
+  expense: number;
+  investment: number;
+  netCashFlow: number;
+  openingBalance: number;
+  closingBalance: number;
+  cumulativeBurn: number;
+}
+
+// Burn rate analysis
+export interface BurnRateAnalysis {
+  monthlyBurnRate: number;          // Average monthly cash burn
+  grossBurnRate: number;            // Total monthly expense
+  netBurnRate: number;              // Expense - Revenue (negative = cash generation)
+  quarterlyBurn: QuarterlyAmounts;
+  runwayMonths: number;             // How many months can survive with current cash
+  runwayEndDate: string;            // Estimated cash depletion date
+  cashDeficitWithoutInvestment: number; // Total deficit if no investment
+  cashSurplusWithoutInvestment: number; // Total surplus if no investment (positive scenario)
+  criticalQuarter: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
+  quarterlyProjectionsWithInvestment: QuarterlyProjection[];
+  quarterlyProjectionsWithoutInvestment: QuarterlyProjection[];
 }
 
 export interface InvestmentItem {

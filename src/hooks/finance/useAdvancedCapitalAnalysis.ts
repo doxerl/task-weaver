@@ -9,10 +9,19 @@ import {
   WorkingCapitalNeeds,
   BreakEvenAnalysis,
   EnhancedCapitalNeeds,
+  BurnRateAnalysis,
+  QuarterlyAmounts,
+  QuarterlyProjection,
 } from '@/types/simulation';
 import { FinancialDataHub } from './useFinancialDataHub';
 
 const MONTH_NAMES = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
+const QUARTER_MONTHS: Record<string, string[]> = {
+  Q1: ['Oca', 'Şub', 'Mar'],
+  Q2: ['Nis', 'May', 'Haz'],
+  Q3: ['Tem', 'Ağu', 'Eyl'],
+  Q4: ['Eki', 'Kas', 'Ara'],
+};
 
 // Categories considered as fixed expenses
 const FIXED_EXPENSE_CATEGORIES = [
@@ -26,6 +35,54 @@ function isFixedExpense(category: string): boolean {
   );
 }
 
+// Helper to get quarterly amounts with fallback to even distribution
+function getQuarterlyAmounts(item: ProjectionItem, useProjected: boolean = true): QuarterlyAmounts {
+  const amount = useProjected ? item.projectedAmount : item.baseAmount;
+  const quarterly = useProjected ? item.projectedQuarterly : item.baseQuarterly;
+  
+  if (quarterly) {
+    return quarterly;
+  }
+  
+  // Default: even distribution
+  const perQuarter = Math.round(amount / 4);
+  return {
+    q1: perQuarter,
+    q2: perQuarter,
+    q3: perQuarter,
+    q4: amount - (perQuarter * 3), // Ensure total matches
+  };
+}
+
+// Calculate quarterly totals from projection items
+function calculateQuarterlyTotals(items: ProjectionItem[], useProjected: boolean = true): QuarterlyAmounts {
+  const totals: QuarterlyAmounts = { q1: 0, q2: 0, q3: 0, q4: 0 };
+  
+  items.forEach(item => {
+    const quarterly = getQuarterlyAmounts(item, useProjected);
+    totals.q1 += quarterly.q1;
+    totals.q2 += quarterly.q2;
+    totals.q3 += quarterly.q3;
+    totals.q4 += quarterly.q4;
+  });
+  
+  return totals;
+}
+
+// Calculate quarterly investment totals
+function calculateQuarterlyInvestments(investments: InvestmentItem[]): QuarterlyAmounts {
+  const totals: QuarterlyAmounts = { q1: 0, q2: 0, q3: 0, q4: 0 };
+  
+  investments.forEach(inv => {
+    if (inv.month >= 1 && inv.month <= 3) totals.q1 += inv.amount;
+    else if (inv.month >= 4 && inv.month <= 6) totals.q2 += inv.amount;
+    else if (inv.month >= 7 && inv.month <= 9) totals.q3 += inv.amount;
+    else if (inv.month >= 10 && inv.month <= 12) totals.q4 += inv.amount;
+  });
+  
+  return totals;
+}
+
 interface UseAdvancedCapitalAnalysisParams {
   revenues: ProjectionItem[];
   expenses: ProjectionItem[];
@@ -35,6 +92,13 @@ interface UseAdvancedCapitalAnalysisParams {
   safetyMonths?: number;
 }
 
+export interface UseAdvancedCapitalAnalysisResult extends AdvancedCapitalAnalysis {
+  burnRateAnalysis: BurnRateAnalysis;
+  quarterlyRevenue: QuarterlyAmounts;
+  quarterlyExpense: QuarterlyAmounts;
+  quarterlyInvestment: QuarterlyAmounts;
+}
+
 export function useAdvancedCapitalAnalysis({
   revenues,
   expenses,
@@ -42,8 +106,15 @@ export function useAdvancedCapitalAnalysis({
   summary,
   hub,
   safetyMonths = 2.5,
-}: UseAdvancedCapitalAnalysisParams): AdvancedCapitalAnalysis {
+}: UseAdvancedCapitalAnalysisParams): UseAdvancedCapitalAnalysisResult | null {
   return useMemo(() => {
+    if (!hub) return null;
+
+    // Calculate quarterly totals
+    const quarterlyRevenue = calculateQuarterlyTotals(revenues, true);
+    const quarterlyExpense = calculateQuarterlyTotals(expenses, true);
+    const quarterlyInvestment = calculateQuarterlyInvestments(investments);
+
     // 1. Current cash position from balance data
     const bankBalance = hub?.balanceData?.bankBalance || 0;
     const cashOnHand = hub?.balanceData?.cashOnHand || 0;
@@ -172,12 +243,114 @@ export function useAdvancedCapitalAnalysis({
       isSufficient: netCapitalGap <= 0 && peakCashDeficit === 0,
     };
 
+    // 6. Quarterly projections and burn rate analysis
+    const quarters: ('Q1' | 'Q2' | 'Q3' | 'Q4')[] = ['Q1', 'Q2', 'Q3', 'Q4'];
+    const quarterKeys: ('q1' | 'q2' | 'q3' | 'q4')[] = ['q1', 'q2', 'q3', 'q4'];
+
+    // Calculate quarterly projections WITH investment
+    let quarterlyBalanceWithInv = currentCash.totalLiquidity;
+    const quarterlyProjectionsWithInvestment: QuarterlyProjection[] = quarters.map((quarter, idx) => {
+      const qKey = quarterKeys[idx];
+      const revenue = quarterlyRevenue[qKey];
+      const expense = quarterlyExpense[qKey];
+      const investment = quarterlyInvestment[qKey];
+      const openingBalance = quarterlyBalanceWithInv;
+      const netCashFlow = revenue - expense - investment;
+      const closingBalance = openingBalance + netCashFlow;
+      
+      quarterlyBalanceWithInv = closingBalance;
+      
+      return {
+        quarter,
+        months: QUARTER_MONTHS[quarter],
+        revenue,
+        expense,
+        investment,
+        netCashFlow,
+        openingBalance,
+        closingBalance,
+        cumulativeBurn: investment > 0 ? investment : 0,
+      };
+    });
+
+    // Calculate quarterly projections WITHOUT investment
+    let quarterlyBalanceWithoutInv = currentCash.totalLiquidity;
+    const quarterlyProjectionsWithoutInvestment: QuarterlyProjection[] = quarters.map((quarter, idx) => {
+      const qKey = quarterKeys[idx];
+      const revenue = quarterlyRevenue[qKey];
+      const expense = quarterlyExpense[qKey];
+      const openingBalance = quarterlyBalanceWithoutInv;
+      const netCashFlow = revenue - expense;
+      const closingBalance = openingBalance + netCashFlow;
+      
+      quarterlyBalanceWithoutInv = closingBalance;
+      
+      return {
+        quarter,
+        months: QUARTER_MONTHS[quarter],
+        revenue,
+        expense,
+        investment: 0,
+        netCashFlow,
+        openingBalance,
+        closingBalance,
+        cumulativeBurn: 0,
+      };
+    });
+
+    // Calculate burn rate metrics
+    const totalRevenue = summary.projected.totalRevenue;
+    const totalExpense = summary.projected.totalExpense;
+    const grossBurnRate = totalExpense / 12;
+    const netBurnRate = (totalExpense - totalRevenue) / 12;
+    
+    // Find critical quarter (lowest closing balance)
+    const minQuarterWithInv = quarterlyProjectionsWithInvestment.reduce(
+      (min, p) => p.closingBalance < min.balance ? { balance: p.closingBalance, quarter: p.quarter } : min,
+      { balance: Infinity, quarter: null as 'Q1' | 'Q2' | 'Q3' | 'Q4' | null }
+    );
+
+    // Calculate year-end position without investment
+    const yearEndWithoutInvestment = quarterlyProjectionsWithoutInvestment[3]?.closingBalance || 0;
+    const cashDeficitWithoutInvestment = yearEndWithoutInvestment < 0 ? Math.abs(yearEndWithoutInvestment) : 0;
+    const cashSurplusWithoutInvestment = yearEndWithoutInvestment > 0 ? yearEndWithoutInvestment : 0;
+
+    // Calculate runway
+    const runwayMonths = netBurnRate > 0 
+      ? Math.floor(currentCash.totalLiquidity / netBurnRate)
+      : 999; // Infinite runway if generating cash
+
+    const burnRateAnalysis: BurnRateAnalysis = {
+      monthlyBurnRate: netBurnRate,
+      grossBurnRate,
+      netBurnRate,
+      quarterlyBurn: {
+        q1: quarterlyExpense.q1 - quarterlyRevenue.q1,
+        q2: quarterlyExpense.q2 - quarterlyRevenue.q2,
+        q3: quarterlyExpense.q3 - quarterlyRevenue.q3,
+        q4: quarterlyExpense.q4 - quarterlyRevenue.q4,
+      },
+      runwayMonths,
+      runwayEndDate: runwayMonths < 999 
+        ? new Date(Date.now() + runwayMonths * 30 * 24 * 60 * 60 * 1000).toLocaleDateString('tr-TR')
+        : '',
+      cashDeficitWithoutInvestment,
+      cashSurplusWithoutInvestment,
+      criticalQuarter: minQuarterWithInv.balance < 0 ? minQuarterWithInv.quarter : null,
+      quarterlyProjectionsWithInvestment,
+      quarterlyProjectionsWithoutInvestment,
+    };
+
     return {
       currentCash,
       workingCapital,
       monthlyProjections,
       breakEven,
       capitalNeeds,
+      burnRateAnalysis,
+      quarterlyRevenue,
+      quarterlyExpense,
+      quarterlyInvestment,
     };
   }, [revenues, expenses, investments, summary, hub, safetyMonths]);
 }

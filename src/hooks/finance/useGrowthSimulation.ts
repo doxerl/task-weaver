@@ -4,11 +4,23 @@ import {
   InvestmentItem, 
   SimulationScenario, 
   SimulationSummary,
+  QuarterlyAmounts,
 } from '@/types/simulation';
 import { useFinancialDataHub } from './useFinancialDataHub';
 import { useCurrency } from '@/contexts/CurrencyContext';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
+
+// Helper to create default quarterly distribution
+const createDefaultQuarterly = (amount: number): QuarterlyAmounts => {
+  const perQuarter = Math.round(amount / 4);
+  return {
+    q1: perQuarter,
+    q2: perQuarter,
+    q3: perQuarter,
+    q4: amount - (perQuarter * 3),
+  };
+};
 
 // Category mapping from database codes to simulation categories
 const REVENUE_CATEGORY_MAP: Record<string, string> = {
@@ -167,23 +179,33 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
   // Initialize revenues and expenses when base data is available
   useEffect(() => {
     if (baseData && !isInitialized) {
-      const initialRevenues: ProjectionItem[] = baseData.revenues.map(r => ({
-        id: generateId(),
-        category: r.category,
-        baseAmount: r.baseAmount,
-        projectedAmount: r.baseAmount,
-        description: '',
-        isNew: false,
-      }));
+      const initialRevenues: ProjectionItem[] = baseData.revenues.map(r => {
+        const quarterly = createDefaultQuarterly(r.baseAmount);
+        return {
+          id: generateId(),
+          category: r.category,
+          baseAmount: r.baseAmount,
+          projectedAmount: r.baseAmount,
+          baseQuarterly: quarterly,
+          projectedQuarterly: { ...quarterly },
+          description: '',
+          isNew: false,
+        };
+      });
 
-      const initialExpenses: ProjectionItem[] = baseData.expenses.map(e => ({
-        id: generateId(),
-        category: e.category,
-        baseAmount: e.baseAmount,
-        projectedAmount: e.baseAmount,
-        description: '',
-        isNew: false,
-      }));
+      const initialExpenses: ProjectionItem[] = baseData.expenses.map(e => {
+        const quarterly = createDefaultQuarterly(e.baseAmount);
+        return {
+          id: generateId(),
+          category: e.category,
+          baseAmount: e.baseAmount,
+          projectedAmount: e.baseAmount,
+          baseQuarterly: quarterly,
+          projectedQuarterly: { ...quarterly },
+          description: '',
+          isNew: false,
+        };
+      });
 
       setRevenues(initialRevenues);
       setExpenses(initialExpenses);
@@ -236,11 +258,33 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
 
   // Revenue operations
   const updateRevenue = useCallback((id: string, updates: Partial<ProjectionItem>) => {
-    setRevenues(prev => prev.map(r => r.id === id ? { ...r, ...updates } : r));
+    setRevenues(prev => prev.map(r => {
+      if (r.id !== id) return r;
+      const updated = { ...r, ...updates };
+      
+      // If projectedAmount changed and no quarterly specified, recalculate quarterly
+      if (updates.projectedAmount !== undefined && !updates.projectedQuarterly) {
+        updated.projectedQuarterly = createDefaultQuarterly(updates.projectedAmount);
+      }
+      
+      // If quarterly changed, recalculate total
+      if (updates.projectedQuarterly) {
+        const q = updates.projectedQuarterly;
+        updated.projectedAmount = q.q1 + q.q2 + q.q3 + q.q4;
+      }
+      
+      return updated;
+    }));
   }, []);
 
   const addRevenue = useCallback((item: Omit<ProjectionItem, 'id'>) => {
-    setRevenues(prev => [...prev, { ...item, id: generateId() }]);
+    const quarterly = item.projectedQuarterly || createDefaultQuarterly(item.projectedAmount);
+    setRevenues(prev => [...prev, { 
+      ...item, 
+      id: generateId(),
+      projectedQuarterly: quarterly,
+      baseQuarterly: quarterly,
+    }]);
   }, []);
 
   const removeRevenue = useCallback((id: string) => {
@@ -249,11 +293,33 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
 
   // Expense operations
   const updateExpense = useCallback((id: string, updates: Partial<ProjectionItem>) => {
-    setExpenses(prev => prev.map(e => e.id === id ? { ...e, ...updates } : e));
+    setExpenses(prev => prev.map(e => {
+      if (e.id !== id) return e;
+      const updated = { ...e, ...updates };
+      
+      // If projectedAmount changed and no quarterly specified, recalculate quarterly
+      if (updates.projectedAmount !== undefined && !updates.projectedQuarterly) {
+        updated.projectedQuarterly = createDefaultQuarterly(updates.projectedAmount);
+      }
+      
+      // If quarterly changed, recalculate total
+      if (updates.projectedQuarterly) {
+        const q = updates.projectedQuarterly;
+        updated.projectedAmount = q.q1 + q.q2 + q.q3 + q.q4;
+      }
+      
+      return updated;
+    }));
   }, []);
 
   const addExpense = useCallback((item: Omit<ProjectionItem, 'id'>) => {
-    setExpenses(prev => [...prev, { ...item, id: generateId() }]);
+    const quarterly = item.projectedQuarterly || createDefaultQuarterly(item.projectedAmount);
+    setExpenses(prev => [...prev, { 
+      ...item, 
+      id: generateId(),
+      projectedQuarterly: quarterly,
+      baseQuarterly: quarterly,
+    }]);
   }, []);
 
   const removeExpense = useCallback((id: string) => {
