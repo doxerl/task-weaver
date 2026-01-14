@@ -76,3 +76,118 @@ export const FALLBACK_EXPENSES_2025: Omit<ProjectionItem, 'id' | 'projectedAmoun
   { category: 'Danışmanlık Gideri', baseAmount: 4350 },
   { category: 'Diğer', baseAmount: 10185 },
 ];
+
+// =====================================================
+// ADVANCED CAPITAL & ROI ANALYSIS TYPES
+// =====================================================
+
+/** Monthly cash flow projection for 12-month forecasting */
+export interface CashFlowProjection {
+  month: number;
+  monthName: string;
+  openingBalance: number;
+  revenue: number;
+  expense: number;
+  investment: number;
+  netCashFlow: number;
+  closingBalance: number;
+  cumulativeBalance: number;
+}
+
+/** Current cash position from balance sheet */
+export interface CurrentCashPosition {
+  bankBalance: number;
+  cashOnHand: number;
+  totalLiquidity: number;
+}
+
+/** Working capital needs calculation */
+export interface WorkingCapitalNeeds {
+  receivables: number;
+  payables: number;
+  inventoryNeeds: number;
+  netWorkingCapital: number;
+  monthlyOperatingCash: number;
+  safetyBuffer: number;
+  safetyMonths: number;
+}
+
+/** Break-even analysis results */
+export interface BreakEvenAnalysis {
+  monthlyFixedCosts: number;
+  variableExpenseRatio: number;
+  contributionMargin: number;
+  breakEvenRevenue: number;
+  breakEvenMonth: number | null;
+  monthsToBreakEven: number;
+  currentVsRequired: number;
+}
+
+/** Enhanced capital needs calculation */
+export interface EnhancedCapitalNeeds {
+  totalInvestment: number;
+  workingCapitalNeed: number;
+  safetyBuffer: number;
+  totalCapitalRequired: number;
+  availableCash: number;
+  estimatedProfit: number;
+  netCapitalGap: number;
+  peakCashDeficit: number;
+  deficitMonth: number | null;
+  isSufficient: boolean;
+}
+
+/** Complete advanced capital analysis */
+export interface AdvancedCapitalAnalysis {
+  currentCash: CurrentCashPosition;
+  workingCapital: WorkingCapitalNeeds;
+  monthlyProjections: CashFlowProjection[];
+  breakEven: BreakEvenAnalysis;
+  capitalNeeds: EnhancedCapitalNeeds;
+}
+
+/** Payback period calculation */
+export interface PaybackPeriod {
+  months: number;
+  isWithinYear: boolean;
+  exactMonths: number;
+}
+
+/** NPV and IRR calculations */
+export interface NPVAnalysis {
+  npv: number;
+  discountRate: number;
+  irr: number;
+  isPositiveNPV: boolean;
+}
+
+/** Sensitivity scenario results */
+export interface SensitivityScenario {
+  name: string;
+  revenueChange: number;
+  revenue: number;
+  expense: number;
+  profit: number;
+  margin: number;
+  roi: number;
+}
+
+/** Sensitivity analysis with 3 scenarios */
+export interface SensitivityAnalysis {
+  pessimistic: SensitivityScenario;
+  baseline: SensitivityScenario;
+  optimistic: SensitivityScenario;
+}
+
+/** Complete ROI analysis */
+export interface ROIAnalysis {
+  simpleROI: number;
+  paybackPeriod: PaybackPeriod;
+  breakEven: {
+    revenue: number;
+    margin: number;
+    currentVsRequired: number;
+  };
+  npvAnalysis: NPVAnalysis;
+  sensitivity: SensitivityAnalysis;
+}
