@@ -3,6 +3,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import { QuarterlyProjection } from '@/types/simulation';
 import { cn } from '@/lib/utils';
+import { formatCompactUSD } from '@/lib/formatters';
 
 interface CashFlowChartProps {
   quarterlyProjections: QuarterlyProjection[];
@@ -10,15 +11,6 @@ interface CashFlowChartProps {
   safetyBuffer?: number;
   breakEvenQuarter?: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
   className?: string;
-}
-
-function formatUSD(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
 }
 
 const QUARTER_MONTHS: Record<string, string> = {
@@ -88,7 +80,7 @@ export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
                       return (
                         <div className="bg-popover border rounded-lg shadow-lg p-3 text-sm">
                           <p className="font-medium mb-2">Başlangıç Bakiyesi</p>
-                          <p className="font-semibold">{formatUSD(pointData.bakiye)}</p>
+                          <p className="font-semibold">{formatCompactUSD(pointData.bakiye)}</p>
                         </div>
                       );
                     }
@@ -96,14 +88,14 @@ export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
                       <div className="bg-popover border rounded-lg shadow-lg p-3 text-sm">
                         <p className="font-medium mb-2">{pointData.quarter}</p>
                         <div className="space-y-1">
-                          <p className="text-green-600">Gelir: {formatUSD(pointData.gelir)}</p>
-                          <p className="text-red-600">Gider: {formatUSD(pointData.gider)}</p>
+                          <p className="text-green-600">Gelir: {formatCompactUSD(pointData.gelir)}</p>
+                          <p className="text-red-600">Gider: {formatCompactUSD(pointData.gider)}</p>
                           {pointData.yatirim > 0 && (
-                            <p className="text-orange-600">Yatırım: {formatUSD(pointData.yatirim)}</p>
+                            <p className="text-orange-600">Yatırım: {formatCompactUSD(pointData.yatirim)}</p>
                           )}
                           <div className="border-t pt-1 mt-1">
-                            <p className="text-primary">Net Akış: {formatUSD(pointData.netAkis)}</p>
-                            <p className="font-semibold">Bakiye: {formatUSD(pointData.bakiye)}</p>
+                            <p className="text-primary">Net Akış: {formatCompactUSD(pointData.netAkis)}</p>
+                            <p className="font-semibold">Bakiye: {formatCompactUSD(pointData.bakiye)}</p>
                           </div>
                         </div>
                       </div>

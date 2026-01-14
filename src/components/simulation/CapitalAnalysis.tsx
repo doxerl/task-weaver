@@ -8,6 +8,7 @@ import { AddItemDialog } from './AddItemDialog';
 import { CashFlowChart } from './CashFlowChart';
 import { SensitivityChart } from './SensitivityChart';
 import { cn } from '@/lib/utils';
+import { formatCompactUSD, formatCompactTRY, formatFullUSD } from '@/lib/formatters';
 
 interface CapitalAnalysisProps {
   investments: InvestmentItem[];
@@ -17,24 +18,6 @@ interface CapitalAnalysisProps {
   onRemoveInvestment: (id: string) => void;
   advancedAnalysis?: AdvancedCapitalAnalysis | null;
   roiAnalysis?: ROIAnalysis | null;
-}
-
-function formatUSD(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
-}
-
-function formatTRY(value: number): string {
-  return new Intl.NumberFormat('tr-TR', {
-    style: 'currency',
-    currency: 'TRY',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
 }
 
 const MONTH_NAMES = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
@@ -132,16 +115,16 @@ export function CapitalAnalysis({
                 <CardContent className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Banka Bakiyesi</span>
-                    <span className="font-medium">{formatUSD(advancedAnalysis.currentCash.bankBalance)}</span>
+                    <span className="font-medium">{formatCompactUSD(advancedAnalysis.currentCash.bankBalance)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Kasa</span>
-                    <span className="font-medium">{formatUSD(advancedAnalysis.currentCash.cashOnHand)}</span>
+                    <span className="font-medium">{formatCompactUSD(advancedAnalysis.currentCash.cashOnHand)}</span>
                   </div>
                   <div className="border-t pt-2 flex justify-between">
                     <span className="font-medium">Toplam Likit</span>
                     <span className="font-bold text-green-600">
-                      {formatUSD(advancedAnalysis.currentCash.totalLiquidity)}
+                      {formatCompactUSD(advancedAnalysis.currentCash.totalLiquidity)}
                     </span>
                   </div>
                 </CardContent>
@@ -160,16 +143,16 @@ export function CapitalAnalysis({
                 <CardContent className="space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Aylık Gider</span>
-                    <span className="font-medium">{formatUSD(advancedAnalysis.workingCapital.monthlyOperatingCash)}</span>
+                    <span className="font-medium">{formatCompactUSD(advancedAnalysis.workingCapital.monthlyOperatingCash)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Güvenlik Tamponu ({advancedAnalysis.workingCapital.safetyMonths} ay)</span>
-                    <span className="font-medium">{formatUSD(advancedAnalysis.workingCapital.safetyBuffer)}</span>
+                    <span className="font-medium">{formatCompactUSD(advancedAnalysis.workingCapital.safetyBuffer)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">Net İşletme Sermayesi</span>
                     <span className={cn("font-medium", advancedAnalysis.workingCapital.netWorkingCapital >= 0 ? "text-green-600" : "text-red-600")}>
-                      {formatUSD(advancedAnalysis.workingCapital.netWorkingCapital)}
+                      {formatCompactUSD(advancedAnalysis.workingCapital.netWorkingCapital)}
                     </span>
                   </div>
                 </CardContent>
@@ -195,17 +178,17 @@ export function CapitalAnalysis({
               <CardContent className="space-y-3">
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Toplam Yatırım</span>
-                  <span className="font-medium">{formatUSD(totalInvestment)}</span>
+                  <span className="font-medium">{formatCompactUSD(totalInvestment)}</span>
                 </div>
                 {hasAdvanced && (
                   <div className="flex justify-between text-sm">
                     <span className="text-muted-foreground">İşletme Sermayesi</span>
-                    <span className="font-medium">{formatUSD(advancedAnalysis.capitalNeeds.workingCapitalNeed)}</span>
+                    <span className="font-medium">{formatCompactUSD(advancedAnalysis.capitalNeeds.workingCapitalNeed)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
                   <span className="text-muted-foreground">Tahmini Net Kar</span>
-                  <span className="font-medium text-green-600">{formatUSD(projectedProfit)}</span>
+                  <span className="font-medium text-green-600">{formatCompactUSD(projectedProfit)}</span>
                 </div>
                 <div className="border-t pt-2 flex justify-between">
                   <span className="font-medium">Net Sermaye İhtiyacı</span>
@@ -214,14 +197,14 @@ export function CapitalAnalysis({
                     (hasAdvanced ? advancedAnalysis.capitalNeeds.isSufficient : isPositive) ? "text-green-600" : "text-red-600"
                   )}>
                     {hasAdvanced 
-                      ? formatUSD(advancedAnalysis.capitalNeeds.netCapitalGap)
-                      : formatUSD(Math.abs(netCapitalNeed))
+                      ? formatCompactUSD(advancedAnalysis.capitalNeeds.netCapitalGap)
+                      : formatCompactUSD(Math.abs(netCapitalNeed))
                     }
                     {(hasAdvanced ? advancedAnalysis.capitalNeeds.isSufficient : isPositive) && ' ✓'}
                   </span>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  TL Karşılığı: {formatTRY((hasAdvanced ? advancedAnalysis.capitalNeeds.netCapitalGap : Math.abs(netCapitalNeed)) * exchangeRate)}
+                  TL Karşılığı: {formatCompactTRY((hasAdvanced ? advancedAnalysis.capitalNeeds.netCapitalGap : Math.abs(netCapitalNeed)) * exchangeRate)}
                 </div>
               </CardContent>
             </Card>
@@ -260,7 +243,7 @@ export function CapitalAnalysis({
                         </TableCell>
                         <TableCell>{MONTH_NAMES[inv.month - 1]}</TableCell>
                         <TableCell className="text-right font-medium">
-                          {formatUSD(inv.amount)}
+                          {formatFullUSD(inv.amount)}
                         </TableCell>
                         <TableCell>
                           <Button
@@ -276,7 +259,7 @@ export function CapitalAnalysis({
                     ))}
                     <TableRow className="bg-muted/50 font-semibold">
                       <TableCell colSpan={2}>TOPLAM</TableCell>
-                      <TableCell className="text-right">{formatUSD(totalInvestment)}</TableCell>
+                      <TableCell className="text-right">{formatCompactUSD(totalInvestment)}</TableCell>
                       <TableCell></TableCell>
                     </TableRow>
                   </TableBody>
@@ -329,23 +312,23 @@ export function CapitalAnalysis({
                               </span>
                             </div>
                           </TableCell>
-                          <TableCell className="text-right">{formatUSD(p.openingBalance)}</TableCell>
-                          <TableCell className="text-right text-green-600">{formatUSD(p.revenue)}</TableCell>
-                          <TableCell className="text-right text-red-600">{formatUSD(p.expense)}</TableCell>
+                          <TableCell className="text-right">{formatCompactUSD(p.openingBalance)}</TableCell>
+                          <TableCell className="text-right text-green-600">{formatCompactUSD(p.revenue)}</TableCell>
+                          <TableCell className="text-right text-red-600">{formatCompactUSD(p.expense)}</TableCell>
                           <TableCell className="text-right text-orange-600">
-                            {p.investment > 0 ? formatUSD(p.investment) : '-'}
+                            {p.investment > 0 ? formatCompactUSD(p.investment) : '-'}
                           </TableCell>
                           <TableCell className={cn(
                             "text-right",
                             p.netCashFlow >= 0 ? "text-green-600" : "text-red-600"
                           )}>
-                            {formatUSD(p.netCashFlow)}
+                            {formatCompactUSD(p.netCashFlow)}
                           </TableCell>
                           <TableCell className={cn(
                             "text-right font-semibold",
                             p.closingBalance >= 0 ? "text-foreground" : "text-red-600"
                           )}>
-                            {formatUSD(p.closingBalance)}
+                            {formatCompactUSD(p.closingBalance)}
                           </TableCell>
                         </TableRow>
                       ))}
@@ -353,26 +336,26 @@ export function CapitalAnalysis({
                       <TableRow className="bg-muted/50 font-semibold border-t-2">
                         <TableCell>YIL SONU</TableCell>
                         <TableCell className="text-right">
-                          {formatUSD(advancedAnalysis.currentCash.totalLiquidity)}
+                          {formatCompactUSD(advancedAnalysis.currentCash.totalLiquidity)}
                         </TableCell>
                         <TableCell className="text-right text-green-600">
-                          {formatUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.reduce((sum, p) => sum + p.revenue, 0))}
+                          {formatCompactUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.reduce((sum, p) => sum + p.revenue, 0))}
                         </TableCell>
                         <TableCell className="text-right text-red-600">
-                          {formatUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.reduce((sum, p) => sum + p.expense, 0))}
+                          {formatCompactUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.reduce((sum, p) => sum + p.expense, 0))}
                         </TableCell>
                         <TableCell className="text-right text-orange-600">
-                          {formatUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.reduce((sum, p) => sum + p.investment, 0))}
+                          {formatCompactUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.reduce((sum, p) => sum + p.investment, 0))}
                         </TableCell>
                         <TableCell className={cn(
                           "text-right",
                           advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.reduce((sum, p) => sum + p.netCashFlow, 0) >= 0 
                             ? "text-green-600" : "text-red-600"
                         )}>
-                          {formatUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.reduce((sum, p) => sum + p.netCashFlow, 0))}
+                          {formatCompactUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment.reduce((sum, p) => sum + p.netCashFlow, 0))}
                         </TableCell>
                         <TableCell className="text-right">
-                          {formatUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment[3]?.closingBalance || 0)}
+                          {formatCompactUSD(advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment[3]?.closingBalance || 0)}
                         </TableCell>
                       </TableRow>
                     </TableBody>
@@ -391,7 +374,7 @@ export function CapitalAnalysis({
                         <p className="text-sm text-yellow-700 dark:text-yellow-300">
                           <strong>{advancedAnalysis.burnRateAnalysis.criticalQuarter}</strong> döneminde nakit en düşük seviyeye ulaşacak.
                           {advancedAnalysis.burnRateAnalysis.cashDeficitWithoutInvestment > 0 && (
-                            <> Yatırım yapılmazsa yıl sonunda <strong>{formatUSD(advancedAnalysis.burnRateAnalysis.cashDeficitWithoutInvestment)}</strong> fazla nakit olacak.</>
+                            <> Yatırım yapılmazsa yıl sonunda <strong>{formatCompactUSD(advancedAnalysis.burnRateAnalysis.cashDeficitWithoutInvestment)}</strong> fazla nakit olacak.</>
                           )}
                         </p>
                       </div>
@@ -409,7 +392,7 @@ export function CapitalAnalysis({
                       <div>
                         <p className="font-medium text-red-800 dark:text-red-200">Nakit Açığı Uyarısı</p>
                         <p className="text-sm text-red-700 dark:text-red-300">
-                          <strong>{formatUSD(advancedAnalysis.capitalNeeds.peakCashDeficit)}</strong>{' '}
+                          <strong>{formatCompactUSD(advancedAnalysis.capitalNeeds.peakCashDeficit)}</strong>{' '}
                           nakit açığı oluşabilir. Yatırım zamanlamasını veya finansman planını gözden geçirin.
                         </p>
                       </div>
@@ -458,7 +441,7 @@ export function CapitalAnalysis({
                     <MetricCard 
                       icon={DollarSign}
                       label="NPV"
-                      value={formatUSD(roiAnalysis.npvAnalysis.npv)}
+                      value={formatCompactUSD(roiAnalysis.npvAnalysis.npv)}
                       subValue={`%${roiAnalysis.npvAnalysis.discountRate} iskonto`}
                       variant={roiAnalysis.npvAnalysis.isPositiveNPV ? 'success' : 'danger'}
                     />
@@ -484,7 +467,7 @@ export function CapitalAnalysis({
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Break-even Geliri</span>
-                      <span className="font-medium">{formatUSD(roiAnalysis.breakEven.revenue)}</span>
+                      <span className="font-medium">{formatCompactUSD(roiAnalysis.breakEven.revenue)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
                       <span className="text-muted-foreground">Katkı Marjı</span>
@@ -529,7 +512,7 @@ export function CapitalAnalysis({
                     <div className="p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900/30">
                       <p className="text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4" />
-                        Break-even için {formatUSD(roiAnalysis.breakEven.revenue - summary.projected.totalRevenue)} ek gelir gerekli
+                        Break-even için {formatCompactUSD(roiAnalysis.breakEven.revenue - summary.projected.totalRevenue)} ek gelir gerekli
                       </p>
                     </div>
                   )}
@@ -574,9 +557,9 @@ export function CapitalAnalysis({
                         <TableCell className="font-medium text-red-700 dark:text-red-400">
                           Pesimist (-20%)
                         </TableCell>
-                        <TableCell className="text-right">{formatUSD(roiAnalysis.sensitivity.pessimistic.revenue)}</TableCell>
-                        <TableCell className="text-right">{formatUSD(roiAnalysis.sensitivity.pessimistic.expense)}</TableCell>
-                        <TableCell className="text-right font-medium">{formatUSD(roiAnalysis.sensitivity.pessimistic.profit)}</TableCell>
+                        <TableCell className="text-right">{formatCompactUSD(roiAnalysis.sensitivity.pessimistic.revenue)}</TableCell>
+                        <TableCell className="text-right">{formatCompactUSD(roiAnalysis.sensitivity.pessimistic.expense)}</TableCell>
+                        <TableCell className="text-right font-medium">{formatCompactUSD(roiAnalysis.sensitivity.pessimistic.profit)}</TableCell>
                         <TableCell className="text-right">%{roiAnalysis.sensitivity.pessimistic.margin.toFixed(1)}</TableCell>
                         <TableCell className="text-right font-semibold text-red-600">%{roiAnalysis.sensitivity.pessimistic.roi.toFixed(0)}</TableCell>
                       </TableRow>
@@ -584,9 +567,9 @@ export function CapitalAnalysis({
                         <TableCell className="font-medium text-primary">
                           Baz Senaryo
                         </TableCell>
-                        <TableCell className="text-right">{formatUSD(roiAnalysis.sensitivity.baseline.revenue)}</TableCell>
-                        <TableCell className="text-right">{formatUSD(roiAnalysis.sensitivity.baseline.expense)}</TableCell>
-                        <TableCell className="text-right font-medium">{formatUSD(roiAnalysis.sensitivity.baseline.profit)}</TableCell>
+                        <TableCell className="text-right">{formatCompactUSD(roiAnalysis.sensitivity.baseline.revenue)}</TableCell>
+                        <TableCell className="text-right">{formatCompactUSD(roiAnalysis.sensitivity.baseline.expense)}</TableCell>
+                        <TableCell className="text-right font-medium">{formatCompactUSD(roiAnalysis.sensitivity.baseline.profit)}</TableCell>
                         <TableCell className="text-right">%{roiAnalysis.sensitivity.baseline.margin.toFixed(1)}</TableCell>
                         <TableCell className="text-right font-semibold text-primary">%{roiAnalysis.sensitivity.baseline.roi.toFixed(0)}</TableCell>
                       </TableRow>
@@ -594,9 +577,9 @@ export function CapitalAnalysis({
                         <TableCell className="font-medium text-green-700 dark:text-green-400">
                           Optimist (+20%)
                         </TableCell>
-                        <TableCell className="text-right">{formatUSD(roiAnalysis.sensitivity.optimistic.revenue)}</TableCell>
-                        <TableCell className="text-right">{formatUSD(roiAnalysis.sensitivity.optimistic.expense)}</TableCell>
-                        <TableCell className="text-right font-medium">{formatUSD(roiAnalysis.sensitivity.optimistic.profit)}</TableCell>
+                        <TableCell className="text-right">{formatCompactUSD(roiAnalysis.sensitivity.optimistic.revenue)}</TableCell>
+                        <TableCell className="text-right">{formatCompactUSD(roiAnalysis.sensitivity.optimistic.expense)}</TableCell>
+                        <TableCell className="text-right font-medium">{formatCompactUSD(roiAnalysis.sensitivity.optimistic.profit)}</TableCell>
                         <TableCell className="text-right">%{roiAnalysis.sensitivity.optimistic.margin.toFixed(1)}</TableCell>
                         <TableCell className="text-right font-semibold text-green-600">%{roiAnalysis.sensitivity.optimistic.roi.toFixed(0)}</TableCell>
                       </TableRow>
