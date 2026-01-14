@@ -94,26 +94,68 @@ export function useGrowthSimulation() {
       expenseGroups[category] = (expenseGroups[category] || 0) + Math.abs(tx.net);
     });
 
+    // Minimum thresholds for display (USD)
+    const REVENUE_MIN_THRESHOLD = 500;
+    const EXPENSE_MIN_THRESHOLD = 300;
+
     // Convert to USD
-    const revenuesUsd = Object.entries(revenueGroups).map(([category, amount]) => ({
+    const revenuesUsdRaw = Object.entries(revenueGroups).map(([category, amount]) => ({
       category,
       baseAmount: Math.round(amount / rate),
     }));
 
-    const expensesUsd = Object.entries(expenseGroups).map(([category, amount]) => ({
+    const expensesUsdRaw = Object.entries(expenseGroups).map(([category, amount]) => ({
       category,
       baseAmount: Math.round(amount / rate),
     }));
 
-    // Sort by amount descending
-    revenuesUsd.sort((a, b) => b.baseAmount - a.baseAmount);
-    expensesUsd.sort((a, b) => b.baseAmount - a.baseAmount);
+    // Filter low-value items and aggregate into "Diğer"
+    const filterAndAggregate = (
+      items: { category: string; baseAmount: number }[],
+      threshold: number,
+      otherLabel: string
+    ) => {
+      const significantItems = items.filter(
+        item => item.baseAmount >= threshold || item.category === otherLabel
+      );
+      const belowThresholdTotal = items
+        .filter(item => item.baseAmount < threshold && item.category !== otherLabel)
+        .reduce((sum, item) => sum + item.baseAmount, 0);
+
+      // Find or create "Diğer" category
+      const otherIndex = significantItems.findIndex(item => item.category === otherLabel);
+      if (otherIndex >= 0) {
+        significantItems[otherIndex].baseAmount += belowThresholdTotal;
+      } else if (belowThresholdTotal > 0) {
+        significantItems.push({ category: otherLabel, baseAmount: belowThresholdTotal });
+      }
+
+      return significantItems;
+    };
+
+    const revenuesUsd = filterAndAggregate(revenuesUsdRaw, REVENUE_MIN_THRESHOLD, 'Diğer Gelir');
+    const expensesUsd = filterAndAggregate(expensesUsdRaw, EXPENSE_MIN_THRESHOLD, 'Diğer');
+
+    // Sort with "Diğer" always at the bottom
+    const sortWithOtherLast = (
+      items: { category: string; baseAmount: number }[],
+      otherLabel: string
+    ) => {
+      items.sort((a, b) => {
+        if (a.category === otherLabel && b.category !== otherLabel) return 1;
+        if (b.category === otherLabel && a.category !== otherLabel) return -1;
+        return b.baseAmount - a.baseAmount;
+      });
+    };
+
+    sortWithOtherLast(revenuesUsd, 'Diğer Gelir');
+    sortWithOtherLast(expensesUsd, 'Diğer');
 
     return {
       revenues: revenuesUsd,
       expenses: expensesUsd,
-      totalRevenue: revenuesUsd.reduce((sum, r) => sum + r.baseAmount, 0),
-      totalExpense: expensesUsd.reduce((sum, e) => sum + e.baseAmount, 0),
+      totalRevenue: revenuesUsdRaw.reduce((sum, r) => sum + r.baseAmount, 0),
+      totalExpense: expensesUsdRaw.reduce((sum, e) => sum + e.baseAmount, 0),
     };
   }, [hub.isLoading, hub.income, hub.expense, yearlyAverageRate]);
 
