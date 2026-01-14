@@ -19,6 +19,8 @@ export interface InvestmentItem {
 export interface SimulationScenario {
   id: string;
   name: string;
+  baseYear: number;             // e.g., 2025
+  targetYear: number;           // e.g., 2026
   revenues: ProjectionItem[];
   expenses: ProjectionItem[];
   investments: InvestmentItem[];
