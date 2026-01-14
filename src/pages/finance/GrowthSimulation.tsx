@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, RotateCcw, Download, TrendingUp, Save, Plus, Loader2, FileText } from 'lucide-react';
+import { ArrowLeft, RotateCcw, Download, TrendingUp, Save, Plus, Loader2, FileText, GitCompare } from 'lucide-react';
 import { useGrowthSimulation } from '@/hooks/finance/useGrowthSimulation';
 import { useScenarios } from '@/hooks/finance/useScenarios';
 import { useSimulationPdf } from '@/hooks/finance/useSimulationPdf';
@@ -18,6 +18,7 @@ import { AddItemDialog } from '@/components/simulation/AddItemDialog';
 import { ComparisonChart } from '@/components/simulation/ComparisonChart';
 import { CapitalAnalysis } from '@/components/simulation/CapitalAnalysis';
 import { ScenarioSelector } from '@/components/simulation/ScenarioSelector';
+import { ScenarioComparison } from '@/components/simulation/ScenarioComparison';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SimulationScenario } from '@/types/simulation';
@@ -27,6 +28,7 @@ function GrowthSimulationContent() {
   const simulation = useGrowthSimulation();
   const scenariosHook = useScenarios();
   const { generatePdf, isGenerating, progress } = useSimulationPdf();
+  const [showComparison, setShowComparison] = useState(false);
   
   // Ref for chart capture
   const chartsContainerRef = useRef<HTMLDivElement>(null);
@@ -161,6 +163,16 @@ function GrowthSimulationContent() {
                   <Save className="h-4 w-4" />
                 )}
                 Kaydet
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-2"
+                onClick={() => setShowComparison(true)}
+                disabled={scenariosHook.scenarios.length < 2}
+              >
+                <GitCompare className="h-4 w-4" />
+                Karşılaştır
               </Button>
               <Button variant="outline" size="sm" className="gap-2" onClick={handleNewScenario}>
                 <RotateCcw className="h-4 w-4" />
@@ -318,6 +330,14 @@ function GrowthSimulationContent() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* Scenario Comparison Modal */}
+      <ScenarioComparison
+        open={showComparison}
+        onOpenChange={setShowComparison}
+        scenarios={scenariosHook.scenarios}
+        currentScenarioId={scenariosHook.currentScenarioId}
+      />
     </div>
   );
 }
