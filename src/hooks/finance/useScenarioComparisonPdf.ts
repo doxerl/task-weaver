@@ -1,6 +1,7 @@
 import jsPDF from 'jspdf';
 import autoTable from 'jspdf-autotable';
-import { useState } from 'react';
+import html2canvas from 'html2canvas';
+import { useState, RefObject } from 'react';
 import { toast } from 'sonner';
 import { SimulationScenario } from '@/types/simulation';
 import { normalizeTurkishText } from '@/lib/fonts/roboto';
@@ -61,6 +62,7 @@ interface ScenarioComparisonPdfData {
   insights: ScenarioInsight[];
   recommendations: DecisionRecommendation[];
   quarterlyComparison: QuarterlyComparison[];
+  chartRef?: RefObject<HTMLDivElement>;
 }
 
 const formatCurrency = (value: number): string => {
@@ -77,6 +79,22 @@ const formatPercent = (value: number): string => {
   return `${value >= 0 ? '+' : ''}${value.toFixed(1)}%`;
 };
 
+// Capture chart as image using html2canvas
+async function captureChartToImage(element: HTMLElement): Promise<string | null> {
+  try {
+    const canvas = await html2canvas(element, {
+      scale: 2,
+      useCORS: true,
+      backgroundColor: '#ffffff',
+      logging: false,
+    });
+    return canvas.toDataURL('image/png', 1.0);
+  } catch (error) {
+    console.error('Chart capture error:', error);
+    return null;
+  }
+}
+
 export function useScenarioComparisonPdf() {
   const [isGenerating, setIsGenerating] = useState(false);
 
@@ -92,6 +110,7 @@ export function useScenarioComparisonPdf() {
 
       // Helper to normalize Turkish text
       const t = (text: string) => normalizeTurkishText(text);
+
       // ============== PAGE 1: HEADER & WINNER ==============
       
       // Header background
@@ -199,40 +218,231 @@ export function useScenarioComparisonPdf() {
       
       yPos = (doc as any).lastAutoTable.finalY + 15;
       
-      // Quarterly Comparison Table
-      doc.setFontSize(14);
+      // ============== PAGE 2: DETAILED QUARTERLY PROJECTIONS ==============
+      doc.addPage();
+      yPos = margin;
+      
+      // Page header
+      doc.setFillColor(30, 41, 59);
+      doc.rect(0, 0, pageWidth, 25, 'F');
+      doc.setTextColor(255, 255, 255);
+      doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
-      doc.text(t('Ceyreklik Karsilastirma'), margin, yPos);
+      doc.text(t('Ceyreklik Projeksiyon Detayi'), margin, 17);
+      
+      yPos = 35;
+      doc.setTextColor(30, 41, 59);
+      
+      // Scenario A Quarterly Breakdown
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${t(data.scenarioA.name)} - ${t('Ceyreklik Dagilim')}`, margin, yPos);
+      yPos += 5;
+      
+      // Calculate totals for Scenario A
+      const aTotalRev = data.quarterlyComparison.reduce((s, q) => s + q.scenarioARevenue, 0);
+      const aTotalExp = data.quarterlyComparison.reduce((s, q) => s + q.scenarioAExpense, 0);
+      const aTotalNet = data.quarterlyComparison.reduce((s, q) => s + q.scenarioANet, 0);
+      
+      autoTable(doc, {
+        startY: yPos,
+        head: [[t('Kalem'), 'Q1', 'Q2', 'Q3', 'Q4', t('Toplam')]],
+        body: [
+          [
+            t('Gelir'),
+            formatCurrency(data.quarterlyComparison[0]?.scenarioARevenue || 0),
+            formatCurrency(data.quarterlyComparison[1]?.scenarioARevenue || 0),
+            formatCurrency(data.quarterlyComparison[2]?.scenarioARevenue || 0),
+            formatCurrency(data.quarterlyComparison[3]?.scenarioARevenue || 0),
+            formatCurrency(aTotalRev),
+          ],
+          [
+            t('Gider'),
+            formatCurrency(data.quarterlyComparison[0]?.scenarioAExpense || 0),
+            formatCurrency(data.quarterlyComparison[1]?.scenarioAExpense || 0),
+            formatCurrency(data.quarterlyComparison[2]?.scenarioAExpense || 0),
+            formatCurrency(data.quarterlyComparison[3]?.scenarioAExpense || 0),
+            formatCurrency(aTotalExp),
+          ],
+          [
+            t('Net Kar'),
+            formatCurrency(data.quarterlyComparison[0]?.scenarioANet || 0),
+            formatCurrency(data.quarterlyComparison[1]?.scenarioANet || 0),
+            formatCurrency(data.quarterlyComparison[2]?.scenarioANet || 0),
+            formatCurrency(data.quarterlyComparison[3]?.scenarioANet || 0),
+            formatCurrency(aTotalNet),
+          ],
+        ],
+        theme: 'grid',
+        headStyles: {
+          fillColor: [59, 130, 246], // blue-500
+          fontStyle: 'bold',
+          fontSize: 9,
+        },
+        bodyStyles: { fontSize: 9 },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 30 },
+          5: { fontStyle: 'bold', fillColor: [241, 245, 249] },
+        },
+        margin: { left: margin, right: margin },
+      });
+      
+      yPos = (doc as any).lastAutoTable.finalY + 15;
+      
+      // Scenario B Quarterly Breakdown
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(`${t(data.scenarioB.name)} - ${t('Ceyreklik Dagilim')}`, margin, yPos);
+      yPos += 5;
+      
+      // Calculate totals for Scenario B
+      const bTotalRev = data.quarterlyComparison.reduce((s, q) => s + q.scenarioBRevenue, 0);
+      const bTotalExp = data.quarterlyComparison.reduce((s, q) => s + q.scenarioBExpense, 0);
+      const bTotalNet = data.quarterlyComparison.reduce((s, q) => s + q.scenarioBNet, 0);
+      
+      autoTable(doc, {
+        startY: yPos,
+        head: [[t('Kalem'), 'Q1', 'Q2', 'Q3', 'Q4', t('Toplam')]],
+        body: [
+          [
+            t('Gelir'),
+            formatCurrency(data.quarterlyComparison[0]?.scenarioBRevenue || 0),
+            formatCurrency(data.quarterlyComparison[1]?.scenarioBRevenue || 0),
+            formatCurrency(data.quarterlyComparison[2]?.scenarioBRevenue || 0),
+            formatCurrency(data.quarterlyComparison[3]?.scenarioBRevenue || 0),
+            formatCurrency(bTotalRev),
+          ],
+          [
+            t('Gider'),
+            formatCurrency(data.quarterlyComparison[0]?.scenarioBExpense || 0),
+            formatCurrency(data.quarterlyComparison[1]?.scenarioBExpense || 0),
+            formatCurrency(data.quarterlyComparison[2]?.scenarioBExpense || 0),
+            formatCurrency(data.quarterlyComparison[3]?.scenarioBExpense || 0),
+            formatCurrency(bTotalExp),
+          ],
+          [
+            t('Net Kar'),
+            formatCurrency(data.quarterlyComparison[0]?.scenarioBNet || 0),
+            formatCurrency(data.quarterlyComparison[1]?.scenarioBNet || 0),
+            formatCurrency(data.quarterlyComparison[2]?.scenarioBNet || 0),
+            formatCurrency(data.quarterlyComparison[3]?.scenarioBNet || 0),
+            formatCurrency(bTotalNet),
+          ],
+        ],
+        theme: 'grid',
+        headStyles: {
+          fillColor: [139, 92, 246], // purple-500
+          fontStyle: 'bold',
+          fontSize: 9,
+        },
+        bodyStyles: { fontSize: 9 },
+        columnStyles: {
+          0: { fontStyle: 'bold', cellWidth: 30 },
+          5: { fontStyle: 'bold', fillColor: [241, 245, 249] },
+        },
+        margin: { left: margin, right: margin },
+      });
+      
+      yPos = (doc as any).lastAutoTable.finalY + 15;
+      
+      // Quarterly Difference Table
+      doc.setFontSize(12);
+      doc.setFont('helvetica', 'bold');
+      doc.text(t('Ceyreklik Fark Analizi'), margin, yPos);
       yPos += 5;
       
       autoTable(doc, {
         startY: yPos,
-        head: [[t('Ceyrek'), `${t(data.scenarioA.name)} ${t('Gelir')}`, `${t(data.scenarioA.name)} ${t('Gider')}`, `${t(data.scenarioA.name)} Net`, `${t(data.scenarioB.name)} ${t('Gelir')}`, `${t(data.scenarioB.name)} ${t('Gider')}`, `${t(data.scenarioB.name)} Net`]],
+        head: [[t('Ceyrek'), `${t('Gelir Farki')}`, `${t('Gider Farki')}`, `${t('Net Kar Farki')}`]],
         body: data.quarterlyComparison.map(q => [
           q.quarter,
-          formatCurrency(q.scenarioARevenue),
-          formatCurrency(q.scenarioAExpense),
-          formatCurrency(q.scenarioANet),
-          formatCurrency(q.scenarioBRevenue),
-          formatCurrency(q.scenarioBExpense),
-          formatCurrency(q.scenarioBNet),
+          formatCurrency(q.scenarioARevenue - q.scenarioBRevenue),
+          formatCurrency(q.scenarioAExpense - q.scenarioBExpense),
+          formatCurrency(q.scenarioANet - q.scenarioBNet),
         ]),
         theme: 'striped',
         headStyles: {
           fillColor: [30, 41, 59],
           fontStyle: 'bold',
-          fontSize: 8,
+          fontSize: 9,
         },
-        bodyStyles: {
-          fontSize: 8,
-        },
+        bodyStyles: { fontSize: 9 },
         columnStyles: {
           0: { fontStyle: 'bold' },
         },
         margin: { left: margin, right: margin },
       });
       
-      // ============== PAGE 2: INSIGHTS ==============
+      // ============== PAGE 3: TREND CHART ==============
+      if (data.chartRef?.current) {
+        doc.addPage();
+        yPos = margin;
+        
+        // Page header
+        doc.setFillColor(30, 41, 59);
+        doc.rect(0, 0, pageWidth, 25, 'F');
+        doc.setTextColor(255, 255, 255);
+        doc.setFontSize(16);
+        doc.setFont('helvetica', 'bold');
+        doc.text(t('Ceyreklik Trend Grafigi'), margin, 17);
+        
+        yPos = 35;
+        
+        // Capture chart
+        const chartImage = await captureChartToImage(data.chartRef.current);
+        
+        if (chartImage) {
+          const imgWidth = pageWidth - 2 * margin;
+          const imgHeight = 100; // Fixed height for chart
+          
+          doc.addImage(chartImage, 'PNG', margin, yPos, imgWidth, imgHeight);
+          yPos += imgHeight + 10;
+          
+          // Chart legend/notes
+          doc.setTextColor(100, 116, 139); // slate-500
+          doc.setFontSize(9);
+          doc.setFont('helvetica', 'italic');
+          doc.text(t('Grafik: Ceyreklik net kar karsilastirmasi - her iki senaryonun Q1-Q4 performansi'), margin, yPos);
+          yPos += 15;
+        }
+        
+        // Add quarterly summary cards
+        doc.setTextColor(30, 41, 59);
+        doc.setFontSize(11);
+        doc.setFont('helvetica', 'bold');
+        doc.text(t('Ceyreklik Ozet'), margin, yPos);
+        yPos += 8;
+        
+        // Find best and worst quarters
+        const netDiffs = data.quarterlyComparison.map(q => ({
+          quarter: q.quarter,
+          diff: q.scenarioANet - q.scenarioBNet,
+        }));
+        const bestQuarter = netDiffs.reduce((a, b) => a.diff > b.diff ? a : b);
+        const worstQuarter = netDiffs.reduce((a, b) => a.diff < b.diff ? a : b);
+        
+        // Best quarter card
+        doc.setFillColor(220, 252, 231); // green-100
+        doc.roundedRect(margin, yPos, (pageWidth - 2 * margin - 5) / 2, 25, 2, 2, 'F');
+        doc.setTextColor(22, 101, 52);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text(t('En Iyi Ceyrek'), margin + 5, yPos + 8);
+        doc.setFontSize(12);
+        doc.text(`${bestQuarter.quarter}: ${formatCurrency(bestQuarter.diff)}`, margin + 5, yPos + 18);
+        
+        // Worst quarter card
+        doc.setFillColor(254, 226, 226); // red-100
+        doc.roundedRect(pageWidth / 2 + 2.5, yPos, (pageWidth - 2 * margin - 5) / 2, 25, 2, 2, 'F');
+        doc.setTextColor(153, 27, 27);
+        doc.setFontSize(9);
+        doc.setFont('helvetica', 'bold');
+        doc.text(t('En Zayif Ceyrek'), pageWidth / 2 + 7.5, yPos + 8);
+        doc.setFontSize(12);
+        doc.text(`${worstQuarter.quarter}: ${formatCurrency(worstQuarter.diff)}`, pageWidth / 2 + 7.5, yPos + 18);
+      }
+      
+      // ============== PAGE 4: INSIGHTS ==============
       doc.addPage();
       yPos = margin;
       
@@ -282,7 +492,7 @@ export function useScenarioComparisonPdf() {
         yPos += 30;
       });
       
-      // ============== PAGE 3: RECOMMENDATIONS ==============
+      // ============== PAGE 5: RECOMMENDATIONS ==============
       doc.addPage();
       yPos = margin;
       
