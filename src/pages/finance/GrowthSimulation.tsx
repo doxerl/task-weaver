@@ -33,9 +33,14 @@ function GrowthSimulationContent() {
   // Ref for chart capture
   const chartsContainerRef = useRef<HTMLDivElement>(null);
   
+  const [showNextYearDialog, setShowNextYearDialog] = useState(false);
+  const [isCreatingNextYear, setIsCreatingNextYear] = useState(false);
+  
   const {
     scenarioName,
     setScenarioName,
+    baseYear,
+    targetYear,
     revenues,
     expenses,
     investments,
@@ -61,6 +66,8 @@ function GrowthSimulationContent() {
     const savedId = await scenariosHook.saveScenario(
       {
         name: scenarioName,
+        baseYear,
+        targetYear,
         revenues,
         expenses,
         investments,
@@ -72,6 +79,24 @@ function GrowthSimulationContent() {
     
     if (savedId) {
       scenariosHook.setCurrentScenarioId(savedId);
+      // Show next year dialog after successful save
+      setShowNextYearDialog(true);
+    }
+  };
+
+  const handleCreateNextYear = async () => {
+    setIsCreatingNextYear(true);
+    try {
+      const currentScenario = simulation.getCurrentScenario();
+      const newScenario = await scenariosHook.createNextYearSimulation(currentScenario);
+      if (newScenario) {
+        loadScenario(newScenario);
+        scenariosHook.setCurrentScenarioId(newScenario.id);
+        toast.success(`${newScenario.targetYear} simülasyonu oluşturuldu`);
+      }
+    } finally {
+      setIsCreatingNextYear(false);
+      setShowNextYearDialog(false);
     }
   };
 
@@ -127,8 +152,8 @@ function GrowthSimulationContent() {
               <div className="flex items-center gap-2">
                 <TrendingUp className="h-6 w-6 text-primary" />
                 <div>
-                  <h1 className="text-xl font-bold">2026 Büyüme Simülasyonu</h1>
-                  <p className="text-sm text-muted-foreground">2025 USD verileri baz alınarak</p>
+                  <h1 className="text-xl font-bold">{targetYear} Büyüme Simülasyonu</h1>
+                  <p className="text-sm text-muted-foreground">{baseYear} USD verileri baz alınarak</p>
                 </div>
               </div>
             </div>
@@ -338,6 +363,50 @@ function GrowthSimulationContent() {
         scenarios={scenariosHook.scenarios}
         currentScenarioId={scenariosHook.currentScenarioId}
       />
+
+      {/* Next Year Simulation Dialog */}
+      <Dialog open={showNextYearDialog} onOpenChange={setShowNextYearDialog}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <TrendingUp className="h-5 w-5 text-green-500" />
+              Senaryo Kaydedildi
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4 py-4">
+            <p className="text-sm text-muted-foreground">
+              <strong>"{scenarioName}"</strong> başarıyla kaydedildi.
+            </p>
+            <div className="bg-muted/50 rounded-lg p-4 space-y-2">
+              <p className="text-sm font-medium">Sonraki Yıl Simülasyonu Oluştur</p>
+              <p className="text-xs text-muted-foreground">
+                {targetYear} → {targetYear + 1} dönemi için lineer projeksiyon ile başlayın.
+                Mevcut projeksiyonlarınız yeni simülasyonun baz değerleri olacak.
+              </p>
+            </div>
+            <div className="flex gap-2 justify-end">
+              <Button
+                variant="outline"
+                onClick={() => setShowNextYearDialog(false)}
+              >
+                Tamam
+              </Button>
+              <Button
+                onClick={handleCreateNextYear}
+                disabled={isCreatingNextYear}
+                className="gap-2"
+              >
+                {isCreatingNextYear ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Plus className="h-4 w-4" />
+                )}
+                {targetYear + 1} Simülasyonu Oluştur
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

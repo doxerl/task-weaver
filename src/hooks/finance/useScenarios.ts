@@ -45,9 +45,12 @@ export function useScenarios() {
 
       if (error) throw error;
 
+      const currentYear = new Date().getFullYear();
       const mapped: SimulationScenario[] = (data as unknown as DatabaseScenario[]).map(d => ({
         id: d.id,
         name: d.name,
+        baseYear: d.base_year || currentYear - 1,
+        targetYear: d.target_year || currentYear,
         revenues: d.revenues || [],
         expenses: d.expenses || [],
         investments: d.investments || [],
@@ -78,6 +81,8 @@ export function useScenarios() {
       const dbData = {
         user_id: user.id,
         name: scenario.name,
+        base_year: scenario.baseYear,
+        target_year: scenario.targetYear,
         assumed_exchange_rate: scenario.assumedExchangeRate,
         revenues: JSON.parse(JSON.stringify(scenario.revenues)),
         expenses: JSON.parse(JSON.stringify(scenario.expenses)),
@@ -154,6 +159,8 @@ export function useScenarios() {
 
     return saveScenario({
       name: `${scenario.name} (Kopya)`,
+      baseYear: scenario.baseYear,
+      targetYear: scenario.targetYear,
       revenues: scenario.revenues,
       expenses: scenario.expenses,
       investments: scenario.investments,
@@ -161,6 +168,61 @@ export function useScenarios() {
       notes: scenario.notes,
     });
   }, [scenarios, saveScenario]);
+
+  // Create next year simulation from current scenario
+  const createNextYearSimulation = useCallback(async (currentScenario: SimulationScenario): Promise<SimulationScenario | null> => {
+    // Calculate growth rate from current scenario
+    const baseRevenue = currentScenario.revenues.reduce((sum, r) => sum + r.baseAmount, 0);
+    const projectedRevenue = currentScenario.revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
+    const growthRate = baseRevenue > 0 ? (projectedRevenue - baseRevenue) / baseRevenue : 0.15;
+
+    const generateId = () => Math.random().toString(36).substr(2, 9);
+    const nextBaseYear = currentScenario.targetYear;
+    const nextTargetYear = currentScenario.targetYear + 1;
+
+    // Create new revenues: projected becomes base, apply linear growth
+    const newRevenues = currentScenario.revenues.map(r => ({
+      id: generateId(),
+      category: r.category,
+      baseAmount: r.projectedAmount,
+      projectedAmount: Math.round(r.projectedAmount * (1 + growthRate)),
+      description: r.description,
+      isNew: false,
+      startMonth: r.startMonth,
+    }));
+
+    // Create new expenses: projected becomes base, apply slower growth (70% of revenue growth)
+    const expenseGrowthRate = growthRate * 0.7;
+    const newExpenses = currentScenario.expenses.map(e => ({
+      id: generateId(),
+      category: e.category,
+      baseAmount: e.projectedAmount,
+      projectedAmount: Math.round(e.projectedAmount * (1 + expenseGrowthRate)),
+      description: e.description,
+      isNew: false,
+      startMonth: e.startMonth,
+    }));
+
+    const newScenario: Omit<SimulationScenario, 'id' | 'createdAt' | 'updatedAt'> = {
+      name: `${nextTargetYear} Büyüme Planı`,
+      baseYear: nextBaseYear,
+      targetYear: nextTargetYear,
+      revenues: newRevenues,
+      expenses: newExpenses,
+      investments: [], // Reset investments for new year
+      assumedExchangeRate: currentScenario.assumedExchangeRate,
+      notes: `${currentScenario.name} senaryosundan oluşturuldu. Lineer büyüme oranı: ${(growthRate * 100).toFixed(1)}%`,
+    };
+
+    const savedId = await saveScenario(newScenario);
+    if (savedId) {
+      return {
+        ...newScenario,
+        id: savedId,
+      };
+    }
+    return null;
+  }, [saveScenario]);
 
   // Load scenarios on mount
   useEffect(() => {
@@ -179,5 +241,6 @@ export function useScenarios() {
     saveScenario,
     deleteScenario,
     duplicateScenario,
+    createNextYearSimulation,
   };
 }

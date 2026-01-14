@@ -60,8 +60,13 @@ function mapCategoryCode(code: string | null, mapping: Record<string, string>, d
   return defaultCategory;
 }
 
-export function useGrowthSimulation() {
-  const hub = useFinancialDataHub(2025);
+const currentYear = new Date().getFullYear();
+
+export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?: number) {
+  const [baseYear, setBaseYear] = useState(initialBaseYear || currentYear - 1);
+  const [targetYear, setTargetYear] = useState(initialTargetYear || currentYear);
+  
+  const hub = useFinancialDataHub(baseYear);
   const { yearlyAverageRate } = useCurrency();
   
   const [scenarioName, setScenarioName] = useState('Varsayılan Senaryo');
@@ -269,7 +274,9 @@ export function useGrowthSimulation() {
   }, []);
 
   // Reset to defaults
-  const resetToDefaults = useCallback(() => {
+  const resetToDefaults = useCallback((newBaseYear?: number, newTargetYear?: number) => {
+    if (newBaseYear) setBaseYear(newBaseYear);
+    if (newTargetYear) setTargetYear(newTargetYear);
     setIsInitialized(false);
     setInvestments([]);
     setAssumedExchangeRate(45);
@@ -281,16 +288,20 @@ export function useGrowthSimulation() {
   const getCurrentScenario = useCallback((): SimulationScenario => ({
     id: generateId(),
     name: scenarioName,
+    baseYear,
+    targetYear,
     revenues,
     expenses,
     investments,
     assumedExchangeRate,
     notes,
-  }), [scenarioName, revenues, expenses, investments, assumedExchangeRate, notes]);
+  }), [scenarioName, baseYear, targetYear, revenues, expenses, investments, assumedExchangeRate, notes]);
 
   // Load scenario
   const loadScenario = useCallback((scenario: SimulationScenario) => {
     setScenarioName(scenario.name);
+    setBaseYear(scenario.baseYear || currentYear - 1);
+    setTargetYear(scenario.targetYear || currentYear);
     setRevenues(scenario.revenues);
     setExpenses(scenario.expenses);
     setInvestments(scenario.investments);
@@ -303,6 +314,10 @@ export function useGrowthSimulation() {
     // State
     scenarioName,
     setScenarioName,
+    baseYear,
+    setBaseYear,
+    targetYear,
+    setTargetYear,
     revenues,
     expenses,
     investments,
