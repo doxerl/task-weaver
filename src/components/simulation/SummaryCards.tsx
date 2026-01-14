@@ -2,19 +2,11 @@ import { Card, CardContent } from '@/components/ui/card';
 import { TrendingUp, TrendingDown, DollarSign, Percent, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { SimulationSummary } from '@/types/simulation';
 import { cn } from '@/lib/utils';
+import { formatCompactUSD, formatCompactTRY } from '@/lib/formatters';
 
 interface SummaryCardsProps {
   summary: SimulationSummary;
   exchangeRate: number;
-}
-
-function formatUSD(value: number): string {
-  return new Intl.NumberFormat('en-US', {
-    style: 'currency',
-    currency: 'USD',
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  }).format(value);
 }
 
 function GrowthIndicator({ value }: { value: number }) {
@@ -38,9 +30,9 @@ export function SummaryCards({ summary, exchangeRate }: SummaryCardsProps) {
       title: '2025 Gerçek',
       subtitle: 'Referans Yıl',
       items: [
-        { label: 'Gelir', value: formatUSD(summary.base.totalRevenue) },
-        { label: 'Gider', value: formatUSD(summary.base.totalExpense) },
-        { label: 'Net Kar', value: formatUSD(summary.base.netProfit), highlight: true },
+        { label: 'Gelir', value: formatCompactUSD(summary.base.totalRevenue) },
+        { label: 'Gider', value: formatCompactUSD(summary.base.totalExpense) },
+        { label: 'Net Kar', value: formatCompactUSD(summary.base.netProfit), highlight: true },
       ],
       footer: `Kar Marjı: %${summary.base.profitMargin.toFixed(1)}`,
       variant: 'muted' as const,
@@ -51,17 +43,17 @@ export function SummaryCards({ summary, exchangeRate }: SummaryCardsProps) {
       items: [
         { 
           label: 'Gelir', 
-          value: formatUSD(summary.projected.totalRevenue),
+          value: formatCompactUSD(summary.projected.totalRevenue),
           growth: summary.growth.revenueGrowth,
         },
         { 
           label: 'Gider', 
-          value: formatUSD(summary.projected.totalExpense),
+          value: formatCompactUSD(summary.projected.totalExpense),
           growth: summary.growth.expenseGrowth,
         },
         { 
           label: 'Net Kar', 
-          value: formatUSD(summary.projected.netProfit), 
+          value: formatCompactUSD(summary.projected.netProfit), 
           highlight: true,
           growth: summary.growth.profitGrowth,
         },
@@ -73,16 +65,16 @@ export function SummaryCards({ summary, exchangeRate }: SummaryCardsProps) {
       title: 'Sermaye Analizi',
       subtitle: 'Yatırım İhtiyacı',
       items: [
-        { label: 'Yatırımlar', value: formatUSD(summary.capitalNeeds.totalInvestment) },
-        { label: 'Tahmini Kar', value: formatUSD(summary.capitalNeeds.projectedProfit) },
+        { label: 'Yatırımlar', value: formatCompactUSD(summary.capitalNeeds.totalInvestment) },
+        { label: 'Tahmini Kar', value: formatCompactUSD(summary.capitalNeeds.projectedProfit) },
         { 
           label: 'Net İhtiyaç', 
-          value: formatUSD(summary.capitalNeeds.netCapitalNeed), 
+          value: formatCompactUSD(summary.capitalNeeds.netCapitalNeed), 
           highlight: summary.capitalNeeds.netCapitalNeed > 0,
           isNegative: summary.capitalNeeds.netCapitalNeed > 0,
         },
       ],
-      footer: `TL Karşılığı: ₺${(summary.capitalNeeds.netCapitalNeed * exchangeRate).toLocaleString('tr-TR')}`,
+      footer: `TL Karşılığı: ${formatCompactTRY(summary.capitalNeeds.netCapitalNeed * exchangeRate)}`,
       variant: summary.capitalNeeds.netCapitalNeed > 0 ? 'warning' as const : 'success' as const,
     },
   ];
