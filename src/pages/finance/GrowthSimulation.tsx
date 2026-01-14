@@ -325,7 +325,9 @@ function GrowthSimulationContent() {
             <ComparisonChart 
               ref={chartsContainerRef} 
               revenues={revenues} 
-              expenses={expenses} 
+              expenses={expenses}
+              baseYear={baseYear}
+              targetYear={targetYear}
             />
           </TabsContent>
 
