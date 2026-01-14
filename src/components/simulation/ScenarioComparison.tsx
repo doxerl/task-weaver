@@ -634,7 +634,6 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
         expectedOutcome: r.expectedOutcome || r.suitableFor,
       })),
       quarterlyComparison,
-      chartRef: chartContainerRef,
     });
   };
 
