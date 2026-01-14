@@ -51,7 +51,8 @@ export interface InvestmentItem {
   name: string;
   amount: number;          // USD
   description: string;
-  month: number;           // 1-12
+  month: number;           // 1-12 (legacy, kept for backward compatibility)
+  quarterly?: QuarterlyAmounts; // Quarterly distribution of investment
 }
 
 export interface SimulationScenario {
