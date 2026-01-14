@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,10 +8,13 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, RotateCcw, Download, TrendingUp, Save, Plus, Loader2, FileText, GitCompare } from 'lucide-react';
+import { ArrowLeft, RotateCcw, TrendingUp, Save, Plus, Loader2, FileText, GitCompare } from 'lucide-react';
 import { useGrowthSimulation } from '@/hooks/finance/useGrowthSimulation';
 import { useScenarios } from '@/hooks/finance/useScenarios';
 import { useSimulationPdf } from '@/hooks/finance/useSimulationPdf';
+import { useAdvancedCapitalAnalysis } from '@/hooks/finance/useAdvancedCapitalAnalysis';
+import { useROIAnalysis } from '@/hooks/finance/useROIAnalysis';
+import { useFinancialDataHub } from '@/hooks/finance/useFinancialDataHub';
 import { SummaryCards } from '@/components/simulation/SummaryCards';
 import { ProjectionTable } from '@/components/simulation/ProjectionTable';
 import { AddItemDialog } from '@/components/simulation/AddItemDialog';
@@ -26,6 +29,7 @@ import { toast } from 'sonner';
 
 function GrowthSimulationContent() {
   const simulation = useGrowthSimulation();
+  const hub = useFinancialDataHub(simulation.baseYear);
   const scenariosHook = useScenarios();
   const { generatePdf, isGenerating, progress } = useSimulationPdf();
   const [showComparison, setShowComparison] = useState(false);
@@ -61,6 +65,22 @@ function GrowthSimulationContent() {
     resetToDefaults,
     loadScenario,
   } = simulation;
+
+  // Advanced analysis hooks
+  const advancedAnalysis = useAdvancedCapitalAnalysis({
+    revenues,
+    expenses,
+    investments,
+    summary,
+    hub: hub.isLoading ? null : hub,
+  });
+
+  const roiAnalysis = useROIAnalysis({
+    revenues,
+    expenses,
+    investments,
+    summary,
+  });
 
   const handleSave = async () => {
     const savedId = await scenariosHook.saveScenario(
@@ -338,6 +358,8 @@ function GrowthSimulationContent() {
               exchangeRate={assumedExchangeRate}
               onAddInvestment={addInvestment}
               onRemoveInvestment={removeInvestment}
+              advancedAnalysis={advancedAnalysis}
+              roiAnalysis={roiAnalysis}
             />
           </TabsContent>
         </Tabs>
