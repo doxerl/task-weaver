@@ -21,15 +21,30 @@ const REVENUE_CATEGORY_MAP: Record<string, string> = {
 };
 
 const EXPENSE_CATEGORY_MAP: Record<string, string> = {
+  // Personel kategorileri
   'PERSONEL': 'Personel (Brüt+SGK)',
+  'PERSONEL_UCRET': 'Personel (Brüt+SGK)',
+  'PERSONEL_SGK': 'Personel (Brüt+SGK)',
+  'PERSONEL_ISVEREN': 'Personel (Brüt+SGK)',
+  'PERSONEL_PRIM': 'Personel (Brüt+SGK)',
+  'PERSONEL_YEMEK': 'Personel (Brüt+SGK)',
+  
+  // Ana kategoriler
   'YAZILIM': 'Yazılım/Abonelik',
-  'KIRA': 'Kira',
+  'KIRA_OUT': 'Kira',
   'SEYAHAT': 'Seyahat',
-  'PAZARLAMA': 'Pazarlama/Fuar',
   'FUAR': 'Pazarlama/Fuar',
   'TELEKOM': 'Telekomünikasyon',
   'MUHASEBE': 'Muhasebe',
-  'DIĞER': 'Diğer',
+  'DANIS_OUT': 'Danışmanlık Gideri',
+  
+  // Ek kategoriler
+  'SUBCONTRACTOR': 'Taşeron/Eğitmen',
+  'OFIS': 'Ofis/Kırtasiye',
+  'KARGO': 'Kargo/Nakliye',
+  'SIGORTA': 'Sigorta',
+  'VERGI': 'Vergi',
+  'DIGER_OUT': 'Diğer',
 };
 
 function mapCategoryCode(code: string | null, mapping: Record<string, string>, defaultCategory: string): string {
