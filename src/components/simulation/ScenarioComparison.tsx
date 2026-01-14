@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -556,6 +556,7 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
   const [scenarioAId, setScenarioAId] = useState<string | null>(currentScenarioId);
   const [scenarioBId, setScenarioBId] = useState<string | null>(null);
   const { generatePdf, isGenerating } = useScenarioComparisonPdf();
+  const chartContainerRef = useRef<HTMLDivElement>(null);
 
   const scenarioA = useMemo(() => scenarios.find(s => s.id === scenarioAId), [scenarios, scenarioAId]);
   const scenarioB = useMemo(() => scenarios.find(s => s.id === scenarioBId), [scenarios, scenarioBId]);
@@ -633,6 +634,7 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
         expectedOutcome: r.expectedOutcome || r.suitableFor,
       })),
       quarterlyComparison,
+      chartRef: chartContainerRef,
     });
   };
 
@@ -788,7 +790,7 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
                 </TabsContent>
 
                 <TabsContent value="trend" className="mt-4">
-                  <Card>
+                  <Card ref={chartContainerRef} className="bg-card">
                     <CardHeader className="pb-2">
                       <CardTitle className="text-sm">Çeyreklik Net Kâr Karşılaştırması</CardTitle>
                     </CardHeader>
