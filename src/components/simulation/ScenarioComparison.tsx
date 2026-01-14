@@ -21,6 +21,7 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -38,10 +39,31 @@ import {
   Zap,
   DollarSign,
   PiggyBank,
-  TrendingUpDown
+  TrendingUpDown,
+  Download,
+  Loader2,
+  LineChart as LineChartIcon
 } from 'lucide-react';
 import { SimulationScenario } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
+import { useScenarioComparisonPdf } from '@/hooks/finance/useScenarioComparisonPdf';
+import {
+  ChartConfig,
+  ChartContainer,
+  ChartTooltip,
+  ChartTooltipContent,
+  ChartLegend,
+  ChartLegendContent,
+} from '@/components/ui/chart';
+import {
+  ComposedChart,
+  Line,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  ResponsiveContainer,
+} from 'recharts';
 
 interface ScenarioComparisonProps {
   open: boolean;
@@ -69,11 +91,24 @@ interface ScenarioInsight {
 }
 
 interface DecisionRecommendation {
+  id?: string;
   icon: React.ReactNode;
   title: string;
   description: string;
   risk: 'low' | 'medium' | 'high';
   suitableFor: string;
+  keyActions?: string[];
+  expectedOutcome?: string;
+}
+
+interface QuarterlyComparison {
+  quarter: string;
+  scenarioARevenue: number;
+  scenarioAExpense: number;
+  scenarioANet: number;
+  scenarioBRevenue: number;
+  scenarioBExpense: number;
+  scenarioBNet: number;
 }
 
 interface ScenarioSummary {
@@ -405,6 +440,35 @@ const generateRecommendations = (
   return recommendations;
 };
 
+const calculateQuarterlyComparison = (
+  scenarioA: SimulationScenario,
+  scenarioB: SimulationScenario
+): QuarterlyComparison[] => {
+  const quarters: ('q1' | 'q2' | 'q3' | 'q4')[] = ['q1', 'q2', 'q3', 'q4'];
+  
+  return quarters.map(q => {
+    const aRevenue = scenarioA.revenues.reduce((sum, r) => 
+      sum + (r.projectedQuarterly?.[q] || r.projectedAmount / 4), 0);
+    const aExpense = scenarioA.expenses.reduce((sum, e) => 
+      sum + (e.projectedQuarterly?.[q] || e.projectedAmount / 4), 0);
+    
+    const bRevenue = scenarioB.revenues.reduce((sum, r) => 
+      sum + (r.projectedQuarterly?.[q] || r.projectedAmount / 4), 0);
+    const bExpense = scenarioB.expenses.reduce((sum, e) => 
+      sum + (e.projectedQuarterly?.[q] || e.projectedAmount / 4), 0);
+    
+    return {
+      quarter: q.toUpperCase(),
+      scenarioARevenue: aRevenue,
+      scenarioAExpense: aExpense,
+      scenarioANet: aRevenue - aExpense,
+      scenarioBRevenue: bRevenue,
+      scenarioBExpense: bExpense,
+      scenarioBNet: bRevenue - bExpense,
+    };
+  });
+};
+
 const InsightCard: React.FC<{ insight: ScenarioInsight }> = ({ insight }) => {
   const bgColors = {
     positive: 'bg-emerald-500/10 border-emerald-500/20',
@@ -491,6 +555,7 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
 }) => {
   const [scenarioAId, setScenarioAId] = useState<string | null>(currentScenarioId);
   const [scenarioBId, setScenarioBId] = useState<string | null>(null);
+  const { generatePdf, isGenerating } = useScenarioComparisonPdf();
 
   const scenarioA = useMemo(() => scenarios.find(s => s.id === scenarioAId), [scenarios, scenarioAId]);
   const scenarioB = useMemo(() => scenarios.find(s => s.id === scenarioBId), [scenarios, scenarioBId]);
@@ -526,15 +591,79 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
     return generateRecommendations(summaryA, summaryB, scenarioA.name, scenarioB.name, winner);
   }, [summaryA, summaryB, scenarioA, scenarioB, winner]);
 
+  const quarterlyComparison = useMemo(() => {
+    if (!scenarioA || !scenarioB) return [];
+    return calculateQuarterlyComparison(scenarioA, scenarioB);
+  }, [scenarioA, scenarioB]);
+
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
+  const handleExportPdf = () => {
+    if (!scenarioA || !scenarioB || !summaryA || !summaryB || !winner) return;
+    
+    generatePdf({
+      scenarioA,
+      scenarioB,
+      summaryA,
+      summaryB,
+      winner: {
+        winner: winner.winner,
+        scenarioName: winner.winnerName,
+        scoreA: winner.scoreA,
+        scoreB: winner.scoreB,
+        totalMetrics: winner.totalMetrics,
+        advantages: winner.advantages,
+        disadvantages: winner.disadvantages,
+      },
+      insights: insights.map(i => ({
+        type: i.type,
+        category: i.category as any,
+        title: i.title,
+        description: i.description,
+        impact: i.impact,
+        recommendation: i.recommendation,
+      })),
+      recommendations: recommendations.map((r, idx) => ({
+        id: `rec-${idx}`,
+        title: r.title,
+        description: r.description,
+        riskLevel: r.risk,
+        suitableFor: [r.suitableFor],
+        keyActions: r.keyActions || [],
+        expectedOutcome: r.expectedOutcome || r.suitableFor,
+      })),
+      quarterlyComparison,
+    });
+  };
+
+  const chartConfig: ChartConfig = {
+    scenarioANet: { label: `${scenarioA?.name || 'A'} Net`, color: 'hsl(var(--chart-1))' },
+    scenarioBNet: { label: `${scenarioB?.name || 'B'} Net`, color: 'hsl(var(--chart-2))' },
+  };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-3xl max-h-[90vh]">
         <DialogHeader>
-          <DialogTitle className="flex items-center gap-2">
-            <ArrowLeftRight className="h-5 w-5" />
-            Senaryo Karşılaştırma
+          <DialogTitle className="flex items-center justify-between w-full">
+            <div className="flex items-center gap-2">
+              <ArrowLeftRight className="h-5 w-5" />
+              Senaryo Karşılaştırma
+            </div>
+            {canCompare && (
+              <Button 
+                variant="outline" 
+                size="sm" 
+                onClick={handleExportPdf}
+                disabled={isGenerating}
+              >
+                {isGenerating ? (
+                  <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                ) : (
+                  <Download className="h-4 w-4 mr-2" />
+                )}
+                PDF
+              </Button>
+            )}
           </DialogTitle>
         </DialogHeader>
 
@@ -613,8 +742,12 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
 
               {/* Tabs */}
               <Tabs defaultValue="summary" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
-                  <TabsTrigger value="summary">Özet Tablo</TabsTrigger>
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="summary">Özet</TabsTrigger>
+                  <TabsTrigger value="trend">
+                    <LineChartIcon className="h-4 w-4 mr-1" />
+                    Trend
+                  </TabsTrigger>
                   <TabsTrigger value="insights">
                     <Lightbulb className="h-4 w-4 mr-1" />
                     Çıkarımlar
@@ -652,6 +785,27 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
                       })}
                     </TableBody>
                   </Table>
+                </TabsContent>
+
+                <TabsContent value="trend" className="mt-4">
+                  <Card>
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">Çeyreklik Net Kâr Karşılaştırması</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                        <ComposedChart data={quarterlyComparison}>
+                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                          <XAxis dataKey="quarter" className="text-xs" />
+                          <YAxis tickFormatter={(v) => formatCompactUSD(v)} className="text-xs" />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <ChartLegend content={<ChartLegendContent />} />
+                          <Bar dataKey="scenarioANet" fill="var(--color-scenarioANet)" name={scenarioA?.name} radius={4} />
+                          <Bar dataKey="scenarioBNet" fill="var(--color-scenarioBNet)" name={scenarioB?.name} radius={4} />
+                        </ComposedChart>
+                      </ChartContainer>
+                    </CardContent>
+                  </Card>
                 </TabsContent>
 
                 <TabsContent value="insights" className="mt-4">
