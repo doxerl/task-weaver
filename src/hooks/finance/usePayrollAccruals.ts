@@ -26,6 +26,8 @@ export function usePayrollAccruals(year: number) {
         totalSgkPayable: 0,
         totalGrossSalary: 0,
         totalEmployerContribution: 0,
+        totalUnemployment: 0,
+        totalPersonnelExpense: 0,
       };
     }
 
@@ -34,6 +36,21 @@ export function usePayrollAccruals(year: number) {
     
     // Son ayın verilerini al (dönem sonu bakiye)
     const lastMonth = accruals[accruals.length - 1];
+
+    // Toplam brüt ücret (P&L için)
+    const totalGrossSalary = accruals.reduce((sum, a) => sum + Number(a.gross_salary || 0), 0);
+    
+    // Toplam işveren SGK primi
+    const totalEmployerSgk = accruals.reduce((sum, a) => sum + Number(a.employer_sgk_payable || 0), 0);
+    
+    // Toplam işsizlik primi
+    const totalUnemployment = accruals.reduce((sum, a) => sum + Number(a.unemployment_payable || 0), 0);
+    
+    // Toplam işveren katkısı (employer_contribution alanından)
+    const totalEmployerContribution = accruals.reduce((sum, a) => sum + Number(a.employer_contribution || 0), 0);
+    
+    // Personel Gideri = Brüt Ücret + İşveren SGK + İşsizlik Primi
+    const totalPersonnelExpense = totalGrossSalary + totalEmployerSgk + totalUnemployment;
     
     return {
       // Ödenmemiş net maaş borcu
@@ -51,11 +68,10 @@ export function usePayrollAccruals(year: number) {
         .filter(a => !a.is_sgk_paid)
         .reduce((sum, a) => sum + Number(a.employee_sgk_payable || 0) + Number(a.employer_sgk_payable || 0) + Number(a.unemployment_payable || 0), 0),
       
-      // Toplam brüt ücret (P&L için)
-      totalGrossSalary: accruals.reduce((sum, a) => sum + Number(a.gross_salary || 0), 0),
-      
-      // Toplam işveren primi (P&L için)
-      totalEmployerContribution: accruals.reduce((sum, a) => sum + Number(a.employer_contribution || 0), 0),
+      totalGrossSalary,
+      totalEmployerContribution,
+      totalUnemployment,
+      totalPersonnelExpense,
     };
   }, [accruals]);
 
