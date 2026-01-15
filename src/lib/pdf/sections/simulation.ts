@@ -21,6 +21,8 @@ export function renderSimulation(
     summary: any;
     assumedExchangeRate: number;
     notes?: string;
+    advancedAnalysis?: any;
+    roiAnalysis?: any;
   },
   companyName: string = 'Sirket'
 ): void {
@@ -327,5 +329,319 @@ export function renderSimulation(
         }
       },
     });
+  }
+
+  // ==========================================
+  // SAYFA 6: NAKİT DURUMU VE SERMAYE ANALİZİ
+  // ==========================================
+  if (data.advancedAnalysis) {
+    doc.addPage();
+    addSectionHeader(doc, tr('NAKIT DURUMU VE SERMAYE ANALIZI'), PDF_COLORS.info);
+    
+    const { currentCash, workingCapital, capitalNeeds } = data.advancedAnalysis;
+    
+    // Nakit pozisyonu tablosu
+    const cashPositionData = [
+      [tr('Banka Bakiyesi'), formatUSD(currentCash?.bankBalance || 0)],
+      [tr('Kasa'), formatUSD(currentCash?.cashOnHand || 0)],
+      [tr('Toplam Likit Varliklar'), formatUSD(currentCash?.totalLiquidity || 0)],
+    ];
+    
+    autoTable(doc, {
+      startY: 35,
+      head: [[tr('Nakit Pozisyonu'), tr('Tutar (USD)')]],
+      body: cashPositionData,
+      theme: 'grid',
+      headStyles: { fillColor: PDF_COLORS.info, textColor: PDF_COLORS.white },
+      margin: { left: margin, right: margin },
+      columnStyles: {
+        0: { cellWidth: 80, fontStyle: 'bold' },
+        1: { cellWidth: 60, halign: 'right' },
+      },
+      didParseCell: (cellData) => {
+        if (cellData.section === 'body' && cellData.row.index === cashPositionData.length - 1) {
+          cellData.cell.styles.fontStyle = 'bold';
+          cellData.cell.styles.fillColor = [224, 242, 254];
+        }
+      },
+    });
+    
+    // İşletme sermayesi tablosu
+    const workingCapitalData = [
+      [tr('Aylik Operasyonel Nakit Ihtiyaci'), formatUSD(workingCapital?.monthlyOperatingCash || 0)],
+      [tr('Guvenlik Tamponu (ay)'), `${workingCapital?.safetyMonths || 0} ay`],
+      [tr('Guvenlik Tamponu (USD)'), formatUSD(workingCapital?.safetyBuffer || 0)],
+      [tr('Net Isletme Sermayesi'), formatUSD(workingCapital?.netWorkingCapital || 0)],
+    ];
+    
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 15,
+      head: [[tr('Isletme Sermayesi'), tr('Deger')]],
+      body: workingCapitalData,
+      theme: 'grid',
+      headStyles: { fillColor: PDF_COLORS.primary, textColor: PDF_COLORS.white },
+      margin: { left: margin, right: margin },
+      columnStyles: {
+        0: { cellWidth: 80, fontStyle: 'bold' },
+        1: { cellWidth: 60, halign: 'right' },
+      },
+    });
+    
+    // Sermaye yeterliliği durumu
+    const sufficiencyStatus = capitalNeeds?.isSufficient 
+      ? 'YETERLI - Mevcut kaynaklar hedefleri karsilamaktadir'
+      : 'EK SERMAYE GEREKLI';
+    const sufficiencyColor = capitalNeeds?.isSufficient ? PDF_COLORS.success : PDF_COLORS.danger;
+    
+    const capitalNeedsData = [
+      [tr('Toplam Yatirim Ihtiyaci'), formatUSD(capitalNeeds?.totalInvestment || 0)],
+      [tr('Mevcut Nakit'), formatUSD(capitalNeeds?.availableCash || 0)],
+      [tr('Net Sermaye Acigi'), formatUSD(Math.abs(capitalNeeds?.netCapitalGap || 0))],
+      [tr('En Yuksek Nakit Acigi'), formatUSD(capitalNeeds?.peakCashDeficit || 0)],
+      [tr('Sermaye Durumu'), sufficiencyStatus],
+    ];
+    
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 15,
+      head: [[tr('Sermaye Ihtiyaci Analizi'), tr('Deger')]],
+      body: capitalNeedsData,
+      theme: 'grid',
+      headStyles: { fillColor: PDF_COLORS.gray, textColor: PDF_COLORS.white },
+      margin: { left: margin, right: margin },
+      columnStyles: {
+        0: { cellWidth: 80, fontStyle: 'bold' },
+        1: { cellWidth: 100, halign: 'right' },
+      },
+      didParseCell: (cellData) => {
+        if (cellData.section === 'body' && cellData.row.index === capitalNeedsData.length - 1) {
+          cellData.cell.styles.textColor = sufficiencyColor;
+          cellData.cell.styles.fontStyle = 'bold';
+        }
+      },
+    });
+  }
+
+  // ==========================================
+  // SAYFA 7: ÇEYREKLİK NAKİT AKIŞ TABLOSU
+  // ==========================================
+  if (data.advancedAnalysis?.burnRateAnalysis?.quarterlyProjectionsWithInvestment) {
+    doc.addPage();
+    addSectionHeader(doc, tr('CEYREKLIK NAKIT AKIS PROJEKSIYONU'), PDF_COLORS.primary);
+    
+    const projections = data.advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment;
+    const criticalQuarter = data.advancedAnalysis.burnRateAnalysis.criticalQuarter;
+    
+    const cashFlowTableData = projections.map((p: any) => [
+      p.quarter,
+      formatUSD(p.openingBalance),
+      formatUSD(p.revenue),
+      formatUSD(p.expense),
+      formatUSD(p.investment),
+      formatUSD(p.netCashFlow),
+      formatUSD(p.closingBalance),
+    ]);
+    
+    autoTable(doc, {
+      startY: 35,
+      head: [[
+        tr('Ceyrek'),
+        tr('Acilis'),
+        tr('Gelir'),
+        tr('Gider'),
+        tr('Yatirim'),
+        tr('Net Akis'),
+        tr('Kapanis'),
+      ]],
+      body: cashFlowTableData,
+      theme: 'grid',
+      headStyles: { fillColor: PDF_COLORS.primary, textColor: PDF_COLORS.white, fontSize: 9 },
+      bodyStyles: { fontSize: 9 },
+      margin: { left: margin, right: margin },
+      columnStyles: {
+        0: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
+        1: { cellWidth: 28, halign: 'right' },
+        2: { cellWidth: 28, halign: 'right' },
+        3: { cellWidth: 28, halign: 'right' },
+        4: { cellWidth: 28, halign: 'right' },
+        5: { cellWidth: 28, halign: 'right' },
+        6: { cellWidth: 28, halign: 'right' },
+      },
+      didParseCell: (cellData) => {
+        if (cellData.section === 'body') {
+          const rowData = cashFlowTableData[cellData.row.index];
+          const quarter = rowData[0];
+          
+          // Kritik çeyreği vurgula
+          if (quarter === criticalQuarter) {
+            cellData.cell.styles.fillColor = [254, 226, 226];
+          }
+          
+          // Net akış ve kapanış renklendirmesi
+          if (cellData.column.index === 5 || cellData.column.index === 6) {
+            const value = parseFloat(String(cellData.cell.raw).replace(/[^\d.-]/g, ''));
+            if (value < 0) {
+              cellData.cell.styles.textColor = PDF_COLORS.danger;
+            } else if (value > 0) {
+              cellData.cell.styles.textColor = PDF_COLORS.success;
+            }
+          }
+        }
+      },
+    });
+    
+    // Burn rate özeti
+    const burnRate = data.advancedAnalysis.burnRateAnalysis;
+    const burnRateSummary = [
+      [tr('Brut Yakim Hizi (Aylik)'), formatUSD(burnRate.grossBurnRate || 0)],
+      [tr('Net Yakim Hizi (Aylik)'), formatUSD(burnRate.netBurnRate || 0)],
+      [tr('Pist Suresi'), `${burnRate.runwayMonths || 0} ay`],
+    ];
+    
+    if (criticalQuarter) {
+      burnRateSummary.push([tr('Kritik Ceyrek'), criticalQuarter]);
+    }
+    
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 15,
+      head: [[tr('Yakim Hizi Analizi'), tr('Deger')]],
+      body: burnRateSummary,
+      theme: 'grid',
+      headStyles: { fillColor: PDF_COLORS.warning, textColor: PDF_COLORS.white },
+      margin: { left: margin, right: margin },
+      columnStyles: {
+        0: { cellWidth: 80, fontStyle: 'bold' },
+        1: { cellWidth: 60, halign: 'right' },
+      },
+      didParseCell: (cellData) => {
+        if (cellData.section === 'body') {
+          const label = String(cellData.row.cells[0]?.raw || '');
+          if (label.includes('Kritik')) {
+            cellData.cell.styles.textColor = PDF_COLORS.danger;
+            cellData.cell.styles.fontStyle = 'bold';
+          }
+        }
+      },
+    });
+  }
+
+  // ==========================================
+  // SAYFA 8: ROI ANALİZİ
+  // ==========================================
+  if (data.roiAnalysis) {
+    doc.addPage();
+    addSectionHeader(doc, tr('YATIRIM GETIRI ANALIZI (ROI)'), PDF_COLORS.success);
+    
+    const { simpleROI, paybackPeriod, npvAnalysis, sensitivity } = data.roiAnalysis;
+    
+    // Temel ROI metrikleri
+    const roiMetrics = [
+      [tr('Basit ROI'), formatPercent(simpleROI || 0)],
+      [tr('Geri Odeme Suresi'), `${paybackPeriod?.months || 0} ay`],
+      [tr('1 Yil Icinde Geri Odeme'), paybackPeriod?.isWithinYear ? 'Evet' : 'Hayir'],
+    ];
+    
+    autoTable(doc, {
+      startY: 35,
+      head: [[tr('ROI Metrikleri'), tr('Deger')]],
+      body: roiMetrics,
+      theme: 'grid',
+      headStyles: { fillColor: PDF_COLORS.success, textColor: PDF_COLORS.white },
+      margin: { left: margin, right: margin },
+      columnStyles: {
+        0: { cellWidth: 80, fontStyle: 'bold' },
+        1: { cellWidth: 60, halign: 'right' },
+      },
+      didParseCell: (cellData) => {
+        if (cellData.section === 'body' && cellData.column.index === 1) {
+          const value = String(cellData.cell.raw);
+          if (value.includes('+') || value === 'Evet') {
+            cellData.cell.styles.textColor = PDF_COLORS.success;
+          } else if (value.includes('-') || value === 'Hayir') {
+            cellData.cell.styles.textColor = PDF_COLORS.danger;
+          }
+        }
+      },
+    });
+    
+    // NPV Analizi
+    const npvMetrics = [
+      [tr('Net Bugunku Deger (NPV)'), formatUSD(npvAnalysis?.npv || 0)],
+      [tr('Iskonto Orani'), `%${npvAnalysis?.discountRate || 0}`],
+      [tr('Ic Verim Orani (IRR)'), formatPercent(npvAnalysis?.irr || 0)],
+      [tr('NPV Durumu'), npvAnalysis?.isPositiveNPV ? 'POZITIF - Yatirim Onerilir' : 'NEGATIF - Risk Yuksek'],
+    ];
+    
+    autoTable(doc, {
+      startY: (doc as any).lastAutoTable.finalY + 15,
+      head: [[tr('NPV Analizi'), tr('Deger')]],
+      body: npvMetrics,
+      theme: 'grid',
+      headStyles: { fillColor: PDF_COLORS.primary, textColor: PDF_COLORS.white },
+      margin: { left: margin, right: margin },
+      columnStyles: {
+        0: { cellWidth: 80, fontStyle: 'bold' },
+        1: { cellWidth: 100, halign: 'right' },
+      },
+      didParseCell: (cellData) => {
+        if (cellData.section === 'body' && cellData.row.index === npvMetrics.length - 1) {
+          const value = String(cellData.cell.raw);
+          cellData.cell.styles.fontStyle = 'bold';
+          if (value.includes('POZITIF')) {
+            cellData.cell.styles.textColor = PDF_COLORS.success;
+          } else {
+            cellData.cell.styles.textColor = PDF_COLORS.danger;
+          }
+        }
+      },
+    });
+    
+    // Duyarlılık analizi
+    if (sensitivity) {
+      const sensitivityData = [
+        [
+          tr(sensitivity.pessimistic?.name || 'Pesimist'),
+          formatUSD(sensitivity.pessimistic?.profit || 0),
+          formatPercent(sensitivity.pessimistic?.margin || 0),
+          formatPercent(sensitivity.pessimistic?.roi || 0),
+        ],
+        [
+          tr(sensitivity.baseline?.name || 'Baz'),
+          formatUSD(sensitivity.baseline?.profit || 0),
+          formatPercent(sensitivity.baseline?.margin || 0),
+          formatPercent(sensitivity.baseline?.roi || 0),
+        ],
+        [
+          tr(sensitivity.optimistic?.name || 'Optimist'),
+          formatUSD(sensitivity.optimistic?.profit || 0),
+          formatPercent(sensitivity.optimistic?.margin || 0),
+          formatPercent(sensitivity.optimistic?.roi || 0),
+        ],
+      ];
+      
+      autoTable(doc, {
+        startY: (doc as any).lastAutoTable.finalY + 15,
+        head: [[tr('Senaryo'), tr('Kar'), tr('Marj'), tr('ROI')]],
+        body: sensitivityData,
+        theme: 'grid',
+        headStyles: { fillColor: PDF_COLORS.info, textColor: PDF_COLORS.white },
+        margin: { left: margin, right: margin },
+        columnStyles: {
+          0: { cellWidth: 50, fontStyle: 'bold' },
+          1: { cellWidth: 45, halign: 'right' },
+          2: { cellWidth: 35, halign: 'right' },
+          3: { cellWidth: 35, halign: 'right' },
+        },
+        didParseCell: (cellData) => {
+          if (cellData.section === 'body') {
+            // Pesimist kırmızı, optimist yeşil
+            if (cellData.row.index === 0) {
+              cellData.cell.styles.fillColor = [254, 242, 242];
+            } else if (cellData.row.index === 2) {
+              cellData.cell.styles.fillColor = [240, 253, 244];
+            }
+          }
+        },
+      });
+    }
   }
 }
