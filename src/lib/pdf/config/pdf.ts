@@ -26,7 +26,12 @@ export const PDF_CONFIG = {
   rendering: {
     chartWaitTime: 1500,
     imageWaitTime: 500,
-    scale: 2
+    scale: 1.5,  // 2 yerine 1.5 - daha küçük dosya boyutu
+  },
+  // JPEG sıkıştırma ayarları (PNG yerine)
+  compression: {
+    format: 'JPEG' as const,
+    quality: 0.85,  // 85% kalite - görsel fark yok, boyut %80 düşer
   },
   breaks: {
     tolerance: 20,

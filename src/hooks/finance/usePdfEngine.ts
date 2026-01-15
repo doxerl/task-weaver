@@ -369,18 +369,21 @@ export function usePdfEngine(): UsePdfEngineReturn {
       const imgWidth = contentAreaWidth;
       const imgHeight = (canvas.height * imgWidth) / canvas.width;
       
+      // JPEG formatı kullan - PNG'ye göre ~10x daha küçük dosya boyutu
+      const jpegQuality = 0.85;
+      
       if (fitToPage && imgHeight > contentAreaHeight) {
         // Tek sayfaya sığdırma modu
         const scaleRatio = contentAreaHeight / imgHeight;
         const scaledWidth = imgWidth * scaleRatio;
         const scaledHeight = contentAreaHeight;
         const xOffset = margin + (contentAreaWidth - scaledWidth) / 2;
-        const imgData = canvas.toDataURL('image/png', 1.0);
-        pdf.addImage(imgData, 'PNG', xOffset, margin, scaledWidth, scaledHeight);
+        const imgData = canvas.toDataURL('image/jpeg', jpegQuality);
+        pdf.addImage(imgData, 'JPEG', xOffset, margin, scaledWidth, scaledHeight);
       } else if (imgHeight <= contentAreaHeight) {
         // İçerik tek sayfaya sığıyor
-        const imgData = canvas.toDataURL('image/png', 1.0);
-        pdf.addImage(imgData, 'PNG', margin, margin, imgWidth, imgHeight);
+        const imgData = canvas.toDataURL('image/jpeg', jpegQuality);
+        pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);
       } else {
         // Çok sayfalı mod - canvas'ı sayfalara böl
         const pageCanvasHeight = (contentAreaHeight * canvas.width) / imgWidth;
@@ -408,10 +411,10 @@ export function usePdfEngine(): UsePdfEngineReturn {
             sliceCanvas.width, sliceCanvas.height
           );
           
-          const sliceData = sliceCanvas.toDataURL('image/png', 1.0);
+          const sliceData = sliceCanvas.toDataURL('image/jpeg', jpegQuality);
           const sliceImgHeight = (sliceCanvas.height * imgWidth) / sliceCanvas.width;
           
-          pdf.addImage(sliceData, 'PNG', margin, margin, imgWidth, sliceImgHeight);
+          pdf.addImage(sliceData, 'JPEG', margin, margin, imgWidth, sliceImgHeight);
         }
       }
       
