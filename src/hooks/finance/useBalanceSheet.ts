@@ -1,5 +1,5 @@
 import { useMemo } from 'react';
-import { useFinancialDataHub } from './useFinancialDataHub';
+import { useFinancialDataHub, CashFlowSummary } from './useFinancialDataHub';
 import { useYearlyBalanceSheet } from './useYearlyBalanceSheet';
 import { BalanceSheet } from '@/types/finance';
 
@@ -12,6 +12,11 @@ export function useBalanceSheet(year: number): {
   lockBalance: (lock: boolean) => void;
   saveYearlyBalance: (data: any) => void;
   isUpdating: boolean;
+  // Financial summaries
+  operatingProfit: number;
+  incomeSummaryNet: number;
+  expenseSummaryNet: number;
+  cashFlowSummary: CashFlowSummary;
 } {
   const hub = useFinancialDataHub(year);
   const { 
@@ -40,6 +45,12 @@ export function useBalanceSheet(year: number): {
         isBalanced: true,
         difference: 0,
       };
+      const emptyCashFlowSummary: CashFlowSummary = {
+        inflows: 0,
+        outflows: 0,
+        net: 0,
+        outflowsByType: { expenses: 0, partnerPayments: 0, investments: 0, financing: 0, other: 0 }
+      };
       return { 
         balanceSheet: emptyBalanceSheet, 
         isLoading: true, 
@@ -49,6 +60,10 @@ export function useBalanceSheet(year: number): {
         lockBalance,
         saveYearlyBalance: upsertBalance,
         isUpdating,
+        operatingProfit: 0,
+        incomeSummaryNet: 0,
+        expenseSummaryNet: 0,
+        cashFlowSummary: emptyCashFlowSummary,
       };
     }
 
@@ -119,6 +134,11 @@ export function useBalanceSheet(year: number): {
         lockBalance,
         saveYearlyBalance: upsertBalance,
         isUpdating,
+        // Use hub data even for locked years to show historical cash flow
+        operatingProfit: hub.operatingProfit,
+        incomeSummaryNet: hub.incomeSummary.net,
+        expenseSummaryNet: hub.expenseSummary.net,
+        cashFlowSummary: hub.cashFlowSummary,
       };
     }
 
@@ -195,6 +215,10 @@ export function useBalanceSheet(year: number): {
       lockBalance,
       saveYearlyBalance: upsertBalance,
       isUpdating,
+      operatingProfit: hub.operatingProfit,
+      incomeSummaryNet: hub.incomeSummary.net,
+      expenseSummaryNet: hub.expenseSummary.net,
+      cashFlowSummary: hub.cashFlowSummary,
     };
-  }, [hub.isLoading, hub.balanceData, hub.uncategorizedCount, hub.uncategorizedTotal, year, isYearlyLoading, isLocked, yearlyBalance, lockBalance, upsertBalance, isUpdating]);
+  }, [hub.isLoading, hub.balanceData, hub.uncategorizedCount, hub.uncategorizedTotal, hub.operatingProfit, hub.incomeSummary.net, hub.expenseSummary.net, hub.cashFlowSummary, year, isYearlyLoading, isLocked, yearlyBalance, lockBalance, upsertBalance, isUpdating]);
 }

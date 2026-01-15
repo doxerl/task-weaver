@@ -84,6 +84,20 @@ export interface PartnerSummary {
   balance: number;
 }
 
+export interface CashFlowSummary {
+  inflows: number;           // Tüm nakit girişleri (pozitif tutarlar)
+  outflows: number;          // Tüm nakit çıkışları (negatif tutarlar)
+  net: number;               // Net nakit akışı
+  // Çıkış dağılımı
+  outflowsByType: {
+    expenses: number;        // EXPENSE kategorisi
+    partnerPayments: number; // PARTNER çıkışları
+    investments: number;     // INVESTMENT çıkışları
+    financing: number;       // FINANCING çıkışları (kredi ödemeleri)
+    other: number;           // Kategorisiz
+  };
+}
+
 export interface VatSummary {
   calculated: number;      // Hesaplanan KDV (satışlardan)
   deductible: number;      // İndirilecek KDV (alışlardan)
@@ -226,10 +240,13 @@ export interface FinancialDataHub {
   // Fixed expenses
   fixedExpenses: FixedExpenseSummary;
   
-  // Profit calculations
+  // Profit calculations (category-based)
   operatingProfit: number;
   netProfit: number;
   profitMargin: number;
+  
+  // Cash flow summary (all bank movements)
+  cashFlowSummary: CashFlowSummary;
   
   // Uncategorized transaction tracking
   uncategorizedCount: number;
@@ -547,10 +564,36 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       };
     }
 
-    // Profit calculations
+    // Profit calculations (category-based - faaliyet kar/zararı)
     const operatingProfit = incomeSummary.net - expenseSummary.net;
     const netProfit = operatingProfit - interestPaid;
     const profitMargin = incomeSummary.net > 0 ? (operatingProfit / incomeSummary.net) * 100 : 0;
+
+    // Cash flow summary (all bank movements - nakit akışı)
+    // EXCLUDED hariç tüm işlemleri hesapla
+    const nonExcludedTx = processedTx.filter(t => t.categoryType !== 'EXCLUDED');
+    const cashInflows = nonExcludedTx.filter(t => t.gross > 0).reduce((sum, t) => sum + t.gross, 0);
+    const cashOutflows = nonExcludedTx.filter(t => t.gross < 0).reduce((sum, t) => sum + t.gross, 0);
+    
+    // Çıkış dağılımı kategorilere göre
+    const expenseOutflows = Math.abs(expense.reduce((sum, t) => sum + Math.min(0, t.gross), 0));
+    const partnerOutflows = Math.abs(partner.filter(t => !t.isIncome).reduce((sum, t) => sum + t.gross, 0));
+    const investmentOutflows = Math.abs(investment.reduce((sum, t) => sum + Math.min(0, t.gross), 0));
+    const financingOutflows = Math.abs(financing.filter(t => !t.isIncome).reduce((sum, t) => sum + t.gross, 0));
+    const otherOutflows = Math.abs(cashOutflows) - expenseOutflows - partnerOutflows - investmentOutflows - financingOutflows;
+    
+    const cashFlowSummary: CashFlowSummary = {
+      inflows: cashInflows,
+      outflows: cashOutflows,
+      net: cashInflows + cashOutflows,
+      outflowsByType: {
+        expenses: expenseOutflows,
+        partnerPayments: partnerOutflows,
+        investments: investmentOutflows,
+        financing: financingOutflows,
+        other: Math.max(0, otherOutflows)
+      }
+    };
 
     // Balance sheet data calculation - Türk Tekdüzen Hesap Planı formatında
     
@@ -915,6 +958,7 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       operatingProfit,
       netProfit,
       profitMargin,
+      cashFlowSummary,
       uncategorizedCount: bankTx.filter(tx => !tx.category_id && !tx.is_excluded).length,
       uncategorizedTotal: bankTx.filter(tx => !tx.category_id && !tx.is_excluded).reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0)
     };
@@ -1030,6 +1074,18 @@ function createEmptyHub(fixedExpenses: FixedExpenseSummary): FinancialDataHub {
     operatingProfit: 0,
     netProfit: 0,
     profitMargin: 0,
+    cashFlowSummary: {
+      inflows: 0,
+      outflows: 0,
+      net: 0,
+      outflowsByType: {
+        expenses: 0,
+        partnerPayments: 0,
+        investments: 0,
+        financing: 0,
+        other: 0
+      }
+    },
     uncategorizedCount: 0,
     uncategorizedTotal: 0
   };
