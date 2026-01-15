@@ -32,6 +32,20 @@ function formatCompact(value: number): string {
   return value.toFixed(0);
 }
 
+// Binlik dönüşüm fonksiyonları
+function toKValue(value: number): string {
+  if (!value || value === 0) return '';
+  const kVal = value / 1000;
+  // Tam sayıysa ondalık gösterme
+  return kVal % 1 === 0 ? kVal.toString() : kVal.toFixed(1);
+}
+
+function fromKValue(kValue: string): number {
+  const parsed = parseFloat(kValue);
+  if (isNaN(parsed)) return 0;
+  return Math.round(parsed * 1000);
+}
+
 export function ProjectionTable({ title, items, onUpdate, onRemove, type }: ProjectionTableProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
 
@@ -97,10 +111,10 @@ export function ProjectionTable({ title, items, onUpdate, onRemove, type }: Proj
               <TableHead className="w-8"></TableHead>
               <TableHead>Kalem</TableHead>
               <TableHead className="text-right w-24">2025</TableHead>
-              <TableHead className="text-right w-20 text-xs">Q1</TableHead>
-              <TableHead className="text-right w-20 text-xs">Q2</TableHead>
-              <TableHead className="text-right w-20 text-xs">Q3</TableHead>
-              <TableHead className="text-right w-20 text-xs">Q4</TableHead>
+              <TableHead className="text-right w-24 text-xs">Q1 (K)</TableHead>
+              <TableHead className="text-right w-24 text-xs">Q2 (K)</TableHead>
+              <TableHead className="text-right w-24 text-xs">Q3 (K)</TableHead>
+              <TableHead className="text-right w-24 text-xs">Q4 (K)</TableHead>
               <TableHead className="text-right w-28">2026 Toplam</TableHead>
               <TableHead className="text-right w-20">Δ%</TableHead>
               <TableHead className="w-10"></TableHead>
@@ -146,48 +160,64 @@ export function ProjectionTable({ title, items, onUpdate, onRemove, type }: Proj
                       {item.isNew ? '-' : formatCompact(item.baseAmount)}
                     </TableCell>
                     <TableCell className="text-right p-1">
-                      <Input
-                        type="number"
-                        value={quarterly.q1 || ''}
-                        onChange={(e) => handleQuarterlyChange(
-                          item.id, 'q1', parseFloat(e.target.value) || 0, quarterly
-                        )}
-                        className="w-16 text-right text-xs h-8 px-1"
-                        placeholder="0"
-                      />
+                      <div className="relative inline-flex items-center">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={toKValue(quarterly.q1)}
+                          onChange={(e) => handleQuarterlyChange(
+                            item.id, 'q1', fromKValue(e.target.value), quarterly
+                          )}
+                          className="w-16 text-right text-xs h-8 px-1 pr-5"
+                          placeholder="0"
+                        />
+                        <span className="absolute right-1.5 text-xs text-muted-foreground pointer-events-none">K</span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right p-1">
-                      <Input
-                        type="number"
-                        value={quarterly.q2 || ''}
-                        onChange={(e) => handleQuarterlyChange(
-                          item.id, 'q2', parseFloat(e.target.value) || 0, quarterly
-                        )}
-                        className="w-16 text-right text-xs h-8 px-1"
-                        placeholder="0"
-                      />
+                      <div className="relative inline-flex items-center">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={toKValue(quarterly.q2)}
+                          onChange={(e) => handleQuarterlyChange(
+                            item.id, 'q2', fromKValue(e.target.value), quarterly
+                          )}
+                          className="w-16 text-right text-xs h-8 px-1 pr-5"
+                          placeholder="0"
+                        />
+                        <span className="absolute right-1.5 text-xs text-muted-foreground pointer-events-none">K</span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right p-1">
-                      <Input
-                        type="number"
-                        value={quarterly.q3 || ''}
-                        onChange={(e) => handleQuarterlyChange(
-                          item.id, 'q3', parseFloat(e.target.value) || 0, quarterly
-                        )}
-                        className="w-16 text-right text-xs h-8 px-1"
-                        placeholder="0"
-                      />
+                      <div className="relative inline-flex items-center">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={toKValue(quarterly.q3)}
+                          onChange={(e) => handleQuarterlyChange(
+                            item.id, 'q3', fromKValue(e.target.value), quarterly
+                          )}
+                          className="w-16 text-right text-xs h-8 px-1 pr-5"
+                          placeholder="0"
+                        />
+                        <span className="absolute right-1.5 text-xs text-muted-foreground pointer-events-none">K</span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right p-1">
-                      <Input
-                        type="number"
-                        value={quarterly.q4 || ''}
-                        onChange={(e) => handleQuarterlyChange(
-                          item.id, 'q4', parseFloat(e.target.value) || 0, quarterly
-                        )}
-                        className="w-16 text-right text-xs h-8 px-1"
-                        placeholder="0"
-                      />
+                      <div className="relative inline-flex items-center">
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={toKValue(quarterly.q4)}
+                          onChange={(e) => handleQuarterlyChange(
+                            item.id, 'q4', fromKValue(e.target.value), quarterly
+                          )}
+                          className="w-16 text-right text-xs h-8 px-1 pr-5"
+                          placeholder="0"
+                        />
+                        <span className="absolute right-1.5 text-xs text-muted-foreground pointer-events-none">K</span>
+                      </div>
                     </TableCell>
                     <TableCell className="text-right font-medium">
                       {formatUSD(calculatedTotal)}
