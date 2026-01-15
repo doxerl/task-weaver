@@ -20,6 +20,8 @@ export { useExchangeRates } from './useExchangeRates';
 export { separateVat, calculateVatFromGross, calculateVatFromNet } from './utils/vatSeparation';
 export { usePayrollAccruals } from './usePayrollAccruals';
 export { useDetailedIncomeStatement } from './useDetailedIncomeStatement';
+export { useCashFlowStatement } from './useCashFlowStatement';
+export type { CashFlowStatement } from './useCashFlowStatement';
 // Merkezi PDF Engine - tüm PDF işlemleri için tek hook
 export { usePdfEngine } from './usePdfEngine';
 export type { FullReportPdfParams } from './usePdfEngine';
