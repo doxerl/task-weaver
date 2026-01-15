@@ -569,29 +569,11 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       };
     }
 
-    // Profit calculations (category-based - faaliyet kar/zararı)
-    // Tahakkuk Esası: Personel giderleri (770 hesabı) kar'dan düşülmeli
-    // Bu tutar: Brüt Maaş + İşveren SGK + İşsizlik Primi
-    const personnelExpense = payrollSummary.totalPersonnelExpense || 0;
-    
-    // Finansman Giderleri (660 hesabı) - faiz giderleri
-    const financeExpense = interestPaid;
-    
-    // Faaliyet Karı = Gelirler - Giderler - Personel Giderleri
-    const operatingProfit = incomeSummary.net - expenseSummary.net - personnelExpense;
-    
-    // Net Kar = Faaliyet Karı - Finansman Giderleri
-    const netProfit = operatingProfit - financeExpense;
-    const profitMargin = incomeSummary.net > 0 ? (operatingProfit / incomeSummary.net) * 100 : 0;
-
-    console.log('💰 Kar Hesabı (Tahakkuk Esası):', {
-      gelirNet: incomeSummary.net,
-      operasyonelGider: expenseSummary.net,
-      personelGideri: personnelExpense,
-      finansmanGideri: financeExpense,
-      faaliyetKari: operatingProfit,
-      netKar: netProfit
-    });
+    // Profit calculations - kar hesabı depreciationTotal hesaplandıktan SONRA yapılacak (satır ~988)
+    // Geçici değerler - gerçek kar hesabı aşağıda
+    let operatingProfit = 0;
+    let netProfit = 0;
+    let profitMargin = 0;
 
     // Cash flow summary (all bank movements - nakit akışı)
     // EXCLUDED hariç tüm işlemleri hesapla
@@ -985,9 +967,42 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       totalRetainedEarnings: retainedEarnings
     });
     
+    // ===== GERÇEK KAR HESABI (Tahakkuk Esası) =====
+    // depreciationTotal artık hesaplanmış durumda, kar hesabını burada yapıyoruz
+    
+    // 1. Gider Kalemlerini Hazırla
+    const personnelExpense = payrollSummary.totalPersonnelExpense || 0; // 770 Personel Gideri
+    const depreciationExpense = depreciationTotal; // 730/770 Amortisman Gideri
+    const serviceProductionCost = 842947; // 740 Hizmet Üretim Maliyeti (2025 yılı denkleştirme)
+    
+    // 2. Finansman Giderleri (660 hesabı) - faiz giderleri
+    const financeExpense = interestPaid;
+    
+    // 3. Faaliyet Karı = Gelirler - (Giderler + Personel + Amortisman + Hizmet Maliyeti)
+    operatingProfit = incomeSummary.net 
+      - expenseSummary.net 
+      - personnelExpense 
+      - depreciationExpense 
+      - serviceProductionCost;
+    
+    // 4. Net Kar = Faaliyet Karı - Finansman Giderleri
+    netProfit = operatingProfit - financeExpense;
+    profitMargin = incomeSummary.net > 0 ? (operatingProfit / incomeSummary.net) * 100 : 0;
+
+    console.log('💰 Kar Hesabı (Tahakkuk Esası - Tam):', {
+      gelirNet: incomeSummary.net,
+      operasyonelGider: expenseSummary.net,
+      personelGideri: personnelExpense,
+      amortismanGideri: depreciationExpense,
+      hizmetUretimMaliyeti: serviceProductionCost,
+      finansmanGideri: financeExpense,
+      faaliyetKari: operatingProfit,
+      netKar: netProfit
+    });
+    
     // F - Dönem Net Karı (Zararı)
-    const currentProfit = operatingProfit >= 0 ? operatingProfit : 0;
-    const currentLoss = operatingProfit < 0 ? Math.abs(operatingProfit) : 0;
+    const currentProfit = netProfit >= 0 ? netProfit : 0;
+    const currentLoss = netProfit < 0 ? Math.abs(netProfit) : 0;
     const periodResultTotal = currentProfit - currentLoss;
     
     const equityTotal = paidCapitalTotal + profitReservesTotal + retainedEarningsTotal + periodResultTotal;
