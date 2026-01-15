@@ -973,7 +973,7 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     // 1. Gider Kalemlerini Hazırla
     const personnelExpense = payrollSummary.totalPersonnelExpense || 0; // 770 Personel Gideri
     const depreciationExpense = depreciationTotal; // 730/770 Amortisman Gideri
-    const serviceProductionCost = 842947; // 740 Hizmet Üretim Maliyeti (2025 yılı denkleştirme)
+    const serviceProductionCost = 833653.25; // 740 Hizmet Üretim Maliyeti (842947 - 9293.75 faiz düzeltmesi)
     
     // 2. Finansman Giderleri (660 hesabı) - faiz giderleri
     const financeExpense = interestPaid;
