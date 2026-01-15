@@ -8,6 +8,7 @@ import {
 } from '@/types/simulation';
 import { useFinancialDataHub } from './useFinancialDataHub';
 import { useCurrency } from '@/contexts/CurrencyContext';
+import { usePayrollAccruals } from './usePayrollAccruals';
 
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -80,6 +81,7 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
   
   const hub = useFinancialDataHub(baseYear);
   const { yearlyAverageRate } = useCurrency();
+  const { summary: payrollSummary } = usePayrollAccruals(baseYear);
   
   const [scenarioName, setScenarioName] = useState('Varsayılan Senaryo');
   const [revenues, setRevenues] = useState<ProjectionItem[]>([]);
@@ -104,12 +106,24 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
       revenueGroups[category] = (revenueGroups[category] || 0) + Math.abs(tx.net);
     });
 
-    // Group expenses by category
+    // Group expenses by category (excluding payroll-related categories to avoid double counting)
     const expenseGroups: Record<string, number> = {};
+    const payrollCategoryCodes = ['PERSONEL', 'PERSONEL_UCRET', 'PERSONEL_SGK', 'PERSONEL_ISVEREN', 'PERSONEL_PRIM'];
+    
     hub.expense.forEach(tx => {
+      // Skip payroll categories since we'll add from payroll_accruals
+      const upperCode = (tx.categoryCode || '').toUpperCase();
+      if (payrollCategoryCodes.some(code => upperCode.includes(code))) {
+        return;
+      }
       const category = mapCategoryCode(tx.categoryCode, EXPENSE_CATEGORY_MAP, 'Diğer');
       expenseGroups[category] = (expenseGroups[category] || 0) + Math.abs(tx.net);
     });
+    
+    // Add personnel expense from payroll accruals (Brüt + İşveren SGK + İşsizlik)
+    if (payrollSummary.totalPersonnelExpense > 0) {
+      expenseGroups['Personel Giderleri'] = payrollSummary.totalPersonnelExpense;
+    }
 
     // Minimum thresholds for display (USD)
     const REVENUE_MIN_THRESHOLD = 500;
@@ -174,7 +188,7 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
       totalRevenue: revenuesUsdRaw.reduce((sum, r) => sum + r.baseAmount, 0),
       totalExpense: expensesUsdRaw.reduce((sum, e) => sum + e.baseAmount, 0),
     };
-  }, [hub.isLoading, hub.income, hub.expense, yearlyAverageRate]);
+  }, [hub.isLoading, hub.income, hub.expense, yearlyAverageRate, payrollSummary]);
 
   // Initialize revenues and expenses when base data is available
   useEffect(() => {

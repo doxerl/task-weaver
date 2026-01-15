@@ -291,4 +291,6 @@ export interface PayrollAccrualSummary {
   totalSgkPayable: number;      // 361 Ödenecek SGK
   totalGrossSalary: number;     // Toplam Brüt Ücret
   totalEmployerContribution: number; // Toplam İşveren Primi
+  totalUnemployment: number;    // Toplam İşsizlik Primi
+  totalPersonnelExpense: number; // Brüt Ücret + İşveren SGK + İşsizlik Primi
 }

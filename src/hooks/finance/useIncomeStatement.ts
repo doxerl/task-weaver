@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useFinancialDataHub, ProcessedTransaction } from './useFinancialDataHub';
 import { IncomeStatementData, IncomeStatementLine } from '@/types/reports';
+import { usePayrollAccruals } from './usePayrollAccruals';
 
 // Tekdüzen Hesap Planı - Account Code Groups
 const ACCOUNT_GROUPS = {
@@ -60,6 +61,7 @@ const matchesLegacyCode = (categoryCode: string | undefined | null, codes: strin
 
 export function useIncomeStatement(year: number) {
   const hub = useFinancialDataHub(year);
+  const { summary: payrollSummary } = usePayrollAccruals(year);
 
   const statement = useMemo((): IncomeStatementData => {
     const empty: IncomeStatementData = {
@@ -230,6 +232,12 @@ export function useIncomeStatement(year: number) {
       }
     });
 
+    // Add personnel expense from payroll accruals (Brüt Ücret + İşveren SGK + İşsizlik Primi)
+    if (payrollSummary.totalPersonnelExpense > 0) {
+      operatingExpenses.personel = payrollSummary.totalPersonnelExpense;
+      operatingExpenses.genelYonetim += payrollSummary.totalPersonnelExpense;
+    }
+
     // Calculate totals
     operatingExpenses.total = operatingExpenses.pazarlama + operatingExpenses.genelYonetim;
     otherIncome.total = otherIncome.faiz + otherIncome.kurFarki + otherIncome.diger;
@@ -268,7 +276,7 @@ export function useIncomeStatement(year: number) {
       grossMargin: netSales > 0 ? (grossProfit / netSales) * 100 : 0,
       kkegTotal,
     };
-  }, [hub]);
+  }, [hub, payrollSummary]);
 
   // Generate formatted lines for display
   const lines = useMemo((): IncomeStatementLine[] => {

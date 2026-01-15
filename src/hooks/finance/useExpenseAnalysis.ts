@@ -2,17 +2,19 @@ import { useMemo } from 'react';
 import { useBankTransactions } from './useBankTransactions';
 import { useReceipts } from './useReceipts';
 import { useCategories } from './useCategories';
+import { usePayrollAccruals } from './usePayrollAccruals';
 import { ExpenseCategory, MonthlyDataPoint, MONTH_NAMES_SHORT_TR, CHART_COLORS } from '@/types/reports';
 
 // Fixed expense category codes
-const FIXED_EXPENSE_CODES = ['KIRA_OUT', 'SIGORTA', 'YAZILIM', 'TELEKOM', 'MUHASEBE'];
+const FIXED_EXPENSE_CODES = ['KIRA_OUT', 'SIGORTA', 'YAZILIM', 'TELEKOM', 'MUHASEBE', 'PERSONEL'];
 
 export function useExpenseAnalysis(year: number) {
   const { transactions, isLoading: txLoading } = useBankTransactions(year);
   const { receipts, isLoading: receiptLoading } = useReceipts(year);
   const { categories, isLoading: catLoading } = useCategories();
+  const { summary: payrollSummary, accruals: payrollAccruals, isLoading: payrollLoading } = usePayrollAccruals(year);
 
-  const isLoading = txLoading || catLoading || receiptLoading;
+  const isLoading = txLoading || catLoading || receiptLoading || payrollLoading;
 
   const analysis = useMemo(() => {
     if (isLoading || !categories.length) {
@@ -36,12 +38,22 @@ export function useExpenseAnalysis(year: number) {
         .filter(c => excludedTypes.includes(c.type) || c.is_financing || c.affects_partner_account)
         .map(c => c.id)
     );
+    
+    // Payroll category codes to exclude (we'll add from payroll_accruals instead)
+    const payrollCategoryCodes = ['PERSONEL', 'PERSONEL_UCRET', 'PERSONEL_SGK', 'PERSONEL_ISVEREN', 'PERSONEL_PRIM'];
 
-    // Filter expense transactions (negative amounts, excluding special categories)
+    // Filter expense transactions (negative amounts, excluding special categories and payroll)
     const expenseTransactions = transactions.filter(tx => {
       if (!tx.amount || tx.amount >= 0 || tx.is_excluded) return false;
       // Exclude financing, investment, partner, and excluded categories
       if (tx.category_id && excludedCategoryIds.has(tx.category_id)) return false;
+      
+      // Exclude payroll categories (will add from payroll_accruals)
+      const category = categories.find(c => c.id === tx.category_id);
+      if (category && payrollCategoryCodes.some(code => (category.code || '').toUpperCase().includes(code))) {
+        return false;
+      }
+      
       return true;
     });
 
@@ -97,18 +109,34 @@ export function useExpenseAnalysis(year: number) {
       entry.byMonth[month] = (entry.byMonth[month] || 0) + netAmount;
     });
 
+    // Add personnel expense from payroll accruals (Brüt Ücret + İşveren SGK + İşsizlik Primi)
+    if (payrollSummary.totalPersonnelExpense > 0) {
+      // Calculate monthly distribution from payroll accruals
+      const payrollByMonth: Record<number, number> = {};
+      payrollAccruals.forEach(accrual => {
+        const monthExpense = accrual.grossSalary + accrual.employerSgkPayable + accrual.unemploymentPayable;
+        payrollByMonth[accrual.month] = (payrollByMonth[accrual.month] || 0) + monthExpense;
+      });
+      
+      categoryMap.set('PERSONEL', {
+        amount: payrollSummary.totalPersonnelExpense,
+        byMonth: payrollByMonth,
+      });
+    }
+
     const totalExpense = Array.from(categoryMap.values()).reduce((sum, s) => sum + s.amount, 0);
 
     const expenseCategoryList: ExpenseCategory[] = Array.from(categoryMap.entries())
       .map(([code, data], index) => {
         const category = categories.find(c => c.code === code);
+        const isPersonnel = code === 'PERSONEL';
         return {
-          categoryId: category?.id || '',
+          categoryId: category?.id || (isPersonnel ? 'payroll' : ''),
           code,
-          name: category?.name || 'Diğer Gider',
+          name: isPersonnel ? 'Personel Giderleri' : (category?.name || 'Diğer Gider'),
           amount: data.amount,
           percentage: totalExpense > 0 ? (data.amount / totalExpense) * 100 : 0,
-          color: CHART_COLORS.services[index % CHART_COLORS.services.length],
+          color: isPersonnel ? '#8B5CF6' : CHART_COLORS.services[index % CHART_COLORS.services.length],
           isFixed: FIXED_EXPENSE_CODES.includes(code),
           byMonth: data.byMonth,
         };
@@ -167,7 +195,7 @@ export function useExpenseAnalysis(year: number) {
       avgMonthlyExpense: totalExpense / 12,
       topCategories: expenseCategoryList.slice(0, 10),
     };
-  }, [transactions, receipts, categories, isLoading]);
+  }, [transactions, receipts, categories, isLoading, payrollSummary, payrollAccruals]);
 
   return {
     ...analysis,
