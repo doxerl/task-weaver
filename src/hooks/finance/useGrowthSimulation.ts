@@ -60,6 +60,9 @@ const EXPENSE_CATEGORY_MAP: Record<string, string> = {
   'DIGER_OUT': 'Diğer',
 };
 
+// Simülasyonda UI'dan gizlenecek gider kategorileri (toplama dahil kalır)
+const HIDDEN_EXPENSE_CATEGORIES = ['Muhasebe', 'Sigorta', 'Diğer'];
+
 function mapCategoryCode(code: string | null, mapping: Record<string, string>, defaultCategory: string): string {
   if (!code) return defaultCategory;
   const upperCode = code.toUpperCase();
@@ -165,7 +168,15 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
     };
 
     const revenuesUsd = filterAndAggregate(revenuesUsdRaw, REVENUE_MIN_THRESHOLD, 'Diğer Gelir');
-    const expensesUsd = filterAndAggregate(expensesUsdRaw, EXPENSE_MIN_THRESHOLD, 'Diğer');
+    const expensesUsdAll = filterAndAggregate(expensesUsdRaw, EXPENSE_MIN_THRESHOLD, 'Diğer');
+
+    // Gizli kategorileri ayır (UI'da gösterilmeyecek ama toplama dahil)
+    const visibleExpenses = expensesUsdAll.filter(
+      item => !HIDDEN_EXPENSE_CATEGORIES.includes(item.category)
+    );
+    const hiddenExpensesTotal = expensesUsdAll
+      .filter(item => HIDDEN_EXPENSE_CATEGORIES.includes(item.category))
+      .reduce((sum, item) => sum + item.baseAmount, 0);
 
     // Sort with "Diğer" always at the bottom
     const sortWithOtherLast = (
@@ -180,13 +191,14 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
     };
 
     sortWithOtherLast(revenuesUsd, 'Diğer Gelir');
-    sortWithOtherLast(expensesUsd, 'Diğer');
+    sortWithOtherLast(visibleExpenses, 'Diğer');
 
     return {
       revenues: revenuesUsd,
-      expenses: expensesUsd,
+      expenses: visibleExpenses,  // Sadece görünür kategoriler
+      hiddenExpensesTotal,        // Gizli kategorilerin toplamı
       totalRevenue: revenuesUsdRaw.reduce((sum, r) => sum + r.baseAmount, 0),
-      totalExpense: expensesUsdRaw.reduce((sum, e) => sum + e.baseAmount, 0),
+      totalExpense: expensesUsdRaw.reduce((sum, e) => sum + e.baseAmount, 0), // Tüm giderler dahil
     };
   }, [hub.isLoading, hub.income, hub.expense, yearlyAverageRate, payrollSummary]);
 
