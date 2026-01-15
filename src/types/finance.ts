@@ -343,6 +343,8 @@ export interface BalanceSheet {
     personnelPayables?: number;
     taxPayables?: number;
     socialSecurityPayables?: number;
+    deferredTaxLiabilities?: number;
+    taxProvision?: number;
     loanInstallments: number;  // Önümüzdeki 12 ay içinde ödenecek kredi taksitleri
     total: number;
   };
@@ -352,6 +354,7 @@ export interface BalanceSheet {
   };
   equity: {
     paidCapital: number;
+    unpaidCapital?: number;
     retainedEarnings: number;
     currentProfit: number;
     total: number;

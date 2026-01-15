@@ -1793,6 +1793,117 @@ export type Database = {
           },
         ]
       }
+      yearly_balance_sheets: {
+        Row: {
+          accumulated_depreciation: number | null
+          bank_balance: number | null
+          bank_loans: number | null
+          cash_on_hand: number | null
+          created_at: string | null
+          current_profit: number | null
+          deferred_tax_liabilities: number | null
+          equipment: number | null
+          fixtures: number | null
+          id: string
+          inventory: number | null
+          is_locked: boolean | null
+          notes: string | null
+          other_vat: number | null
+          paid_capital: number | null
+          partner_payables: number | null
+          partner_receivables: number | null
+          personnel_payables: number | null
+          retained_earnings: number | null
+          short_term_loan_debt: number | null
+          social_security_payables: number | null
+          tax_payables: number | null
+          tax_provision: number | null
+          total_assets: number | null
+          total_liabilities: number | null
+          trade_payables: number | null
+          trade_receivables: number | null
+          unpaid_capital: number | null
+          updated_at: string | null
+          user_id: string
+          vat_payable: number | null
+          vat_receivable: number | null
+          vehicles: number | null
+          year: number
+        }
+        Insert: {
+          accumulated_depreciation?: number | null
+          bank_balance?: number | null
+          bank_loans?: number | null
+          cash_on_hand?: number | null
+          created_at?: string | null
+          current_profit?: number | null
+          deferred_tax_liabilities?: number | null
+          equipment?: number | null
+          fixtures?: number | null
+          id?: string
+          inventory?: number | null
+          is_locked?: boolean | null
+          notes?: string | null
+          other_vat?: number | null
+          paid_capital?: number | null
+          partner_payables?: number | null
+          partner_receivables?: number | null
+          personnel_payables?: number | null
+          retained_earnings?: number | null
+          short_term_loan_debt?: number | null
+          social_security_payables?: number | null
+          tax_payables?: number | null
+          tax_provision?: number | null
+          total_assets?: number | null
+          total_liabilities?: number | null
+          trade_payables?: number | null
+          trade_receivables?: number | null
+          unpaid_capital?: number | null
+          updated_at?: string | null
+          user_id: string
+          vat_payable?: number | null
+          vat_receivable?: number | null
+          vehicles?: number | null
+          year: number
+        }
+        Update: {
+          accumulated_depreciation?: number | null
+          bank_balance?: number | null
+          bank_loans?: number | null
+          cash_on_hand?: number | null
+          created_at?: string | null
+          current_profit?: number | null
+          deferred_tax_liabilities?: number | null
+          equipment?: number | null
+          fixtures?: number | null
+          id?: string
+          inventory?: number | null
+          is_locked?: boolean | null
+          notes?: string | null
+          other_vat?: number | null
+          paid_capital?: number | null
+          partner_payables?: number | null
+          partner_receivables?: number | null
+          personnel_payables?: number | null
+          retained_earnings?: number | null
+          short_term_loan_debt?: number | null
+          social_security_payables?: number | null
+          tax_payables?: number | null
+          tax_provision?: number | null
+          total_assets?: number | null
+          total_liabilities?: number | null
+          trade_payables?: number | null
+          trade_receivables?: number | null
+          unpaid_capital?: number | null
+          updated_at?: string | null
+          user_id?: string
+          vat_payable?: number | null
+          vat_receivable?: number | null
+          vehicles?: number | null
+          year?: number
+        }
+        Relationships: []
+      }
     }
     Views: {
       [_ in never]: never
