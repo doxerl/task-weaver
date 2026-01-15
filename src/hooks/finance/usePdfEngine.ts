@@ -59,6 +59,46 @@ export interface FullReportPdfParams {
 // TİP TANIMLARI
 // ============================================
 
+// ============================================
+// SENARYO KARŞILAŞTIRMA PDF DATA TİPLERİ
+// ============================================
+
+export interface ScenarioComparisonPdfData {
+  scenarioAName: string;
+  scenarioBName: string;
+  metrics: Array<{
+    label: string;
+    scenarioA: number;
+    scenarioB: number;
+    format: 'currency' | 'percent' | 'number';
+    diffPercent: number;
+  }>;
+  winner: {
+    name: string;
+    score: number;
+    totalMetrics: number;
+    advantages: string[];
+  } | null;
+  quarterlyData: Array<{
+    quarter: string;
+    scenarioANet: number;
+    scenarioBNet: number;
+  }>;
+  insights: Array<{
+    title: string;
+    description: string;
+    type: 'positive' | 'negative' | 'warning' | 'neutral';
+    impact: 'high' | 'medium' | 'low';
+    recommendation?: string;
+  }>;
+  recommendations: Array<{
+    title: string;
+    description: string;
+    risk: 'low' | 'medium' | 'high';
+    suitableFor: string;
+  }>;
+}
+
 export interface UsePdfEngineReturn {
   // ============================================
   // DATA-DRIVEN PDF FONKSİYONLARI (ÖNERILEN)
@@ -121,6 +161,8 @@ export interface UsePdfEngineReturn {
       exchangeRate: number;
     }
   ) => Promise<boolean>;
+  
+  generateScenarioComparisonPdfData: (data: ScenarioComparisonPdfData) => Promise<boolean>;
   
   // Builder'a doğrudan erişim (gelişmiş kullanım)
   createPdfBuilder: (config?: Partial<PdfBuilderConfig>) => PdfDocumentBuilder;
@@ -1058,6 +1100,190 @@ export function usePdfEngine(): UsePdfEngineReturn {
   }, []);
 
   /**
+   * Senaryo Karşılaştırma PDF - jspdf-autotable ile (DATA-DRIVEN)
+   * Dikey A4 formatı, düzgün sayfa bölmeleri
+   */
+  const generateScenarioComparisonPdfData = useCallback(async (
+    data: ScenarioComparisonPdfData
+  ): Promise<boolean> => {
+    setIsGenerating(true);
+    setProgress({ current: 1, total: 5, stage: 'Karşılaştırma hazırlanıyor...' });
+    
+    const formatUSD = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    
+    try {
+      const builder = createPortraitBuilder({ margin: 15 }); // DİKEY FORMAT
+      
+      // 1. Kapak sayfası
+      builder.addCover(
+        'Senaryo Karşılaştırma Raporu',
+        `${data.scenarioAName} vs ${data.scenarioBName}`,
+        new Date().toLocaleDateString('tr-TR')
+      );
+      
+      setProgress({ current: 2, total: 5, stage: 'Özet hazırlanıyor...' });
+      
+      // 2. Kazanan özeti (varsa)
+      if (data.winner) {
+        builder.addTable({
+          title: 'Önerilen Senaryo',
+          headers: ['Senaryo', 'Skor', 'Avantajlar'],
+          rows: [[
+            data.winner.name,
+            `${data.winner.score}/${data.winner.totalMetrics}`,
+            data.winner.advantages.slice(0, 3).join(', ')
+          ]],
+          options: { 
+            headerColor: [251, 191, 36], // Amber
+            fontSize: 10,
+            columnStyles: {
+              0: { cellWidth: 50 },
+              1: { cellWidth: 30, halign: 'center' },
+              2: { cellWidth: 100 }
+            }
+          }
+        });
+        builder.addSpacer(5);
+      }
+      
+      // 3. Metrik karşılaştırma tablosu
+      builder.addTable({
+        title: 'Metrik Karşılaştırması',
+        headers: ['Metrik', data.scenarioAName, data.scenarioBName, 'Fark'],
+        rows: data.metrics.map(m => [
+          m.label,
+          m.format === 'currency' ? formatUSD(m.scenarioA) : 
+           m.format === 'percent' ? `%${m.scenarioA.toFixed(1)}` : m.scenarioA.toFixed(0),
+          m.format === 'currency' ? formatUSD(m.scenarioB) : 
+           m.format === 'percent' ? `%${m.scenarioB.toFixed(1)}` : m.scenarioB.toFixed(0),
+          `${m.diffPercent >= 0 ? '+' : ''}${m.diffPercent.toFixed(1)}%`
+        ]),
+        options: {
+          showHead: 'everyPage',
+          headerColor: [59, 130, 246], // Mavi
+          fontSize: 10,
+          columnStyles: {
+            0: { cellWidth: 50 },
+            1: { halign: 'right', cellWidth: 45 },
+            2: { halign: 'right', cellWidth: 45 },
+            3: { halign: 'right', cellWidth: 35 }
+          }
+        }
+      });
+      
+      setProgress({ current: 3, total: 5, stage: 'Trend tablosu hazırlanıyor...' });
+      
+      // 4. Sayfa sonu + Çeyreklik trend tablosu
+      builder.addPageBreak();
+      
+      builder.addTable({
+        title: 'Çeyreklik Net Kâr Karşılaştırması',
+        headers: ['Çeyrek', data.scenarioAName, data.scenarioBName, 'Fark'],
+        rows: data.quarterlyData.map(q => {
+          const diff = q.scenarioBNet - q.scenarioANet;
+          const diffPercent = q.scenarioANet !== 0 ? ((q.scenarioBNet - q.scenarioANet) / Math.abs(q.scenarioANet)) * 100 : 0;
+          return [
+            q.quarter,
+            formatUSD(q.scenarioANet),
+            formatUSD(q.scenarioBNet),
+            `${diffPercent >= 0 ? '+' : ''}${diffPercent.toFixed(1)}%`
+          ];
+        }),
+        options: { 
+          headerColor: [99, 102, 241], // Indigo
+          fontSize: 10,
+          columnStyles: {
+            0: { cellWidth: 30, halign: 'center' },
+            1: { halign: 'right', cellWidth: 50 },
+            2: { halign: 'right', cellWidth: 50 },
+            3: { halign: 'right', cellWidth: 40 }
+          }
+        }
+      });
+      
+      setProgress({ current: 4, total: 5, stage: 'Çıkarımlar hazırlanıyor...' });
+      
+      builder.addSpacer(8);
+      
+      // 5. Çıkarımlar tablosu
+      if (data.insights.length > 0) {
+        const impactLabels = { high: 'Kritik', medium: 'Orta', low: 'Düşük' };
+        const typeLabels = { positive: 'Olumlu', negative: 'Olumsuz', warning: 'Uyarı', neutral: 'Nötr' };
+        
+        builder.addTable({
+          title: 'Analiz Çıkarımları',
+          headers: ['Başlık', 'Açıklama', 'Durum', 'Etki'],
+          rows: data.insights.map(i => [
+            i.title,
+            i.description.length > 80 ? i.description.substring(0, 77) + '...' : i.description,
+            typeLabels[i.type],
+            impactLabels[i.impact]
+          ]),
+          options: { 
+            fontSize: 9,
+            headerColor: [168, 85, 247], // Mor
+            columnStyles: {
+              0: { cellWidth: 40 },
+              1: { cellWidth: 90 },
+              2: { cellWidth: 25, halign: 'center' },
+              3: { cellWidth: 25, halign: 'center' }
+            }
+          }
+        });
+      }
+      
+      // 6. Sayfa sonu + Öneriler tablosu
+      if (data.recommendations.length > 0) {
+        builder.addPageBreak();
+        
+        const riskLabels = { low: 'Düşük', medium: 'Orta', high: 'Yüksek' };
+        
+        builder.addTable({
+          title: 'Karar Önerileri',
+          headers: ['Öneri', 'Açıklama', 'Risk', 'Uygun Profil'],
+          rows: data.recommendations.map(r => [
+            r.title,
+            r.description.length > 60 ? r.description.substring(0, 57) + '...' : r.description,
+            riskLabels[r.risk],
+            r.suitableFor.length > 40 ? r.suitableFor.substring(0, 37) + '...' : r.suitableFor
+          ]),
+          options: { 
+            fontSize: 9,
+            headerColor: [34, 197, 94], // Yeşil
+            columnStyles: {
+              0: { cellWidth: 40 },
+              1: { cellWidth: 60 },
+              2: { cellWidth: 25, halign: 'center' },
+              3: { cellWidth: 55 }
+            }
+          }
+        });
+      }
+      
+      // Footer
+      builder.addSpacer(10);
+      builder.addText(
+        'Bu rapor otomatik olarak oluşturulmuştur.',
+        'caption',
+        'center'
+      );
+      
+      setProgress({ current: 5, total: 5, stage: 'PDF oluşturuluyor...' });
+      
+      const filename = `Senaryo_Karsilastirma_${data.scenarioAName.replace(/\s+/g, '_')}_vs_${data.scenarioBName.replace(/\s+/g, '_')}.pdf`;
+      const result = await builder.build(filename);
+      
+      return result;
+    } catch (error) {
+      console.error('[PDF] Scenario comparison generation error:', error);
+      return false;
+    } finally {
+      setIsGenerating(false);
+      setProgress({ current: 0, total: 0, stage: '' });
+    }
+  }, []);
+
+  /**
    * Builder'a doğrudan erişim (gelişmiş kullanım)
    */
   const createPdfBuilder = useCallback((config?: Partial<PdfBuilderConfig>) => {
@@ -1071,6 +1297,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
     generateIncomeStatementPdfData,
     generateDetailedIncomePdfData,
     generateSimulationPdfData,
+    generateScenarioComparisonPdfData,
     createPdfBuilder,
     
     // HTML tabanlı (grafikler ve mevcut sayfalar için)
