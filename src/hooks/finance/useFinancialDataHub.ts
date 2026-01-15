@@ -5,7 +5,7 @@ import { useCategories } from './useCategories';
 import { useFinancialSettings } from './useFinancialSettings';
 import { useFixedExpenses, FixedExpenseSummary } from './useFixedExpenses';
 import { separateVat, VatSeparationResult } from './utils/vatSeparation';
-import { calculateDepreciation } from '@/lib/depreciationCalculator';
+import { calculateDepreciation, getUsefulLifeByCategory } from '@/lib/depreciationCalculator';
 
 // Types
 export interface ProcessedTransaction {
@@ -70,8 +70,9 @@ export interface FinancingSummary {
 }
 
 export interface InvestmentSummary {
-  equipment: number;
-  vehicles: number;
+  equipment: number;     // Makine/Ekipman (253)
+  fixtures: number;      // Demirbaşlar (255) - includes sub-categories
+  vehicles: number;      // Taşıtlar (254)
   other: number;
   total: number;
   byType: Record<string, number>;
@@ -426,14 +427,35 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     };
 
     // Investment summary
+    // Demirbaş alt kategorileri: DEMIRBAS, TELEFON, BILGISAYAR, TV
+    const fixturesCodes = ['DEMIRBAS', 'TELEFON', 'BILGISAYAR', 'TV'];
+    const fixturesPurchases = investment
+      .filter(t => fixturesCodes.some(code => t.categoryCode?.includes(code)))
+      .reduce((sum, t) => sum + t.gross, 0);
+    
+    const equipmentPurchases = investment
+      .filter(t => t.categoryCode?.includes('EKIPMAN'))
+      .reduce((sum, t) => sum + t.gross, 0);
+    
+    const vehiclePurchasesForSummary = investment
+      .filter(t => t.categoryCode?.includes('ARAC'))
+      .reduce((sum, t) => sum + t.gross, 0);
+    
+    const otherInvestments = investment
+      .filter(t => !t.categoryCode?.includes('EKIPMAN') && 
+                   !t.categoryCode?.includes('ARAC') && 
+                   !fixturesCodes.some(code => t.categoryCode?.includes(code)))
+      .reduce((sum, t) => sum + t.gross, 0);
+    
     const investmentSummary: InvestmentSummary = {
-      equipment: investment.filter(t => t.categoryCode?.includes('EKIPMAN')).reduce((sum, t) => sum + t.gross, 0) + (settings?.equipment_value || 0),
-      vehicles: investment.filter(t => t.categoryCode?.includes('ARAC')).reduce((sum, t) => sum + t.gross, 0) + (settings?.vehicles_value || 0),
-      other: investment.filter(t => !t.categoryCode?.includes('EKIPMAN') && !t.categoryCode?.includes('ARAC')).reduce((sum, t) => sum + t.gross, 0),
+      equipment: equipmentPurchases + (settings?.equipment_value || 0),
+      fixtures: fixturesPurchases + ((settings as any)?.fixtures_value || 0),
+      vehicles: vehiclePurchasesForSummary + (settings?.vehicles_value || 0),
+      other: otherInvestments,
       total: 0,
       byType: {}
     };
-    investmentSummary.total = investmentSummary.equipment + investmentSummary.vehicles + investmentSummary.other;
+    investmentSummary.total = investmentSummary.equipment + investmentSummary.fixtures + investmentSummary.vehicles + investmentSummary.other;
 
     // Partner summary
     const partnerSummary: PartnerSummary = {
@@ -585,12 +607,9 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     const currentAssetsTotal = readyValuesTotal + tradeReceivablesTotal + partnerReceivables + otherCurrentAssetsTotal;
     
     // II - DURAN VARLIKLAR
-    // D - Maddi Duran Varlıklar
-    const vehiclePurchases = investment.filter(t => t.categoryCode?.includes('ARAC')).reduce((sum, t) => sum + t.gross, 0);
-    const vehiclesTotal = (settings?.vehicles_value || 0) + vehiclePurchases;
-    
-    const equipmentPurchases = investment.filter(t => t.categoryCode?.includes('EKIPMAN')).reduce((sum, t) => sum + t.gross, 0);
-    const fixturesValue = ((settings as any)?.fixtures_value || settings?.equipment_value || 0) + equipmentPurchases;
+    // D - Maddi Duran Varlıklar - investmentSummary'den değerleri kullan
+    const vehiclesTotal = investmentSummary.vehicles;
+    const fixturesValue = investmentSummary.fixtures;
     
     // Bilanço tarihi (yıl sonu)
     const asOfDate = `${year}-12-31`;
@@ -907,7 +926,7 @@ function createEmptyHub(fixedExpenses: FixedExpenseSummary): FinancialDataHub {
         remainingMonths: 0
       }
     },
-    investmentSummary: { equipment: 0, vehicles: 0, other: 0, total: 0, byType: {} },
+    investmentSummary: { equipment: 0, fixtures: 0, vehicles: 0, other: 0, total: 0, byType: {} },
     partnerSummary: { deposits: 0, withdrawals: 0, balance: 0 },
     vatSummary: { calculated: 0, deductible: 0, net: 0, byMonth: {} },
     balanceData: emptyBalanceData,

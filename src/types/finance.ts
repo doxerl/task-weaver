@@ -29,6 +29,10 @@ export interface TransactionCategory {
   depth: number;
   // Virtual property for children (populated client-side)
   children?: TransactionCategory[];
+  // VUK Amortisman bilgileri
+  useful_life_years?: number;       // VUK faydalı ömür (yıl)
+  vuk_code?: string;                // VUK liste kodu (örn: 3.3, 4.1)
+  depreciation_rate?: number;       // Amortisman oranı (%)
 }
 
 export interface UploadedBankFile {
