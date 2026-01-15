@@ -421,10 +421,12 @@ export default function Reports() {
                 PDF
               </Button>
             </div>
-            <DetailedIncomeStatementTable 
-              data={detailedStatement.data}
-              formatAmount={(n) => formatAmount(n, undefined, year)}
-            />
+            <div ref={incomeStatementRef}>
+              <DetailedIncomeStatementTable 
+                data={detailedStatement.data}
+                formatAmount={(n) => formatAmount(n, undefined, year)}
+              />
+            </div>
           </TabsContent>
 
           {/* Tab 6: Financing - Detailed */}
