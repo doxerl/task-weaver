@@ -37,7 +37,7 @@ export function useDetailedIncomeStatement(year: number) {
       if (statement.grossSales.ls > 0) {
         lines.push({ 
           code: '1.2', 
-          name: '└ L&S Eğitim Geliri', 
+          name: '└ Leadership Denetim Hizmet Geliri', 
           subAmount: statement.grossSales.ls, 
           isSubItem: true, 
           parentCode: '1',
