@@ -9,8 +9,22 @@ interface AddTransactionInput {
   transaction_date: string;
   description: string;
   amount: number;
+  net_amount?: number;
+  vat_amount?: number;
+  vat_rate?: number;
   category_id: string;
   is_income: boolean;
+}
+
+interface UpdateTransactionInput {
+  id: string;
+  transaction_date: string;
+  amount: number;
+  net_amount?: number;
+  vat_amount?: number;
+  vat_rate?: number;
+  description?: string;
+  category_id?: string;
 }
 
 interface AddPartnerTransactionInput {
@@ -61,10 +75,14 @@ export function useManualEntry(year: number) {
           transaction_date: input.transaction_date,
           description: input.description,
           amount,
+          net_amount: input.net_amount,
+          vat_amount: input.vat_amount,
+          vat_rate: input.vat_rate,
           category_id: input.category_id,
           is_income: input.is_income,
           is_manually_categorized: true,
           is_excluded: false,
+          is_commercial: true,
           // file_id is null → indicates manual entry
         });
 
@@ -126,10 +144,68 @@ export function useManualEntry(year: number) {
     }
   });
 
+  // Update transaction
+  const updateTransaction = useMutation({
+    mutationFn: async (input: UpdateTransactionInput) => {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) throw new Error('Kullanıcı bulunamadı');
+
+      const { error } = await supabase
+        .from('bank_transactions')
+        .update({
+          transaction_date: input.transaction_date,
+          amount: input.amount,
+          net_amount: input.net_amount,
+          vat_amount: input.vat_amount,
+          vat_rate: input.vat_rate,
+          description: input.description,
+          category_id: input.category_id
+        })
+        .eq('id', input.id)
+        .eq('user_id', currentUser.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manual-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
+      toast({ title: '✅ İşlem güncellendi' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Hata', description: error.message, variant: 'destructive' });
+    }
+  });
+
+  // Delete transaction
+  const deleteTransaction = useMutation({
+    mutationFn: async (id: string) => {
+      const { data: { user: currentUser } } = await supabase.auth.getUser();
+      if (!currentUser) throw new Error('Kullanıcı bulunamadı');
+
+      const { error } = await supabase
+        .from('bank_transactions')
+        .delete()
+        .eq('id', id)
+        .eq('user_id', currentUser.id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['manual-transactions'] });
+      queryClient.invalidateQueries({ queryKey: ['bank-transactions'] });
+      toast({ title: '🗑️ İşlem silindi' });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Hata', description: error.message, variant: 'destructive' });
+    }
+  });
+
   return {
     recentTransactions,
     isLoading,
     addTransaction,
-    addPartnerTransaction
+    addPartnerTransaction,
+    updateTransaction,
+    deleteTransaction
   };
 }
