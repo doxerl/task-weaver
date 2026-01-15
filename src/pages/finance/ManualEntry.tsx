@@ -37,9 +37,7 @@ const YEARS = ['2024', '2025', '2026'];
 const VAT_RATES = [
   { value: '0', label: 'KDV Yok (%0)' },
   { value: '1', label: '%1 KDV' },
-  { value: '8', label: '%8 KDV' },
   { value: '10', label: '%10 KDV' },
-  { value: '18', label: '%18 KDV' },
   { value: '20', label: '%20 KDV' },
 ];
 
