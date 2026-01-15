@@ -19,8 +19,6 @@ const defaultFormatFullCurrency = (value: number) => new Intl.NumberFormat('tr-T
   maximumFractionDigits: 0 
 }).format(value);
 
-const truncateName = (name: string, max: number = 25) => 
-  name.length > max ? name.slice(0, max) + '...' : name;
 
 // PDF uyumluluğu için hex renk değerleri (CSS değişkenleri html2canvas'ta çalışmıyor)
 const GRADIENT_COLORS = [
@@ -56,7 +54,7 @@ export function ExpenseCategoryChart({ data, formatAmount }: ExpenseCategoryChar
   const top7 = useMemo(() => {
     return data.slice(0, 7).map((item, index) => ({
       ...item,
-      displayName: truncateName(item.name),
+      displayName: item.name,
       color: GRADIENT_COLORS[index] || GRADIENT_COLORS[GRADIENT_COLORS.length - 1]
     }));
   }, [data]);
@@ -79,7 +77,7 @@ export function ExpenseCategoryChart({ data, formatAmount }: ExpenseCategoryChar
           type="category" 
           dataKey="displayName" 
           tick={{ fontSize: 11, fill: '#0f172a' }} 
-          width={160} 
+          width={180} 
           axisLine={false}
           tickLine={false}
         />

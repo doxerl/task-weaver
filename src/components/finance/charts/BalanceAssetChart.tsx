@@ -18,14 +18,14 @@ interface BalanceAssetChartProps {
 const defaultFormatCurrency = (n: number) =>
   new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(n);
 
-// Green color palette for assets
+// Green color palette for assets - hex values for PDF compatibility
 const COLORS = [
-  'hsl(142, 71%, 45%)',  // Green - Cash & Banks
-  'hsl(142, 60%, 55%)',  // Light Green - Receivables
-  'hsl(160, 60%, 45%)',  // Teal - Partner Receivables
-  'hsl(175, 55%, 50%)',  // Cyan - VAT Receivable
-  'hsl(190, 50%, 55%)',  // Light Cyan - Other VAT
-  'hsl(100, 45%, 50%)',  // Lime - Fixed Assets
+  '#22c55e', // Green - Cash & Banks (green-500)
+  '#4ade80', // Light Green - Receivables (green-400)
+  '#14b8a6', // Teal - Partner Receivables (teal-500)
+  '#22d3d1', // Cyan - VAT Receivable (cyan-400)
+  '#38bdf8', // Light Cyan - Other VAT (sky-400)
+  '#84cc16', // Lime - Fixed Assets (lime-500)
 ];
 
 export function BalanceAssetChart({ data, formatAmount }: BalanceAssetChartProps) {
@@ -52,9 +52,9 @@ export function BalanceAssetChart({ data, formatAmount }: BalanceAssetChartProps
 
   if (total === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
-        Varlık verisi bulunamadı
-      </div>
+    <div className="flex items-center justify-center h-64" style={{ color: '#64748b' }}>
+      Varlık verisi bulunamadı
+    </div>
     );
   }
 
@@ -91,15 +91,15 @@ export function BalanceAssetChart({ data, formatAmount }: BalanceAssetChartProps
       </div>
 
       {/* Legend - inline styles for PDF compatibility */}
-      <div className="grid grid-cols-2 gap-2 text-xs">
+      <div className="space-y-1.5 text-xs">
         {chartData.map((item, index) => (
           <div key={index} className="flex items-center gap-2">
             <div
               className="w-3 h-3 rounded-full flex-shrink-0"
               style={{ backgroundColor: item.color }}
             />
-            <span className="truncate" style={{ color: '#334155' }}>{item.name}</span>
-            <span className="font-medium ml-auto" style={{ color: '#0f172a' }}>{item.percentage}%</span>
+            <span style={{ color: '#334155' }}>{item.name}</span>
+            <span className="font-medium ml-auto flex-shrink-0" style={{ color: '#0f172a' }}>{item.percentage}%</span>
           </div>
         ))}
       </div>

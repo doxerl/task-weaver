@@ -18,10 +18,11 @@ function formatUSD(value: number): string {
   }).format(value);
 }
 
+// PDF uyumluluğu için hex renk değerleri
 const COLORS = {
-  pessimistic: 'hsl(0 84% 60%)',      // Red
-  baseline: 'hsl(var(--primary))',     // Primary
-  optimistic: 'hsl(142 76% 36%)',      // Green
+  pessimistic: '#ef4444',  // Red (red-500)
+  baseline: '#2563eb',     // Primary (blue-600)
+  optimistic: '#22c55e',   // Green (green-500)
 };
 
 export const SensitivityChart = forwardRef<HTMLDivElement, SensitivityChartProps>(
@@ -66,28 +67,26 @@ export const SensitivityChart = forwardRef<HTMLDivElement, SensitivityChartProps
                 margin={{ top: 20, right: 30, left: 20, bottom: 5 }}
                 barCategoryGap="30%"
               >
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" vertical={false} />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
                 <XAxis 
                   dataKey="shortName" 
-                  tick={{ fontSize: 12 }}
-                  className="text-muted-foreground"
+                  tick={{ fontSize: 12, fill: '#64748b' }}
                 />
                 <YAxis 
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                  tick={{ fontSize: 11 }}
-                  className="text-muted-foreground"
+                  tick={{ fontSize: 11, fill: '#64748b' }}
                 />
                 <Tooltip 
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
                     const data = payload[0]?.payload;
                     return (
-                      <div className="bg-popover border rounded-lg shadow-lg p-3 text-sm">
-                        <p className="font-medium mb-2">{label} Senaryo</p>
+                      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }} className="rounded-lg shadow-lg p-3 text-sm">
+                        <p className="font-medium mb-2" style={{ color: '#0f172a' }}>{label} Senaryo</p>
                         <div className="space-y-1">
-                          <p>Net Kar: <span className="font-semibold">{formatUSD(data.kar)}</span></p>
-                          <p>ROI: <span className="font-semibold">%{data.roi.toFixed(0)}</span></p>
-                          <p>Kar Marjı: <span className="font-semibold">%{data.margin.toFixed(1)}</span></p>
+                          <p style={{ color: '#64748b' }}>Net Kar: <span className="font-semibold" style={{ color: '#0f172a' }}>{formatUSD(data.kar)}</span></p>
+                          <p style={{ color: '#64748b' }}>ROI: <span className="font-semibold" style={{ color: '#0f172a' }}>%{data.roi.toFixed(0)}</span></p>
+                          <p style={{ color: '#64748b' }}>Kar Marjı: <span className="font-semibold" style={{ color: '#0f172a' }}>%{data.margin.toFixed(1)}</span></p>
                         </div>
                       </div>
                     );

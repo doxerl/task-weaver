@@ -23,8 +23,8 @@ function formatUSD(value: number): string {
 const CustomTooltip = ({ active, payload, label }: any) => {
   if (active && payload && payload.length) {
     return (
-      <div className="bg-popover border rounded-lg shadow-lg p-3">
-        <p className="font-medium mb-2">{label}</p>
+      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }} className="rounded-lg shadow-lg p-3">
+        <p className="font-medium mb-2" style={{ color: '#0f172a' }}>{label}</p>
         {payload.map((entry: any, index: number) => (
           <p key={index} className="text-sm" style={{ color: entry.color }}>
             {entry.name}: {formatUSD(entry.value)}
@@ -70,7 +70,7 @@ export const QuarterlyChart = forwardRef<HTMLDivElement, QuarterlyChartProps>(
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center justify-between">
               <span>Çeyreklik Gelir/Gider Karşılaştırması</span>
-              <div className="text-sm font-normal text-muted-foreground">
+              <div className="text-sm font-normal" style={{ color: '#64748b' }}>
                 Toplam: {formatUSD(totals.revenue)} gelir, {formatUSD(totals.expense)} gider
               </div>
             </CardTitle>
@@ -78,16 +78,16 @@ export const QuarterlyChart = forwardRef<HTMLDivElement, QuarterlyChartProps>(
           <CardContent>
             <ResponsiveContainer width="100%" height={320}>
               <ComposedChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis 
                   dataKey="quarter" 
-                  tick={{ fontSize: 12 }}
+                  tick={{ fontSize: 12, fill: '#64748b' }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <YAxis 
                   tickFormatter={formatUSD} 
-                  tick={{ fontSize: 11 }}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
                   axisLine={false}
                   tickLine={false}
                 />
@@ -95,29 +95,29 @@ export const QuarterlyChart = forwardRef<HTMLDivElement, QuarterlyChartProps>(
                 <Legend />
                 <Bar 
                   dataKey="revenue" 
-                  fill="hsl(var(--chart-2))" 
+                  fill="#16a34a"
                   name="Gelir" 
                   radius={[4, 4, 0, 0]}
                 />
                 <Bar 
                   dataKey="expense" 
-                  fill="hsl(var(--destructive))" 
+                  fill="#ef4444"
                   name="Gider" 
                   radius={[4, 4, 0, 0]}
                 />
                 <Bar 
                   dataKey="investment" 
-                  fill="hsl(var(--chart-4))" 
+                  fill="#8b5cf6"
                   name="Yatırım" 
                   radius={[4, 4, 0, 0]}
                 />
                 <Line 
                   type="monotone" 
                   dataKey="netCashFlow" 
-                  stroke="hsl(var(--primary))" 
+                  stroke="#2563eb"
                   strokeWidth={2}
                   name="Net Nakit Akışı"
-                  dot={{ r: 4 }}
+                  dot={{ r: 4, fill: '#2563eb' }}
                 />
               </ComposedChart>
             </ResponsiveContainer>
