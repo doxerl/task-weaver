@@ -1,6 +1,6 @@
 // ============================================
 // PDF DOCUMENT BUILDER - DATA-DRIVEN YAKLAŞIM
-// jspdf-autotable ile tablo, html2canvas ile grafik
+// jspdf-autotable ile tablo - Türkçe karakter desteği
 // ============================================
 
 import jsPDF from 'jspdf';
@@ -8,6 +8,7 @@ import autoTable, { UserOptions } from 'jspdf-autotable';
 import type { BalanceSheet } from '@/types/finance';
 import type { IncomeStatementData, DetailedIncomeStatementData } from '@/types/reports';
 import { downloadPdf } from '@/lib/pdf/core/pdfBlobHandling';
+import { addTurkishFontSupport, prepareTurkishTableData } from '@/lib/pdf/fonts';
 
 // ============================================
 // TİP TANIMLARI
@@ -127,6 +128,10 @@ export class PdfDocumentBuilder {
       unit: 'mm',
       format: 'a4',
     });
+    
+    // Türkçe font desteği ekle
+    addTurkishFontSupport(this.pdf);
+    
     this.currentY = this.config.margin;
   }
 
@@ -346,10 +351,13 @@ export class PdfDocumentBuilder {
       this.currentY += 10;
     }
 
+    // Türkçe karakterleri hazırla
+    const preparedRows = prepareTurkishTableData(rows);
+
     // AutoTable ayarları
     const tableOptions: UserOptions = {
       head: [headers],
-      body: rows.map(row => row.map(cell => String(cell))),
+      body: preparedRows,
       startY: this.currentY,
       margin: { left: margin, right: margin },
       theme: 'grid',

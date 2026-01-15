@@ -31,10 +31,10 @@ function GrowthSimulationContent() {
   const simulation = useGrowthSimulation();
   const hub = useFinancialDataHub(simulation.baseYear);
   const scenariosHook = useScenarios();
-  const { generateSimulationPdf, isGenerating, progress } = usePdfEngine();
+  const { generateSimulationPdfData, isGenerating, progress } = usePdfEngine();
   const [showComparison, setShowComparison] = useState(false);
   
-  // Chart ref (no longer needed for PDF, kept for potential future use)
+  // Chart ref for ComparisonChart
   const chartsContainerRef = useRef<HTMLDivElement>(null);
   
   const [showNextYearDialog, setShowNextYearDialog] = useState(false);
@@ -130,14 +130,50 @@ function GrowthSimulationContent() {
     scenariosHook.setCurrentScenarioId(null);
   };
 
-  // PDF content ref
-  const pdfContentRef = useRef<HTMLDivElement>(null);
-
   const handleExportPdf = async () => {
-    if (!pdfContentRef.current) return;
     try {
-      await generateSimulationPdf(pdfContentRef, scenarioName, targetYear);
-      toast.success('PDF başarıyla oluşturuldu');
+      const pdfData = {
+        scenarioName,
+        baseYear,
+        targetYear,
+        summary: {
+          baseRevenue: summary.base.totalRevenue,
+          projectedRevenue: summary.projected.totalRevenue,
+          baseExpense: summary.base.totalExpense,
+          projectedExpense: summary.projected.totalExpense,
+          baseProfit: summary.base.netProfit,
+          projectedProfit: summary.projected.netProfit,
+          revenueGrowth: summary.growth.revenueGrowth,
+          expenseGrowth: summary.growth.expenseGrowth,
+          profitGrowth: summary.growth.profitGrowth,
+        },
+        revenues: revenues.map(r => ({
+          id: r.id,
+          name: r.category,
+          baseAmount: r.baseAmount,
+          projectedAmount: r.projectedAmount,
+          changePercent: r.baseAmount > 0 
+            ? ((r.projectedAmount - r.baseAmount) / r.baseAmount) * 100 
+            : 0,
+        })),
+        expenses: expenses.map(e => ({
+          id: e.id,
+          name: e.category,
+          baseAmount: e.baseAmount,
+          projectedAmount: e.projectedAmount,
+          changePercent: e.baseAmount > 0 
+            ? ((e.projectedAmount - e.baseAmount) / e.baseAmount) * 100 
+            : 0,
+        })),
+        exchangeRate: assumedExchangeRate,
+      };
+      
+      const success = await generateSimulationPdfData(pdfData);
+      if (success) {
+        toast.success('PDF başarıyla oluşturuldu');
+      } else {
+        toast.error('PDF oluşturulurken hata oluştu');
+      }
     } catch {
       toast.error('PDF oluşturulurken hata oluştu');
     }
@@ -229,7 +265,7 @@ function GrowthSimulationContent() {
         </div>
       </header>
 
-      <main ref={pdfContentRef} className="container mx-auto px-4 py-6 space-y-6 bg-background">
+      <main className="container mx-auto px-4 py-6 space-y-6 bg-background">
         {/* Scenario Settings */}
         <Card>
           <CardContent className="pt-4">
