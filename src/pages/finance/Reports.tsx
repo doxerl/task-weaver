@@ -53,6 +53,7 @@ export default function Reports() {
     generateFullReportPdf,
     generateDashboardChartPdf,
     generateDistributionChartPdf,
+    generateFinancingSummaryPdf,
     isGenerating: isPdfEngineGenerating,
     progress: pdfProgress,
   } = usePdfEngine();
@@ -145,9 +146,27 @@ export default function Reports() {
     }
   };
 
-  // Financing PDF - şimdilik disabled çünkü usePdfEngine'e entegre edilmedi
+  // Finansman Özeti PDF
   const handleFinancingPdf = async () => {
-    toast.info('Finansman raporu yakında eklenecek');
+    try {
+      const financingData = {
+        partnerDeposits: hub.partnerSummary.deposits,
+        partnerWithdrawals: hub.partnerSummary.withdrawals,
+        partnerBalance: hub.partnerSummary.balance,
+        creditIn: hub.financingSummary.creditIn,
+        creditOut: hub.financingSummary.creditOut,
+        leasingOut: hub.financingSummary.leasingOut,
+        remainingDebt: hub.financingSummary.remainingDebt,
+      };
+      
+      await generateFinancingSummaryPdf(financingData, year, { 
+        currency, 
+        companyName: 'Şirket' 
+      });
+      toast.success(`Finansman özeti PDF oluşturuldu (${currency})`);
+    } catch {
+      toast.error('PDF oluşturulamadı');
+    }
   };
 
   const handleDashboardPdf = async () => {

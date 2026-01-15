@@ -47,6 +47,7 @@ import {
 import { SimulationScenario } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
 import { toast } from 'sonner';
+import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
 import {
   ChartConfig,
   ChartContainer,
@@ -555,8 +556,9 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
 }) => {
   const [scenarioAId, setScenarioAId] = useState<string | null>(currentScenarioId);
   const [scenarioBId, setScenarioBId] = useState<string | null>(null);
-  const isGenerating = false; // TODO: usePdfEngine entegrasyonu yapılacak
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  
+  const { generateScenarioComparisonPdf, isGenerating } = usePdfEngine();
 
   const scenarioA = useMemo(() => scenarios.find(s => s.id === scenarioAId), [scenarios, scenarioAId]);
   const scenarioB = useMemo(() => scenarios.find(s => s.id === scenarioBId), [scenarios, scenarioBId]);
@@ -599,9 +601,20 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
 
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
-  const handleExportPdf = () => {
-    // TODO: usePdfEngine'e ScenarioComparison PDF desteği eklenecek
-    toast.info('Senaryo karşılaştırma PDF yakında eklenecek');
+  const handleExportPdf = async () => {
+    if (!scenarioA || !scenarioB || !summaryA || !summaryB) return;
+    
+    try {
+      await generateScenarioComparisonPdf({
+        scenarioA: { name: scenarioA.name, summary: summaryA },
+        scenarioB: { name: scenarioB.name, summary: summaryB },
+        metrics,
+        winner: winner || undefined,
+      });
+      toast.success('Senaryo karşılaştırma PDF oluşturuldu');
+    } catch {
+      toast.error('PDF oluşturulamadı');
+    }
   };
 
   const chartConfig: ChartConfig = {
