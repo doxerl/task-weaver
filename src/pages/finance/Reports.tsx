@@ -16,11 +16,13 @@ import { useDetailedIncomeStatement } from '@/hooks/finance/useDetailedIncomeSta
 import { useFixedExpenses } from '@/hooks/finance/useFixedExpenses';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
+import { useCashFlowStatement } from '@/hooks/finance/useCashFlowStatement';
 import { MonthlyTrendChart } from '@/components/finance/charts/MonthlyTrendChart';
 import { ServiceRevenueChart } from '@/components/finance/charts/ServiceRevenueChart';
 import { ExpenseCategoryChart } from '@/components/finance/charts/ExpenseCategoryChart';
 import { IncomeStatementTable } from '@/components/finance/tables/IncomeStatementTable';
 import { DetailedIncomeStatementTable } from '@/components/finance/tables/DetailedIncomeStatementTable';
+import { CashFlowStatementTable } from '@/components/finance/CashFlowStatementTable';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { CurrencyToggle } from '@/components/finance/CurrencyToggle';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -45,6 +47,7 @@ export default function Reports() {
   const detailedStatement = useDetailedIncomeStatement(year);
   const { definitions: fixedExpensesList } = useFixedExpenses();
   const { balanceSheet } = useBalanceSheet(year);
+  const { cashFlowStatement, isLoading: cashFlowLoading } = useCashFlowStatement(year);
   
   // Merkezi PDF hook - tablo ve grafik PDF işlemleri için
   const { 
@@ -408,12 +411,13 @@ export default function Reports() {
 
         {/* Tabs */}
         <Tabs defaultValue="dashboard" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-5 h-auto">
+          <TabsList className="grid w-full grid-cols-6 h-auto">
             <TabsTrigger value="dashboard" className="text-xs py-2"><BarChart3 className="h-3 w-3 mr-1 hidden sm:inline" />Özet</TabsTrigger>
             <TabsTrigger value="income" className="text-xs py-2"><TrendingUp className="h-3 w-3 mr-1 hidden sm:inline" />Gelir</TabsTrigger>
             <TabsTrigger value="expense" className="text-xs py-2"><TrendingDown className="h-3 w-3 mr-1 hidden sm:inline" />Gider</TabsTrigger>
             <TabsTrigger value="detailed" className="text-xs py-2"><FileText className="h-3 w-3 mr-1 hidden sm:inline" />Resmi</TabsTrigger>
             <TabsTrigger value="financing" className="text-xs py-2"><CreditCard className="h-3 w-3 mr-1 hidden sm:inline" />Finans</TabsTrigger>
+            <TabsTrigger value="cashflow" className="text-xs py-2"><Wallet className="h-3 w-3 mr-1 hidden sm:inline" />Nakit</TabsTrigger>
           </TabsList>
 
           {/* Tab 1: Dashboard */}
@@ -720,6 +724,21 @@ export default function Reports() {
               </CardContent>
             </Card>
             </div>
+          </TabsContent>
+
+          {/* Tab 6: Cash Flow Statement */}
+          <TabsContent value="cashflow" className="space-y-4">
+            {cashFlowLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
+              </div>
+            ) : cashFlowStatement ? (
+              <CashFlowStatementTable data={cashFlowStatement} year={year} />
+            ) : (
+              <div className="text-center py-12 text-muted-foreground">
+                Nakit akış tablosu verileri yüklenemedi.
+              </div>
+            )}
           </TabsContent>
         </Tabs>
 
