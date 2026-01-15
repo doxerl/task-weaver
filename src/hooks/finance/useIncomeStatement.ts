@@ -250,9 +250,9 @@ export function useIncomeStatement(year: number) {
     const ordinaryProfit = operatingProfit + otherIncome.total - otherExpenses.total - financeExpenses;
     const preTaxProfit = ordinaryProfit + extraordinaryIncome - extraordinaryExpenses;
     
-    // Estimate tax (simplified - 25% if positive)
-    const taxExpense = preTaxProfit > 0 ? preTaxProfit * 0.25 : 0;
-    const netProfit = preTaxProfit - taxExpense;
+    // Kurumlar vergisi hesaplaması yok - yalnızca KDV takibi yapılıyor
+    const taxExpense = 0;
+    const netProfit = preTaxProfit;
 
     return {
       grossSales,
@@ -337,10 +337,7 @@ export function useIncomeStatement(year: number) {
       formatLine('J', 'OLAĞANDIŞI GİDERLER (-)', 0, 0, { isSubtotal: true }),
       formatLine('J1', 'Olağandışı Giderler (689)', statement.extraordinaryExpenses, 1, { isNegative: true }),
       
-      formatLine('PBT', 'VERGİ ÖNCESİ KÂR', statement.preTaxProfit, 0, { isTotal: true }),
-      
-      formatLine('K', 'VERGİ GİDERİ (-)', 0, 0, { isSubtotal: true }),
-      formatLine('K1', 'Kurumlar Vergisi (%25)', statement.taxExpense, 1, { isNegative: true }),
+      formatLine('PBT', 'DÖNEM KÂRI', statement.preTaxProfit, 0, { isTotal: true }),
       
       formatLine('NP', 'DÖNEM NET KÂRI', statement.netProfit, 0, { isTotal: true }),
     ];
