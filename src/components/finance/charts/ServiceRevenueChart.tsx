@@ -1,11 +1,12 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { ServiceRevenue } from '@/types/reports';
 import { useMemo } from 'react';
-import { formatCompactUSD, formatCompactTRY } from '@/lib/formatters';
+import { formatCompact } from '@/lib/formatters';
 
 interface ServiceRevenueChartProps {
   data: ServiceRevenue[];
   formatAmount?: (value: number) => string;
+  formatCompactAmount?: (value: number) => string;
 }
 
 const defaultFormatCurrency = (value: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(value);
@@ -20,20 +21,16 @@ const COLORS = [
   '#64748b', // muted-foreground (slate-500)
 ];
 
-export function ServiceRevenueChart({ data, formatAmount }: ServiceRevenueChartProps) {
+export function ServiceRevenueChart({ data, formatAmount, formatCompactAmount }: ServiceRevenueChartProps) {
   const formatter = formatAmount || defaultFormatCurrency;
 
-  // Compact formatter for legend display
-  const formatCompact = useMemo(() => {
-    return (value: number) => {
-      if (formatAmount) {
-        const sample = formatAmount(1);
-        const isUsd = sample.includes('$');
-        return isUsd ? formatCompactUSD(value) : formatCompactTRY(value);
-      }
-      return formatCompactTRY(value);
-    };
-  }, [formatAmount]);
+  // Use provided compact formatter or default to TRY
+  const compactFormatter = useMemo(() => {
+    if (formatCompactAmount) {
+      return formatCompactAmount;
+    }
+    return (value: number) => formatCompact(value, 'TRY');
+  }, [formatCompactAmount]);
 
   // Group small items (< 3%) into "Diğer"
   const processedData = useMemo(() => {
@@ -115,7 +112,7 @@ export function ServiceRevenueChart({ data, formatAmount }: ServiceRevenueChartP
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-sm font-semibold whitespace-nowrap">
-                  {formatCompact(item.amount)}
+                  {compactFormatter(item.amount)}
                 </span>
                 <span className="text-xs whitespace-nowrap" style={{ color: '#64748b' }}>
                   ({item.percentage.toFixed(1)}%)
