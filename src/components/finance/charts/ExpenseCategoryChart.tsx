@@ -46,11 +46,11 @@ export function ExpenseCategoryChart({ data, formatAmount, formatCompactAmount }
   }, [data]);
 
   return (
-    <ResponsiveContainer width="100%" height={280}>
+    <ResponsiveContainer width="100%" height={380}>
       <BarChart 
         data={top7} 
         layout="vertical" 
-        margin={{ top: 5, right: 50, left: 5, bottom: 5 }}
+        margin={{ top: 10, right: 60, left: 10, bottom: 10 }}
       >
         <XAxis 
           type="number" 
