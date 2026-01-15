@@ -71,7 +71,7 @@ export function BalanceLiabilityChart({ data, formatAmount }: BalanceLiabilityCh
               outerRadius={90}
               paddingAngle={2}
               dataKey="value"
-              label={({ name, percentage }) => `${percentage}%`}
+              label={false}
               labelLine={false}
             >
               {chartData.map((entry, index) => (
