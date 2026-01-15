@@ -4,7 +4,7 @@ import { PayrollAccrual, PayrollAccrualSummary } from '@/types/reports';
 import { useMemo } from 'react';
 
 export function usePayrollAccruals(year: number) {
-  const { data: accruals, isLoading } = useQuery({
+  const queryResult = useQuery({
     queryKey: ['payroll-accruals', year],
     queryFn: async () => {
       const { data, error } = await supabase
@@ -16,7 +16,12 @@ export function usePayrollAccruals(year: number) {
       if (error) throw error;
       return data || [];
     },
+    enabled: !!year,
+    staleTime: 5 * 60 * 1000, // 5 minutes
   });
+
+  const accruals = queryResult.data;
+  const isLoading = queryResult.isLoading;
 
   const summary = useMemo((): PayrollAccrualSummary => {
     if (!accruals || accruals.length === 0) {
