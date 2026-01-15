@@ -164,6 +164,11 @@ export default function BalanceSheet() {
     opening_bank_balance: (settings as any).opening_bank_balance || 0,
     partner_payables: (settings as any).partner_payables || 0,
     tax_provision: (settings as any).tax_provision || 0,
+    // Amortisman alanları
+    vehicles_purchase_date: settings.vehicles_purchase_date || '',
+    vehicles_useful_life_years: settings.vehicles_useful_life_years || 5,
+    fixtures_purchase_date: settings.fixtures_purchase_date || '',
+    fixtures_useful_life_years: settings.fixtures_useful_life_years || 5,
   });
 
   // Sync formData when settings load - use stable reference to prevent infinite loops
@@ -190,6 +195,11 @@ export default function BalanceSheet() {
         opening_bank_balance: (settings as any).opening_bank_balance || 0,
         partner_payables: (settings as any).partner_payables || 0,
         tax_provision: (settings as any).tax_provision || 0,
+        // Amortisman alanları
+        vehicles_purchase_date: settings.vehicles_purchase_date || '',
+        vehicles_useful_life_years: settings.vehicles_useful_life_years || 5,
+        fixtures_purchase_date: settings.fixtures_purchase_date || '',
+        fixtures_useful_life_years: settings.fixtures_useful_life_years || 5,
       });
     }
   }, [settings.id, isLoading]);
@@ -364,6 +374,25 @@ export default function BalanceSheet() {
                       <p className="text-xs text-muted-foreground">Yıl içi alımlar otomatik eklenir</p>
                     </div>
                     <div className="space-y-1">
+                      <Label>Taşıtlar Alım Tarihi</Label>
+                      <Input 
+                        type="date" 
+                        value={formData.vehicles_purchase_date}
+                        onChange={e => setFormData(p => ({ ...p, vehicles_purchase_date: e.target.value }))}
+                      />
+                      <p className="text-xs text-muted-foreground">Otomatik amortisman için alım tarihi girin</p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Taşıtlar Faydalı Ömür (Yıl)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.vehicles_useful_life_years}
+                        min={1}
+                        max={50}
+                        onChange={e => setFormData(p => ({ ...p, vehicles_useful_life_years: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
                       <Label>Demirbaşlar (₺)</Label>
                       <Input 
                         type="number" 
@@ -372,12 +401,35 @@ export default function BalanceSheet() {
                       />
                     </div>
                     <div className="space-y-1">
+                      <Label>Demirbaşlar Alım Tarihi</Label>
+                      <Input 
+                        type="date" 
+                        value={formData.fixtures_purchase_date}
+                        onChange={e => setFormData(p => ({ ...p, fixtures_purchase_date: e.target.value }))}
+                      />
+                      <p className="text-xs text-muted-foreground">Otomatik amortisman için alım tarihi girin</p>
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Demirbaşlar Faydalı Ömür (Yıl)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.fixtures_useful_life_years}
+                        min={1}
+                        max={50}
+                        onChange={e => setFormData(p => ({ ...p, fixtures_useful_life_years: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
                       <Label>Birikmiş Amortismanlar (₺)</Label>
                       <Input 
                         type="number" 
                         value={formData.accumulated_depreciation}
                         onChange={e => setFormData(p => ({ ...p, accumulated_depreciation: Number(e.target.value) }))}
+                        disabled={!!(formData.vehicles_purchase_date || formData.fixtures_purchase_date)}
                       />
+                      {(formData.vehicles_purchase_date || formData.fixtures_purchase_date) && (
+                        <p className="text-xs text-green-600">✓ Alım tarihi girildiği için otomatik hesaplanıyor</p>
+                      )}
                     </div>
                   </div>
                 </div>

@@ -307,6 +307,14 @@ export interface FinancialSettings {
   notes: string | null;
   created_at: string | null;
   updated_at: string | null;
+  // Amortisman hesaplama alanları
+  depreciation_method: 'straight_line' | 'declining_balance';
+  vehicles_purchase_date: string | null;    // Taşıtlar alım tarihi
+  vehicles_useful_life_years: number;       // Taşıtlar faydalı ömür (varsayılan 5)
+  fixtures_purchase_date: string | null;    // Demirbaşlar alım tarihi
+  fixtures_useful_life_years: number;       // Demirbaşlar faydalı ömür (varsayılan 5)
+  equipment_purchase_date: string | null;   // Ekipman alım tarihi
+  equipment_useful_life_years: number;      // Ekipman faydalı ömür (varsayılan 5)
 }
 
 // Balance Sheet calculated structure
