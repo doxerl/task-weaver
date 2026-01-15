@@ -558,7 +558,7 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
   const [scenarioBId, setScenarioBId] = useState<string | null>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   
-  const { generateScenarioComparisonPdf, isGenerating } = usePdfEngine();
+  const { generateScenarioComparisonPdfData, isGenerating } = usePdfEngine();
 
   const scenarioA = useMemo(() => scenarios.find(s => s.id === scenarioAId), [scenarios, scenarioAId]);
   const scenarioB = useMemo(() => scenarios.find(s => s.id === scenarioBId), [scenarios, scenarioBId]);
@@ -601,15 +601,56 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
 
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
-  // PDF content ref
-  const pdfContentRef = useRef<HTMLDivElement>(null);
-
   const handleExportPdf = async () => {
-    if (!scenarioA || !scenarioB || !pdfContentRef.current) return;
+    if (!scenarioA || !scenarioB || !summaryA || !summaryB) return;
     
     try {
-      await generateScenarioComparisonPdf(pdfContentRef, scenarioA.name, scenarioB.name);
-      toast.success('Senaryo karşılaştırma PDF oluşturuldu');
+      // Data-driven PDF - dikey A4, düzgün sayfa bölmeleri
+      const pdfData = {
+        scenarioAName: scenarioA.name,
+        scenarioBName: scenarioB.name,
+        metrics: metrics.map(m => {
+          const diff = calculateDiff(m.scenarioA, m.scenarioB);
+          return {
+            label: m.label,
+            scenarioA: m.scenarioA,
+            scenarioB: m.scenarioB,
+            format: m.format as 'currency' | 'percent' | 'number',
+            diffPercent: diff.percent
+          };
+        }),
+        winner: winner && winner.winner !== 'TIE' ? {
+          name: winner.winnerName,
+          score: Math.max(winner.scoreA, winner.scoreB),
+          totalMetrics: winner.totalMetrics,
+          advantages: winner.advantages
+        } : null,
+        quarterlyData: quarterlyComparison.map(q => ({
+          quarter: q.quarter,
+          scenarioANet: q.scenarioANet,
+          scenarioBNet: q.scenarioBNet
+        })),
+        insights: insights.map(i => ({
+          title: i.title,
+          description: i.description,
+          type: i.type,
+          impact: i.impact,
+          recommendation: i.recommendation
+        })),
+        recommendations: recommendations.map(r => ({
+          title: r.title,
+          description: r.description,
+          risk: r.risk,
+          suitableFor: r.suitableFor
+        }))
+      };
+      
+      const success = await generateScenarioComparisonPdfData(pdfData);
+      if (success) {
+        toast.success('Senaryo karşılaştırma PDF oluşturuldu');
+      } else {
+        toast.error('PDF oluşturulamadı');
+      }
     } catch {
       toast.error('PDF oluşturulamadı');
     }
@@ -822,126 +863,6 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
               </div>
             </ScrollArea>
 
-            {/* PDF için hidden container - TÜM içerikleri içerir */}
-            <div ref={pdfContentRef} className="hidden pdf-hidden-container bg-background p-6">
-              {/* Header */}
-              <div className="mb-6 border-b pb-4">
-                <h1 className="text-xl font-bold">Senaryo Karşılaştırma Raporu</h1>
-                <p className="text-muted-foreground mt-1">
-                  {scenarioA?.name} vs {scenarioB?.name}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Oluşturma Tarihi: {new Date().toLocaleDateString('tr-TR')}
-                </p>
-              </div>
-
-              {/* Winner Card */}
-              {winner && winner.winner !== 'TIE' && (
-                <div className="pdf-section mb-6">
-                  <div className="p-4 rounded-lg border bg-amber-500/10 border-amber-500/20">
-                    <div className="flex items-center gap-3">
-                      <Trophy className="h-5 w-5 text-amber-600" />
-                      <div>
-                        <h3 className="font-semibold">Önerilen: {winner.winnerName}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {winner.scoreA > winner.scoreB ? winner.scoreA : winner.scoreB}/{winner.totalMetrics} metrikte üstün
-                        </p>
-                        <div className="flex flex-wrap gap-2 mt-2">
-                          {winner.advantages.map((adv, i) => (
-                            <span key={i} className="text-xs bg-emerald-500/20 text-emerald-700 px-2 py-1 rounded">
-                              ✓ {adv}
-                            </span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Özet Tablosu */}
-              <div className="pdf-section mb-6">
-                <h2 className="text-lg font-semibold mb-3">Metrik Karşılaştırması</h2>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[160px]">Metrik</TableHead>
-                      <TableHead className="text-right">{scenarioA?.name}</TableHead>
-                      <TableHead className="text-right">{scenarioB?.name}</TableHead>
-                      <TableHead className="text-right w-[100px]">Fark</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {metrics.map((metric) => {
-                      const diff = calculateDiff(metric.scenarioA, metric.scenarioB);
-                      return (
-                        <TableRow key={metric.label}>
-                          <TableCell className="font-medium">{metric.label}</TableCell>
-                          <TableCell className="text-right font-mono">
-                            {formatValue(metric.scenarioA, metric.format)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono">
-                            {formatValue(metric.scenarioB, metric.format)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DiffBadge diff={diff} format={metric.format} higherIsBetter={metric.higherIsBetter} />
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Trend Grafiği */}
-              <div className="pdf-section page-break-before mb-6">
-                <h2 className="text-lg font-semibold mb-3">Çeyreklik Net Kâr Karşılaştırması</h2>
-                <Card className="bg-card">
-                  <CardContent className="pt-4">
-                    <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                      <ComposedChart data={quarterlyComparison}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
-                        <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <ChartLegend content={<ChartLegendContent />} />
-                        <Bar dataKey="scenarioANet" fill="#2563eb" name={scenarioA?.name} radius={4} />
-                        <Bar dataKey="scenarioBNet" fill="#16a34a" name={scenarioB?.name} radius={4} />
-                      </ComposedChart>
-                    </ChartContainer>
-                  </CardContent>
-                </Card>
-              </div>
-
-              {/* Çıkarımlar */}
-              {insights.length > 0 && (
-                <div className="pdf-section page-break-before mb-6">
-                  <h2 className="text-lg font-semibold mb-3">Analiz Çıkarımları</h2>
-                  <div className="space-y-3">
-                    {insights.map((insight, index) => (
-                      <InsightCard key={index} insight={insight} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Öneriler */}
-              {recommendations.length > 0 && (
-                <div className="pdf-section page-break-before mb-6">
-                  <h2 className="text-lg font-semibold mb-3">Karar Önerileri</h2>
-                  <div className="space-y-3">
-                    {recommendations.map((rec, index) => (
-                      <RecommendationCard key={index} recommendation={rec} />
-                    ))}
-                  </div>
-                </div>
-              )}
-
-              {/* Footer */}
-              <div className="mt-8 pt-4 border-t text-center text-sm text-muted-foreground">
-                <p>Bu rapor otomatik olarak oluşturulmuştur.</p>
-              </div>
-            </div>
           </>
         )}
       </DialogContent>
