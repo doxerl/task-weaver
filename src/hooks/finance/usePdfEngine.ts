@@ -1,6 +1,6 @@
 // ============================================
-// MERKEZI PDF HOOK - HTML TABANLI
-// Tüm PDF oluşturma işlemlerini yöneten tek hook
+// MERKEZI PDF HOOK - HİBRİT SİSTEM
+// HTML tabanlı (grafikler) + Data-driven (tablolar)
 // Türkçe karakterler korunur, grafikler düzgün yakalanır
 // ============================================
 
@@ -30,19 +30,60 @@ import {
 import {
   forceLightModeForPdf,
 } from '@/lib/pdf/core/pdfThemeUtils';
+import {
+  PdfDocumentBuilder,
+  createPortraitBuilder,
+  createLandscapeBuilder,
+  type PdfBuilderConfig,
+} from '@/lib/pdf/builders';
+import type { BalanceSheet } from '@/types/finance';
+import type { IncomeStatementData, DetailedIncomeStatementData } from '@/types/reports';
 
 // ============================================
 // TİP TANIMLARI
 // ============================================
 
 export interface UsePdfEngineReturn {
-  // Ana PDF oluşturma fonksiyonu
+  // Ana PDF oluşturma fonksiyonu (HTML tabanlı - grafikler için)
   generatePdfFromElement: (
     elementRef: RefObject<HTMLElement>,
     options: PdfGenerateOptions
   ) => Promise<boolean>;
   
-  // Önceden yapılandırılmış PDF fonksiyonları
+  // ============================================
+  // DATA-DRIVEN PDF FONKSİYONLARI (YENİ)
+  // jspdf-autotable kullanır - tablolar için ideal
+  // ============================================
+  
+  generateBalanceSheetPdfData: (
+    balanceSheet: BalanceSheet,
+    year: number,
+    formatAmount: (value: number) => string,
+    options?: { currency?: 'TRY' | 'USD' }
+  ) => Promise<boolean>;
+  
+  generateIncomeStatementPdfData: (
+    data: IncomeStatementData,
+    year: number,
+    formatAmount: (value: number) => string,
+    options?: { currency?: 'TRY' | 'USD' }
+  ) => Promise<boolean>;
+  
+  generateDetailedIncomePdfData: (
+    data: DetailedIncomeStatementData,
+    year: number,
+    formatAmount: (value: number) => string,
+    options?: { currency?: 'TRY' | 'USD' }
+  ) => Promise<boolean>;
+  
+  // Builder'a doğrudan erişim (gelişmiş kullanım)
+  createPdfBuilder: (config?: Partial<PdfBuilderConfig>) => PdfDocumentBuilder;
+  
+  // ============================================
+  // HTML TABANLI PDF FONKSİYONLARI (MEVCUT)
+  // Grafikler ve karmaşık layoutlar için
+  // ============================================
+  
   generateReportPdf: (
     elementRef: RefObject<HTMLElement>,
     reportName: string,
@@ -68,12 +109,14 @@ export interface UsePdfEngineReturn {
     scenarioBName: string
   ) => Promise<void>;
   
+  /** @deprecated Use generateBalanceSheetPdfData instead for better page control */
   generateBalanceSheetPdf: (
     elementRef: RefObject<HTMLElement>,
     year: number,
     currency?: 'TRY' | 'USD'
   ) => Promise<void>;
   
+  /** @deprecated Use generateIncomeStatementPdfData instead for better page control */
   generateIncomeStatementPdf: (
     elementRef: RefObject<HTMLElement>,
     year: number,
@@ -557,7 +600,140 @@ export function usePdfEngine(): UsePdfEngineReturn {
     });
   }, [generatePdfFromElement]);
 
+  // ============================================
+  // DATA-DRIVEN PDF FONKSİYONLARI (YENİ)
+  // ============================================
+
+  /**
+   * Bilanço PDF - jspdf-autotable ile
+   * Sayfa sonu kontrolü, başlık tekrarı, Türkçe metin desteği
+   */
+  const generateBalanceSheetPdfData = useCallback(async (
+    balanceSheet: BalanceSheet,
+    year: number,
+    formatAmount: (value: number) => string,
+    options?: { currency?: 'TRY' | 'USD' }
+  ): Promise<boolean> => {
+    setIsGenerating(true);
+    setProgress({ current: 1, total: 2, stage: 'Bilanço hazırlanıyor...' });
+    
+    try {
+      const builder = createLandscapeBuilder({ margin: 8 });
+      
+      builder
+        .addCover(
+          `Bilanço - ${year}`,
+          'Tekdüzen Hesap Planına Uygun',
+          new Date().toLocaleDateString('tr-TR')
+        )
+        .addBalanceSheet(balanceSheet, year, formatAmount);
+      
+      setProgress({ current: 2, total: 2, stage: 'PDF oluşturuluyor...' });
+      
+      const filename = `Bilanco_${year}_${options?.currency || 'TRY'}.pdf`;
+      const result = await builder.build(filename);
+      
+      return result;
+    } catch (error) {
+      console.error('[PDF] Balance sheet generation error:', error);
+      return false;
+    } finally {
+      setIsGenerating(false);
+      setProgress({ current: 0, total: 0, stage: '' });
+    }
+  }, []);
+
+  /**
+   * Gelir Tablosu PDF - jspdf-autotable ile
+   */
+  const generateIncomeStatementPdfData = useCallback(async (
+    data: IncomeStatementData,
+    year: number,
+    formatAmount: (value: number) => string,
+    options?: { currency?: 'TRY' | 'USD' }
+  ): Promise<boolean> => {
+    setIsGenerating(true);
+    setProgress({ current: 1, total: 2, stage: 'Gelir tablosu hazırlanıyor...' });
+    
+    try {
+      const builder = createPortraitBuilder({ margin: 10 });
+      
+      builder
+        .addCover(
+          `Gelir Tablosu - ${year}`,
+          'Tekdüzen Hesap Planına Uygun',
+          new Date().toLocaleDateString('tr-TR')
+        )
+        .addIncomeStatement(data, year, formatAmount);
+      
+      setProgress({ current: 2, total: 2, stage: 'PDF oluşturuluyor...' });
+      
+      const filename = `Gelir_Tablosu_${year}_${options?.currency || 'TRY'}.pdf`;
+      const result = await builder.build(filename);
+      
+      return result;
+    } catch (error) {
+      console.error('[PDF] Income statement generation error:', error);
+      return false;
+    } finally {
+      setIsGenerating(false);
+      setProgress({ current: 0, total: 0, stage: '' });
+    }
+  }, []);
+
+  /**
+   * Detaylı Gelir Tablosu PDF - jspdf-autotable ile
+   */
+  const generateDetailedIncomePdfData = useCallback(async (
+    data: DetailedIncomeStatementData,
+    year: number,
+    formatAmount: (value: number) => string,
+    options?: { currency?: 'TRY' | 'USD' }
+  ): Promise<boolean> => {
+    setIsGenerating(true);
+    setProgress({ current: 1, total: 2, stage: 'Detaylı gelir tablosu hazırlanıyor...' });
+    
+    try {
+      const builder = createPortraitBuilder({ margin: 10 });
+      
+      builder
+        .addCover(
+          `Detaylı Gelir Tablosu - ${year}`,
+          'Tekdüzen Hesap Planına Uygun',
+          new Date().toLocaleDateString('tr-TR')
+        )
+        .addDetailedIncomeStatement(data, formatAmount);
+      
+      setProgress({ current: 2, total: 2, stage: 'PDF oluşturuluyor...' });
+      
+      const filename = `Detayli_Gelir_Tablosu_${year}_${options?.currency || 'TRY'}.pdf`;
+      const result = await builder.build(filename);
+      
+      return result;
+    } catch (error) {
+      console.error('[PDF] Detailed income statement generation error:', error);
+      return false;
+    } finally {
+      setIsGenerating(false);
+      setProgress({ current: 0, total: 0, stage: '' });
+    }
+  }, []);
+
+  /**
+   * Builder'a doğrudan erişim (gelişmiş kullanım)
+   */
+  const createPdfBuilder = useCallback((config?: Partial<PdfBuilderConfig>) => {
+    return new PdfDocumentBuilder(config);
+  }, []);
+
   return {
+    // Data-driven (yeni - tablolar için)
+    generateBalanceSheetPdfData,
+    generateIncomeStatementPdfData,
+    generateDetailedIncomePdfData,
+    createPdfBuilder,
+    
+    // HTML tabanlı (mevcut - grafikler için)
     generatePdfFromElement,
     generateReportPdf,
     generateChartPdf,
@@ -572,6 +748,8 @@ export function usePdfEngine(): UsePdfEngineReturn {
     generateBalanceChartPdf,
     captureChartToPdf,
     generateFinancingSummaryPdf,
+    
+    // Durum
     isGenerating,
     progress,
   };
