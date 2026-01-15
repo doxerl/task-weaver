@@ -570,9 +570,28 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     }
 
     // Profit calculations (category-based - faaliyet kar/zararı)
-    const operatingProfit = incomeSummary.net - expenseSummary.net;
-    const netProfit = operatingProfit - interestPaid;
+    // Tahakkuk Esası: Personel giderleri (770 hesabı) kar'dan düşülmeli
+    // Bu tutar: Brüt Maaş + İşveren SGK + İşsizlik Primi
+    const personnelExpense = payrollSummary.totalPersonnelExpense || 0;
+    
+    // Finansman Giderleri (660 hesabı) - faiz giderleri
+    const financeExpense = interestPaid;
+    
+    // Faaliyet Karı = Gelirler - Giderler - Personel Giderleri
+    const operatingProfit = incomeSummary.net - expenseSummary.net - personnelExpense;
+    
+    // Net Kar = Faaliyet Karı - Finansman Giderleri
+    const netProfit = operatingProfit - financeExpense;
     const profitMargin = incomeSummary.net > 0 ? (operatingProfit / incomeSummary.net) * 100 : 0;
+
+    console.log('💰 Kar Hesabı (Tahakkuk Esası):', {
+      gelirNet: incomeSummary.net,
+      operasyonelGider: expenseSummary.net,
+      personelGideri: personnelExpense,
+      finansmanGideri: financeExpense,
+      faaliyetKari: operatingProfit,
+      netKar: netProfit
+    });
 
     // Cash flow summary (all bank movements - nakit akışı)
     // EXCLUDED hariç tüm işlemleri hesapla
