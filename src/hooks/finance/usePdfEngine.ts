@@ -108,9 +108,68 @@ export interface UsePdfEngineReturn {
     currency: 'TRY' | 'USD'
   ) => Promise<void>;
   
+  // Finansman Özeti PDF
+  generateFinancingSummaryPdf: (
+    data: FinancingSummaryData,
+    year: number,
+    options?: {
+      currency?: 'TRY' | 'USD';
+      companyName?: string;
+    }
+  ) => Promise<void>;
+  
+  // Senaryo Karşılaştırma PDF
+  generateScenarioComparisonPdf: (
+    data: ScenarioComparisonData,
+    options?: {
+      currency?: 'TRY' | 'USD';
+      companyName?: string;
+    }
+  ) => Promise<void>;
+  
   // Durum
   isGenerating: boolean;
   progress: PdfProgress;
+}
+
+// Finansman Özeti Verisi
+export interface FinancingSummaryData {
+  partnerDeposits: number;
+  partnerWithdrawals: number;
+  partnerBalance: number;
+  creditIn: number;
+  creditOut: number;
+  leasingOut: number;
+  remainingDebt: number;
+}
+
+// Senaryo Karşılaştırma Verisi
+export interface ScenarioComparisonData {
+  scenarioA: { name: string; summary: ScenarioSummaryData };
+  scenarioB: { name: string; summary: ScenarioSummaryData };
+  metrics: Array<{
+    label: string;
+    scenarioA: number;
+    scenarioB: number;
+    format: 'currency' | 'percent' | 'number';
+    higherIsBetter: boolean;
+  }>;
+  winner?: {
+    winner: 'A' | 'B' | 'TIE';
+    winnerName: string;
+    scoreA: number;
+    scoreB: number;
+    totalMetrics: number;
+  };
+}
+
+export interface ScenarioSummaryData {
+  totalRevenue: number;
+  totalExpense: number;
+  totalInvestment: number;
+  netProfit: number;
+  profitMargin: number;
+  capitalNeed: number;
 }
 
 export function usePdfEngine(): UsePdfEngineReturn {
@@ -440,6 +499,187 @@ export function usePdfEngine(): UsePdfEngineReturn {
     });
   }, [captureChartToPdf]);
 
+  // ============================================
+  // FİNANSMAN ÖZETİ PDF
+  // ============================================
+
+  const generateFinancingSummaryPdf = useCallback(async (
+    data: FinancingSummaryData,
+    year: number,
+    options?: {
+      currency?: 'TRY' | 'USD';
+      companyName?: string;
+    }
+  ) => {
+    setIsGenerating(true);
+    setProgress({ current: 1, total: 2, stage: 'Finansman özeti hazırlanıyor...' });
+    
+    try {
+      const engine = createPdfDocument({
+        orientation: 'portrait',
+        format: 'a4',
+        currency: options?.currency || 'TRY',
+        companyName: options?.companyName,
+        year,
+      });
+      
+      // Kapak sayfası
+      engine.renderCover(
+        `${year} YILI FİNANSMAN ÖZETİ`,
+        'Ortak Cari ve Kredi Takibi',
+        ['Ortak Cari Hesap', 'Kredi ve Finansman', 'Borç Durumu']
+      );
+      
+      engine.addPage();
+      
+      setProgress({ current: 2, total: 2, stage: 'PDF oluşturuluyor...' });
+      
+      // renderFinancingSummary fonksiyonunu kullan
+      const doc = engine.getDoc();
+      const { renderFinancingSummary } = await import('@/lib/pdf/sections/common');
+      
+      const formatFn = (n: number) => {
+        const curr = options?.currency || 'TRY';
+        return new Intl.NumberFormat('tr-TR', {
+          style: 'currency',
+          currency: curr,
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }).format(n);
+      };
+      
+      renderFinancingSummary(doc, data, formatFn);
+      
+      engine.save(`Finansman_Ozeti_${year}_${options?.currency || 'TRY'}.pdf`);
+    } finally {
+      setIsGenerating(false);
+      setProgress({ current: 0, total: 0, stage: '' });
+    }
+  }, []);
+
+  // ============================================
+  // SENARYO KARŞILAŞTIRMA PDF
+  // ============================================
+
+  const generateScenarioComparisonPdf = useCallback(async (
+    data: ScenarioComparisonData,
+    options?: {
+      currency?: 'TRY' | 'USD';
+      companyName?: string;
+    }
+  ) => {
+    setIsGenerating(true);
+    setProgress({ current: 1, total: 3, stage: 'Karşılaştırma hazırlanıyor...' });
+    
+    try {
+      const jsPDF = (await import('jspdf')).default;
+      const autoTable = (await import('jspdf-autotable')).default;
+      
+      const doc = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+      });
+      
+      const formatCurrency = (n: number) => {
+        return new Intl.NumberFormat('en-US', {
+          style: 'currency',
+          currency: 'USD',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }).format(n);
+      };
+      
+      // Başlık
+      doc.setFontSize(16);
+      doc.setFont('helvetica', 'bold');
+      doc.text('SENARYO KARSILASTIRMA', 148, 15, { align: 'center' });
+      doc.setFontSize(10);
+      doc.setFont('helvetica', 'normal');
+      doc.text(`${data.scenarioA.name} vs ${data.scenarioB.name}`, 148, 22, { align: 'center' });
+      
+      setProgress({ current: 2, total: 3, stage: 'Metrikler ekleniyor...' });
+      
+      // Karşılaştırma tablosu
+      const tableData = data.metrics.map(m => {
+        const formatVal = (v: number) => {
+          if (m.format === 'currency') return formatCurrency(v);
+          if (m.format === 'percent') return `%${v.toFixed(1)}`;
+          return v.toLocaleString('tr-TR');
+        };
+        
+        const diff = m.scenarioB - m.scenarioA;
+        const diffStr = m.format === 'currency' 
+          ? formatCurrency(diff)
+          : m.format === 'percent' 
+            ? `${diff >= 0 ? '+' : ''}${diff.toFixed(1)}pp`
+            : `${diff >= 0 ? '+' : ''}${diff.toLocaleString('tr-TR')}`;
+        
+        return [m.label, formatVal(m.scenarioA), formatVal(m.scenarioB), diffStr];
+      });
+      
+      autoTable(doc, {
+        startY: 30,
+        head: [['Metrik', data.scenarioA.name, data.scenarioB.name, 'Fark']],
+        body: tableData,
+        theme: 'grid',
+        headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255] },
+        margin: { left: 15, right: 15 },
+        columnStyles: {
+          0: { cellWidth: 60 },
+          1: { cellWidth: 55, halign: 'right' },
+          2: { cellWidth: 55, halign: 'right' },
+          3: { cellWidth: 45, halign: 'right' },
+        },
+      });
+      
+      // Kazanan özeti
+      if (data.winner && data.winner.winner !== 'TIE') {
+        const yPos = (doc as any).lastAutoTable.finalY + 15;
+        doc.setFontSize(12);
+        doc.setFont('helvetica', 'bold');
+        doc.setTextColor(34, 197, 94);
+        doc.text(`Onerilen: ${data.winner.winnerName} (${data.winner.scoreA > data.winner.scoreB ? data.winner.scoreA : data.winner.scoreB}/${data.winner.totalMetrics} metrik)`, 15, yPos);
+        doc.setTextColor(0, 0, 0);
+      }
+      
+      // Özet tablosu
+      const summaryY = (doc as any).lastAutoTable.finalY + 30;
+      doc.setFontSize(11);
+      doc.setFont('helvetica', 'bold');
+      doc.text('Senaryo Ozetleri', 15, summaryY);
+      
+      const summaryData = [
+        ['Toplam Gelir', formatCurrency(data.scenarioA.summary.totalRevenue), formatCurrency(data.scenarioB.summary.totalRevenue)],
+        ['Toplam Gider', formatCurrency(data.scenarioA.summary.totalExpense), formatCurrency(data.scenarioB.summary.totalExpense)],
+        ['Net Kar', formatCurrency(data.scenarioA.summary.netProfit), formatCurrency(data.scenarioB.summary.netProfit)],
+        ['Kar Marji', `%${data.scenarioA.summary.profitMargin.toFixed(1)}`, `%${data.scenarioB.summary.profitMargin.toFixed(1)}`],
+        ['Sermaye Ihtiyaci', formatCurrency(data.scenarioA.summary.capitalNeed), formatCurrency(data.scenarioB.summary.capitalNeed)],
+      ];
+      
+      autoTable(doc, {
+        startY: summaryY + 5,
+        head: [['', data.scenarioA.name, data.scenarioB.name]],
+        body: summaryData,
+        theme: 'striped',
+        headStyles: { fillColor: [100, 100, 100], textColor: [255, 255, 255] },
+        margin: { left: 15, right: 15 },
+        columnStyles: {
+          0: { cellWidth: 50, fontStyle: 'bold' },
+          1: { cellWidth: 50, halign: 'right' },
+          2: { cellWidth: 50, halign: 'right' },
+        },
+      });
+      
+      setProgress({ current: 3, total: 3, stage: 'PDF kaydediliyor...' });
+      
+      doc.save(`Senaryo_Karsilastirma_${data.scenarioA.name}_vs_${data.scenarioB.name}.pdf`);
+    } finally {
+      setIsGenerating(false);
+      setProgress({ current: 0, total: 0, stage: '' });
+    }
+  }, []);
+
   return {
     // Tablo PDF'leri
     generateBalanceSheetPdf,
@@ -452,6 +692,9 @@ export function usePdfEngine(): UsePdfEngineReturn {
     generateBalanceChartPdf,
     generateDashboardChartPdf,
     generateDistributionChartPdf,
+    // Finansman ve Karşılaştırma PDF'leri
+    generateFinancingSummaryPdf,
+    generateScenarioComparisonPdf,
     // Durum
     isGenerating,
     progress,
