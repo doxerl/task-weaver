@@ -894,13 +894,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
     try {
       const builder = createPortraitBuilder({ margin: 10 });
       
-      builder
-        .addCover(
-          `Detaylı Gelir Tablosu - ${year}`,
-          'Tekdüzen Hesap Planına Uygun',
-          new Date().toLocaleDateString('tr-TR')
-        )
-        .addDetailedIncomeStatement(data, formatAmount);
+      builder.addDetailedIncomeStatement(data, formatAmount);
       
       setProgress({ current: 2, total: 2, stage: 'PDF oluşturuluyor...' });
       

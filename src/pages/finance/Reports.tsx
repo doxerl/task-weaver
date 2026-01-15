@@ -147,12 +147,6 @@ export default function Reports() {
     try {
       const builder = createPdfBuilder({ orientation: 'portrait', margin: 10 });
       
-      builder.addCover(
-        `Finansman Özeti - ${year}`,
-        'Ortak Cari, Kredi ve Yatırım Takibi',
-        new Date().toLocaleDateString('tr-TR')
-      );
-      
       // Ortak Cari Hesabı
       builder.addSpacer(10);
       builder.addTable({
