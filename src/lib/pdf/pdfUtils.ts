@@ -6,7 +6,6 @@ import jsPDF from 'jspdf';
 import { PDF_COLORS } from './pdfTypes';
 
 export { PDF_COLORS };
-import { PDF_COLORS } from './pdfTypes';
 
 // ============================================
 // TÜRKÇE KARAKTER NORMALİZASYONU

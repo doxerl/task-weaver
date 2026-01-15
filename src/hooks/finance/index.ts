@@ -27,3 +27,4 @@ export { useFinancingSummaryPdf } from './useFinancingSummaryPdf';
 export { useDetailedIncomeStatementPdf } from './useDetailedIncomeStatementPdf';
 export { useFullReportPdf } from './useFullReportPdf';
 export { useSimulationPdf } from './useSimulationPdf';
+export { usePdfEngine } from './usePdfEngine';
