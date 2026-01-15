@@ -14,11 +14,39 @@ export interface ScreenshotPdfOptions {
   cleanupBeforeCapture?: boolean; // Tooltip, hover vb. temizle
 }
 
+interface CapturedStyles {
+  color: string;
+  backgroundColor: string;
+  fontFamily: string;
+  fontSize: string;
+}
+
 /**
- * Clone edilen element üzerinde temel temizlik yapar
- * SVG manipülasyonu YAPILMAZ - html2canvas'a bırakılır
+ * Orijinal elementten stilleri toplar (CSS değişkenleri çözümlenmiş halde)
  */
-function cleanupClonedElement(clonedElement: HTMLElement): void {
+function collectStylesFromOriginal(element: HTMLElement): Map<string, CapturedStyles> {
+  const styleMap = new Map<string, CapturedStyles>();
+  
+  // Tüm metin içeren elementlerin stillerini kaydet
+  element.querySelectorAll('div, span, p, td, th, h1, h2, h3, h4, h5, h6, li, label').forEach((el, index) => {
+    const htmlEl = el as HTMLElement;
+    const computed = window.getComputedStyle(htmlEl);
+    const key = `${el.tagName}-${index}`;
+    styleMap.set(key, {
+      color: computed.color,
+      backgroundColor: computed.backgroundColor,
+      fontFamily: computed.fontFamily,
+      fontSize: computed.fontSize,
+    });
+  });
+  
+  return styleMap;
+}
+
+/**
+ * Clone edilen element üzerinde temizlik ve stil uygulama yapar
+ */
+function processClonedElement(clonedElement: HTMLElement, styleMap: Map<string, CapturedStyles>): void {
   // 1. Tooltip ve hover elementlerini kaldır
   clonedElement.querySelectorAll(
     '[role="tooltip"], .recharts-tooltip-wrapper, .recharts-active-shape, [data-radix-popper-content-wrapper]'
@@ -36,21 +64,18 @@ function cleanupClonedElement(clonedElement: HTMLElement): void {
     }
   });
 
-  // 3. Legend metinlerini düzelt (HTML elementi)
-  clonedElement.querySelectorAll('.recharts-legend-item-text').forEach(el => {
-    const htmlEl = el as HTMLElement;
-    const computed = window.getComputedStyle(htmlEl);
-    htmlEl.style.color = computed.color;
-    htmlEl.style.fontFamily = computed.fontFamily;
-    htmlEl.style.fontSize = computed.fontSize;
-  });
-
-  // 4. CSS değişkenlerini çözümle (sadece HTML elementleri)
-  clonedElement.querySelectorAll('div, span, p, td, th').forEach(el => {
-    const htmlEl = el as HTMLElement;
-    const computed = window.getComputedStyle(htmlEl);
-    htmlEl.style.backgroundColor = computed.backgroundColor;
-    htmlEl.style.color = computed.color;
+  // 3. Önceden toplanan stilleri clone'a uygula
+  clonedElement.querySelectorAll('div, span, p, td, th, h1, h2, h3, h4, h5, h6, li, label').forEach((el, index) => {
+    const key = `${el.tagName}-${index}`;
+    const styles = styleMap.get(key);
+    if (styles) {
+      const htmlEl = el as HTMLElement;
+      // Stilleri inline olarak uygula
+      htmlEl.style.color = styles.color;
+      htmlEl.style.backgroundColor = styles.backgroundColor;
+      htmlEl.style.fontFamily = styles.fontFamily;
+      htmlEl.style.fontSize = styles.fontSize;
+    }
   });
 }
 
@@ -78,13 +103,19 @@ export async function captureElementToPdf(
     // Render tamamlanmasını bekle
     await new Promise(resolve => setTimeout(resolve, waitTime));
     
+    options.onProgress?.('Stiller toplanıyor...');
+    
+    // ÖNEMLİ: html2canvas'tan ÖNCE orijinal elementteki stilleri topla
+    // Bu adım CSS değişkenlerinin (var(--xxx)) doğru çözülmesini sağlar
+    const styleMap = cleanupBeforeCapture ? collectStylesFromOriginal(element) : new Map();
+    
     options.onProgress?.('Ekran yakalanıyor...');
     
     // html2canvas'ı dinamik olarak import et
     const html2canvasModule = await import('html2canvas');
     const html2canvas = html2canvasModule.default;
     
-    // html2canvas ile yakala - onclone callback ile temizlik yap
+    // html2canvas ile yakala - onclone callback ile temizlik ve stil uygula
     const canvas = await html2canvas(element, {
       scale,
       useCORS: true,
@@ -94,10 +125,10 @@ export async function captureElementToPdf(
       windowWidth: element.scrollWidth,
       windowHeight: element.scrollHeight,
       
-      // Clone üzerinde temizlik
+      // Clone üzerinde işlem yap
       onclone: cleanupBeforeCapture 
         ? (_clonedDoc: Document, clonedElement: HTMLElement) => {
-            cleanupClonedElement(clonedElement);
+            processClonedElement(clonedElement, styleMap);
           }
         : undefined,
     });
