@@ -9,7 +9,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
 import { ArrowLeft, Receipt, TrendingUp, TrendingDown, AlertTriangle, FileDown, Calculator, Building2, CreditCard, Loader2 } from 'lucide-react';
 import { useVatCalculations } from '@/hooks/finance/useVatCalculations';
-import { useVatReportPdf } from '@/hooks/finance/useVatReportPdf';
+import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useCurrency } from '@/contexts/CurrencyContext';
@@ -21,16 +21,16 @@ export default function VatReport() {
   const [year, setYear] = useState(new Date().getFullYear());
   const vat = useVatCalculations(year);
   const { currency, formatAmount, yearlyAverageRate } = useCurrency();
-  const { generatePdf, isGenerating } = useVatReportPdf();
+  const { generateVatReportPdf, isGenerating } = usePdfEngine();
 
   const fmt = (value: number) => formatAmount(value, undefined, year);
 
   const handleExportPdf = async () => {
     try {
-      await generatePdf(vat, year, {
+      await generateVatReportPdf(vat, year, {
         currency,
+        yearlyAverageRate: yearlyAverageRate || undefined,
         formatAmount: fmt,
-        yearlyAverageRate,
       });
       toast.success(`KDV Raporu PDF oluşturuldu (${currency})`);
     } catch {
