@@ -46,8 +46,19 @@ export function ServiceRevenueChart({ data, formatAmount, formatCompactAmount }:
     if (otherItems.length > 0) {
       const otherTotal = otherItems.reduce((sum, d) => sum + d.amount, 0);
       const otherPercentage = otherItems.reduce((sum, d) => sum + d.percentage, 0);
+      
+      // En büyük "diğer" öğesini bul
+      const largestOther = otherItems.reduce((max, item) => 
+        item.amount > max.amount ? item : max, otherItems[0]
+      );
+      
+      // İsmi dinamik oluştur
+      const otherName = otherItems.length === 1 
+        ? largestOther.name 
+        : `${largestOther.name} ve Diğerleri`;
+      
       result.push({
-        name: 'Diğer',
+        name: otherName,
         amount: otherTotal,
         percentage: otherPercentage,
         color: COLORS[COLORS.length - 1]
@@ -92,21 +103,20 @@ export function ServiceRevenueChart({ data, formatAmount, formatCompactAmount }:
         </ResponsiveContainer>
       </div>
 
-      {/* Legend Grid */}
+      {/* Legend - Tek Sütun */}
       <div className="w-full">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+        <div className="flex flex-col gap-2">
           {processedData.map((item, index) => (
             <div 
               key={index} 
-              className="flex items-center justify-between p-2 rounded-lg transition-colors gap-2"
-              style={{ backgroundColor: 'transparent' }}
+              className="flex items-center justify-between p-2 rounded-lg gap-4"
             >
-              <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div className="flex items-center gap-2 min-w-0">
                 <div 
                   className="w-3 h-3 rounded-full flex-shrink-0" 
                   style={{ backgroundColor: item.color }} 
                 />
-                <span className="text-sm font-medium" style={{ color: '#334155' }}>
+                <span className="text-sm font-medium truncate" style={{ color: '#334155' }}>
                   {item.name}
                 </span>
               </div>
