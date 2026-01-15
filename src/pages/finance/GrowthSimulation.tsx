@@ -11,7 +11,7 @@ import { Progress } from '@/components/ui/progress';
 import { ArrowLeft, RotateCcw, TrendingUp, Save, Plus, Loader2, FileText, GitCompare } from 'lucide-react';
 import { useGrowthSimulation } from '@/hooks/finance/useGrowthSimulation';
 import { useScenarios } from '@/hooks/finance/useScenarios';
-import { useSimulationPdf } from '@/hooks/finance/useSimulationPdf';
+import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
 import { useAdvancedCapitalAnalysis } from '@/hooks/finance/useAdvancedCapitalAnalysis';
 import { useROIAnalysis } from '@/hooks/finance/useROIAnalysis';
 import { useFinancialDataHub } from '@/hooks/finance/useFinancialDataHub';
@@ -31,7 +31,7 @@ function GrowthSimulationContent() {
   const simulation = useGrowthSimulation();
   const hub = useFinancialDataHub(simulation.baseYear);
   const scenariosHook = useScenarios();
-  const { generatePdf, isGenerating, progress } = useSimulationPdf();
+  const { generateSimulationPdf, isGenerating, progress } = usePdfEngine();
   const [showComparison, setShowComparison] = useState(false);
   
   // Chart ref (no longer needed for PDF, kept for potential future use)
@@ -131,25 +131,25 @@ function GrowthSimulationContent() {
   };
 
   const handleExportPdf = async () => {
-    const success = await generatePdf(
-      {
-        scenarioName,
-        revenues,
-        expenses,
-        investments,
-        summary,
-        assumedExchangeRate,
-        notes,
-      },
-      {}, // No longer need chart refs - charts are drawn with jsPDF
-      {
-        companyName: 'Şirket',
-      }
-    );
-
-    if (success) {
+    try {
+      await generateSimulationPdf(
+        {
+          scenarioName,
+          baseYear,
+          targetYear,
+          revenues,
+          expenses,
+          investments,
+          summary,
+          assumedExchangeRate,
+          notes,
+        },
+        {
+          companyName: 'Şirket',
+        }
+      );
       toast.success('PDF başarıyla oluşturuldu');
-    } else {
+    } catch {
       toast.error('PDF oluşturulurken hata oluştu');
     }
   };

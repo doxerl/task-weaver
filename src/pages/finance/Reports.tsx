@@ -13,11 +13,7 @@ import { useExpenseAnalysis } from '@/hooks/finance/useExpenseAnalysis';
 import { useIncomeStatement } from '@/hooks/finance/useIncomeStatement';
 import { useDetailedIncomeStatement } from '@/hooks/finance/useDetailedIncomeStatement';
 import { useFixedExpenses } from '@/hooks/finance/useFixedExpenses';
-import { usePdfExport } from '@/hooks/finance/usePdfExport';
-import { useIncomeStatementPdfExport } from '@/hooks/finance/useIncomeStatementPdfExport';
-import { useDetailedIncomeStatementPdf } from '@/hooks/finance/useDetailedIncomeStatementPdf';
-import { useFinancingSummaryPdf } from '@/hooks/finance/useFinancingSummaryPdf';
-import { useFullReportPdf } from '@/hooks/finance/useFullReportPdf';
+import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { MonthlyTrendChart } from '@/components/finance/charts/MonthlyTrendChart';
 import { ServiceRevenueChart } from '@/components/finance/charts/ServiceRevenueChart';
@@ -52,11 +48,17 @@ export default function Reports() {
   const detailedStatement = useDetailedIncomeStatement(year);
   const { definitions: fixedExpensesList } = useFixedExpenses();
   const { balanceSheet } = useBalanceSheet(year);
-  const { generatePdf, isGenerating } = usePdfExport();
-  const { generateIncomeStatementPdf, isGenerating: isIncomeStatementPdfGenerating } = useIncomeStatementPdfExport();
-  const { generatePdf: generateDetailedPdf, isGenerating: isDetailedPdfGenerating } = useDetailedIncomeStatementPdf();
-  const { generatePdf: generateFinancingPdf, isGenerating: isFinancingPdfGenerating } = useFinancingSummaryPdf();
-  const { generateFullReport, isGenerating: isFullReportGenerating, progress: fullReportProgress } = useFullReportPdf();
+  
+  // Merkezi PDF hook - tüm PDF işlemleri için
+  const { 
+    generateBalanceSheetPdf,
+    generateIncomeStatementPdf,
+    generateVatReportPdf,
+    generateFullReportPdf,
+    isGenerating: isPdfEngineGenerating,
+    progress: pdfProgress,
+  } = usePdfEngine();
+  
   const { currency, formatAmount, getAvailableMonthsCount, yearlyAverageRate } = useCurrency();
   
   const availableMonths = getAvailableMonthsCount(year);
@@ -81,114 +83,31 @@ export default function Reports() {
   }, [hub.byMonth]);
 
   const handleFullReportPdf = async () => {
-    const reportData: FullReportData = {
-      year,
-      period,
-      generatedAt: new Date().toISOString(),
-      kpis: {
-        totalIncome: { value: hub.incomeSummary.gross, trend: 'neutral' },
-        totalExpenses: { value: hub.expenseSummary.gross, trend: 'neutral' },
-        netProfit: { value: hub.operatingProfit, trend: hub.operatingProfit >= 0 ? 'up' : 'down' },
-        profitMargin: { value: hub.profitMargin, trend: 'neutral' },
-      },
-      monthlyData,
-      serviceRevenue: incomeAnalysis.serviceRevenue,
-      expenseCategories: expenseAnalysis.expenseCategories,
-      incomeStatement: incomeStatement.statement,
-      partnerAccount: {
-        transactions: [],
-        totalDebit: hub.partnerSummary.withdrawals,
-        totalCredit: hub.partnerSummary.deposits,
-        balance: hub.partnerSummary.balance,
-      },
-      financing: {
-        creditUsed: hub.financingSummary.creditIn,
-        creditPaid: hub.financingSummary.creditOut,
-        leasingPaid: hub.financingSummary.leasingOut,
-        interestPaid: hub.financingSummary.interestPaid,
-        remainingDebt: hub.financingSummary.remainingDebt,
-      },
-    };
-
-    const chartRefs = {
-      trendChart: trendChartRef.current,
-      incomeChart: incomeChartRef.current,
-      expenseChart: expenseChartRef.current,
-    };
-
-    const additionalData = {
-      // Detailed Income Statement for official format
-      detailedIncomeStatement: detailedStatement.data,
-      
-      // Full Balance Sheet with account codes
-      fullBalanceSheet: balanceSheet,
-      
-      // Legacy balance sheet for backward compatibility
-      balanceSheet: {
-        totalAssets: balanceSheet.totalAssets,
-        totalLiabilities: balanceSheet.totalLiabilities,
-        currentAssets: balanceSheet.currentAssets,
-        fixedAssets: balanceSheet.fixedAssets,
-        shortTermLiabilities: balanceSheet.shortTermLiabilities,
-        longTermLiabilities: balanceSheet.longTermLiabilities,
-        equity: balanceSheet.equity,
-      },
-      vatSummary: hub.vatSummary,
-    };
-
     try {
-      await generateFullReport(reportData, chartRefs, additionalData, {
-        currency,
-        formatAmount: (n) => formatAmount(n, undefined, year),
-        yearlyAverageRate,
-      });
+      await generateFullReportPdf(
+        {
+          balanceSheet,
+          incomeStatement: { 
+            data: incomeStatement.statement, 
+            lines: incomeStatement.lines 
+          },
+          // vatReport - usePdfEngine'de VatCalculations tipini bekliyor, vatSummary farklı
+          // Şimdilik vatReport'u dahil etmiyoruz
+        },
+        year,
+        {
+          currency,
+          yearlyAverageRate: yearlyAverageRate || undefined,
+          companyName: 'Şirket',
+        }
+      );
       toast.success(`Kapsamlı rapor PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
     }
   };
 
-  const handleExportPdf = async () => {
-    const reportData: FullReportData = {
-      year,
-      period,
-      generatedAt: new Date().toISOString(),
-      kpis: {
-        totalIncome: { value: hub.incomeSummary.gross, trend: 'neutral' },
-        totalExpenses: { value: hub.expenseSummary.gross, trend: 'neutral' },
-        netProfit: { value: hub.operatingProfit, trend: hub.operatingProfit >= 0 ? 'up' : 'down' },
-        profitMargin: { value: hub.profitMargin, trend: 'neutral' },
-      },
-      monthlyData,
-      serviceRevenue: incomeAnalysis.serviceRevenue,
-      expenseCategories: expenseAnalysis.expenseCategories,
-      incomeStatement: incomeStatement.statement,
-      partnerAccount: {
-        transactions: [],
-        totalDebit: hub.partnerSummary.withdrawals,
-        totalCredit: hub.partnerSummary.deposits,
-        balance: hub.partnerSummary.balance,
-      },
-      financing: {
-        creditUsed: hub.financingSummary.creditIn,
-        creditPaid: hub.financingSummary.creditOut,
-        leasingPaid: hub.financingSummary.leasingOut,
-        interestPaid: hub.financingSummary.interestPaid,
-        remainingDebt: hub.financingSummary.remainingDebt,
-      },
-    };
-
-    try {
-      await generatePdf(reportData, {
-        currency,
-        formatAmount: (n) => formatAmount(n, undefined, year),
-        yearlyAverageRate,
-      });
-      toast.success(`PDF başarıyla oluşturuldu (${currency})`);
-    } catch {
-      toast.error('PDF oluşturulamadı');
-    }
-  };
+  // handleExportPdf artık kullanılmıyor - handleFullReportPdf kullanılıyor
 
   const handleIncomeStatementPdf = async () => {
     try {
@@ -198,8 +117,8 @@ export default function Reports() {
         year,
         {
           currency,
-          formatAmount: (n) => formatAmount(n, undefined, year),
-          yearlyAverageRate,
+          yearlyAverageRate: yearlyAverageRate || undefined,
+          companyName: 'Şirket',
         }
       );
       toast.success(`Gelir Tablosu PDF oluşturuldu (${currency})`);
@@ -210,15 +129,27 @@ export default function Reports() {
 
   const handleDetailedPdf = async () => {
     try {
-      await generateDetailedPdf(detailedStatement.data, {
-        currency,
-        formatAmount: (n) => formatAmount(n, undefined, year),
-        yearlyAverageRate,
-      });
+      // Detailed income statement - aynı fonksiyon ile detailed: true
+      await generateIncomeStatementPdf(
+        incomeStatement.statement,
+        incomeStatement.lines,
+        year,
+        {
+          currency,
+          detailed: true,
+          yearlyAverageRate: yearlyAverageRate || undefined,
+          companyName: 'Şirket',
+        }
+      );
       toast.success(`Ayrıntılı Gelir Tablosu PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
     }
+  };
+
+  // Financing PDF - şimdilik disabled çünkü usePdfEngine'e entegre edilmedi
+  const handleFinancingPdf = async () => {
+    toast.info('Finansman raporu yakında eklenecek');
   };
 
   const handleDashboardPdf = async () => {
@@ -287,38 +218,7 @@ export default function Reports() {
     }
   };
 
-  const handleFinancingPdf = async () => {
-    try {
-      await generateFinancingPdf({
-        partnerSummary: {
-          deposits: hub.partnerSummary.deposits,
-          withdrawals: hub.partnerSummary.withdrawals,
-          balance: hub.partnerSummary.balance,
-        },
-        financingSummary: {
-          creditIn: hub.financingSummary.creditIn,
-          creditOut: hub.financingSummary.creditOut,
-          leasingOut: hub.financingSummary.leasingOut,
-          interestPaid: hub.financingSummary.interestPaid,
-          remainingDebt: hub.financingSummary.remainingDebt,
-        },
-        investmentSummary: {
-          vehicles: hub.investmentSummary.vehicles,
-          equipment: hub.investmentSummary.equipment,
-          fixtures: hub.investmentSummary.other,
-          totalInvestment: hub.investmentSummary.total,
-        },
-        fixedExpenses: fixedExpensesList || [],
-      }, year, {
-        currency,
-        formatAmount: (n) => formatAmount(n, undefined, year),
-        yearlyAverageRate,
-      });
-      toast.success(`Finansman Raporu PDF oluşturuldu (${currency})`);
-    } catch {
-      toast.error('PDF oluşturulamadı');
-    }
-  };
+  // Financing PDF artık usePdfEngine'e taşındığında burası güncellenecek
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -342,11 +242,11 @@ export default function Reports() {
               <span className="hidden sm:inline">2026 Simülasyon</span>
             </Button>
           </Link>
-          <Button onClick={handleFullReportPdf} disabled={isFullReportGenerating} size="sm" className="gap-1">
-            {isFullReportGenerating ? (
+          <Button onClick={handleFullReportPdf} disabled={isPdfEngineGenerating} size="sm" className="gap-1">
+            {isPdfEngineGenerating ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                <span className="text-xs hidden sm:inline">{fullReportProgress.stage} ({fullReportProgress.current}/{fullReportProgress.total})</span>
+                <span className="text-xs hidden sm:inline">{pdfProgress.stage} ({pdfProgress.current}/{pdfProgress.total})</span>
               </>
             ) : (
               <>
@@ -561,12 +461,12 @@ export default function Reports() {
             <div className="flex justify-end">
               <Button 
                 onClick={handleIncomeStatementPdf} 
-                disabled={isIncomeStatementPdfGenerating} 
+                disabled={isPdfEngineGenerating} 
                 size="sm" 
                 variant="outline"
                 className="gap-1"
               >
-                {isIncomeStatementPdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                {isPdfEngineGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
                 PDF
               </Button>
             </div>
@@ -582,12 +482,12 @@ export default function Reports() {
             <div className="flex justify-end">
               <Button 
                 onClick={handleDetailedPdf} 
-                disabled={isDetailedPdfGenerating} 
+                disabled={isPdfEngineGenerating} 
                 size="sm" 
                 variant="outline"
                 className="gap-1"
               >
-                {isDetailedPdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                {isPdfEngineGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
                 PDF
               </Button>
             </div>
@@ -602,12 +502,12 @@ export default function Reports() {
             <div className="flex justify-end">
               <Button 
                 onClick={handleFinancingPdf} 
-                disabled={isFinancingPdfGenerating} 
+                disabled={false} 
                 size="sm" 
                 variant="outline"
                 className="gap-1"
               >
-                {isFinancingPdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                <FileDown className="h-4 w-4" />
                 PDF
               </Button>
             </div>

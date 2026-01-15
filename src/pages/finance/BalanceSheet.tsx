@@ -12,7 +12,7 @@ import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { useFinancialSettings } from '@/hooks/finance/useFinancialSettings';
 import { useFixedExpenses } from '@/hooks/finance/useFixedExpenses';
-import { useBalanceSheetPdfExport } from '@/hooks/finance/useBalanceSheetPdfExport';
+import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
 import { toast } from '@/hooks/use-toast';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { DetailedBalanceSheet } from '@/components/finance/DetailedBalanceSheet';
@@ -38,7 +38,7 @@ export default function BalanceSheet() {
   const { settings, upsertSettings } = useFinancialSettings();
   const { summary: fixedExpensesSummary } = useFixedExpenses();
   const { currency, formatAmount, yearlyAverageRate, getAvailableMonthsCount } = useCurrency();
-  const { generateBalanceSheetPdf, isGenerating: isPdfGenerating } = useBalanceSheetPdfExport();
+  const { generateBalanceSheetPdf, isGenerating: isPdfGenerating, progress: pdfEngineProgress } = usePdfEngine();
   
   // Create format function for balance sheet values (uses yearly average)
   const formatValue = (n: number) => formatAmount(n, undefined, year);
@@ -103,16 +103,14 @@ export default function BalanceSheet() {
   };
 
   const handleExportPdf = async () => {
-    setIsGenerating(true);
-    setPdfProgress('');
-    
     const isDetailed = activeTab !== 'summary';
     
     try {
-      await generateBalanceSheetPdf(balanceSheet, year, isDetailed, {
+      await generateBalanceSheetPdf(balanceSheet, year, {
         currency,
-        formatAmount: formatValue,
-        yearlyAverageRate,
+        layout: isDetailed ? 'detailed' : 'single',
+        yearlyAverageRate: yearlyAverageRate || undefined,
+        companyName: 'Şirket',
       });
       
       toast({
@@ -126,9 +124,6 @@ export default function BalanceSheet() {
         description: 'PDF oluşturulurken bir hata oluştu.',
         variant: 'destructive',
       });
-    } finally {
-      setIsGenerating(false);
-      setPdfProgress('');
     }
   };
 
