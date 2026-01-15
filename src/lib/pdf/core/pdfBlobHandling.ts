@@ -40,6 +40,9 @@ export function downloadPdf(
     addTimestamp?: boolean;
   }
 ): void {
+  console.log('[PDF Download] Başlatılıyor...');
+  console.log('[PDF Download] Blob boyutu:', blob.size, 'bytes');
+  
   // Dosya adını oluştur
   let finalFilename = filename;
   
@@ -58,8 +61,11 @@ export function downloadPdf(
     finalFilename += '.pdf';
   }
   
+  console.log('[PDF Download] Dosya adı:', finalFilename);
+  
   // Blob URL oluştur
   const url = URL.createObjectURL(blob);
+  console.log('[PDF Download] Blob URL oluşturuldu');
   
   // Download link oluştur ve tıkla
   const link = document.createElement('a');
@@ -68,12 +74,14 @@ export function downloadPdf(
   link.style.display = 'none';
   
   document.body.appendChild(link);
+  console.log('[PDF Download] Link eklendi, tıklanıyor...');
   link.click();
   
   // Temizlik
   setTimeout(() => {
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+    console.log('[PDF Download] Temizlik tamamlandı');
   }, 100);
 }
 
