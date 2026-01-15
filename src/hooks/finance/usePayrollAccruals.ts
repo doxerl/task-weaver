@@ -1,22 +1,26 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { PayrollAccrual, PayrollAccrualSummary } from '@/types/reports';
 import { useMemo } from 'react';
 
 export function usePayrollAccruals(year: number) {
+  const { user } = useAuthContext();
+  
   const queryResult = useQuery({
-    queryKey: ['payroll-accruals', year],
+    queryKey: ['payroll-accruals', user?.id, year],
     queryFn: async () => {
       const { data, error } = await supabase
         .from('payroll_accruals')
         .select('*')
+        .eq('user_id', user?.id)
         .eq('year', year)
         .order('month', { ascending: true });
 
       if (error) throw error;
       return data || [];
     },
-    enabled: !!year,
+    enabled: !!user?.id && !!year,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 
