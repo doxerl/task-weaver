@@ -681,7 +681,15 @@ export class PdfDocumentBuilder {
     const rows: string[][] = data.lines.map((line) => {
       const indent = '  '.repeat(line.depth || 0);
       const name = `${line.code ? line.code + ' - ' : ''}${indent}${line.name}`;
-      const amount = line.totalAmount !== undefined ? formatAmount(line.totalAmount) : '';
+      
+      // Hem totalAmount hem subAmount kontrol et
+      let amount = '';
+      if (line.totalAmount !== undefined) {
+        amount = formatAmount(line.totalAmount);
+      } else if (line.subAmount !== undefined) {
+        amount = formatAmount(line.subAmount);
+      }
+      
       return [name, amount];
     });
 
