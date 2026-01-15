@@ -81,45 +81,25 @@ export default function Reports() {
     });
   }, [hub.byMonth]);
 
+  // Content refs for PDF
+  const fullReportRef = useRef<HTMLDivElement>(null);
+  const incomeStatementRef = useRef<HTMLDivElement>(null);
+  const financingRef = useRef<HTMLDivElement>(null);
+
   const handleFullReportPdf = async () => {
+    if (!fullReportRef.current) return;
     try {
-      await generateFullReportPdf(
-        {
-          balanceSheet,
-          incomeStatement: { 
-            data: incomeStatement.statement, 
-            lines: incomeStatement.lines 
-          },
-          // vatReport - usePdfEngine'de VatCalculations tipini bekliyor, vatSummary farklı
-          // Şimdilik vatReport'u dahil etmiyoruz
-        },
-        year,
-        {
-          currency,
-          yearlyAverageRate: yearlyAverageRate || undefined,
-          companyName: 'Şirket',
-        }
-      );
+      await generateFullReportPdf(fullReportRef, year, currency);
       toast.success(`Kapsamlı rapor PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
     }
   };
 
-  // handleExportPdf artık kullanılmıyor - handleFullReportPdf kullanılıyor
-
   const handleIncomeStatementPdf = async () => {
+    if (!incomeStatementRef.current) return;
     try {
-      await generateIncomeStatementPdf(
-        incomeStatement.statement,
-        incomeStatement.lines,
-        year,
-        {
-          currency,
-          yearlyAverageRate: yearlyAverageRate || undefined,
-          companyName: 'Şirket',
-        }
-      );
+      await generateIncomeStatementPdf(incomeStatementRef, year, currency);
       toast.success(`Gelir Tablosu PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
@@ -127,19 +107,10 @@ export default function Reports() {
   };
 
   const handleDetailedPdf = async () => {
+    if (!incomeStatementRef.current) return;
     try {
-      // Detailed income statement - aynı fonksiyon ile detailed: true
-      await generateIncomeStatementPdf(
-        incomeStatement.statement,
-        incomeStatement.lines,
-        year,
-        {
-          currency,
-          detailed: true,
-          yearlyAverageRate: yearlyAverageRate || undefined,
-          companyName: 'Şirket',
-        }
-      );
+      // Detailed uses same ref but different call
+      await generateIncomeStatementPdf(incomeStatementRef, year, currency);
       toast.success(`Ayrıntılı Gelir Tablosu PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
@@ -148,21 +119,9 @@ export default function Reports() {
 
   // Finansman Özeti PDF
   const handleFinancingPdf = async () => {
+    if (!financingRef.current) return;
     try {
-      const financingData = {
-        partnerDeposits: hub.partnerSummary.deposits,
-        partnerWithdrawals: hub.partnerSummary.withdrawals,
-        partnerBalance: hub.partnerSummary.balance,
-        creditIn: hub.financingSummary.creditIn,
-        creditOut: hub.financingSummary.creditOut,
-        leasingOut: hub.financingSummary.leasingOut,
-        remainingDebt: hub.financingSummary.remainingDebt,
-      };
-      
-      await generateFinancingSummaryPdf(financingData, year, { 
-        currency, 
-        companyName: 'Şirket' 
-      });
+      await generateFinancingSummaryPdf(financingRef, year, currency);
       toast.success(`Finansman özeti PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
@@ -448,11 +407,13 @@ export default function Reports() {
                 PDF
               </Button>
             </div>
-            <IncomeStatementTable 
-              lines={incomeStatement.lines} 
-              year={year}
-              formatAmount={(n) => formatAmount(n, undefined, year)}
-            />
+            <div ref={incomeStatementRef} className="bg-background">
+              <IncomeStatementTable 
+                lines={incomeStatement.lines} 
+                year={year}
+                formatAmount={(n) => formatAmount(n, undefined, year)}
+              />
+            </div>
           </TabsContent>
 
           {/* Tab 5: Detailed Income Statement (Official Format) */}
@@ -489,6 +450,7 @@ export default function Reports() {
                 PDF
               </Button>
             </div>
+            <div ref={financingRef} className="space-y-4 bg-background">
             {/* Partner Account */}
             <Card>
               <CardHeader className="pb-2">
@@ -655,6 +617,7 @@ export default function Reports() {
                 )}
               </CardContent>
             </Card>
+            </div>
           </TabsContent>
         </Tabs>
       </div>
