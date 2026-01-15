@@ -98,6 +98,7 @@ export default function Reports() {
         year,
         formatAmount: (n: number) => formatAmount(n, undefined, year),
         currency,
+        monthlyChartElement: trendChartRef.current,
       });
       
       if (success) {

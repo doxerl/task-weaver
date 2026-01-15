@@ -456,9 +456,9 @@ export class PdfDocumentBuilder {
         this.currentY = margin;
       }
 
-      // Görüntüyü ekle
-      const imgData = canvas.toDataURL('image/png', 1.0);
-      this.pdf.addImage(imgData, 'PNG', margin, this.currentY, imgWidth, imgHeight);
+      // Görüntüyü JPEG olarak sıkıştır (daha küçük dosya boyutu)
+      const imgData = canvas.toDataURL('image/jpeg', 0.85);
+      this.pdf.addImage(imgData, 'JPEG', margin, this.currentY, imgWidth, imgHeight);
       this.currentY += imgHeight + 10;
     } catch (error) {
       console.error('[PdfBuilder] Chart render error:', error);

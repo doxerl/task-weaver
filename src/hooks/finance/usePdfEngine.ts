@@ -52,6 +52,7 @@ export interface FullReportPdfParams {
   year: number;
   formatAmount: (value: number) => string;
   currency: 'TRY' | 'USD';
+  monthlyChartElement?: HTMLElement | null;
 }
 
 // ============================================
@@ -795,9 +796,23 @@ export function usePdfEngine(): UsePdfEngineReturn {
         });
       }
       
+      // 6. Aylık Gelir vs Gider Grafiği (varsa)
+      if (params.monthlyChartElement) {
+        builder.addPageBreak();
+        setProgress({ current: 3, total: 7, stage: 'Aylık trend grafiği...' });
+        builder.addChart({
+          title: `Aylık Gelir vs Gider - ${year}`,
+          element: params.monthlyChartElement,
+          options: { 
+            fitToPage: true, 
+            maxHeight: 120 
+          }
+        });
+      }
+      
       // Sayfa sonu - Gelir Tablosu için
       builder.addPageBreak();
-      setProgress({ current: 3, total: 6, stage: 'Gelir tablosu hazırlanıyor...' });
+      setProgress({ current: 4, total: 7, stage: 'Gelir tablosu hazırlanıyor...' });
       
       // 6. Gelir Tablosu (otomatik sayfa yönetimi)
       if (incomeStatement) {
