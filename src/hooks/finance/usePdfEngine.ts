@@ -13,10 +13,12 @@ import {
   prepareHTMLForPdf,
   enhanceContrastForPdf,
   prepareImagesForPdf,
+  cleanupOriginalElement,
 } from '@/lib/pdf/core/htmlPreparation';
 import {
   waitForChartsToRender,
-  fixResponsiveContainers,
+  captureChartDimensions,
+  applyChartDimensions,
   optimizeSVGsForPdf,
 } from '@/lib/pdf/core/chartProcessing';
 import {
@@ -149,7 +151,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
     options: PdfGenerateOptions
   ): Promise<boolean> => {
     if (!elementRef.current) {
-      console.error('PDF oluşturma hatası: Element ref boş');
+      console.error('[PDF] Oluşturma hatası: Element ref boş');
       return false;
     }
     
@@ -163,24 +165,35 @@ export function usePdfEngine(): UsePdfEngineReturn {
       onProgress,
     } = options;
     
+    const element = elementRef.current;
+    
     setIsGenerating(true);
     setProgress({ current: 1, total: 5, stage: 'Sayfa hazırlanıyor...' });
     onProgress?.('Sayfa hazırlanıyor...', 20);
     
+    console.log('[PDF] Stage 1: Başlatılıyor...', { filename, orientation });
+    
     try {
-      const element = elementRef.current;
-      
       // 1. Grafiklerin render edilmesini bekle
+      console.log('[PDF] Stage 2: Grafikler bekleniyor...');
       setProgress({ current: 2, total: 5, stage: 'Grafikler yükleniyor...' });
       onProgress?.('Grafikler yükleniyor...', 40);
       await waitForChartsToRender(element, waitTime);
       
-      // 2. Orijinal elementten stilleri topla (CSS değişkenleri çözümlenmiş)
+      // 2. CLONE'DAN ÖNCE grafik boyutlarını yakala (kritik!)
+      console.log('[PDF] Stage 3: Boyutlar ve stiller toplanıyor...');
       setProgress({ current: 3, total: 5, stage: 'Stiller toplanıyor...' });
       onProgress?.('Stiller toplanıyor...', 50);
-      const styleMap = collectStylesFromOriginal(element);
       
-      // 3. html2canvas ile yakala
+      const chartDimensions = captureChartDimensions(element);
+      console.log('[PDF] Yakalanan grafik boyutları:', chartDimensions.size);
+      
+      // 3. Orijinal elementten stilleri topla (CSS değişkenleri çözümlenmiş)
+      const styleMap = collectStylesFromOriginal(element);
+      console.log('[PDF] Toplanan stil sayısı:', styleMap.size);
+      
+      // 4. html2canvas ile yakala
+      console.log('[PDF] Stage 4: Canvas oluşturuluyor...');
       setProgress({ current: 4, total: 5, stage: 'Ekran yakalanıyor...' });
       onProgress?.('Ekran yakalanıyor...', 60);
       
@@ -198,6 +211,8 @@ export function usePdfEngine(): UsePdfEngineReturn {
         
         // Clone üzerinde işlem yap
         onclone: (_clonedDoc: Document, clonedElement: HTMLElement) => {
+          console.log('[PDF] onclone: Clone işleniyor...');
+          
           // Stilleri uygula
           applyCollectedStyles(clonedElement, styleMap);
           
@@ -209,16 +224,32 @@ export function usePdfEngine(): UsePdfEngineReturn {
           prepareImagesForPdf(clonedElement);
           enhanceContrastForPdf(clonedElement);
           
-          // Grafikleri optimize et
-          fixResponsiveContainers(clonedElement);
+          // KAYITLI boyutları clone'a uygula (kritik!)
+          applyChartDimensions(clonedElement, chartDimensions);
+          
+          // SVG'leri optimize et
           optimizeSVGsForPdf(clonedElement);
           
           // Gereksiz elementleri temizle
           fullCleanupForPdf(clonedElement);
+          
+          console.log('[PDF] onclone: Clone işleme tamamlandı');
         },
       });
       
-      // 4. PDF oluştur
+      // Canvas kontrolü
+      if (!canvas) {
+        throw new Error('html2canvas içerik yakalayamadı');
+      }
+      
+      if (canvas.width === 0 || canvas.height === 0) {
+        throw new Error('Canvas boş - element görünür olmayabilir');
+      }
+      
+      console.log('[PDF] Canvas boyutları:', canvas.width, 'x', canvas.height);
+      
+      // 5. PDF oluştur
+      console.log('[PDF] Stage 5: PDF oluşturuluyor...');
       setProgress({ current: 5, total: 5, stage: 'PDF oluşturuluyor...' });
       onProgress?.('PDF oluşturuluyor...', 80);
       
@@ -254,6 +285,8 @@ export function usePdfEngine(): UsePdfEngineReturn {
         const pageCanvasHeight = (contentAreaHeight * canvas.width) / imgWidth;
         const totalPages = Math.ceil(canvas.height / pageCanvasHeight);
         
+        console.log('[PDF] Çok sayfalı mod:', totalPages, 'sayfa');
+        
         for (let page = 0; page < totalPages; page++) {
           if (page > 0) pdf.addPage();
           
@@ -281,17 +314,30 @@ export function usePdfEngine(): UsePdfEngineReturn {
         }
       }
       
-      // 5. İndir
+      // 6. İndir
       onProgress?.('İndiriliyor...', 100);
       
       const blob = pdf.output('blob');
+      
+      // Blob boyut kontrolü
+      if (blob.size < 100) {
+        throw new Error('Oluşturulan PDF çok küçük - muhtemelen boş');
+      }
+      
+      console.log('[PDF] Blob boyutu:', blob.size, 'bytes');
+      
       downloadPdf(blob, filename);
+      
+      console.log('[PDF] İndirme tetiklendi:', filename);
       
       return true;
     } catch (error) {
-      console.error('PDF oluşturma hatası:', error);
+      console.error('[PDF] Oluşturma hatası:', error);
       return false;
     } finally {
+      // Orijinal elementteki data-pdf-id attribute'larını temizle
+      cleanupOriginalElement(element);
+      
       setIsGenerating(false);
       setProgress({ current: 0, total: 0, stage: '' });
     }
