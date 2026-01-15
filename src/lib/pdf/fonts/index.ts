@@ -29,6 +29,12 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 /**
+ * Minimum font size for valid Turkish character support (in base64 chars)
+ * Roboto Regular with full Unicode should be at least 150KB
+ */
+const MIN_FONT_SIZE = 150000;
+
+/**
  * Fetch a font file and convert to base64
  */
 async function fetchFont(url: string): Promise<string> {
@@ -39,22 +45,42 @@ async function fetchFont(url: string): Promise<string> {
   const arrayBuffer = await response.arrayBuffer();
   const base64 = arrayBufferToBase64(arrayBuffer);
   
-  // Boyut kontrolü - Roboto Regular en az 150KB olmalı
-  if (base64.length < 150000) {
-    console.warn('[PDF] Font file may be incomplete:', url, 'size:', base64.length, 'bytes (expected >150KB)');
+  console.log('[PDF] Font loaded from:', url, 'size:', base64.length, 'bytes');
+  
+  // Boyut kontrolü - font eksikse hata fırlat
+  if (base64.length < MIN_FONT_SIZE) {
+    throw new Error(
+      `Font file incomplete: ${url} (${base64.length} bytes, expected >${MIN_FONT_SIZE}). Turkish characters will not render correctly.`
+    );
   }
   
   return base64;
 }
 
 /**
+ * Clear font cache to force reload
+ */
+export function clearFontCache(): void {
+  fontCache.regular = null;
+  fontCache.bold = null;
+  fontLoadPromise = null;
+  console.log('[PDF] Font cache cleared');
+}
+
+/**
  * Load Roboto fonts (Regular and Bold) as base64 for jsPDF
  * Fonts are loaded from public/fonts/
+ * Throws error if fonts are incomplete (missing Turkish character support)
  */
 export async function loadRobotoFonts(): Promise<FontCache> {
-  // Return cached fonts if available
+  // Return cached fonts if available and valid
   if (fontCache.regular && fontCache.bold) {
-    return fontCache;
+    // Validate cached fonts
+    if (fontCache.regular.length >= MIN_FONT_SIZE) {
+      return fontCache;
+    }
+    // Cache is invalid, clear it
+    clearFontCache();
   }
 
   // Return existing promise if loading
@@ -64,7 +90,7 @@ export async function loadRobotoFonts(): Promise<FontCache> {
 
   fontLoadPromise = (async () => {
     try {
-      console.log('[PDF] Loading Roboto fonts...');
+      console.log('[PDF] Loading Roboto fonts from /fonts/...');
       
       // Load both fonts in parallel
       const [regular, bold] = await Promise.all([
@@ -72,14 +98,23 @@ export async function loadRobotoFonts(): Promise<FontCache> {
         fetchFont('/fonts/Roboto-Bold.ttf'),
       ]);
 
+      // Validate font sizes
+      if (regular.length < MIN_FONT_SIZE) {
+        throw new Error(`Roboto Regular font is incomplete (${regular.length} bytes). Turkish characters will not work.`);
+      }
+
       fontCache.regular = regular;
       fontCache.bold = bold;
 
-      console.log('[PDF] Roboto fonts loaded - Regular:', regular.length, 'bytes, Bold:', bold.length, 'bytes');
+      console.log('[PDF] ✓ Roboto fonts loaded successfully');
+      console.log('[PDF]   Regular:', Math.round(regular.length / 1024), 'KB');
+      console.log('[PDF]   Bold:', Math.round(bold.length / 1024), 'KB');
       
       return fontCache;
     } catch (error) {
-      console.error('[PDF] Failed to load Roboto fonts:', error);
+      // Clear the promise so it can be retried
+      fontLoadPromise = null;
+      console.error('[PDF] ✗ Failed to load Roboto fonts:', error);
       throw error;
     }
   })();
