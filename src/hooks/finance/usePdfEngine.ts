@@ -237,6 +237,16 @@ export interface UsePdfEngineReturn {
     currency: 'TRY' | 'USD'
   ) => Promise<void>;
   
+  generateDashboardPdfSmart: (
+    elements: {
+      trendChart?: HTMLElement | null;
+      revenueChart?: HTMLElement | null;
+      expenseChart?: HTMLElement | null;
+    },
+    year: number,
+    currency: 'TRY' | 'USD'
+  ) => Promise<boolean>;
+  
   generateDistributionChartPdf: (
     elementRef: RefObject<HTMLElement>,
     type: 'income' | 'expense',
@@ -1284,6 +1294,103 @@ export function usePdfEngine(): UsePdfEngineReturn {
   }, []);
 
   /**
+   * Dashboard PDF - Her grafiği ayrı sayfaya koyarak bölünmeyi önle
+   * Grafikler ortadan kesilmez, her biri tam sayfa olarak eklenir
+   */
+  const generateDashboardPdfSmart = useCallback(async (
+    elements: {
+      trendChart?: HTMLElement | null;
+      revenueChart?: HTMLElement | null;
+      expenseChart?: HTMLElement | null;
+    },
+    year: number,
+    currency: 'TRY' | 'USD'
+  ): Promise<boolean> => {
+    setIsGenerating(true);
+    setProgress({ current: 1, total: 4, stage: 'Grafikler hazırlanıyor...' });
+    
+    try {
+      const builder = createPortraitBuilder({ margin: 15 });
+      
+      // html2canvas import
+      const html2canvasModule = await import('html2canvas');
+      const html2canvas = html2canvasModule.default;
+      
+      const pageWidth = 210; // A4 mm
+      const pageHeight = 297;
+      const margin = 15;
+      const contentWidth = pageWidth - margin * 2;
+      
+      let isFirstPage = true;
+      
+      // Helper: Capture and add chart to PDF
+      const addChartToPdf = async (
+        element: HTMLElement | null | undefined,
+        title: string
+      ) => {
+        if (!element) return;
+        
+        // Yeni sayfa ekle (ilk sayfa hariç)
+        if (!isFirstPage) {
+          builder.addPageBreak();
+        }
+        isFirstPage = false;
+        
+        // Başlık ekle
+        builder.addText(title, 'subtitle', 'center');
+        builder.addSpacer(5);
+        
+        // Chart'ı yakala
+        try {
+          const canvas = await html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+          });
+          
+          if (canvas.width === 0 || canvas.height === 0) {
+            console.warn('[PDF] Chart canvas is empty:', title);
+            return;
+          }
+          
+          // PDF'e ekle
+          builder.addChart({
+            element,
+            options: { fitToPage: true, maxHeight: 180 }
+          });
+        } catch (error) {
+          console.error('[PDF] Chart capture error:', title, error);
+        }
+      };
+      
+      // 1. Trend Chart (Aylık Gelir vs Gider)
+      setProgress({ current: 2, total: 4, stage: 'Trend grafiği...' });
+      await addChartToPdf(elements.trendChart, `Aylık Gelir vs Gider - ${year} (${currency})`);
+      
+      // 2. Revenue Chart (Hizmet Bazlı Gelir)
+      setProgress({ current: 3, total: 4, stage: 'Gelir dağılımı...' });
+      await addChartToPdf(elements.revenueChart, `Hizmet Bazlı Gelir - ${year} (${currency})`);
+      
+      // 3. Expense Chart (Gider Kategorileri)
+      setProgress({ current: 4, total: 4, stage: 'Gider dağılımı...' });
+      await addChartToPdf(elements.expenseChart, `Gider Kategorileri - ${year} (${currency})`);
+      
+      // PDF oluştur
+      const filename = `Dashboard_Grafikler_${year}_${currency}.pdf`;
+      const result = await builder.build(filename);
+      
+      return result;
+    } catch (error) {
+      console.error('[PDF] Dashboard smart generation error:', error);
+      return false;
+    } finally {
+      setIsGenerating(false);
+      setProgress({ current: 0, total: 0, stage: '' });
+    }
+  }, []);
+
+  /**
    * Builder'a doğrudan erişim (gelişmiş kullanım)
    */
   const createPdfBuilder = useCallback((config?: Partial<PdfBuilderConfig>) => {
@@ -1310,6 +1417,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
     generateVatReportPdf,
     generateFullReportPdf,
     generateDashboardChartPdf,
+    generateDashboardPdfSmart,
     generateDistributionChartPdf,
     generateFinancingSummaryPdf,
     captureChartToPdf,
