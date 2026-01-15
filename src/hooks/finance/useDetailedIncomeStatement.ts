@@ -12,9 +12,75 @@ export function useDetailedIncomeStatement(year: number) {
 
     // A - BRÜT SATIŞLAR (60x)
     lines.push({ code: 'A', name: 'BRÜT SATIŞLAR', totalAmount: statement.grossSales.total, isHeader: true, isBold: true });
+    
     if (statement.grossSales.yurtici > 0) {
-      lines.push({ code: '1', name: 'Yurtiçi Satışlar', subAmount: statement.grossSales.yurtici, isSubItem: true });
+      // Yurtiçi Satışlar - ana satır (genişletilebilir)
+      lines.push({ 
+        code: '1', 
+        name: 'Yurtiçi Satışlar', 
+        subAmount: statement.grossSales.yurtici, 
+        isSubItem: true,
+        isExpandable: true,
+      });
+      
+      // Alt kategoriler (genişletildiğinde görünür)
+      if (statement.grossSales.sbt > 0) {
+        lines.push({ 
+          code: '1.1', 
+          name: '└ SBT Tracker Geliri', 
+          subAmount: statement.grossSales.sbt, 
+          isSubItem: true, 
+          parentCode: '1',
+          depth: 1,
+        });
+      }
+      if (statement.grossSales.ls > 0) {
+        lines.push({ 
+          code: '1.2', 
+          name: '└ L&S Eğitim Geliri', 
+          subAmount: statement.grossSales.ls, 
+          isSubItem: true, 
+          parentCode: '1',
+          depth: 1,
+        });
+      }
+      if (statement.grossSales.zdhc > 0) {
+        lines.push({ 
+          code: '1.3', 
+          name: '└ ZDHC/InCheck Geliri', 
+          subAmount: statement.grossSales.zdhc, 
+          isSubItem: true, 
+          parentCode: '1',
+          depth: 1,
+        });
+      }
+      if (statement.grossSales.danis > 0) {
+        lines.push({ 
+          code: '1.4', 
+          name: '└ Danışmanlık Geliri', 
+          subAmount: statement.grossSales.danis, 
+          isSubItem: true, 
+          parentCode: '1',
+          depth: 1,
+        });
+      }
+      
+      // Kategorize edilmemiş yurtiçi satışlar (varsa)
+      const categorizedTotal = (statement.grossSales.sbt || 0) + (statement.grossSales.ls || 0) + 
+                               (statement.grossSales.zdhc || 0) + (statement.grossSales.danis || 0);
+      const uncategorized = statement.grossSales.yurtici - categorizedTotal;
+      if (uncategorized > 0) {
+        lines.push({ 
+          code: '1.99', 
+          name: '└ Diğer Yurtiçi Satışlar', 
+          subAmount: uncategorized, 
+          isSubItem: true, 
+          parentCode: '1',
+          depth: 1,
+        });
+      }
     }
+    
     if (statement.grossSales.yurtdisi > 0) {
       lines.push({ code: '2', name: 'Yurtdışı Satışlar', subAmount: statement.grossSales.yurtdisi, isSubItem: true });
     }
