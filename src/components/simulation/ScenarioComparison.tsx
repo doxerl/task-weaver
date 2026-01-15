@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef, RefObject } from 'react';
+import React, { useState, useMemo, useRef } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -557,8 +557,9 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
   const [scenarioAId, setScenarioAId] = useState<string | null>(currentScenarioId);
   const [scenarioBId, setScenarioBId] = useState<string | null>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const pdfContainerRef = useRef<HTMLDivElement>(null);
   
-  const { generateScenarioComparisonPdfData, isGenerating } = usePdfEngine();
+  const { generatePdfFromElement, isGenerating } = usePdfEngine();
 
   const scenarioA = useMemo(() => scenarios.find(s => s.id === scenarioAId), [scenarios, scenarioAId]);
   const scenarioB = useMemo(() => scenarios.find(s => s.id === scenarioBId), [scenarios, scenarioBId]);
@@ -602,50 +603,16 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
   const handleExportPdf = async () => {
-    if (!scenarioA || !scenarioB || !summaryA || !summaryB) return;
+    if (!pdfContainerRef.current || !scenarioA || !scenarioB) return;
     
     try {
-      // Data-driven PDF - dikey A4, düzgün sayfa bölmeleri
-      const pdfData = {
-        scenarioAName: scenarioA.name,
-        scenarioBName: scenarioB.name,
-        metrics: metrics.map(m => {
-          const diff = calculateDiff(m.scenarioA, m.scenarioB);
-          return {
-            label: m.label,
-            scenarioA: m.scenarioA,
-            scenarioB: m.scenarioB,
-            format: m.format as 'currency' | 'percent' | 'number',
-            diffPercent: diff.percent
-          };
-        }),
-        winner: winner && winner.winner !== 'TIE' ? {
-          name: winner.winnerName,
-          score: Math.max(winner.scoreA, winner.scoreB),
-          totalMetrics: winner.totalMetrics,
-          advantages: winner.advantages
-        } : null,
-        quarterlyData: quarterlyComparison.map(q => ({
-          quarter: q.quarter,
-          scenarioANet: q.scenarioANet,
-          scenarioBNet: q.scenarioBNet
-        })),
-        insights: insights.map(i => ({
-          title: i.title,
-          description: i.description,
-          type: i.type,
-          impact: i.impact,
-          recommendation: i.recommendation
-        })),
-        recommendations: recommendations.map(r => ({
-          title: r.title,
-          description: r.description,
-          risk: r.risk,
-          suitableFor: r.suitableFor
-        }))
-      };
+      const success = await generatePdfFromElement(pdfContainerRef, {
+        filename: `Senaryo_Karsilastirma_${scenarioA.name.replace(/\s+/g, '_')}_vs_${scenarioB.name.replace(/\s+/g, '_')}.pdf`,
+        orientation: 'portrait',
+        margin: 15,
+        fitToPage: false,
+      });
       
-      const success = await generateScenarioComparisonPdfData(pdfData);
       if (success) {
         toast.success('Senaryo karşılaştırma PDF oluşturuldu');
       } else {
@@ -661,9 +628,172 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
     scenarioANet: { label: `${scenarioA?.name || 'A'} Net`, color: '#2563eb' },
     scenarioBNet: { label: `${scenarioB?.name || 'B'} Net`, color: '#16a34a' },
   };
+  // Risk renk sınıfları
+  const riskColors: Record<string, string> = {
+    low: 'border-l-4 border-l-emerald-500 bg-emerald-50',
+    medium: 'border-l-4 border-l-amber-500 bg-amber-50',
+    high: 'border-l-4 border-l-red-500 bg-red-50',
+  };
+  
+  // Impact renk sınıfları
+  const impactColors: Record<string, string> = {
+    positive: 'border-l-4 border-l-emerald-500 bg-emerald-50',
+    negative: 'border-l-4 border-l-red-500 bg-red-50',
+    warning: 'border-l-4 border-l-amber-500 bg-amber-50',
+    neutral: 'border-l-4 border-l-slate-400 bg-slate-50',
+  };
+
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="max-w-3xl max-h-[90vh]">
+    <>
+      {/* PDF için Gizli Container - Akıllı sayfa bölmeli dikey A4 */}
+      {canCompare && (
+        <div 
+          ref={pdfContainerRef} 
+          className="hidden pdf-hidden-container"
+          style={{ width: '210mm', minHeight: 'fit-content' }}
+        >
+          <div className="pdf-content p-8 space-y-6 bg-white text-black" style={{ fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+            {/* Başlık - Kapak sayfası yok, doğrudan başlık */}
+            <div className="text-center border-b-2 border-slate-200 pb-4 mb-6">
+              <h1 className="text-2xl font-bold text-slate-900 mb-2">Senaryo Karşılaştırma Raporu</h1>
+              <p className="text-lg text-slate-600">{scenarioA?.name} vs {scenarioB?.name}</p>
+              <p className="text-sm text-slate-400 mt-1">{new Date().toLocaleDateString('tr-TR', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+            </div>
+
+            {/* Kazanan Kartı */}
+            {winner && winner.winner !== 'TIE' && (
+              <div className="avoid-break p-4 rounded-lg bg-amber-50 border border-amber-200 mb-6">
+                <div className="flex items-center gap-3">
+                  <div className="text-2xl">🏆</div>
+                  <div>
+                    <h3 className="font-bold text-lg text-amber-900">Önerilen: {winner.winnerName}</h3>
+                    <p className="text-sm text-amber-700">Skor: {Math.max(winner.scoreA, winner.scoreB)}/{winner.totalMetrics} metrik</p>
+                    <div className="flex flex-wrap gap-2 mt-2">
+                      {winner.advantages.map((adv, i) => (
+                        <span key={i} className="text-xs px-2 py-1 rounded bg-emerald-100 text-emerald-800">
+                          ✓ {adv}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Metrik Karşılaştırma Tablosu */}
+            <div className="pdf-section avoid-break">
+              <h2 className="text-lg font-bold text-slate-800 mb-3 border-b pb-2">Metrik Karşılaştırması</h2>
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-blue-600 text-white">
+                    <th className="text-left p-2 font-semibold">Metrik</th>
+                    <th className="text-right p-2 font-semibold">{scenarioA?.name}</th>
+                    <th className="text-right p-2 font-semibold">{scenarioB?.name}</th>
+                    <th className="text-right p-2 font-semibold">Fark</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {metrics.map((metric, idx) => {
+                    const diff = calculateDiff(metric.scenarioA, metric.scenarioB);
+                    const isPositive = metric.higherIsBetter ? diff.value > 0 : diff.value < 0;
+                    return (
+                      <tr key={metric.label} className={idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
+                        <td className="p-2 font-medium text-slate-700">{metric.label}</td>
+                        <td className="p-2 text-right font-mono text-slate-600">{formatValue(metric.scenarioA, metric.format)}</td>
+                        <td className="p-2 text-right font-mono text-slate-600">{formatValue(metric.scenarioB, metric.format)}</td>
+                        <td className={`p-2 text-right font-mono ${isPositive ? 'text-emerald-600' : diff.value !== 0 ? 'text-red-600' : 'text-slate-400'}`}>
+                          {diff.value === 0 ? '-' : `${diff.percent >= 0 ? '+' : ''}${diff.percent.toFixed(1)}%`}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Sayfa sonu ipucu + Çeyreklik Trend Tablosu */}
+            <div className="page-break-before pdf-section avoid-break">
+              <h2 className="text-lg font-bold text-slate-800 mb-3 border-b pb-2">Çeyreklik Net Kâr Karşılaştırması</h2>
+              <table className="w-full border-collapse text-sm">
+                <thead>
+                  <tr className="bg-indigo-600 text-white">
+                    <th className="text-center p-2 font-semibold">Çeyrek</th>
+                    <th className="text-right p-2 font-semibold">{scenarioA?.name}</th>
+                    <th className="text-right p-2 font-semibold">{scenarioB?.name}</th>
+                    <th className="text-right p-2 font-semibold">Fark</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {quarterlyComparison.map((q, idx) => {
+                    const diff = q.scenarioBNet - q.scenarioANet;
+                    const diffPercent = q.scenarioANet !== 0 ? (diff / Math.abs(q.scenarioANet)) * 100 : 0;
+                    return (
+                      <tr key={q.quarter} className={idx % 2 === 0 ? 'bg-slate-50' : 'bg-white'}>
+                        <td className="p-2 text-center font-semibold text-slate-700">{q.quarter}</td>
+                        <td className="p-2 text-right font-mono text-slate-600">{formatCompactUSD(q.scenarioANet)}</td>
+                        <td className="p-2 text-right font-mono text-slate-600">{formatCompactUSD(q.scenarioBNet)}</td>
+                        <td className={`p-2 text-right font-mono ${diffPercent > 0 ? 'text-emerald-600' : diffPercent < 0 ? 'text-red-600' : 'text-slate-400'}`}>
+                          {diffPercent === 0 ? '-' : `${diffPercent >= 0 ? '+' : ''}${diffPercent.toFixed(1)}%`}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Çıkarımlar */}
+            {insights.length > 0 && (
+              <div className="pdf-section">
+                <h2 className="text-lg font-bold text-slate-800 mb-3 border-b pb-2">Analiz Çıkarımları</h2>
+                <div className="space-y-3">
+                  {insights.map((insight, index) => (
+                    <div key={index} className={`avoid-break p-3 rounded ${impactColors[insight.type]}`}>
+                      <div className="flex items-start gap-2">
+                        <span className="text-lg">{insight.type === 'positive' ? '✅' : insight.type === 'warning' ? '⚠️' : insight.type === 'negative' ? '❌' : 'ℹ️'}</span>
+                        <div>
+                          <h4 className="font-semibold text-slate-800">{insight.title}</h4>
+                          <p className="text-sm text-slate-600 mt-1">{insight.description}</p>
+                          {insight.recommendation && (
+                            <p className="text-xs text-slate-500 mt-2 italic">💡 {insight.recommendation}</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Öneriler - Sayfa sonu */}
+            {recommendations.length > 0 && (
+              <div className="page-break-before pdf-section">
+                <h2 className="text-lg font-bold text-slate-800 mb-3 border-b pb-2">Karar Önerileri</h2>
+                <div className="space-y-3">
+                  {recommendations.map((rec, index) => (
+                    <div key={index} className={`avoid-break p-3 rounded ${riskColors[rec.risk]}`}>
+                      <h4 className="font-semibold text-slate-800">{rec.title}</h4>
+                      <p className="text-sm text-slate-600 mt-1">{rec.description}</p>
+                      <p className="text-xs text-slate-500 mt-2">
+                        <span className="font-medium">Risk:</span> {rec.risk === 'low' ? 'Düşük' : rec.risk === 'medium' ? 'Orta' : 'Yüksek'} | 
+                        <span className="font-medium ml-2">Uygun:</span> {rec.suitableFor}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Footer */}
+            <div className="text-center text-xs text-slate-400 mt-8 pt-4 border-t">
+              Bu rapor otomatik olarak oluşturulmuştur.
+            </div>
+          </div>
+        </div>
+      )}
+
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="max-w-3xl max-h-[90vh]">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between w-full">
             <div className="flex items-center gap-2">
@@ -867,5 +997,6 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
         )}
       </DialogContent>
     </Dialog>
+    </>
   );
 };
