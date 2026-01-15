@@ -8,7 +8,7 @@ import autoTable, { UserOptions } from 'jspdf-autotable';
 import type { BalanceSheet } from '@/types/finance';
 import type { IncomeStatementData, DetailedIncomeStatementData } from '@/types/reports';
 import { downloadPdf } from '@/lib/pdf/core/pdfBlobHandling';
-import { addTurkishFontSupport, prepareTurkishTableData } from '@/lib/pdf/fonts';
+import { addRobotoToJsPDF } from '@/lib/pdf/fonts';
 
 // ============================================
 // TİP TANIMLARI
@@ -120,6 +120,7 @@ export class PdfDocumentBuilder {
   private sections: PdfSection[] = [];
   private config: PdfBuilderConfig;
   private currentY: number;
+  private fontLoaded: boolean = false;
 
   constructor(config: Partial<PdfBuilderConfig> = {}) {
     this.config = { ...DEFAULT_CONFIG, ...config };
@@ -129,10 +130,16 @@ export class PdfDocumentBuilder {
       format: 'a4',
     });
     
-    // Türkçe font desteği ekle
-    addTurkishFontSupport(this.pdf);
-    
     this.currentY = this.config.margin;
+  }
+  
+  /**
+   * Türkçe font desteği yükle - async
+   */
+  private async loadFont(): Promise<void> {
+    if (this.fontLoaded) return;
+    await addRobotoToJsPDF(this.pdf);
+    this.fontLoaded = true;
   }
 
   // ============================================
@@ -270,6 +277,9 @@ export class PdfDocumentBuilder {
     console.log('[PdfBuilder] Building PDF with', this.sections.length, 'sections');
 
     try {
+      // Türkçe font yükle
+      await this.loadFont();
+      
       for (const section of this.sections) {
         await this.renderSection(section);
       }
@@ -351,8 +361,8 @@ export class PdfDocumentBuilder {
       this.currentY += 10;
     }
 
-    // Türkçe karakterleri hazırla
-    const preparedRows = prepareTurkishTableData(rows);
+    // Tablo verilerini string'e çevir
+    const preparedRows = rows.map(row => row.map(cell => String(cell)));
 
     // AutoTable ayarları
     const tableOptions: UserOptions = {

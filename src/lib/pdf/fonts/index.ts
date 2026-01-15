@@ -1,43 +1,84 @@
 // ============================================
-// PDF FONTS - TÜRKÇE KARAKTER DESTEĞİ
+// PDF FONT UTILITIES
+// Türkçe karakter desteği için font yükleme
 // ============================================
 
-// Roboto font için jsPDF VFS ekleme helper
-export function addTurkishFontSupport(pdf: any): void {
-  // jsPDF varsayılan Helvetica fontu Türkçe karakterleri desteklemiyor
-  // Ancak modern jsPDF (2.0+) UTF-8 metin encoding destekliyor
-  // Bu nedenle özel font eklemeye gerek yok, sadece text encoding'i doğru ayarlıyoruz
-  
-  // Not: Tam font embed etmek için ~200KB Base64 TTF dosyası gerekiyor
-  // Performans için text encoding yaklaşımı tercih edildi
-  
-  // jsPDF'in Türkçe karakterleri düzgün render etmesi için
-  // text encoding'i unicode olarak ayarla
+let fontBase64Cache: string | null = null;
+let fontLoadPromise: Promise<string> | null = null;
+
+/**
+ * Load Roboto font as base64 for jsPDF
+ * Font is loaded from public/fonts/Roboto-Regular.ttf
+ */
+export async function loadRobotoFont(): Promise<string> {
+  if (fontBase64Cache) {
+    return fontBase64Cache;
+  }
+
+  if (fontLoadPromise) {
+    return fontLoadPromise;
+  }
+
+  fontLoadPromise = (async () => {
+    try {
+      const response = await fetch('/fonts/Roboto-Regular.ttf');
+      if (!response.ok) {
+        throw new Error(`Font fetch failed: ${response.status}`);
+      }
+      
+      const arrayBuffer = await response.arrayBuffer();
+      const base64 = arrayBufferToBase64(arrayBuffer);
+      fontBase64Cache = base64;
+      console.log('[PDF] Roboto font loaded successfully, size:', base64.length);
+      return base64;
+    } catch (error) {
+      console.error('[PDF] Failed to load Roboto font:', error);
+      throw error;
+    }
+  })();
+
+  return fontLoadPromise;
+}
+
+/**
+ * Convert ArrayBuffer to Base64 string
+ */
+function arrayBufferToBase64(buffer: ArrayBuffer): string {
+  let binary = '';
+  const bytes = new Uint8Array(buffer);
+  const len = bytes.byteLength;
+  for (let i = 0; i < len; i++) {
+    binary += String.fromCharCode(bytes[i]);
+  }
+  return btoa(binary);
+}
+
+/**
+ * Add Roboto font to jsPDF instance
+ */
+export async function addRobotoToJsPDF(pdf: any): Promise<void> {
   try {
-    // Bu ayar text() metodunda Türkçe karakterleri korur
-    pdf.setLanguage?.('tr');
-  } catch {
-    // Eski jsPDF versiyonlarında bu metod olmayabilir
+    const fontBase64 = await loadRobotoFont();
+    
+    // Add font to jsPDF VFS
+    pdf.addFileToVFS('Roboto-Regular.ttf', fontBase64);
+    pdf.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+    pdf.setFont('Roboto', 'normal');
+    
+    console.log('[PDF] Roboto font added to jsPDF');
+  } catch (error) {
+    console.warn('[PDF] Could not add Roboto font, falling back to Helvetica:', error);
+    // Fallback to Helvetica
+    pdf.setFont('helvetica', 'normal');
   }
 }
 
-// Türkçe karakter düzeltme fonksiyonu
-// jsPDF'in doğru render etmediği karakterleri düzeltir
-export function sanitizeTurkishText(text: string): string {
-  if (!text) return '';
-  
-  // Türkçe karakterlerin unicode kodları korunur
-  // jsPDF 2.0+ UTF-8 destekliyor
-  return text
-    .normalize('NFC'); // Unicode normalization
-}
-
-// Tablo hücreleri için Türkçe metin hazırlama
-export function prepareTurkishTableData(rows: (string | number)[][]): string[][] {
-  return rows.map(row => 
-    row.map(cell => {
-      if (typeof cell === 'number') return String(cell);
-      return sanitizeTurkishText(String(cell));
-    })
-  );
+/**
+ * Preload Roboto font for faster PDF generation
+ * Call this early in the app lifecycle
+ */
+export function preloadRobotoFont(): void {
+  loadRobotoFont().catch(() => {
+    // Silently fail - font will be loaded on demand
+  });
 }
