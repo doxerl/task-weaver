@@ -1310,37 +1310,37 @@ export function usePdfEngine(): UsePdfEngineReturn {
     setProgress({ current: 1, total: 4, stage: 'Grafikler hazırlanıyor...' });
     
     try {
-      const builder = createPortraitBuilder({ margin: 15 });
+      // LANDSCAPE - tek sayfa için yatay mod
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+      });
       
       // html2canvas import
       const html2canvasModule = await import('html2canvas');
       const html2canvas = html2canvasModule.default;
       
-      const pageWidth = 210; // A4 mm
-      const pageHeight = 297;
-      const margin = 15;
-      const contentWidth = pageWidth - margin * 2;
+      // Landscape A4 boyutları
+      const pageWidth = 297; // mm
+      const pageHeight = 210;
+      const margin = 10;
+      const contentWidth = pageWidth - margin * 2; // 277mm
+      const contentHeight = pageHeight - margin * 2; // 190mm
       
-      let isFirstPage = true;
+      // Başlık
+      pdf.setFontSize(14);
+      pdf.setFont('helvetica', 'bold');
+      pdf.text(`Finansal Dashboard - ${year} (${currency})`, pageWidth / 2, margin + 5, { align: 'center' });
       
-      // Helper: Capture and add chart to PDF
-      const addChartToPdf = async (
-        element: HTMLElement | null | undefined,
-        title: string
-      ) => {
-        if (!element) return;
+      let currentY = margin + 12;
+      
+      // Helper: Chart'ı yakala ve belirli pozisyona ekle
+      const captureChart = async (
+        element: HTMLElement | null | undefined
+      ): Promise<{ imgData: string; aspectRatio: number } | null> => {
+        if (!element) return null;
         
-        // Yeni sayfa ekle (ilk sayfa hariç)
-        if (!isFirstPage) {
-          builder.addPageBreak();
-        }
-        isFirstPage = false;
-        
-        // Başlık ekle
-        builder.addText(title, 'subtitle', 'center');
-        builder.addSpacer(5);
-        
-        // Chart'ı yakala
         try {
           const canvas = await html2canvas(element, {
             scale: 2,
@@ -1350,37 +1350,74 @@ export function usePdfEngine(): UsePdfEngineReturn {
           });
           
           if (canvas.width === 0 || canvas.height === 0) {
-            console.warn('[PDF] Chart canvas is empty:', title);
-            return;
+            return null;
           }
           
-          // PDF'e ekle
-          builder.addChart({
-            element,
-            options: { fitToPage: true, maxHeight: 180 }
-          });
+          return {
+            imgData: canvas.toDataURL('image/jpeg', 0.9),
+            aspectRatio: canvas.width / canvas.height
+          };
         } catch (error) {
-          console.error('[PDF] Chart capture error:', title, error);
+          console.error('[PDF] Chart capture error:', error);
+          return null;
         }
       };
       
-      // 1. Trend Chart (Aylık Gelir vs Gider)
+      // 1. Trend Chart - tam genişlik, üst kısım (~55mm yükseklik)
       setProgress({ current: 2, total: 4, stage: 'Trend grafiği...' });
-      await addChartToPdf(elements.trendChart, `Aylık Gelir vs Gider - ${year} (${currency})`);
+      const trendData = await captureChart(elements.trendChart);
+      if (trendData) {
+        const maxHeight = 55;
+        let imgWidth = contentWidth;
+        let imgHeight = imgWidth / trendData.aspectRatio;
+        if (imgHeight > maxHeight) {
+          imgHeight = maxHeight;
+          imgWidth = imgHeight * trendData.aspectRatio;
+        }
+        const xPos = margin + (contentWidth - imgWidth) / 2;
+        pdf.addImage(trendData.imgData, 'JPEG', xPos, currentY, imgWidth, imgHeight);
+        currentY += imgHeight + 5;
+      }
       
-      // 2. Revenue Chart (Hizmet Bazlı Gelir)
-      setProgress({ current: 3, total: 4, stage: 'Gelir dağılımı...' });
-      await addChartToPdf(elements.revenueChart, `Hizmet Bazlı Gelir - ${year} (${currency})`);
+      // 2. Revenue Chart (Pie) ve 3. Expense Chart (Bar) - yan yana
+      setProgress({ current: 3, total: 4, stage: 'Gelir ve gider grafikleri...' });
+      const revenueData = await captureChart(elements.revenueChart);
+      const expenseData = await captureChart(elements.expenseChart);
       
-      // 3. Expense Chart (Gider Kategorileri)
-      setProgress({ current: 4, total: 4, stage: 'Gider dağılımı...' });
-      await addChartToPdf(elements.expenseChart, `Gider Kategorileri - ${year} (${currency})`);
+      // Kalan alan hesapla
+      const remainingHeight = pageHeight - currentY - margin - 5;
+      const halfWidth = (contentWidth - 5) / 2; // 5mm boşluk ortada
       
-      // PDF oluştur
-      const filename = `Dashboard_Grafikler_${year}_${currency}.pdf`;
-      const result = await builder.build(filename);
+      // Sol: Revenue (Pie) Chart
+      if (revenueData) {
+        let imgWidth = halfWidth;
+        let imgHeight = imgWidth / revenueData.aspectRatio;
+        if (imgHeight > remainingHeight) {
+          imgHeight = remainingHeight;
+          imgWidth = imgHeight * revenueData.aspectRatio;
+        }
+        pdf.addImage(revenueData.imgData, 'JPEG', margin, currentY, imgWidth, imgHeight);
+      }
       
-      return result;
+      // Sağ: Expense (Bar) Chart
+      if (expenseData) {
+        let imgWidth = halfWidth;
+        let imgHeight = imgWidth / expenseData.aspectRatio;
+        if (imgHeight > remainingHeight) {
+          imgHeight = remainingHeight;
+          imgWidth = imgHeight * expenseData.aspectRatio;
+        }
+        const xPos = margin + halfWidth + 5;
+        pdf.addImage(expenseData.imgData, 'JPEG', xPos, currentY, imgWidth, imgHeight);
+      }
+      
+      setProgress({ current: 4, total: 4, stage: 'PDF oluşturuluyor...' });
+      
+      // PDF kaydet
+      const filename = `Dashboard_${year}_${currency}.pdf`;
+      pdf.save(filename);
+      
+      return true;
     } catch (error) {
       console.error('[PDF] Dashboard smart generation error:', error);
       return false;
