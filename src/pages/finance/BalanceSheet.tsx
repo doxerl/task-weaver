@@ -1,5 +1,6 @@
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useYear } from '@/contexts/YearContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -24,7 +25,7 @@ import { BalanceLiabilityChart } from '@/components/finance/charts/BalanceLiabil
 import { toast as sonnerToast } from 'sonner';
 
 export default function BalanceSheet() {
-  const [year, setYear] = useState(new Date().getFullYear());
+  const { selectedYear: year, setSelectedYear: setYear } = useYear();
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('summary');
   const [isGenerating, setIsGenerating] = useState(false);

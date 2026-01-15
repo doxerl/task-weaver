@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useYear } from '@/contexts/YearContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,7 +46,7 @@ const ICON_OPTIONS = ['💰', '📊', '🔍', '💼', '✅', '🏪', '🚗', '�
 
 export default function ManualEntry() {
   const currentDate = new Date();
-  const [selectedYear, setSelectedYear] = useState(currentDate.getFullYear());
+  const { selectedYear, setSelectedYear } = useYear();
   const { grouped, hierarchical, isLoading: catLoading, createCategory, parentCategories } = useCategories();
   const { addTransaction, addPartnerTransaction, updateTransaction, deleteTransaction, recentTransactions, isLoading } = useManualEntry(selectedYear);
 

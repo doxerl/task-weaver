@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useYear } from '@/contexts/YearContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Progress } from '@/components/ui/progress';
@@ -39,7 +40,7 @@ const PROGRESS_COLORS = {
 };
 
 export default function CostCenterAnalysis() {
-  const [year, setYear] = useState(new Date().getFullYear());
+  const { selectedYear: year, setSelectedYear: setYear } = useYear();
   const analysis = useCostCenterAnalysis(year);
   const hub = useFinancialDataHub(year);
   const { formatAmount } = useCurrency();
