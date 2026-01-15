@@ -15,8 +15,8 @@ export interface ScreenshotPdfOptions {
 }
 
 /**
- * Clone edilen element üzerinde temizlik ve düzeltme yapar
- * SVG metinleri, CSS değişkenleri ve interaktif elementleri düzeltir
+ * Clone edilen element üzerinde temel temizlik yapar
+ * SVG manipülasyonu YAPILMAZ - html2canvas'a bırakılır
  */
 function cleanupClonedElement(clonedElement: HTMLElement): void {
   // 1. Tooltip ve hover elementlerini kaldır
@@ -24,48 +24,7 @@ function cleanupClonedElement(clonedElement: HTMLElement): void {
     '[role="tooltip"], .recharts-tooltip-wrapper, .recharts-active-shape, [data-radix-popper-content-wrapper]'
   ).forEach(el => el.remove());
 
-  // 2. SVG elementlerini düzelt
-  clonedElement.querySelectorAll('svg').forEach(svg => {
-    // Viewbox yoksa ekle
-    if (!svg.getAttribute('viewBox')) {
-      const w = svg.clientWidth || svg.getBoundingClientRect().width || 300;
-      const h = svg.clientHeight || svg.getBoundingClientRect().height || 200;
-      if (w > 0 && h > 0) {
-        svg.setAttribute('viewBox', `0 0 ${w} ${h}`);
-      }
-    }
-    // Aspect ratio'yu koru
-    svg.setAttribute('preserveAspectRatio', 'xMidYMid meet');
-  });
-
-  // 3. SVG metinlerini düzelt - computed stilleri inline yap
-  clonedElement.querySelectorAll('svg text, svg tspan').forEach(textEl => {
-    const el = textEl as SVGTextElement;
-    const computed = window.getComputedStyle(el);
-    
-    // Font stilleri
-    el.style.fontFamily = computed.fontFamily || 'sans-serif';
-    el.style.fontSize = computed.fontSize || '12px';
-    el.style.fontWeight = computed.fontWeight || 'normal';
-    
-    // Renk - CSS değişkenlerini çözümle
-    const fill = computed.fill;
-    if (fill && fill !== 'none') {
-      el.setAttribute('fill', fill);
-    }
-    
-    // Text alignment
-    el.setAttribute('dominant-baseline', 'central');
-  });
-
-  // 4. Pie chart label'larını özel olarak düzelt
-  clonedElement.querySelectorAll('.recharts-pie-label-text, .recharts-pie-label-line').forEach(el => {
-    const textEl = el as SVGTextElement;
-    const computed = window.getComputedStyle(textEl);
-    textEl.setAttribute('fill', computed.fill || computed.color || '#374151');
-  });
-
-  // 5. Responsive container'ları sabit boyutla
+  // 2. Responsive container'ları sabit boyutla
   clonedElement.querySelectorAll('.recharts-responsive-container').forEach(container => {
     const htmlEl = container as HTMLElement;
     const rect = container.getBoundingClientRect();
@@ -77,7 +36,7 @@ function cleanupClonedElement(clonedElement: HTMLElement): void {
     }
   });
 
-  // 6. Legend metinlerini düzelt
+  // 3. Legend metinlerini düzelt (HTML elementi)
   clonedElement.querySelectorAll('.recharts-legend-item-text').forEach(el => {
     const htmlEl = el as HTMLElement;
     const computed = window.getComputedStyle(htmlEl);
@@ -86,27 +45,12 @@ function cleanupClonedElement(clonedElement: HTMLElement): void {
     htmlEl.style.fontSize = computed.fontSize;
   });
 
-  // 7. Tüm elementlerdeki CSS değişkenlerini çözümle
-  clonedElement.querySelectorAll('*').forEach(el => {
+  // 4. CSS değişkenlerini çözümle (sadece HTML elementleri)
+  clonedElement.querySelectorAll('div, span, p, td, th').forEach(el => {
     const htmlEl = el as HTMLElement;
     const computed = window.getComputedStyle(htmlEl);
-    
-    // Arka plan rengi
-    if (htmlEl.style.backgroundColor?.includes('var(') || 
-        computed.backgroundColor?.includes('hsl')) {
-      htmlEl.style.backgroundColor = computed.backgroundColor;
-    }
-    
-    // Metin rengi
-    if (htmlEl.style.color?.includes('var(') || 
-        computed.color?.includes('hsl')) {
-      htmlEl.style.color = computed.color;
-    }
-    
-    // Border rengi
-    if (htmlEl.style.borderColor?.includes('var(')) {
-      htmlEl.style.borderColor = computed.borderColor;
-    }
+    htmlEl.style.backgroundColor = computed.backgroundColor;
+    htmlEl.style.color = computed.color;
   });
 }
 
@@ -149,9 +93,8 @@ export async function captureElementToPdf(
       backgroundColor: '#ffffff',
       windowWidth: element.scrollWidth,
       windowHeight: element.scrollHeight,
-      foreignObjectRendering: true, // SVG foreignObject desteği
       
-      // Clone üzerinde temizlik ve düzeltme
+      // Clone üzerinde temizlik
       onclone: cleanupBeforeCapture 
         ? (_clonedDoc: Document, clonedElement: HTMLElement) => {
             cleanupClonedElement(clonedElement);
