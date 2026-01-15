@@ -1503,6 +1503,7 @@ export type Database = {
           color: string | null
           cost_center: string | null
           created_at: string | null
+          depreciation_rate: number | null
           depth: number | null
           expense_behavior: string | null
           icon: string | null
@@ -1518,8 +1519,10 @@ export type Database = {
           parent_category_id: string | null
           sort_order: number | null
           type: string
+          useful_life_years: number | null
           user_id: string | null
           vendor_patterns: string[] | null
+          vuk_code: string | null
         }
         Insert: {
           account_code?: string | null
@@ -1529,6 +1532,7 @@ export type Database = {
           color?: string | null
           cost_center?: string | null
           created_at?: string | null
+          depreciation_rate?: number | null
           depth?: number | null
           expense_behavior?: string | null
           icon?: string | null
@@ -1544,8 +1548,10 @@ export type Database = {
           parent_category_id?: string | null
           sort_order?: number | null
           type: string
+          useful_life_years?: number | null
           user_id?: string | null
           vendor_patterns?: string[] | null
+          vuk_code?: string | null
         }
         Update: {
           account_code?: string | null
@@ -1555,6 +1561,7 @@ export type Database = {
           color?: string | null
           cost_center?: string | null
           created_at?: string | null
+          depreciation_rate?: number | null
           depth?: number | null
           expense_behavior?: string | null
           icon?: string | null
@@ -1570,8 +1577,10 @@ export type Database = {
           parent_category_id?: string | null
           sort_order?: number | null
           type?: string
+          useful_life_years?: number | null
           user_id?: string | null
           vendor_patterns?: string[] | null
+          vuk_code?: string | null
         }
         Relationships: [
           {

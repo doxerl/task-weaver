@@ -1,6 +1,36 @@
 // Amortisman Hesaplama Modülü
 // Türk Vergi Usul Kanunu'na uygun doğrusal (normal) amortisman hesaplama
 
+// VUK Amortisman Oranları Tablosu
+export const VUK_DEPRECIATION_RATES: Record<string, { 
+  name: string; 
+  years: number; 
+  rate: number; 
+  code: string;
+  accountCode: string;
+}> = {
+  'TELEFON': { name: 'Cep Telefonu', years: 3, rate: 33.33, code: '3.3', accountCode: '255' },
+  'BILGISAYAR': { name: 'Bilgisayar/Laptop', years: 4, rate: 25.00, code: '4.1', accountCode: '255' },
+  'TV': { name: 'Televizyon', years: 5, rate: 20.00, code: '3.1', accountCode: '255' },
+  'DEMIRBAS': { name: 'Genel Demirbaş', years: 5, rate: 20.00, code: '3.1', accountCode: '255' },
+  'EKIPMAN': { name: 'Makine/Ekipman', years: 10, rate: 10.00, code: '5.1', accountCode: '253' },
+  'ARAC': { name: 'Taşıt', years: 5, rate: 20.00, code: '2.1', accountCode: '254' }
+};
+
+/**
+ * Kategori koduna göre VUK faydalı ömrünü döndür
+ */
+export function getUsefulLifeByCategory(categoryCode: string): number {
+  return VUK_DEPRECIATION_RATES[categoryCode]?.years || 5;
+}
+
+/**
+ * Kategori koduna göre VUK amortisman oranını döndür
+ */
+export function getDepreciationRateByCategory(categoryCode: string): number {
+  return VUK_DEPRECIATION_RATES[categoryCode]?.rate || 20.00;
+}
+
 export interface DepreciationInput {
   assetValue: number;
   purchaseDate: string | null;
