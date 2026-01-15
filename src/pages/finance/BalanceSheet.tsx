@@ -634,58 +634,6 @@ export default function BalanceSheet() {
           </Alert>
         )}
 
-        {/* Financial Summary Cards */}
-        <div className="grid grid-cols-2 gap-4">
-          {/* Operating P&L Card */}
-          <Card className="border-green-200 dark:border-green-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-green-600 dark:text-green-400 flex items-center gap-2">
-                📊 Faaliyet Kar/Zararı
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Gelirler</span>
-                <span className="text-green-600">{formatValue(incomeSummaryNet)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Giderler</span>
-                <span className="text-destructive">{formatValue(Math.abs(expenseSummaryNet))}</span>
-              </div>
-              <div className="flex justify-between font-semibold border-t pt-1">
-                <span>Faaliyet Karı</span>
-                <span className={operatingProfit >= 0 ? "text-green-600" : "text-destructive"}>
-                  {formatValue(operatingProfit)}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Cash Flow Card */}
-          <Card className="border-blue-200 dark:border-blue-800">
-            <CardHeader className="pb-2">
-              <CardTitle className="text-sm text-blue-600 dark:text-blue-400 flex items-center gap-2">
-                💰 Nakit Akışı
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-1 text-sm">
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Girişler</span>
-                <span className="text-green-600">{formatValue(cashFlowSummary.inflows)}</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-muted-foreground">Çıkışlar</span>
-                <span className="text-destructive">{formatValue(Math.abs(cashFlowSummary.outflows))}</span>
-              </div>
-              <div className="flex justify-between font-semibold border-t pt-1">
-                <span>Net Nakit</span>
-                <span className={cashFlowSummary.net >= 0 ? "text-green-600" : "text-destructive"}>
-                  {formatValue(cashFlowSummary.net)}
-                </span>
-              </div>
-            </CardContent>
-          </Card>
-        </div>
 
         {/* Cash Outflow Breakdown */}
         {Math.abs(cashFlowSummary.outflows) > 0 && (
