@@ -24,11 +24,11 @@ interface BalanceLiabilityChartProps {
 const defaultFormatCurrency = (n: number) =>
   new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(n);
 
-// Blue/Purple color palette for liabilities/equity
+// Blue/Purple color palette for liabilities/equity - hex values for PDF compatibility
 const COLORS = [
-  'hsl(220, 70%, 50%)',  // Blue - Short-term liabilities
-  'hsl(240, 60%, 55%)',  // Indigo - Long-term liabilities
-  'hsl(280, 55%, 50%)',  // Purple - Equity
+  '#3b82f6', // Blue - Short-term liabilities (blue-500)
+  '#6366f1', // Indigo - Long-term liabilities (indigo-500)
+  '#8b5cf6', // Purple - Equity (violet-500)
 ];
 
 export function BalanceLiabilityChart({ data, formatAmount }: BalanceLiabilityChartProps) {
@@ -52,7 +52,7 @@ export function BalanceLiabilityChart({ data, formatAmount }: BalanceLiabilityCh
 
   if (total === 0) {
     return (
-      <div className="flex items-center justify-center h-64 text-muted-foreground">
+      <div className="flex items-center justify-center h-64" style={{ color: '#64748b' }}>
         Kaynak verisi bulunamadı
       </div>
     );

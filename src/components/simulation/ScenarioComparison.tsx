@@ -617,9 +617,10 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
     }
   };
 
+  // PDF uyumluluğu için hex renk değerleri
   const chartConfig: ChartConfig = {
-    scenarioANet: { label: `${scenarioA?.name || 'A'} Net`, color: 'hsl(var(--chart-1))' },
-    scenarioBNet: { label: `${scenarioB?.name || 'B'} Net`, color: 'hsl(var(--chart-2))' },
+    scenarioANet: { label: `${scenarioA?.name || 'A'} Net`, color: '#2563eb' },
+    scenarioBNet: { label: `${scenarioB?.name || 'B'} Net`, color: '#16a34a' },
   };
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -776,9 +777,9 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
                     <CardContent>
                       <ChartContainer config={chartConfig} className="h-[250px] w-full">
                         <ComposedChart data={quarterlyComparison}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-                          <XAxis dataKey="quarter" className="text-xs" />
-                          <YAxis tickFormatter={(v) => formatCompactUSD(v)} className="text-xs" />
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
+                          <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
                           <ChartTooltip content={<ChartTooltipContent />} />
                           <ChartLegend content={<ChartLegendContent />} />
                           <Bar dataKey="scenarioANet" fill="var(--color-scenarioANet)" name={scenarioA?.name} radius={4} />

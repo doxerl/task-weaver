@@ -59,18 +59,16 @@ export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
           <div className="h-[300px]">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={data} margin={{ top: 10, right: 30, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                 <XAxis 
                   dataKey="name" 
-                  tick={{ fontSize: 11 }}
-                  className="text-muted-foreground"
+                  tick={{ fontSize: 11, fill: '#64748b' }}
                 />
                 <YAxis 
                   width={80}
                   domain={[yMin, yMax]}
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
-                  tick={{ fontSize: 11 }}
-                  className="text-muted-foreground"
+                  tick={{ fontSize: 11, fill: '#64748b' }}
                 />
                 <Tooltip 
                   content={({ active, payload, label }) => {
@@ -78,24 +76,24 @@ export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
                     const pointData = payload[0]?.payload;
                     if (label === 'Başl.') {
                       return (
-                        <div className="bg-popover border rounded-lg shadow-lg p-3 text-sm">
-                          <p className="font-medium mb-2">Başlangıç Bakiyesi</p>
-                          <p className="font-semibold">{formatCompactUSD(pointData.bakiye)}</p>
+                        <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }} className="rounded-lg shadow-lg p-3 text-sm">
+                          <p className="font-medium mb-2" style={{ color: '#0f172a' }}>Başlangıç Bakiyesi</p>
+                          <p className="font-semibold" style={{ color: '#0f172a' }}>{formatCompactUSD(pointData.bakiye)}</p>
                         </div>
                       );
                     }
                     return (
-                      <div className="bg-popover border rounded-lg shadow-lg p-3 text-sm">
-                        <p className="font-medium mb-2">{pointData.quarter}</p>
+                      <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }} className="rounded-lg shadow-lg p-3 text-sm">
+                        <p className="font-medium mb-2" style={{ color: '#0f172a' }}>{pointData.quarter}</p>
                         <div className="space-y-1">
-                          <p className="text-green-600">Gelir: {formatCompactUSD(pointData.gelir)}</p>
-                          <p className="text-red-600">Gider: {formatCompactUSD(pointData.gider)}</p>
+                          <p style={{ color: '#16a34a' }}>Gelir: {formatCompactUSD(pointData.gelir)}</p>
+                          <p style={{ color: '#ef4444' }}>Gider: {formatCompactUSD(pointData.gider)}</p>
                           {pointData.yatirim > 0 && (
-                            <p className="text-orange-600">Yatırım: {formatCompactUSD(pointData.yatirim)}</p>
+                            <p style={{ color: '#ea580c' }}>Yatırım: {formatCompactUSD(pointData.yatirim)}</p>
                           )}
                           <div className="border-t pt-1 mt-1">
-                            <p className="text-primary">Net Akış: {formatCompactUSD(pointData.netAkis)}</p>
-                            <p className="font-semibold">Bakiye: {formatCompactUSD(pointData.bakiye)}</p>
+                            <p style={{ color: '#2563eb' }}>Net Akış: {formatCompactUSD(pointData.netAkis)}</p>
+                            <p className="font-semibold" style={{ color: '#0f172a' }}>Bakiye: {formatCompactUSD(pointData.bakiye)}</p>
                           </div>
                         </div>
                       </div>
@@ -114,15 +112,15 @@ export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
                 />
                 
                 {/* Zero line */}
-                <ReferenceLine y={0} stroke="hsl(var(--muted-foreground))" strokeDasharray="5 5" />
+                <ReferenceLine y={0} stroke="#64748b" strokeDasharray="5 5" />
                 
                 {/* Safety buffer line */}
                 {safetyBuffer && safetyBuffer > 0 && (
                   <ReferenceLine 
                     y={safetyBuffer} 
-                    stroke="hsl(var(--warning))"
+                    stroke="#f59e0b"
                     strokeDasharray="3 3"
-                    label={{ value: 'Güvenlik Tamponu', position: 'right', fill: 'hsl(var(--warning))', fontSize: 10 }}
+                    label={{ value: 'Güvenlik Tamponu', position: 'right', fill: '#f59e0b', fontSize: 10 }}
                   />
                 )}
                 
@@ -130,24 +128,24 @@ export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
                 {breakEvenQuarter && (
                   <ReferenceLine 
                     x={breakEvenQuarter} 
-                    stroke="hsl(var(--primary))"
+                    stroke="#2563eb"
                     strokeDasharray="3 3"
-                    label={{ value: 'Break-even', position: 'top', fill: 'hsl(var(--primary))', fontSize: 10 }}
+                    label={{ value: 'Break-even', position: 'top', fill: '#2563eb', fontSize: 10 }}
                   />
                 )}
                 
                 <Line 
                   type="monotone" 
                   dataKey="bakiye" 
-                  stroke="hsl(var(--primary))"
+                  stroke="#2563eb"
                   strokeWidth={2}
-                  dot={{ r: 5, fill: 'hsl(var(--primary))' }}
+                  dot={{ r: 5, fill: '#2563eb' }}
                   activeDot={{ r: 7 }}
                 />
                 <Line 
                   type="monotone" 
                   dataKey="gelir" 
-                  stroke="hsl(142 76% 36%)"
+                  stroke="#16a34a"
                   strokeWidth={1}
                   strokeDasharray="5 5"
                   dot={false}
@@ -155,7 +153,7 @@ export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
                 <Line 
                   type="monotone" 
                   dataKey="gider" 
-                  stroke="hsl(0 84% 60%)"
+                  stroke="#ef4444"
                   strokeWidth={1}
                   strokeDasharray="5 5"
                   dot={false}

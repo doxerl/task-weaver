@@ -88,14 +88,15 @@ export function ServiceRevenueChart({ data, formatAmount }: ServiceRevenueChartP
           {processedData.map((item, index) => (
             <div 
               key={index} 
-              className="flex items-center justify-between p-2 rounded-lg hover:bg-muted/50 transition-colors gap-2"
+              className="flex items-center justify-between p-2 rounded-lg transition-colors gap-2"
+              style={{ backgroundColor: 'transparent' }}
             >
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <div 
                   className="w-3 h-3 rounded-full flex-shrink-0" 
                   style={{ backgroundColor: item.color }} 
                 />
-                <span className="text-sm font-medium truncate">
+                <span className="text-sm font-medium" style={{ color: '#334155' }}>
                   {item.name}
                 </span>
               </div>
