@@ -4,6 +4,7 @@ import { useReceipts } from './useReceipts';
 import { useCategories } from './useCategories';
 import { useFinancialSettings } from './useFinancialSettings';
 import { useFixedExpenses, FixedExpenseSummary } from './useFixedExpenses';
+import { usePayrollAccruals } from './usePayrollAccruals';
 import { separateVat, VatSeparationResult } from './utils/vatSeparation';
 import { calculateDepreciation, getUsefulLifeByCategory } from '@/lib/depreciationCalculator';
 
@@ -259,8 +260,9 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
   const { categories, isLoading: loadingCats } = useCategories();
   const { settings, isLoading: loadingSettings } = useFinancialSettings();
   const { summary: fixedExpenses, isLoading: loadingFixed } = useFixedExpenses();
+  const { summary: payrollSummary, isLoading: loadingPayroll } = usePayrollAccruals(year);
   
-  const isLoading = loadingTx || loadingReceipts || loadingCats || loadingSettings || loadingFixed;
+  const isLoading = loadingTx || loadingReceipts || loadingCats || loadingSettings || loadingFixed || loadingPayroll;
 
   const hub = useMemo<FinancialDataHub>(() => {
     if (isLoading || !categories?.length) {
@@ -814,15 +816,30 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     const tradePayablesTotal = tradePayables;
     
     // C - Diğer Borçlar
-    const personnelPayables = (settings as any)?.personnel_payables || 0;
+    // Ödenmemiş net maaş borçları → 335 Personele Borçlar (payroll_accruals'dan dinamik)
+    const settingsPersonnelPayables = (settings as any)?.personnel_payables || 0;
+    const personnelPayables = payrollSummary.totalNetPayable > 0 
+      ? payrollSummary.totalNetPayable 
+      : settingsPersonnelPayables;
+    
     // Ortaklara borçları ayarlardan al (2024'ten devir veya hesaplanan)
     const settingsPartnerPayables = (settings as any)?.partner_payables || 0;
     const calculatedPartnerPayables = partnerPayables > 0 ? partnerPayables : settingsPartnerPayables;
     const otherDebtsTotal = calculatedPartnerPayables + personnelPayables;
     
     // F - Ödenecek Vergi ve Diğer Yükümlülükler
-    const taxPayables = (settings as any)?.tax_payables || 0;
-    const socialSecurityPayables = (settings as any)?.social_security_payables || 0;
+    // Ödenmemiş vergi borçları → 360 Ödenecek Vergi (payroll_accruals'dan dinamik: GV + Damga)
+    const settingsTaxPayables = (settings as any)?.tax_payables || 0;
+    const taxPayables = payrollSummary.totalTaxPayable > 0 
+      ? payrollSummary.totalTaxPayable 
+      : settingsTaxPayables;
+    
+    // Ödenmemiş SGK borçları → 361 SGK Borçları (payroll_accruals'dan dinamik)
+    const settingsSocialSecurityPayables = (settings as any)?.social_security_payables || 0;
+    const socialSecurityPayables = payrollSummary.totalSgkPayable > 0 
+      ? payrollSummary.totalSgkPayable 
+      : settingsSocialSecurityPayables;
+    
     const deferredTaxLiabilities = (settings as any)?.deferred_tax_liabilities || 0;
     const taxLiabilitiesTotal = taxPayables + socialSecurityPayables + deferredTaxLiabilities;
     
