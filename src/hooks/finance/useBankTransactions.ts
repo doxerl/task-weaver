@@ -32,12 +32,16 @@ export function useBankTransactions(year?: number) {
   });
 
   const updateCategory = useMutation({
-    mutationFn: async ({ id, categoryId }: { id: string; categoryId: string | null }) => {
+    mutationFn: async ({ id, categoryId, categoryCode }: { id: string; categoryId: string | null; categoryCode?: string }) => {
+      // If category is EXCLUDED, automatically set is_excluded to true
+      const isExcludedCategory = categoryCode === 'EXCLUDED';
+      
       const { error } = await supabase
         .from('bank_transactions')
         .update({ 
           category_id: categoryId, 
-          is_manually_categorized: true 
+          is_manually_categorized: true,
+          is_excluded: isExcludedCategory
         })
         .eq('id', id);
       if (error) throw error;
@@ -51,12 +55,16 @@ export function useBankTransactions(year?: number) {
   });
 
   const bulkUpdateCategory = useMutation({
-    mutationFn: async ({ ids, categoryId }: { ids: string[]; categoryId: string }) => {
+    mutationFn: async ({ ids, categoryId, categoryCode }: { ids: string[]; categoryId: string; categoryCode?: string }) => {
+      // If category is EXCLUDED, automatically set is_excluded to true
+      const isExcludedCategory = categoryCode === 'EXCLUDED';
+      
       const { error } = await supabase
         .from('bank_transactions')
         .update({ 
           category_id: categoryId, 
-          is_manually_categorized: true 
+          is_manually_categorized: true,
+          is_excluded: isExcludedCategory
         })
         .in('id', ids);
       if (error) throw error;
