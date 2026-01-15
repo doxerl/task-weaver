@@ -48,13 +48,14 @@ export default function Reports() {
   // Merkezi PDF hook - tablo ve grafik PDF işlemleri için
   const { 
     generateFullReportPdfData,
+    generateDetailedIncomePdfData,
     generateBalanceSheetPdf,
     generateIncomeStatementPdf,
     generateVatReportPdf,
     generateFullReportPdf,
     generateDashboardChartPdf,
     generateDistributionChartPdf,
-    generateFinancingSummaryPdf,
+    createPdfBuilder,
     isGenerating: isPdfEngineGenerating,
     progress: pdfProgress,
   } = usePdfEngine();
@@ -121,23 +122,98 @@ export default function Reports() {
     }
   };
 
+  // Detaylı Gelir Tablosu PDF - data-driven (jspdf-autotable)
   const handleDetailedPdf = async () => {
-    if (!incomeStatementRef.current) return;
+    if (!detailedStatement.data) return;
     try {
-      // Detailed uses same ref but different call
-      await generateIncomeStatementPdf(incomeStatementRef, year, currency);
-      toast.success(`Ayrıntılı Gelir Tablosu PDF oluşturuldu (${currency})`);
+      const success = await generateDetailedIncomePdfData(
+        detailedStatement.data,
+        year,
+        (n) => formatAmount(n, undefined, year),
+        { currency }
+      );
+      if (success) {
+        toast.success(`Ayrıntılı Gelir Tablosu PDF oluşturuldu (${currency})`);
+      } else {
+        toast.error('PDF oluşturulamadı');
+      }
     } catch {
       toast.error('PDF oluşturulamadı');
     }
   };
 
-  // Finansman Özeti PDF
+  // Finansman Özeti PDF - data-driven (jspdf-autotable)
   const handleFinancingPdf = async () => {
-    if (!financingRef.current) return;
     try {
-      await generateFinancingSummaryPdf(financingRef, year, currency);
-      toast.success(`Finansman özeti PDF oluşturuldu (${currency})`);
+      const builder = createPdfBuilder({ orientation: 'portrait', margin: 10 });
+      
+      builder.addCover(
+        `Finansman Özeti - ${year}`,
+        'Ortak Cari, Kredi ve Yatırım Takibi',
+        new Date().toLocaleDateString('tr-TR')
+      );
+      
+      // Ortak Cari Hesabı
+      builder.addSpacer(10);
+      builder.addTable({
+        title: 'Ortak Cari Hesabı',
+        headers: ['Açıklama', 'Tutar'],
+        rows: [
+          ['Ortaktan Tahsilat', formatAmount(hub.partnerSummary.deposits, undefined, year)],
+          ['Ortağa Ödeme', `(${formatAmount(hub.partnerSummary.withdrawals, undefined, year)})`],
+          ['Net Bakiye', formatAmount(hub.partnerSummary.balance, undefined, year)],
+        ],
+      });
+      
+      // Kredi Takibi
+      builder.addSpacer(10);
+      builder.addTable({
+        title: 'Kredi Takibi',
+        headers: ['Açıklama', 'Tutar'],
+        rows: [
+          ['Toplam Kredi', formatAmount(hub.financingSummary.creditDetails.totalCredit, undefined, year)],
+          ['Ödenen Taksit', `(${formatAmount(hub.financingSummary.creditOut, undefined, year)})`],
+          ['Leasing Ödemesi', `(${formatAmount(hub.financingSummary.leasingOut, undefined, year)})`],
+          ['Faiz Ödemesi', `(${formatAmount(hub.financingSummary.interestPaid, undefined, year)})`],
+          ['Kalan Borç', formatAmount(hub.financingSummary.remainingDebt, undefined, year)],
+        ],
+      });
+      
+      // Yatırımlar
+      builder.addSpacer(10);
+      builder.addTable({
+        title: 'Yatırımlar',
+        headers: ['Açıklama', 'Tutar'],
+        rows: [
+          ['Araçlar', formatAmount(hub.investmentSummary.vehicles, undefined, year)],
+          ['Ekipman', formatAmount(hub.investmentSummary.equipment, undefined, year)],
+          ['Demirbaşlar', formatAmount(hub.investmentSummary.fixtures, undefined, year)],
+          ['Diğer', formatAmount(hub.investmentSummary.other, undefined, year)],
+          ['Toplam Yatırım', formatAmount(hub.investmentSummary.total, undefined, year)],
+        ],
+      });
+      
+      // Sabit Giderler
+      builder.addSpacer(10);
+      builder.addTable({
+        title: 'Sabit Gider Takibi',
+        headers: ['Açıklama', 'Tutar'],
+        rows: [
+          ['Aylık Sabit Gider', formatAmount(hub.fixedExpenses.monthlyFixed, undefined, year)],
+          ['Aylık Taksitler', formatAmount(hub.fixedExpenses.monthlyInstallments, undefined, year)],
+          ['Toplam Aylık', formatAmount(hub.fixedExpenses.totalMonthly, undefined, year)],
+          ['Yıllık Projeksiyon', formatAmount(hub.fixedExpenses.yearlyProjected, undefined, year)],
+        ],
+      });
+      
+      const filename = `Finansman_Ozeti_${year}_${currency}.pdf`;
+      const success = await builder.build(filename);
+      
+      if (success) {
+        toast.success(`Finansman özeti PDF oluşturuldu (${currency})`);
+      } else {
+        toast.error('PDF oluşturulamadı');
+      }
     } catch {
       toast.error('PDF oluşturulamadı');
     }
@@ -418,15 +494,13 @@ export default function Reports() {
                 className="gap-1"
               >
                 {isPdfEngineGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                PDF
+              PDF
               </Button>
             </div>
-            <div ref={incomeStatementRef}>
-              <DetailedIncomeStatementTable 
-                data={detailedStatement.data}
-                formatAmount={(n) => formatAmount(n, undefined, year)}
-              />
-            </div>
+            <DetailedIncomeStatementTable 
+              data={detailedStatement.data}
+              formatAmount={(n) => formatAmount(n, undefined, year)}
+            />
           </TabsContent>
 
           {/* Tab 6: Financing - Detailed */}
