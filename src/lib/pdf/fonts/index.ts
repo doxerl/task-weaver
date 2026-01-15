@@ -37,7 +37,14 @@ async function fetchFont(url: string): Promise<string> {
     throw new Error(`Font fetch failed: ${response.status} - ${url}`);
   }
   const arrayBuffer = await response.arrayBuffer();
-  return arrayBufferToBase64(arrayBuffer);
+  const base64 = arrayBufferToBase64(arrayBuffer);
+  
+  // Boyut kontrolü - Roboto Regular en az 150KB olmalı
+  if (base64.length < 150000) {
+    console.warn('[PDF] Font file may be incomplete:', url, 'size:', base64.length, 'bytes (expected >150KB)');
+  }
+  
+  return base64;
 }
 
 /**
