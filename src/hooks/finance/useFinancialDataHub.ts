@@ -5,6 +5,7 @@ import { useCategories } from './useCategories';
 import { useFinancialSettings } from './useFinancialSettings';
 import { useFixedExpenses, FixedExpenseSummary } from './useFixedExpenses';
 import { usePayrollAccruals } from './usePayrollAccruals';
+import { usePreviousYearBalance } from './usePreviousYearBalance';
 import { separateVat, VatSeparationResult } from './utils/vatSeparation';
 import { calculateDepreciation, getUsefulLifeByCategory } from '@/lib/depreciationCalculator';
 
@@ -261,8 +262,10 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
   const { settings, isLoading: loadingSettings } = useFinancialSettings();
   const { summary: fixedExpenses, isLoading: loadingFixed } = useFixedExpenses();
   const { summary: payrollSummary, isLoading: loadingPayroll } = usePayrollAccruals(year);
+  // Önceki yılın kilitli bilançosunu al (2025 için 2024'ü getirir)
+  const { previousYearBalance, isLoading: loadingPrevBalance } = usePreviousYearBalance(year - 1);
   
-  const isLoading = loadingTx || loadingReceipts || loadingCats || loadingSettings || loadingFixed || loadingPayroll;
+  const isLoading = loadingTx || loadingReceipts || loadingCats || loadingSettings || loadingFixed || loadingPayroll || loadingPrevBalance;
 
   const hub = useMemo<FinancialDataHub>(() => {
     if (isLoading || !categories?.length) {
@@ -599,8 +602,28 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
 
     // Balance sheet data calculation - Türk Tekdüzen Hesap Planı formatında
     
-    // Bank balance - açılış bakiyesi ile başla, ardından işlemleri ekle
-    const openingBankBalance = (settings as any)?.opening_bank_balance || 0;
+    // ============================================
+    // AÇILIŞ DEĞERLERİ: Önceki yıl kilitli bilançosundan al
+    // ============================================
+    // Eğer önceki yıl (year - 1) kilitli bilanço varsa, açılış değerleri oradan alınır
+    // Yoksa financial_settings'ten fallback yapılır
+    
+    const openingBankBalance = previousYearBalance?.is_locked 
+      ? (previousYearBalance.bank_balance || 0)
+      : ((settings as any)?.opening_bank_balance || 0);
+    
+    const openingCashOnHand = previousYearBalance?.is_locked 
+      ? (previousYearBalance.cash_on_hand || 0)
+      : ((settings as any)?.opening_cash_on_hand || 0);
+    
+    console.log('📊 Açılış Değerleri:', {
+      yıl: year,
+      öncekiYılKilitli: previousYearBalance?.is_locked,
+      öncekiYılBanka: previousYearBalance?.bank_balance,
+      öncekiYılKasa: previousYearBalance?.cash_on_hand,
+      kullanılanBanka: openingBankBalance,
+      kullanılanKasa: openingCashOnHand
+    });
     
     // Bank balance - use last balance if available, otherwise calculate cumulatively from opening
     const sortedBankTx = [...bankTx].sort((a, b) => 
@@ -624,36 +647,51 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     
     // I - DÖNEN VARLIKLAR
     // A - Hazır Değerler
-    // Açılış kasa değerini kullan (DB'den gelen, resmi bilanço değeri)
-    const openingCashOnHand = (settings as any)?.opening_cash_on_hand || 0;
-    const currentCashOnHand = settings?.cash_on_hand || 0;
-    // Açılış kasa değeri öncelikli (resmi bilanço), yoksa mevcut değer
-    const cashOnHand = openingCashOnHand > 0 ? openingCashOnHand : currentCashOnHand;
+    // Kasa: açılış değeri (önceki yıl bilançosundan devir, hareket yok varsayılır)
+    const cashOnHand = openingCashOnHand;
     const readyValuesTotal = cashOnHand + bankBalance;
     
     // C - Ticari Alacaklar
-    const tradeReceivables = settings?.trade_receivables || 0;
+    const openingTradeReceivables = previousYearBalance?.is_locked 
+      ? (previousYearBalance.trade_receivables || 0)
+      : (settings?.trade_receivables || 0);
+    const tradeReceivables = openingTradeReceivables;
     const tradeReceivablesTotal = tradeReceivables;
     
     // H - Diğer Dönen Varlıklar
     const vatDeductible = expenseSummary.vat;  // İndirilecek KDV
-    const otherVat = (settings as any)?.other_vat || 0;
+    const openingOtherVat = previousYearBalance?.is_locked 
+      ? (previousYearBalance.other_vat || 0)
+      : ((settings as any)?.other_vat || 0);
+    const otherVat = openingOtherVat;
     const otherCurrentAssetsTotal = vatDeductible + otherVat;
     
-    // Partner receivables/payables - net calculation
-    const partnerReceivables = partnerSummary.withdrawals > partnerSummary.deposits 
-      ? partnerSummary.withdrawals - partnerSummary.deposits 
+    // Partner receivables/payables - net calculation (önceki yıldan devir + yıl içi hareketler)
+    const openingPartnerReceivables = previousYearBalance?.is_locked 
+      ? (previousYearBalance.partner_receivables || 0)
       : 0;
-    const partnerPayables = partnerSummary.deposits > partnerSummary.withdrawals 
-      ? partnerSummary.deposits - partnerSummary.withdrawals 
-      : 0;
+    const openingPartnerPayables = previousYearBalance?.is_locked 
+      ? (previousYearBalance.partner_payables || 0)
+      : ((settings as any)?.partner_payables || 0);
+    
+    // Yıl içi partner hareketleri net etkisi
+    const partnerNetMovement = partnerSummary.withdrawals - partnerSummary.deposits;
+    
+    // Alacak = önceki yıldan devir + yıl içi net artış (eğer pozitif)
+    const partnerReceivables = Math.max(0, openingPartnerReceivables + partnerNetMovement);
+    // Borç = önceki yıldan devir - yıl içi net azalış (eğer hala borç varsa)
+    const partnerPayables = Math.max(0, openingPartnerPayables - partnerNetMovement);
     
     // Legacy inventory and vat receivable
-    const inventoryValue = settings?.inventory_value || 0;
+    const openingInventory = previousYearBalance?.is_locked 
+      ? (previousYearBalance.inventory || 0)
+      : (settings?.inventory_value || 0);
+    const inventoryValue = openingInventory;
     const vatReceivable = vatSummary.net < 0 ? Math.abs(vatSummary.net) : 0;
     
     // Include partner receivables in current assets total
     const currentAssetsTotal = readyValuesTotal + tradeReceivablesTotal + partnerReceivables + otherCurrentAssetsTotal;
+
     
     // II - DURAN VARLIKLAR
     // D - Maddi Duran Varlıklar - investmentSummary'den değerleri kullan
@@ -979,7 +1017,7 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       uncategorizedCount: bankTx.filter(tx => !tx.category_id && !tx.is_excluded).length,
       uncategorizedTotal: bankTx.filter(tx => !tx.category_id && !tx.is_excluded).reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0)
     };
-  }, [isLoading, bankTx, receipts, categories, settings, fixedExpenses, year]);
+  }, [isLoading, bankTx, receipts, categories, settings, fixedExpenses, year, previousYearBalance]);
 
   return hub;
 }
