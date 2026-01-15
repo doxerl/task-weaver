@@ -81,45 +81,25 @@ export default function Reports() {
     });
   }, [hub.byMonth]);
 
+  // Content refs for PDF
+  const fullReportRef = useRef<HTMLDivElement>(null);
+  const incomeStatementRef = useRef<HTMLDivElement>(null);
+  const financingRef = useRef<HTMLDivElement>(null);
+
   const handleFullReportPdf = async () => {
+    if (!fullReportRef.current) return;
     try {
-      await generateFullReportPdf(
-        {
-          balanceSheet,
-          incomeStatement: { 
-            data: incomeStatement.statement, 
-            lines: incomeStatement.lines 
-          },
-          // vatReport - usePdfEngine'de VatCalculations tipini bekliyor, vatSummary farklı
-          // Şimdilik vatReport'u dahil etmiyoruz
-        },
-        year,
-        {
-          currency,
-          yearlyAverageRate: yearlyAverageRate || undefined,
-          companyName: 'Şirket',
-        }
-      );
+      await generateFullReportPdf(fullReportRef, year, currency);
       toast.success(`Kapsamlı rapor PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
     }
   };
 
-  // handleExportPdf artık kullanılmıyor - handleFullReportPdf kullanılıyor
-
   const handleIncomeStatementPdf = async () => {
+    if (!incomeStatementRef.current) return;
     try {
-      await generateIncomeStatementPdf(
-        incomeStatement.statement,
-        incomeStatement.lines,
-        year,
-        {
-          currency,
-          yearlyAverageRate: yearlyAverageRate || undefined,
-          companyName: 'Şirket',
-        }
-      );
+      await generateIncomeStatementPdf(incomeStatementRef, year, currency);
       toast.success(`Gelir Tablosu PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
@@ -127,19 +107,10 @@ export default function Reports() {
   };
 
   const handleDetailedPdf = async () => {
+    if (!incomeStatementRef.current) return;
     try {
-      // Detailed income statement - aynı fonksiyon ile detailed: true
-      await generateIncomeStatementPdf(
-        incomeStatement.statement,
-        incomeStatement.lines,
-        year,
-        {
-          currency,
-          detailed: true,
-          yearlyAverageRate: yearlyAverageRate || undefined,
-          companyName: 'Şirket',
-        }
-      );
+      // Detailed uses same ref but different call
+      await generateIncomeStatementPdf(incomeStatementRef, year, currency);
       toast.success(`Ayrıntılı Gelir Tablosu PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
@@ -148,21 +119,9 @@ export default function Reports() {
 
   // Finansman Özeti PDF
   const handleFinancingPdf = async () => {
+    if (!financingRef.current) return;
     try {
-      const financingData = {
-        partnerDeposits: hub.partnerSummary.deposits,
-        partnerWithdrawals: hub.partnerSummary.withdrawals,
-        partnerBalance: hub.partnerSummary.balance,
-        creditIn: hub.financingSummary.creditIn,
-        creditOut: hub.financingSummary.creditOut,
-        leasingOut: hub.financingSummary.leasingOut,
-        remainingDebt: hub.financingSummary.remainingDebt,
-      };
-      
-      await generateFinancingSummaryPdf(financingData, year, { 
-        currency, 
-        companyName: 'Şirket' 
-      });
+      await generateFinancingSummaryPdf(financingRef, year, currency);
       toast.success(`Finansman özeti PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
@@ -448,11 +407,13 @@ export default function Reports() {
                 PDF
               </Button>
             </div>
-            <IncomeStatementTable 
-              lines={incomeStatement.lines} 
-              year={year}
-              formatAmount={(n) => formatAmount(n, undefined, year)}
-            />
+            <div ref={incomeStatementRef} className="bg-background">
+              <IncomeStatementTable 
+                lines={incomeStatement.lines} 
+                year={year}
+                formatAmount={(n) => formatAmount(n, undefined, year)}
+              />
+            </div>
           </TabsContent>
 
           {/* Tab 5: Detailed Income Statement (Official Format) */}
@@ -489,6 +450,7 @@ export default function Reports() {
                 PDF
               </Button>
             </div>
+            <div ref={financingRef} className="space-y-4 bg-background">
             {/* Partner Account */}
             <Card>
               <CardHeader className="pb-2">
@@ -655,8 +617,226 @@ export default function Reports() {
                 )}
               </CardContent>
             </Card>
+            </div>
           </TabsContent>
         </Tabs>
+
+        {/* ============================================ */}
+        {/* TAM RAPOR PDF İÇİN HİDDEN CONTAINER */}
+        {/* Tüm sekme içeriklerini içerir, ekranda gizli */}
+        {/* ============================================ */}
+        <div ref={fullReportRef} className="hidden pdf-hidden-container">
+          <div className="bg-white p-6 space-y-8" style={{ width: '1200px' }}>
+            {/* Başlık */}
+            <div className="text-center border-b pb-4">
+              <h1 className="text-2xl font-bold text-gray-900">Finansal Rapor - {year}</h1>
+              <p className="text-sm text-gray-600 mt-1">
+                Para Birimi: {currency} | Oluşturma: {new Date().toLocaleDateString('tr-TR')}
+              </p>
+            </div>
+
+            {/* Özet KPI'lar */}
+            <div className="pdf-section">
+              <h2 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Özet Göstergeler</h2>
+              <div className="grid grid-cols-4 gap-4">
+                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                  <p className="text-xs text-gray-600">Net Gelir</p>
+                  <p className="text-lg font-bold text-green-700">{formatAmount(hub.incomeSummary.net)}</p>
+                </div>
+                <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                  <p className="text-xs text-gray-600">Net Gider</p>
+                  <p className="text-lg font-bold text-red-700">{formatAmount(hub.expenseSummary.net)}</p>
+                </div>
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <p className="text-xs text-gray-600">Net Kâr</p>
+                  <p className={`text-lg font-bold ${hub.operatingProfit >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    {formatAmount(hub.operatingProfit)}
+                  </p>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                  <p className="text-xs text-gray-600">Kâr Marjı</p>
+                  <p className="text-lg font-bold text-purple-700">{hub.profitMargin.toFixed(1)}%</p>
+                </div>
+              </div>
+            </div>
+
+            {/* KDV Özeti */}
+            <div className="pdf-section">
+              <h2 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">KDV Özeti</h2>
+              <div className="grid grid-cols-3 gap-4">
+                <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                  <p className="text-xs text-gray-600">Hesaplanan KDV</p>
+                  <p className="text-lg font-bold text-blue-700">{formatAmount(hub.vatSummary.calculated)}</p>
+                </div>
+                <div className="bg-orange-50 p-4 rounded-lg border border-orange-200">
+                  <p className="text-xs text-gray-600">İndirilecek KDV</p>
+                  <p className="text-lg font-bold text-orange-700">{formatAmount(hub.vatSummary.deductible)}</p>
+                </div>
+                <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                  <p className="text-xs text-gray-600">Net KDV</p>
+                  <p className={`text-lg font-bold ${hub.vatSummary.net >= 0 ? 'text-purple-700' : 'text-green-700'}`}>
+                    {hub.vatSummary.net >= 0 ? 'Ödenecek' : 'Devreden'}: {formatAmount(Math.abs(hub.vatSummary.net))}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Dashboard Grafikleri */}
+            <div className="pdf-section page-break-before">
+              <h2 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Aylık Trend Analizi</h2>
+              <div className="bg-white border rounded-lg p-4">
+                <MonthlyTrendChart data={monthlyData} formatAmount={(n) => formatAmount(n, undefined, year)} />
+              </div>
+            </div>
+
+            {/* Gelir ve Gider Grafikleri */}
+            <div className="pdf-section page-break-before">
+              <h2 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Gelir ve Gider Dağılımı</h2>
+              <div className="grid grid-cols-2 gap-6">
+                <div className="bg-white border rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-3">Hizmet Bazlı Gelir</h3>
+                  <ServiceRevenueChart data={incomeAnalysis.serviceRevenue} formatAmount={(n) => formatAmount(n, undefined, year)} />
+                </div>
+                <div className="bg-white border rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-3">Gider Kategorileri</h3>
+                  <ExpenseCategoryChart data={expenseAnalysis.topCategories} formatAmount={(n) => formatAmount(n, undefined, year)} />
+                </div>
+              </div>
+            </div>
+
+            {/* Gelir Tablosu */}
+            <div className="pdf-section page-break-before">
+              <h2 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Gelir Tablosu</h2>
+              <div className="bg-white border rounded-lg">
+                <IncomeStatementTable 
+                  lines={incomeStatement.lines} 
+                  year={year}
+                  formatAmount={(n) => formatAmount(n, undefined, year)}
+                />
+              </div>
+            </div>
+
+            {/* Ayrıntılı Gelir Tablosu */}
+            <div className="pdf-section page-break-before">
+              <h2 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Ayrıntılı Gelir Tablosu (Resmi Format)</h2>
+              <div className="bg-white border rounded-lg">
+                <DetailedIncomeStatementTable 
+                  data={detailedStatement.data}
+                  formatAmount={(n) => formatAmount(n, undefined, year)}
+                />
+              </div>
+            </div>
+
+            {/* Finansman Özeti */}
+            <div className="pdf-section page-break-before">
+              <h2 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Finansman Özeti</h2>
+              <div className="grid grid-cols-2 gap-6">
+                {/* Ortak Cari */}
+                <div className="bg-white border rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <Users className="h-4 w-4" /> Ortak Cari Hesabı
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Ortaktan Tahsilat</span>
+                      <span className="text-green-700">+{formatAmount(hub.partnerSummary.deposits)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Ortağa Ödeme</span>
+                      <span className="text-red-700">-{formatAmount(hub.partnerSummary.withdrawals)}</span>
+                    </div>
+                    <hr />
+                    <div className="flex justify-between font-medium">
+                      <span>Net Bakiye</span>
+                      <span className={hub.partnerSummary.balance >= 0 ? 'text-green-700' : 'text-red-700'}>
+                        {formatAmount(hub.partnerSummary.balance)}
+                      </span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Kredi Takibi */}
+                <div className="bg-white border rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <CreditCard className="h-4 w-4" /> Kredi Takibi
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Toplam Kredi</span>
+                      <span>{formatAmount(hub.financingSummary.creditDetails.totalCredit)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Ödenen Taksit</span>
+                      <span className="text-green-700">-{formatAmount(hub.financingSummary.creditOut)}</span>
+                    </div>
+                    <hr />
+                    <div className="flex justify-between font-medium">
+                      <span>Kalan Borç</span>
+                      <span className="text-red-700">{formatAmount(hub.financingSummary.remainingDebt)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Yatırımlar */}
+                <div className="bg-white border rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <Building className="h-4 w-4" /> Yatırımlar
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    {hub.investmentSummary.vehicles > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Araçlar</span>
+                        <span>{formatAmount(hub.investmentSummary.vehicles)}</span>
+                      </div>
+                    )}
+                    {hub.investmentSummary.equipment > 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Ekipman</span>
+                        <span>{formatAmount(hub.investmentSummary.equipment)}</span>
+                      </div>
+                    )}
+                    <hr />
+                    <div className="flex justify-between font-medium">
+                      <span>Toplam</span>
+                      <span>{formatAmount(hub.investmentSummary.total)}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Sabit Giderler */}
+                <div className="bg-white border rounded-lg p-4">
+                  <h3 className="text-sm font-semibold text-gray-800 mb-3 flex items-center gap-2">
+                    <Receipt className="h-4 w-4" /> Sabit Gider Takibi
+                  </h3>
+                  <div className="space-y-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Aylık Sabit</span>
+                      <span>{formatAmount(hub.fixedExpenses.monthlyFixed)}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-gray-600">Aylık Taksit</span>
+                      <span>{formatAmount(hub.fixedExpenses.monthlyInstallments)}</span>
+                    </div>
+                    <hr />
+                    <div className="flex justify-between font-medium">
+                      <span>Toplam Aylık</span>
+                      <span className="text-red-700">{formatAmount(hub.fixedExpenses.totalMonthly)}</span>
+                    </div>
+                    <div className="flex justify-between text-xs text-gray-500">
+                      <span>Yıllık Projeksiyon</span>
+                      <span>{formatAmount(hub.fixedExpenses.yearlyProjected)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer */}
+            <div className="text-center text-xs text-gray-500 pt-4 border-t mt-8">
+              <p>Bu rapor otomatik olarak oluşturulmuştur. | {new Date().toLocaleString('tr-TR')}</p>
+            </div>
+          </div>
+        </div>
       </div>
       <BottomTabBar />
     </div>
