@@ -22,15 +22,15 @@ const defaultFormatFullCurrency = (value: number) => new Intl.NumberFormat('tr-T
 const truncateName = (name: string, max: number = 25) => 
   name.length > max ? name.slice(0, max) + '...' : name;
 
-// Gradient blue colors from dark to light
+// PDF uyumluluğu için hex renk değerleri (CSS değişkenleri html2canvas'ta çalışmıyor)
 const GRADIENT_COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-  'hsl(var(--muted-foreground))',
-  'hsl(var(--muted))',
+  '#2563eb', // chart-1 (blue-600)
+  '#16a34a', // chart-2 (green-600)
+  '#ea580c', // chart-3 (orange-600)
+  '#8b5cf6', // chart-4 (violet-500)
+  '#ec4899', // chart-5 (pink-500)
+  '#64748b', // muted-foreground (slate-500)
+  '#94a3b8', // muted (slate-400)
 ];
 
 export function ExpenseCategoryChart({ data, formatAmount }: ExpenseCategoryChartProps) {
@@ -70,7 +70,7 @@ export function ExpenseCategoryChart({ data, formatAmount }: ExpenseCategoryChar
       >
         <XAxis 
           type="number" 
-          tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
+          tick={{ fontSize: 10, fill: '#64748b' }} 
           tickFormatter={formatShort} 
           axisLine={false}
           tickLine={false}
@@ -78,7 +78,7 @@ export function ExpenseCategoryChart({ data, formatAmount }: ExpenseCategoryChar
         <YAxis 
           type="category" 
           dataKey="displayName" 
-          tick={{ fontSize: 11, fill: 'hsl(var(--foreground))' }} 
+          tick={{ fontSize: 11, fill: '#0f172a' }} 
           width={160} 
           axisLine={false}
           tickLine={false}
@@ -86,8 +86,8 @@ export function ExpenseCategoryChart({ data, formatAmount }: ExpenseCategoryChar
         <Tooltip 
           formatter={(value: number) => formatter(value)} 
           contentStyle={{ 
-            backgroundColor: 'hsl(var(--card))', 
-            border: '1px solid hsl(var(--border))',
+            backgroundColor: '#ffffff', 
+            border: '1px solid #e2e8f0',
             borderRadius: '8px',
             padding: '8px 12px'
           }}
@@ -99,7 +99,7 @@ export function ExpenseCategoryChart({ data, formatAmount }: ExpenseCategoryChar
         <Bar 
           dataKey="amount" 
           radius={[0, 6, 6, 0]}
-          fill="hsl(var(--chart-1))"
+          fill="#2563eb"
         />
       </BarChart>
     </ResponsiveContainer>
