@@ -83,6 +83,7 @@ export function useFinancialSettings() {
       fixtures_value: 0,
       // 2024 açılış değerleri
       opening_bank_balance: 0,
+      opening_cash_on_hand: 0,
       partner_payables: 0,
       tax_provision: 0,
       notes: null,

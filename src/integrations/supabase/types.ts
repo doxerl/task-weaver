@@ -750,6 +750,7 @@ export type Database = {
           legal_reserves: number | null
           notes: string | null
           opening_bank_balance: number | null
+          opening_cash_on_hand: number | null
           other_vat: number | null
           paid_capital: number | null
           partner_payables: number | null
@@ -787,6 +788,7 @@ export type Database = {
           legal_reserves?: number | null
           notes?: string | null
           opening_bank_balance?: number | null
+          opening_cash_on_hand?: number | null
           other_vat?: number | null
           paid_capital?: number | null
           partner_payables?: number | null
@@ -824,6 +826,7 @@ export type Database = {
           legal_reserves?: number | null
           notes?: string | null
           opening_bank_balance?: number | null
+          opening_cash_on_hand?: number | null
           other_vat?: number | null
           paid_capital?: number | null
           partner_payables?: number | null
