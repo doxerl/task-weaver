@@ -968,33 +968,32 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     });
     
     // ===== GERÇEK KAR HESABI (Tahakkuk Esası) =====
-    // depreciationTotal artık hesaplanmış durumda, kar hesabını burada yapıyoruz
+    // Kar hesabı artık dinamik - hardcoded değer yok
     
     // 1. Gider Kalemlerini Hazırla
     const personnelExpense = payrollSummary.totalPersonnelExpense || 0; // 770 Personel Gideri
     const depreciationExpense = depreciationTotal; // 730/770 Amortisman Gideri
-    const serviceProductionCost = 833653.25; // 740 Hizmet Üretim Maliyeti (842947 - 9293.75 faiz düzeltmesi)
+    // Hizmet Üretim Maliyeti artık expenseSummary.net içinde (account_code='622' olanlar)
     
     // 2. Finansman Giderleri (660 hesabı) - faiz giderleri
     const financeExpense = interestPaid;
     
-    // 3. Faaliyet Karı = Gelirler - (Giderler + Personel + Amortisman + Hizmet Maliyeti)
+    // 3. Faaliyet Karı = Gelirler - (Giderler + Personel + Amortisman)
+    // expenseSummary.net zaten Satılan Hizmet Maliyeti (622) dahil tüm EXPENSE kategorilerini içeriyor
     operatingProfit = incomeSummary.net 
       - expenseSummary.net 
       - personnelExpense 
-      - depreciationExpense 
-      - serviceProductionCost;
+      - depreciationExpense;
     
     // 4. Net Kar = Faaliyet Karı - Finansman Giderleri
     netProfit = operatingProfit - financeExpense;
     profitMargin = incomeSummary.net > 0 ? (operatingProfit / incomeSummary.net) * 100 : 0;
 
-    console.log('💰 Kar Hesabı (Tahakkuk Esası - Tam):', {
+    console.log('💰 Kar Hesabı (Tahakkuk Esası - Dinamik):', {
       gelirNet: incomeSummary.net,
       operasyonelGider: expenseSummary.net,
       personelGideri: personnelExpense,
       amortismanGideri: depreciationExpense,
-      hizmetUretimMaliyeti: serviceProductionCost,
       finansmanGideri: financeExpense,
       faaliyetKari: operatingProfit,
       netKar: netProfit
