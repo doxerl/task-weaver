@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { useExchangeRates } from '@/hooks/finance/useExchangeRates';
+import { useYear } from '@/contexts/YearContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
@@ -20,15 +21,14 @@ const MONTH_NAMES = [
 ];
 
 export function ExchangeRateEditor() {
-  const currentYear = new Date().getFullYear();
-  const [selectedYear, setSelectedYear] = useState(currentYear);
+  const { selectedYear, setSelectedYear } = useYear();
   const { rates, upsertRate, isLoading, yearlyAverageRate } = useExchangeRates(selectedYear);
   const [editingRates, setEditingRates] = useState<Record<number, string>>({});
   const [savingMonth, setSavingMonth] = useState<number | null>(null);
   const [savedMonths, setSavedMonths] = useState<Set<number>>(new Set());
   
-  // Available years
-  const years = [currentYear - 1, currentYear, currentYear + 1];
+  // Available years (based on selected year)
+  const years = [selectedYear - 1, selectedYear, selectedYear + 1];
   
   // Reset editing state when year changes
   useEffect(() => {
