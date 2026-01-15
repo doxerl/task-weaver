@@ -1384,9 +1384,9 @@ export function usePdfEngine(): UsePdfEngineReturn {
       const revenueData = await captureChart(elements.revenueChart);
       const expenseData = await captureChart(elements.expenseChart);
       
-      // Kalan alan hesapla - alt chartlar yarı boyutta
+      // Kalan alan hesapla - alt chartlar optimize boyutta
       const remainingHeight = pageHeight - currentY - margin - 5;
-      const chartWidth = (contentWidth - 5) / 4; // 136mm → 68mm (yarısı)
+      const chartWidth = (contentWidth - 5) / 3; // ~90mm genişlik (metinler için daha geniş)
       const maxChartHeight = remainingHeight * 0.7; // Yükseklik de küçültüldü
       
       // Sol: Revenue (Pie) Chart - küçültülmüş, sol çeyreğe hizalı

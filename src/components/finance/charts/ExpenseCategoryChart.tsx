@@ -63,7 +63,7 @@ export function ExpenseCategoryChart({ data, formatAmount, formatCompactAmount }
           type="category" 
           dataKey="displayName" 
           tick={{ fontSize: 11, fill: '#0f172a' }} 
-          width={180} 
+          width={220} 
           axisLine={false}
           tickLine={false}
         />
