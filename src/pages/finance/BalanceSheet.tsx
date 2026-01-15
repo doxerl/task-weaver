@@ -21,7 +21,6 @@ import { useCurrency } from '@/contexts/CurrencyContext';
 import { cn } from '@/lib/utils';
 import { BalanceAssetChart } from '@/components/finance/charts/BalanceAssetChart';
 import { BalanceLiabilityChart } from '@/components/finance/charts/BalanceLiabilityChart';
-import { captureElementToPdf } from '@/lib/pdfCapture';
 import { toast as sonnerToast } from 'sonner';
 
 export default function BalanceSheet() {
@@ -29,7 +28,6 @@ export default function BalanceSheet() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [activeTab, setActiveTab] = useState('summary');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isGraphicPdfGenerating, setIsGraphicPdfGenerating] = useState(false);
   const [pdfProgress, setPdfProgress] = useState('');
   const contentRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<HTMLDivElement>(null);
@@ -38,7 +36,7 @@ export default function BalanceSheet() {
   const { settings, upsertSettings } = useFinancialSettings();
   const { summary: fixedExpensesSummary } = useFixedExpenses();
   const { currency, formatAmount, yearlyAverageRate, getAvailableMonthsCount } = useCurrency();
-  const { generateBalanceSheetPdf, isGenerating: isPdfGenerating, progress: pdfEngineProgress } = usePdfEngine();
+  const { generateBalanceSheetPdf, generateBalanceChartPdf, isGenerating: isPdfGenerating, progress: pdfEngineProgress } = usePdfEngine();
   
   // Create format function for balance sheet values (uses yearly average)
   const formatValue = (n: number) => formatAmount(n, undefined, year);
@@ -128,25 +126,12 @@ export default function BalanceSheet() {
   };
 
   const handleGraphicPdf = async () => {
-    if (!chartRef.current) return;
-    setIsGraphicPdfGenerating(true);
     try {
-      const success = await captureElementToPdf(chartRef.current, {
-        filename: `Bilanco_Grafik_${year}_${currency}.pdf`,
-        orientation: 'landscape',
-        fitToPage: true,
-        scale: 2,
-      });
-      if (success) {
-        sonnerToast.success(`Bilanço grafik PDF oluşturuldu (${currency})`);
-      } else {
-        sonnerToast.error('PDF oluşturulamadı');
-      }
+      await generateBalanceChartPdf(chartRef, year, currency);
+      sonnerToast.success(`Bilanço grafik PDF oluşturuldu (${currency})`);
     } catch (error) {
       console.error('Graphic PDF export error:', error);
       sonnerToast.error('PDF oluşturulamadı');
-    } finally {
-      setIsGraphicPdfGenerating(false);
     }
   };
   
@@ -889,13 +874,13 @@ export default function BalanceSheet() {
             )}
             {isGenerating ? pdfProgress || 'PDF Oluşturuluyor...' : 'Tablo PDF'}
           </Button>
-          <Button onClick={handleGraphicPdf} disabled={isGraphicPdfGenerating} variant="outline">
-            {isGraphicPdfGenerating ? (
+          <Button onClick={handleGraphicPdf} disabled={isPdfGenerating} variant="outline">
+            {isPdfGenerating && pdfEngineProgress.stage.includes('Grafik') ? (
               <Loader2 className="h-5 w-5 mr-2 animate-spin" />
             ) : (
               <BarChart3 className="h-5 w-5 mr-2" />
             )}
-            {isGraphicPdfGenerating ? 'Oluşturuluyor...' : 'Grafik PDF'}
+            {isPdfGenerating && pdfEngineProgress.stage.includes('Grafik') ? 'Oluşturuluyor...' : 'Grafik PDF'}
           </Button>
         </div>
       </div>

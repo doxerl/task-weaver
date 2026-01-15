@@ -24,15 +24,11 @@ import { BottomTabBar } from '@/components/BottomTabBar';
 import { CurrencyToggle } from '@/components/finance/CurrencyToggle';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { ReportPeriod, FullReportData, MonthlyDataPoint, MONTH_NAMES_SHORT_TR } from '@/types/reports';
-import { captureElementToPdf } from '@/lib/pdfCapture';
 import { toast } from 'sonner';
 
 export default function Reports() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [period, setPeriod] = useState<ReportPeriod>('yearly');
-  const [isDashboardPdfGenerating, setIsDashboardPdfGenerating] = useState(false);
-  const [isIncomePdfGenerating, setIsIncomePdfGenerating] = useState(false);
-  const [isExpensePdfGenerating, setIsExpensePdfGenerating] = useState(false);
   const dashboardRef = useRef<HTMLDivElement>(null);
   const incomeRef = useRef<HTMLDivElement>(null);
   const expenseRef = useRef<HTMLDivElement>(null);
@@ -49,12 +45,14 @@ export default function Reports() {
   const { definitions: fixedExpensesList } = useFixedExpenses();
   const { balanceSheet } = useBalanceSheet(year);
   
-  // Merkezi PDF hook - tüm PDF işlemleri için
+  // Merkezi PDF hook - tablo ve grafik PDF işlemleri için
   const { 
     generateBalanceSheetPdf,
     generateIncomeStatementPdf,
     generateVatReportPdf,
     generateFullReportPdf,
+    generateDashboardChartPdf,
+    generateDistributionChartPdf,
     isGenerating: isPdfEngineGenerating,
     progress: pdfProgress,
   } = usePdfEngine();
@@ -153,68 +151,29 @@ export default function Reports() {
   };
 
   const handleDashboardPdf = async () => {
-    if (!dashboardRef.current) return;
-    setIsDashboardPdfGenerating(true);
     try {
-      const success = await captureElementToPdf(dashboardRef.current, {
-        filename: `Dashboard_${year}_${currency}.pdf`,
-        orientation: 'landscape',
-        fitToPage: false,
-        scale: 2,
-      });
-      if (success) {
-        toast.success(`Dashboard PDF oluşturuldu (${currency})`);
-      } else {
-        toast.error('PDF oluşturulamadı');
-      }
+      await generateDashboardChartPdf(dashboardRef, year, currency);
+      toast.success(`Dashboard PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
-    } finally {
-      setIsDashboardPdfGenerating(false);
     }
   };
 
   const handleIncomePdf = async () => {
-    if (!incomeRef.current) return;
-    setIsIncomePdfGenerating(true);
     try {
-      const success = await captureElementToPdf(incomeRef.current, {
-        filename: `Gelir_Dagilimi_${year}_${currency}.pdf`,
-        orientation: 'landscape',
-        fitToPage: true,
-        scale: 2,
-      });
-      if (success) {
-        toast.success(`Gelir dağılımı PDF oluşturuldu (${currency})`);
-      } else {
-        toast.error('PDF oluşturulamadı');
-      }
+      await generateDistributionChartPdf(incomeRef, 'income', year, currency);
+      toast.success(`Gelir dağılımı PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
-    } finally {
-      setIsIncomePdfGenerating(false);
     }
   };
 
   const handleExpensePdf = async () => {
-    if (!expenseRef.current) return;
-    setIsExpensePdfGenerating(true);
     try {
-      const success = await captureElementToPdf(expenseRef.current, {
-        filename: `Gider_Dagilimi_${year}_${currency}.pdf`,
-        orientation: 'landscape',
-        fitToPage: true,
-        scale: 2,
-      });
-      if (success) {
-        toast.success(`Gider dağılımı PDF oluşturuldu (${currency})`);
-      } else {
-        toast.error('PDF oluşturulamadı');
-      }
+      await generateDistributionChartPdf(expenseRef, 'expense', year, currency);
+      toast.success(`Gider dağılımı PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
-    } finally {
-      setIsExpensePdfGenerating(false);
     }
   };
 
@@ -359,12 +318,12 @@ export default function Reports() {
             <div className="flex justify-end">
               <Button 
                 onClick={handleDashboardPdf} 
-                disabled={isDashboardPdfGenerating} 
+                disabled={isPdfEngineGenerating} 
                 size="sm" 
                 variant="outline"
                 className="gap-1"
               >
-                {isDashboardPdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                {isPdfEngineGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
                 Grafik PDF
               </Button>
             </div>
@@ -403,12 +362,12 @@ export default function Reports() {
             <div className="flex justify-end">
               <Button 
                 onClick={handleIncomePdf} 
-                disabled={isIncomePdfGenerating} 
+                disabled={isPdfEngineGenerating} 
                 size="sm" 
                 variant="outline"
                 className="gap-1"
               >
-                {isIncomePdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                {isPdfEngineGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
                 Grafik PDF
               </Button>
             </div>
@@ -425,12 +384,12 @@ export default function Reports() {
             <div className="flex justify-end">
               <Button 
                 onClick={handleExpensePdf} 
-                disabled={isExpensePdfGenerating} 
+                disabled={isPdfEngineGenerating} 
                 size="sm" 
                 variant="outline"
                 className="gap-1"
               >
-                {isExpensePdfGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                {isPdfEngineGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
                 Grafik PDF
               </Button>
             </div>
