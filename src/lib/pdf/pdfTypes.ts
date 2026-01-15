@@ -51,6 +51,65 @@ export interface SimulationData {
   summary: any;
   assumedExchangeRate: number;
   notes?: string;
+  // Capital Analysis Data
+  advancedAnalysis?: {
+    currentCash: {
+      bankBalance: number;
+      cashOnHand: number;
+      totalLiquidity: number;
+    };
+    workingCapital: {
+      monthlyOperatingCash: number;
+      safetyMonths: number;
+      safetyBuffer: number;
+      netWorkingCapital: number;
+      receivables: number;
+      payables: number;
+    };
+    burnRateAnalysis?: {
+      quarterlyProjectionsWithInvestment: Array<{
+        quarter: string;
+        months: string[];
+        openingBalance: number;
+        revenue: number;
+        expense: number;
+        investment: number;
+        netCashFlow: number;
+        closingBalance: number;
+      }>;
+      criticalQuarter?: string | null;
+      runwayMonths: number;
+      grossBurnRate: number;
+      netBurnRate: number;
+    };
+    capitalNeeds: {
+      netCapitalGap: number;
+      isSufficient: boolean;
+      totalInvestment: number;
+      availableCash: number;
+      peakCashDeficit: number;
+      deficitMonth: number | null;
+    };
+  };
+  // ROI Analysis Data
+  roiAnalysis?: {
+    simpleROI: number;
+    paybackPeriod: {
+      months: number;
+      isWithinYear: boolean;
+    };
+    npvAnalysis: {
+      npv: number;
+      discountRate: number;
+      irr: number;
+      isPositiveNPV: boolean;
+    };
+    sensitivity: {
+      pessimistic: { name: string; profit: number; margin: number; roi: number };
+      baseline: { name: string; profit: number; margin: number; roi: number };
+      optimistic: { name: string; profit: number; margin: number; roi: number };
+    };
+  };
 }
 
 export const DEFAULT_CONFIG: PdfEngineConfig = {

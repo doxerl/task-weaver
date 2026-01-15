@@ -143,6 +143,26 @@ function GrowthSimulationContent() {
           summary,
           assumedExchangeRate,
           notes,
+          // Add Capital Analysis data
+          advancedAnalysis: advancedAnalysis ? {
+            currentCash: advancedAnalysis.currentCash,
+            workingCapital: advancedAnalysis.workingCapital,
+            burnRateAnalysis: advancedAnalysis.burnRateAnalysis ? {
+              quarterlyProjectionsWithInvestment: advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment,
+              criticalQuarter: advancedAnalysis.burnRateAnalysis.criticalQuarter,
+              runwayMonths: advancedAnalysis.burnRateAnalysis.runwayMonths,
+              grossBurnRate: advancedAnalysis.burnRateAnalysis.grossBurnRate,
+              netBurnRate: advancedAnalysis.burnRateAnalysis.netBurnRate,
+            } : undefined,
+            capitalNeeds: advancedAnalysis.capitalNeeds,
+          } : undefined,
+          // Add ROI Analysis data
+          roiAnalysis: roiAnalysis ? {
+            simpleROI: roiAnalysis.simpleROI,
+            paybackPeriod: roiAnalysis.paybackPeriod,
+            npvAnalysis: roiAnalysis.npvAnalysis,
+            sensitivity: roiAnalysis.sensitivity,
+          } : undefined,
         },
         {
           companyName: 'Şirket',
