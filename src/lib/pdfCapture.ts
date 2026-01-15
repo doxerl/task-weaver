@@ -23,16 +23,27 @@ interface CapturedStyles {
 
 /**
  * Orijinal elementten stilleri toplar (CSS değişkenleri çözümlenmiş halde)
+ * data-pdf-id attribute kullanarak index kaymasını önler
  */
 function collectStylesFromOriginal(element: HTMLElement): Map<string, CapturedStyles> {
   const styleMap = new Map<string, CapturedStyles>();
   
-  // Tüm metin içeren elementlerin stillerini kaydet
-  element.querySelectorAll('div, span, p, td, th, h1, h2, h3, h4, h5, h6, li, label').forEach((el, index) => {
+  // Tooltip selector'ları - bunların içindeki elementleri sayma dışında tut
+  const tooltipSelectors = '[role="tooltip"], .recharts-tooltip-wrapper, .recharts-active-shape, [data-radix-popper-content-wrapper]';
+  
+  let counter = 0;
+  element.querySelectorAll('div, span, p, td, th, h1, h2, h3, h4, h5, h6, li, label').forEach((el) => {
+    // Tooltip içindeki elementleri atla
+    if (el.closest(tooltipSelectors)) return;
+    
     const htmlEl = el as HTMLElement;
     const computed = window.getComputedStyle(htmlEl);
-    const key = `${el.tagName}-${index}`;
-    styleMap.set(key, {
+    
+    // Unique ID ata - bu sayede clone'da da aynı ID ile eşleştirebiliriz
+    const pdfId = `pdf-style-${counter++}`;
+    htmlEl.setAttribute('data-pdf-id', pdfId);
+    
+    styleMap.set(pdfId, {
       color: computed.color,
       backgroundColor: computed.backgroundColor,
       fontFamily: computed.fontFamily,
@@ -45,6 +56,7 @@ function collectStylesFromOriginal(element: HTMLElement): Map<string, CapturedSt
 
 /**
  * Clone edilen element üzerinde temizlik ve stil uygulama yapar
+ * data-pdf-id attribute ile doğru eşleştirme yapar
  */
 function processClonedElement(clonedElement: HTMLElement, styleMap: Map<string, CapturedStyles>): void {
   // 1. Tooltip ve hover elementlerini kaldır
@@ -64,17 +76,19 @@ function processClonedElement(clonedElement: HTMLElement, styleMap: Map<string, 
     }
   });
 
-  // 3. Önceden toplanan stilleri clone'a uygula
-  clonedElement.querySelectorAll('div, span, p, td, th, h1, h2, h3, h4, h5, h6, li, label').forEach((el, index) => {
-    const key = `${el.tagName}-${index}`;
-    const styles = styleMap.get(key);
+  // 3. data-pdf-id ile eşleştirerek stilleri uygula (index kayması sorunu yok)
+  clonedElement.querySelectorAll('[data-pdf-id]').forEach((el) => {
+    const pdfId = el.getAttribute('data-pdf-id');
+    if (!pdfId) return;
+    
+    const styles = styleMap.get(pdfId);
     if (styles) {
       const htmlEl = el as HTMLElement;
-      // Stilleri inline olarak uygula
-      htmlEl.style.color = styles.color;
-      htmlEl.style.backgroundColor = styles.backgroundColor;
-      htmlEl.style.fontFamily = styles.fontFamily;
-      htmlEl.style.fontSize = styles.fontSize;
+      // !important ile stilleri zorla uygula - CSS specificity sorunlarını aşar
+      htmlEl.style.setProperty('color', styles.color, 'important');
+      htmlEl.style.setProperty('background-color', styles.backgroundColor);
+      htmlEl.style.setProperty('font-family', styles.fontFamily);
+      htmlEl.style.setProperty('font-size', styles.fontSize);
     }
   });
 }
@@ -92,7 +106,7 @@ export async function captureElementToPdf(
     orientation = 'portrait', 
     margin = 10, 
     scale = 2,
-    waitTime = 800,
+    waitTime = 1500,
     fitToPage = false,
     cleanupBeforeCapture = true
   } = options;
