@@ -610,6 +610,27 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
         scenarioB: { name: scenarioB.name, summary: summaryB },
         metrics,
         winner: winner || undefined,
+        // Çıkarımlar (icon hariç - PDF uyumlu)
+        insights: insights.map(i => ({
+          type: i.type,
+          title: i.title,
+          description: i.description,
+          impact: i.impact,
+          recommendation: i.recommendation,
+        })),
+        // Öneriler (icon hariç - PDF uyumlu)
+        recommendations: recommendations.map(r => ({
+          title: r.title,
+          description: r.description,
+          risk: r.risk,
+          suitableFor: r.suitableFor,
+        })),
+        // Çeyreklik karşılaştırma
+        quarterlyComparison: quarterlyComparison.map(q => ({
+          quarter: q.quarter,
+          scenarioANet: q.scenarioANet,
+          scenarioBNet: q.scenarioBNet,
+        })),
       });
       toast.success('Senaryo karşılaştırma PDF oluşturuldu');
     } catch {

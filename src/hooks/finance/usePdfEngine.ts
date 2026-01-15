@@ -161,6 +161,27 @@ export interface ScenarioComparisonData {
     scoreB: number;
     totalMetrics: number;
   };
+  // Çıkarımlar (icon hariç - PDF için)
+  insights?: Array<{
+    type: 'positive' | 'negative' | 'neutral' | 'warning';
+    title: string;
+    description: string;
+    impact: 'high' | 'medium' | 'low';
+    recommendation?: string;
+  }>;
+  // Öneriler (icon hariç - PDF için)
+  recommendations?: Array<{
+    title: string;
+    description: string;
+    risk: 'low' | 'medium' | 'high';
+    suitableFor: string;
+  }>;
+  // Çeyreklik karşılaştırma
+  quarterlyComparison?: Array<{
+    quarter: string;
+    scenarioANet: number;
+    scenarioBNet: number;
+  }>;
 }
 
 export interface ScenarioSummaryData {
@@ -569,7 +590,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
     }
   ) => {
     setIsGenerating(true);
-    setProgress({ current: 1, total: 3, stage: 'Karşılaştırma hazırlanıyor...' });
+    setProgress({ current: 1, total: 4, stage: 'Karsilastirma hazirlaniyor...' });
     
     try {
       const jsPDF = (await import('jspdf')).default;
@@ -590,7 +611,9 @@ export function usePdfEngine(): UsePdfEngineReturn {
         }).format(n);
       };
       
-      // Başlık
+      // ============================================
+      // SAYFA 1: Metrikler ve Ozet
+      // ============================================
       doc.setFontSize(16);
       doc.setFont('helvetica', 'bold');
       doc.text('SENARYO KARSILASTIRMA', 148, 15, { align: 'center' });
@@ -598,9 +621,9 @@ export function usePdfEngine(): UsePdfEngineReturn {
       doc.setFont('helvetica', 'normal');
       doc.text(`${data.scenarioA.name} vs ${data.scenarioB.name}`, 148, 22, { align: 'center' });
       
-      setProgress({ current: 2, total: 3, stage: 'Metrikler ekleniyor...' });
+      setProgress({ current: 2, total: 4, stage: 'Metrikler ekleniyor...' });
       
-      // Karşılaştırma tablosu
+      // Karsilastirma tablosu
       const tableData = data.metrics.map(m => {
         const formatVal = (v: number) => {
           if (m.format === 'currency') return formatCurrency(v);
@@ -633,7 +656,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
         },
       });
       
-      // Kazanan özeti
+      // Kazanan ozeti
       if (data.winner && data.winner.winner !== 'TIE') {
         const yPos = (doc as any).lastAutoTable.finalY + 15;
         doc.setFontSize(12);
@@ -643,7 +666,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
         doc.setTextColor(0, 0, 0);
       }
       
-      // Özet tablosu
+      // Ozet tablosu
       const summaryY = (doc as any).lastAutoTable.finalY + 30;
       doc.setFontSize(11);
       doc.setFont('helvetica', 'bold');
@@ -671,7 +694,177 @@ export function usePdfEngine(): UsePdfEngineReturn {
         },
       });
       
-      setProgress({ current: 3, total: 3, stage: 'PDF kaydediliyor...' });
+      // ============================================
+      // SAYFA 2: Ceyreklik Trend
+      // ============================================
+      if (data.quarterlyComparison && data.quarterlyComparison.length > 0) {
+        doc.addPage('landscape');
+        
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('CEYREKLIK NET KAR KARSILASTIRMASI', 148, 15, { align: 'center' });
+        
+        const quarterlyData = data.quarterlyComparison.map(q => {
+          const diff = q.scenarioBNet - q.scenarioANet;
+          return [
+            q.quarter,
+            formatCurrency(q.scenarioANet),
+            formatCurrency(q.scenarioBNet),
+            formatCurrency(diff),
+            diff > 0 ? 'B' : diff < 0 ? 'A' : '-',
+          ];
+        });
+        
+        // Yillik toplamlar
+        const totalA = data.quarterlyComparison.reduce((sum, q) => sum + q.scenarioANet, 0);
+        const totalB = data.quarterlyComparison.reduce((sum, q) => sum + q.scenarioBNet, 0);
+        const totalDiff = totalB - totalA;
+        
+        quarterlyData.push([
+          'TOPLAM',
+          formatCurrency(totalA),
+          formatCurrency(totalB),
+          formatCurrency(totalDiff),
+          totalDiff > 0 ? 'B' : totalDiff < 0 ? 'A' : '-',
+        ]);
+        
+        autoTable(doc, {
+          startY: 25,
+          head: [['Ceyrek', data.scenarioA.name, data.scenarioB.name, 'Fark', 'Kazanan']],
+          body: quarterlyData,
+          theme: 'grid',
+          headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255] },
+          margin: { left: 30, right: 30 },
+          columnStyles: {
+            0: { cellWidth: 40, fontStyle: 'bold' },
+            1: { cellWidth: 50, halign: 'right' },
+            2: { cellWidth: 50, halign: 'right' },
+            3: { cellWidth: 45, halign: 'right' },
+            4: { cellWidth: 35, halign: 'center' },
+          },
+          didParseCell: (data) => {
+            // Son satir (TOPLAM) kalin yap
+            if (data.row.index === quarterlyData.length - 1) {
+              data.cell.styles.fontStyle = 'bold';
+              data.cell.styles.fillColor = [240, 240, 240];
+            }
+          },
+        });
+      }
+      
+      setProgress({ current: 3, total: 4, stage: 'Cikarimlar ekleniyor...' });
+      
+      // ============================================
+      // SAYFA 3: Cikarimlar (Insights)
+      // ============================================
+      if (data.insights && data.insights.length > 0) {
+        doc.addPage('landscape');
+        
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('ANALIZ VE CIKARIMLAR', 148, 15, { align: 'center' });
+        
+        const impactLabels = { high: 'Kritik', medium: 'Orta', low: 'Dusuk' };
+        const typeLabels = { 
+          positive: 'Olumlu', 
+          negative: 'Olumsuz', 
+          warning: 'Uyari', 
+          neutral: 'Notr' 
+        };
+        
+        const insightsData = data.insights.map(insight => [
+          typeLabels[insight.type],
+          insight.title,
+          impactLabels[insight.impact],
+          insight.description,
+          insight.recommendation || '-',
+        ]);
+        
+        autoTable(doc, {
+          startY: 25,
+          head: [['Tip', 'Baslik', 'Etki', 'Aciklama', 'Oneri']],
+          body: insightsData,
+          theme: 'grid',
+          headStyles: { fillColor: [245, 158, 11], textColor: [255, 255, 255] },
+          margin: { left: 10, right: 10 },
+          columnStyles: {
+            0: { cellWidth: 25 },
+            1: { cellWidth: 40 },
+            2: { cellWidth: 20 },
+            3: { cellWidth: 90 },
+            4: { cellWidth: 85 },
+          },
+          styles: {
+            fontSize: 8,
+            cellPadding: 3,
+          },
+          didParseCell: (data) => {
+            if (data.section === 'body' && data.column.index === 0) {
+              const type = data.cell.raw as string;
+              if (type === 'Olumlu') {
+                data.cell.styles.textColor = [34, 197, 94];
+              } else if (type === 'Olumsuz') {
+                data.cell.styles.textColor = [239, 68, 68];
+              } else if (type === 'Uyari') {
+                data.cell.styles.textColor = [245, 158, 11];
+              }
+            }
+          },
+        });
+      }
+      
+      // ============================================
+      // SAYFA 4: Oneriler (Recommendations)
+      // ============================================
+      if (data.recommendations && data.recommendations.length > 0) {
+        doc.addPage('landscape');
+        
+        doc.setFontSize(14);
+        doc.setFont('helvetica', 'bold');
+        doc.text('KARAR ONERILERI', 148, 15, { align: 'center' });
+        
+        const riskLabels = { low: 'Dusuk', medium: 'Orta', high: 'Yuksek' };
+        
+        const recommendationsData = data.recommendations.map(rec => [
+          rec.title,
+          riskLabels[rec.risk],
+          rec.description,
+          rec.suitableFor,
+        ]);
+        
+        autoTable(doc, {
+          startY: 25,
+          head: [['Strateji', 'Risk', 'Aciklama', 'Uygun Profil']],
+          body: recommendationsData,
+          theme: 'grid',
+          headStyles: { fillColor: [139, 92, 246], textColor: [255, 255, 255] },
+          margin: { left: 15, right: 15 },
+          columnStyles: {
+            0: { cellWidth: 50, fontStyle: 'bold' },
+            1: { cellWidth: 25, halign: 'center' },
+            2: { cellWidth: 100 },
+            3: { cellWidth: 85 },
+          },
+          styles: {
+            fontSize: 9,
+            cellPadding: 4,
+          },
+          didParseCell: (data) => {
+            if (data.section === 'body' && data.column.index === 1) {
+              const risk = data.cell.raw as string;
+              if (risk === 'Dusuk') {
+                data.cell.styles.textColor = [34, 197, 94];
+              } else if (risk === 'Orta') {
+                data.cell.styles.textColor = [245, 158, 11];
+              } else if (risk === 'Yuksek') {
+                data.cell.styles.textColor = [239, 68, 68];
+              }
+            }
+          },
+        });
+      }
+      
+      setProgress({ current: 4, total: 4, stage: 'PDF kaydediliyor...' });
       
       doc.save(`Senaryo_Karsilastirma_${data.scenarioA.name}_vs_${data.scenarioB.name}.pdf`);
     } finally {
