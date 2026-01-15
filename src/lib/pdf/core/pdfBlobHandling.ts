@@ -29,34 +29,7 @@ export function createBlobFromJsPdf(doc: any): Blob {
 }
 
 /**
- * Standard download denemesi
- */
-function tryStandardDownload(url: string, filename: string): boolean {
-  try {
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = filename;
-    link.style.cssText = 'display:none;position:absolute;left:-9999px;';
-    
-    document.body.appendChild(link);
-    link.click();
-    
-    setTimeout(() => {
-      if (document.body.contains(link)) {
-        document.body.removeChild(link);
-      }
-    }, 1000);
-    
-    return true;
-  } catch (e) {
-    console.error('[PDF Download] Standard download hatası:', e);
-    return false;
-  }
-}
-
-/**
- * PDF'i dosya olarak indirir (gelişmiş versiyon)
- * Birden fazla yöntem dener
+ * PDF'i dosya olarak indirir
  */
 export function downloadPdf(
   blob: Blob,
@@ -67,9 +40,6 @@ export function downloadPdf(
     addTimestamp?: boolean;
   }
 ): void {
-  console.log('[PDF Download] Başlatılıyor...');
-  console.log('[PDF Download] Blob boyutu:', blob.size, 'bytes');
-  
   // Dosya adını oluştur
   let finalFilename = filename;
   
@@ -88,46 +58,23 @@ export function downloadPdf(
     finalFilename += '.pdf';
   }
   
-  console.log('[PDF Download] Dosya adı:', finalFilename);
-  
   // Blob URL oluştur
   const url = URL.createObjectURL(blob);
-  console.log('[PDF Download] Blob URL oluşturuldu');
   
-  // Yöntem 1: Standard download link
-  const success = tryStandardDownload(url, finalFilename);
+  // Download link oluştur ve tıkla
+  const link = document.createElement('a');
+  link.href = url;
+  link.download = finalFilename;
+  link.style.display = 'none';
   
-  if (success) {
-    console.log('[PDF Download] Standard download başarılı');
-    // Cleanup - daha uzun timeout
-    setTimeout(() => {
-      URL.revokeObjectURL(url);
-      console.log('[PDF Download] Temizlik tamamlandı');
-    }, 1000);
-    return;
-  }
+  document.body.appendChild(link);
+  link.click();
   
-  // Yöntem 2: navigator.msSaveBlob (IE/Edge legacy)
-  if ('msSaveBlob' in navigator) {
-    try {
-      (navigator as any).msSaveBlob(blob, finalFilename);
-      console.log('[PDF Download] msSaveBlob ile indirildi');
-      URL.revokeObjectURL(url);
-      return;
-    } catch (e) {
-      console.warn('[PDF Download] msSaveBlob hatası:', e);
-    }
-  }
-  
-  // Yöntem 3: Son çare - yeni sekmede aç
-  console.log('[PDF Download] Fallback: Yeni sekmede açılıyor');
-  window.open(url, '_blank');
-  
-  // Yeni sekmede açıldıysa URL'i daha uzun süre tut
+  // Temizlik
   setTimeout(() => {
+    document.body.removeChild(link);
     URL.revokeObjectURL(url);
-    console.log('[PDF Download] Temizlik tamamlandı (fallback)');
-  }, 60000);
+  }, 100);
 }
 
 /**

@@ -3,14 +3,7 @@
 // Recharts ve diğer grafikleri PDF için işler
 // ============================================
 
-import { PDF_CONFIG } from '../config/pdf';
-
-// Grafik boyut tiplemesi
-export interface ChartDimension {
-  width: number;
-  height: number;
-  pdfId: string;
-}
+import { PDF_CONFIG, PDF_SELECTORS } from '../config/pdf';
 
 /**
  * Grafiklerin render edilmesini bekler
@@ -29,8 +22,6 @@ export async function waitForChartsToRender(
   const chartContainers = element.querySelectorAll('.recharts-responsive-container, .recharts-wrapper');
   
   if (chartContainers.length > 0) {
-    console.log('[PDF Charts] Bulunan grafik sayısı:', chartContainers.length);
-    
     // Her grafik için SVG render bekle
     const promises = Array.from(chartContainers).map(async (container) => {
       // SVG'nin oluşmasını bekle
@@ -57,76 +48,32 @@ export async function waitForChartsToRender(
 }
 
 /**
- * Clone'dan ÖNCE grafik boyutlarını yakalar
- * Bu boyutlar daha sonra clone'a uygulanır
+ * Responsive container'ları sabit boyutlandırır
+ * Bu, clone sırasında boyut kaybını önler
  */
-export function captureChartDimensions(element: HTMLElement): Map<string, ChartDimension> {
-  const dimensions = new Map<string, ChartDimension>();
-  let counter = 0;
-  
-  // Tüm recharts container'larını bul
+export function fixResponsiveContainers(element: HTMLElement): void {
   element.querySelectorAll('.recharts-responsive-container').forEach(container => {
     const htmlEl = container as HTMLElement;
-    const rect = htmlEl.getBoundingClientRect();
+    const rect = container.getBoundingClientRect();
     
     if (rect.width > 0 && rect.height > 0) {
-      const pdfId = `chart-dim-${counter++}`;
-      htmlEl.setAttribute('data-chart-id', pdfId);
-      
-      dimensions.set(pdfId, {
-        width: rect.width,
-        height: rect.height,
-        pdfId,
-      });
-      
-      console.log('[PDF Charts] Boyut yakalandı:', pdfId, rect.width, 'x', rect.height);
+      htmlEl.style.width = `${rect.width}px`;
+      htmlEl.style.height = `${rect.height}px`;
+      htmlEl.style.minWidth = `${rect.width}px`;
+      htmlEl.style.minHeight = `${rect.height}px`;
+      htmlEl.style.maxWidth = `${rect.width}px`;
+      htmlEl.style.maxHeight = `${rect.height}px`;
     }
   });
   
-  // Recharts wrapper'ları da
+  // Recharts wrapper'ları da sabitle
   element.querySelectorAll('.recharts-wrapper').forEach(wrapper => {
     const htmlEl = wrapper as HTMLElement;
-    const rect = htmlEl.getBoundingClientRect();
+    const rect = wrapper.getBoundingClientRect();
     
     if (rect.width > 0 && rect.height > 0) {
-      const pdfId = `chart-wrapper-${counter++}`;
-      htmlEl.setAttribute('data-chart-id', pdfId);
-      
-      dimensions.set(pdfId, {
-        width: rect.width,
-        height: rect.height,
-        pdfId,
-      });
-    }
-  });
-  
-  return dimensions;
-}
-
-/**
- * Yakalanan boyutları clone'a uygular
- * Clone DOM'da olmadığı için getBoundingClientRect çalışmaz,
- * bu yüzden önceden yakalanan boyutları kullanırız
- */
-export function applyChartDimensions(
-  clonedElement: HTMLElement,
-  dimensions: Map<string, ChartDimension>
-): void {
-  clonedElement.querySelectorAll('[data-chart-id]').forEach(container => {
-    const chartId = container.getAttribute('data-chart-id');
-    if (!chartId) return;
-    
-    const dim = dimensions.get(chartId);
-    if (dim) {
-      const htmlEl = container as HTMLElement;
-      htmlEl.style.width = `${dim.width}px`;
-      htmlEl.style.height = `${dim.height}px`;
-      htmlEl.style.minWidth = `${dim.width}px`;
-      htmlEl.style.minHeight = `${dim.height}px`;
-      htmlEl.style.maxWidth = `${dim.width}px`;
-      htmlEl.style.maxHeight = `${dim.height}px`;
-      
-      console.log('[PDF Charts] Boyut uygulandı:', chartId, dim.width, 'x', dim.height);
+      htmlEl.style.width = `${rect.width}px`;
+      htmlEl.style.height = `${rect.height}px`;
     }
   });
 }
@@ -208,7 +155,7 @@ export async function convertChartsToImages(
         htmlEl.innerHTML = '';
         htmlEl.appendChild(img);
       } catch (error) {
-        console.warn('[PDF Charts] Grafik dönüştürme hatası:', error);
+        console.warn('Grafik dönüştürme hatası:', error);
         // Hata durumunda orijinal SVG'yi koru
       }
     }
@@ -225,14 +172,5 @@ export function preserveCanvasElements(element: HTMLElement): void {
     
     canvas.style.width = `${width}px`;
     canvas.style.height = `${height}px`;
-  });
-}
-
-/**
- * Orijinal elementteki chart ID'lerini temizler
- */
-export function cleanupChartIds(element: HTMLElement): void {
-  element.querySelectorAll('[data-chart-id]').forEach(el => {
-    el.removeAttribute('data-chart-id');
   });
 }

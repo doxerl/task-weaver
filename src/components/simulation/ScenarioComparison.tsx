@@ -690,259 +690,136 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
             )}
           </div>
         ) : (
-          <>
-            <ScrollArea className="h-[60vh]">
-              <div className="space-y-4 pr-4 bg-background">
-                {/* Winner Card */}
-                {winner && winner.winner !== 'TIE' && (
-                  <Card className="bg-gradient-to-r from-amber-500/10 to-amber-600/5 border-amber-500/20">
-                    <CardContent className="p-4">
-                      <div className="flex items-center gap-3">
-                        <div className="p-2 rounded-full bg-amber-500/20">
-                          <Trophy className="h-5 w-5 text-amber-400" />
-                        </div>
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-semibold">Önerilen: {winner.winnerName}</h3>
-                            <Badge variant="secondary">
-                              {winner.scoreA > winner.scoreB ? winner.scoreA : winner.scoreB}/{winner.totalMetrics} metrik
-                            </Badge>
-                          </div>
-                          <div className="flex flex-wrap gap-2 mt-2">
-                            {winner.advantages.map((adv, i) => (
-                              <Badge key={i} variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
-                                ✓ {adv}
-                              </Badge>
-                            ))}
-                          </div>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-
-                {/* Tabs */}
-                <Tabs defaultValue="summary" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4">
-                    <TabsTrigger value="summary">Özet</TabsTrigger>
-                    <TabsTrigger value="trend">
-                      <LineChartIcon className="h-4 w-4 mr-1" />
-                      Trend
-                    </TabsTrigger>
-                    <TabsTrigger value="insights">
-                      <Lightbulb className="h-4 w-4 mr-1" />
-                      Çıkarımlar
-                    </TabsTrigger>
-                    <TabsTrigger value="recommendations">Öneriler</TabsTrigger>
-                  </TabsList>
-
-                  <TabsContent value="summary" className="mt-4">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          <TableHead className="w-[160px]">Metrik</TableHead>
-                          <TableHead className="text-right">{scenarioA?.name}</TableHead>
-                          <TableHead className="text-right">{scenarioB?.name}</TableHead>
-                          <TableHead className="text-right w-[100px]">Fark</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {metrics.map((metric) => {
-                          const diff = calculateDiff(metric.scenarioA, metric.scenarioB);
-                          return (
-                            <TableRow key={metric.label}>
-                              <TableCell className="font-medium">{metric.label}</TableCell>
-                              <TableCell className="text-right font-mono">
-                                {formatValue(metric.scenarioA, metric.format)}
-                              </TableCell>
-                              <TableCell className="text-right font-mono">
-                                {formatValue(metric.scenarioB, metric.format)}
-                              </TableCell>
-                              <TableCell className="text-right">
-                                <DiffBadge diff={diff} format={metric.format} higherIsBetter={metric.higherIsBetter} />
-                              </TableCell>
-                            </TableRow>
-                          );
-                        })}
-                      </TableBody>
-                    </Table>
-                  </TabsContent>
-
-                  <TabsContent value="trend" className="mt-4">
-                    <Card ref={chartContainerRef} className="bg-card">
-                      <CardHeader className="pb-2">
-                        <CardTitle className="text-sm">Çeyreklik Net Kâr Karşılaştırması</CardTitle>
-                      </CardHeader>
-                      <CardContent>
-                        <ChartContainer config={chartConfig} className="h-[250px] w-full">
-                          <ComposedChart data={quarterlyComparison}>
-                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                            <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
-                            <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
-                            <ChartTooltip content={<ChartTooltipContent />} />
-                            <ChartLegend content={<ChartLegendContent />} />
-                            <Bar dataKey="scenarioANet" fill="var(--color-scenarioANet)" name={scenarioA?.name} radius={4} />
-                            <Bar dataKey="scenarioBNet" fill="var(--color-scenarioBNet)" name={scenarioB?.name} radius={4} />
-                          </ComposedChart>
-                        </ChartContainer>
-                      </CardContent>
-                    </Card>
-                  </TabsContent>
-
-                  <TabsContent value="insights" className="mt-4">
-                    {insights.length > 0 ? (
-                      <div className="space-y-3">
-                        {insights.map((insight, index) => (
-                          <InsightCard key={index} insight={insight} />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>Senaryolar arasında önemli bir fark bulunamadı.</p>
-                      </div>
-                    )}
-                  </TabsContent>
-
-                  <TabsContent value="recommendations" className="mt-4">
-                    {recommendations.length > 0 ? (
-                      <div className="space-y-3">
-                        {recommendations.map((rec, index) => (
-                          <RecommendationCard key={index} recommendation={rec} />
-                        ))}
-                      </div>
-                    ) : (
-                      <div className="text-center py-8 text-muted-foreground">
-                        <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-50" />
-                        <p>Yeterli veri olmadığından öneri oluşturulamadı.</p>
-                      </div>
-                    )}
-                  </TabsContent>
-                </Tabs>
-              </div>
-            </ScrollArea>
-
-            {/* PDF için hidden container - TÜM içerikleri içerir */}
-            <div ref={pdfContentRef} className="hidden pdf-hidden-container bg-background p-6">
-              {/* Header */}
-              <div className="mb-6 border-b pb-4">
-                <h1 className="text-xl font-bold">Senaryo Karşılaştırma Raporu</h1>
-                <p className="text-muted-foreground mt-1">
-                  {scenarioA?.name} vs {scenarioB?.name}
-                </p>
-                <p className="text-sm text-muted-foreground">
-                  Oluşturma Tarihi: {new Date().toLocaleDateString('tr-TR')}
-                </p>
-              </div>
-
+          <ScrollArea className="h-[60vh]">
+            <div ref={pdfContentRef} className="space-y-4 pr-4 bg-background">
               {/* Winner Card */}
               {winner && winner.winner !== 'TIE' && (
-                <div className="pdf-section mb-6">
-                  <div className="p-4 rounded-lg border bg-amber-500/10 border-amber-500/20">
+                <Card className="bg-gradient-to-r from-amber-500/10 to-amber-600/5 border-amber-500/20">
+                  <CardContent className="p-4">
                     <div className="flex items-center gap-3">
-                      <Trophy className="h-5 w-5 text-amber-600" />
-                      <div>
-                        <h3 className="font-semibold">Önerilen: {winner.winnerName}</h3>
-                        <p className="text-sm text-muted-foreground">
-                          {winner.scoreA > winner.scoreB ? winner.scoreA : winner.scoreB}/{winner.totalMetrics} metrikte üstün
-                        </p>
+                      <div className="p-2 rounded-full bg-amber-500/20">
+                        <Trophy className="h-5 w-5 text-amber-400" />
+                      </div>
+                      <div className="flex-1">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-semibold">Önerilen: {winner.winnerName}</h3>
+                          <Badge variant="secondary">
+                            {winner.scoreA > winner.scoreB ? winner.scoreA : winner.scoreB}/{winner.totalMetrics} metrik
+                          </Badge>
+                        </div>
                         <div className="flex flex-wrap gap-2 mt-2">
                           {winner.advantages.map((adv, i) => (
-                            <span key={i} className="text-xs bg-emerald-500/20 text-emerald-700 px-2 py-1 rounded">
+                            <Badge key={i} variant="outline" className="bg-emerald-500/10 text-emerald-400 border-emerald-500/30">
                               ✓ {adv}
-                            </span>
+                            </Badge>
                           ))}
                         </div>
                       </div>
                     </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Özet Tablosu */}
-              <div className="pdf-section mb-6">
-                <h2 className="text-lg font-semibold mb-3">Metrik Karşılaştırması</h2>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead className="w-[160px]">Metrik</TableHead>
-                      <TableHead className="text-right">{scenarioA?.name}</TableHead>
-                      <TableHead className="text-right">{scenarioB?.name}</TableHead>
-                      <TableHead className="text-right w-[100px]">Fark</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {metrics.map((metric) => {
-                      const diff = calculateDiff(metric.scenarioA, metric.scenarioB);
-                      return (
-                        <TableRow key={metric.label}>
-                          <TableCell className="font-medium">{metric.label}</TableCell>
-                          <TableCell className="text-right font-mono">
-                            {formatValue(metric.scenarioA, metric.format)}
-                          </TableCell>
-                          <TableCell className="text-right font-mono">
-                            {formatValue(metric.scenarioB, metric.format)}
-                          </TableCell>
-                          <TableCell className="text-right">
-                            <DiffBadge diff={diff} format={metric.format} higherIsBetter={metric.higherIsBetter} />
-                          </TableCell>
-                        </TableRow>
-                      );
-                    })}
-                  </TableBody>
-                </Table>
-              </div>
-
-              {/* Trend Grafiği */}
-              <div className="pdf-section page-break-before mb-6">
-                <h2 className="text-lg font-semibold mb-3">Çeyreklik Net Kâr Karşılaştırması</h2>
-                <Card className="bg-card">
-                  <CardContent className="pt-4">
-                    <ChartContainer config={chartConfig} className="h-[300px] w-full">
-                      <ComposedChart data={quarterlyComparison}>
-                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                        <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
-                        <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
-                        <ChartTooltip content={<ChartTooltipContent />} />
-                        <ChartLegend content={<ChartLegendContent />} />
-                        <Bar dataKey="scenarioANet" fill="#2563eb" name={scenarioA?.name} radius={4} />
-                        <Bar dataKey="scenarioBNet" fill="#16a34a" name={scenarioB?.name} radius={4} />
-                      </ComposedChart>
-                    </ChartContainer>
                   </CardContent>
                 </Card>
-              </div>
-
-              {/* Çıkarımlar */}
-              {insights.length > 0 && (
-                <div className="pdf-section page-break-before mb-6">
-                  <h2 className="text-lg font-semibold mb-3">Analiz Çıkarımları</h2>
-                  <div className="space-y-3">
-                    {insights.map((insight, index) => (
-                      <InsightCard key={index} insight={insight} />
-                    ))}
-                  </div>
-                </div>
               )}
 
-              {/* Öneriler */}
-              {recommendations.length > 0 && (
-                <div className="pdf-section page-break-before mb-6">
-                  <h2 className="text-lg font-semibold mb-3">Karar Önerileri</h2>
-                  <div className="space-y-3">
-                    {recommendations.map((rec, index) => (
-                      <RecommendationCard key={index} recommendation={rec} />
-                    ))}
-                  </div>
-                </div>
-              )}
+              {/* Tabs */}
+              <Tabs defaultValue="summary" className="w-full">
+                <TabsList className="grid w-full grid-cols-4">
+                  <TabsTrigger value="summary">Özet</TabsTrigger>
+                  <TabsTrigger value="trend">
+                    <LineChartIcon className="h-4 w-4 mr-1" />
+                    Trend
+                  </TabsTrigger>
+                  <TabsTrigger value="insights">
+                    <Lightbulb className="h-4 w-4 mr-1" />
+                    Çıkarımlar
+                  </TabsTrigger>
+                  <TabsTrigger value="recommendations">Öneriler</TabsTrigger>
+                </TabsList>
 
-              {/* Footer */}
-              <div className="mt-8 pt-4 border-t text-center text-sm text-muted-foreground">
-                <p>Bu rapor otomatik olarak oluşturulmuştur.</p>
-              </div>
+                <TabsContent value="summary" className="mt-4">
+                  <Table>
+                    <TableHeader>
+                      <TableRow>
+                        <TableHead className="w-[160px]">Metrik</TableHead>
+                        <TableHead className="text-right">{scenarioA?.name}</TableHead>
+                        <TableHead className="text-right">{scenarioB?.name}</TableHead>
+                        <TableHead className="text-right w-[100px]">Fark</TableHead>
+                      </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                      {metrics.map((metric) => {
+                        const diff = calculateDiff(metric.scenarioA, metric.scenarioB);
+                        return (
+                          <TableRow key={metric.label}>
+                            <TableCell className="font-medium">{metric.label}</TableCell>
+                            <TableCell className="text-right font-mono">
+                              {formatValue(metric.scenarioA, metric.format)}
+                            </TableCell>
+                            <TableCell className="text-right font-mono">
+                              {formatValue(metric.scenarioB, metric.format)}
+                            </TableCell>
+                            <TableCell className="text-right">
+                              <DiffBadge diff={diff} format={metric.format} higherIsBetter={metric.higherIsBetter} />
+                            </TableCell>
+                          </TableRow>
+                        );
+                      })}
+                    </TableBody>
+                  </Table>
+                </TabsContent>
+
+                <TabsContent value="trend" className="mt-4">
+                  <Card ref={chartContainerRef} className="bg-card">
+                    <CardHeader className="pb-2">
+                      <CardTitle className="text-sm">Çeyreklik Net Kâr Karşılaştırması</CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                      <ChartContainer config={chartConfig} className="h-[250px] w-full">
+                        <ComposedChart data={quarterlyComparison}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                          <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
+                          <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                          <ChartTooltip content={<ChartTooltipContent />} />
+                          <ChartLegend content={<ChartLegendContent />} />
+                          <Bar dataKey="scenarioANet" fill="var(--color-scenarioANet)" name={scenarioA?.name} radius={4} />
+                          <Bar dataKey="scenarioBNet" fill="var(--color-scenarioBNet)" name={scenarioB?.name} radius={4} />
+                        </ComposedChart>
+                      </ChartContainer>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="insights" className="mt-4">
+                  {insights.length > 0 ? (
+                    <div className="space-y-3">
+                      {insights.map((insight, index) => (
+                        <InsightCard key={index} insight={insight} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>Senaryolar arasında önemli bir fark bulunamadı.</p>
+                    </div>
+                  )}
+                </TabsContent>
+
+                <TabsContent value="recommendations" className="mt-4">
+                  {recommendations.length > 0 ? (
+                    <div className="space-y-3">
+                      {recommendations.map((rec, index) => (
+                        <RecommendationCard key={index} recommendation={rec} />
+                      ))}
+                    </div>
+                  ) : (
+                    <div className="text-center py-8 text-muted-foreground">
+                      <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-50" />
+                      <p>Yeterli veri olmadığından öneri oluşturulamadı.</p>
+                    </div>
+                  )}
+                </TabsContent>
+              </Tabs>
             </div>
-          </>
+          </ScrollArea>
         )}
       </DialogContent>
     </Dialog>
