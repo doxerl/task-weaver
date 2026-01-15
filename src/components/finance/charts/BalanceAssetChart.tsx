@@ -90,7 +90,7 @@ export function BalanceAssetChart({ data, formatAmount }: BalanceAssetChartProps
         </ResponsiveContainer>
       </div>
 
-      {/* Legend */}
+      {/* Legend - inline styles for PDF compatibility */}
       <div className="grid grid-cols-2 gap-2 text-xs">
         {chartData.map((item, index) => (
           <div key={index} className="flex items-center gap-2">
@@ -98,16 +98,16 @@ export function BalanceAssetChart({ data, formatAmount }: BalanceAssetChartProps
               className="w-3 h-3 rounded-full flex-shrink-0"
               style={{ backgroundColor: item.color }}
             />
-            <span className="text-muted-foreground truncate">{item.name}</span>
-            <span className="font-medium ml-auto">{item.percentage}%</span>
+            <span className="truncate" style={{ color: '#64748b' }}>{item.name}</span>
+            <span className="font-medium ml-auto" style={{ color: '#0f172a' }}>{item.percentage}%</span>
           </div>
         ))}
       </div>
 
-      {/* Total */}
+      {/* Total - inline styles for PDF compatibility */}
       <div className="flex justify-between items-center pt-2 border-t text-sm">
-        <span className="font-medium">Toplam Varlıklar</span>
-        <span className="font-bold text-green-600">{formatter(total)}</span>
+        <span className="font-medium" style={{ color: '#0f172a' }}>Toplam Varlıklar</span>
+        <span className="font-bold" style={{ color: '#16a34a' }}>{formatter(total)}</span>
       </div>
     </div>
   );
