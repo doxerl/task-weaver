@@ -86,6 +86,24 @@ export function applyCollectedStyles(
 }
 
 /**
+ * Orijinal elementteki PDF işaretlerini temizler
+ * PDF oluşturma sonrası çağrılmalı
+ */
+export function cleanupOriginalElement(element: HTMLElement): void {
+  // data-pdf-id attribute'larını temizle
+  element.querySelectorAll('[data-pdf-id]').forEach(el => {
+    el.removeAttribute('data-pdf-id');
+  });
+  
+  // data-chart-id attribute'larını temizle
+  element.querySelectorAll('[data-chart-id]').forEach(el => {
+    el.removeAttribute('data-chart-id');
+  });
+  
+  console.log('[PDF Cleanup] Orijinal element temizlendi');
+}
+
+/**
  * HTML içeriğini PDF için hazırlar
  * Script taglarını temizler, image loading'i eager yapar
  */

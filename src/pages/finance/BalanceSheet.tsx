@@ -101,15 +101,10 @@ export default function BalanceSheet() {
   };
 
   const handleExportPdf = async () => {
-    const isDetailed = activeTab !== 'summary';
+    if (!contentRef.current) return;
     
     try {
-      await generateBalanceSheetPdf(balanceSheet, year, {
-        currency,
-        layout: isDetailed ? 'detailed' : 'single',
-        yearlyAverageRate: yearlyAverageRate || undefined,
-        companyName: 'Şirket',
-      });
+      await generateBalanceSheetPdf(contentRef, year, currency);
       
       toast({
         title: 'PDF oluşturuldu',
@@ -126,6 +121,7 @@ export default function BalanceSheet() {
   };
 
   const handleGraphicPdf = async () => {
+    if (!chartRef.current) return;
     try {
       await generateBalanceChartPdf(chartRef, year, currency);
       sonnerToast.success(`Bilanço grafik PDF oluşturuldu (${currency})`);
