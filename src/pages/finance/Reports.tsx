@@ -55,6 +55,7 @@ export default function Reports() {
     generateVatReportPdf,
     generateFullReportPdf,
     generateDashboardChartPdf,
+    generateDashboardPdfSmart,
     generateDistributionChartPdf,
     createPdfBuilder,
     isGenerating: isPdfEngineGenerating,
@@ -239,8 +240,22 @@ export default function Reports() {
 
   const handleDashboardPdf = async () => {
     try {
-      await generateDashboardChartPdf(dashboardRef, year, currency);
-      toast.success(`Dashboard PDF oluşturuldu (${currency})`);
+      // Her grafiği ayrı sayfaya koyarak bölünmeyi önle
+      const success = await generateDashboardPdfSmart(
+        {
+          trendChart: trendChartRef.current,
+          revenueChart: incomeChartRef.current,
+          expenseChart: expenseChartRef.current,
+        },
+        year,
+        currency
+      );
+      
+      if (success) {
+        toast.success(`Dashboard PDF oluşturuldu (${currency})`);
+      } else {
+        toast.error('PDF oluşturulamadı');
+      }
     } catch {
       toast.error('PDF oluşturulamadı');
     }
