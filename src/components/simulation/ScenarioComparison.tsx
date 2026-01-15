@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, RefObject } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -601,37 +601,14 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
 
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
+  // PDF content ref
+  const pdfContentRef = useRef<HTMLDivElement>(null);
+
   const handleExportPdf = async () => {
-    if (!scenarioA || !scenarioB || !summaryA || !summaryB) return;
+    if (!scenarioA || !scenarioB || !pdfContentRef.current) return;
     
     try {
-      await generateScenarioComparisonPdf({
-        scenarioA: { name: scenarioA.name, summary: summaryA },
-        scenarioB: { name: scenarioB.name, summary: summaryB },
-        metrics,
-        winner: winner || undefined,
-        // Çıkarımlar (icon hariç - PDF uyumlu)
-        insights: insights.map(i => ({
-          type: i.type,
-          title: i.title,
-          description: i.description,
-          impact: i.impact,
-          recommendation: i.recommendation,
-        })),
-        // Öneriler (icon hariç - PDF uyumlu)
-        recommendations: recommendations.map(r => ({
-          title: r.title,
-          description: r.description,
-          risk: r.risk,
-          suitableFor: r.suitableFor,
-        })),
-        // Çeyreklik karşılaştırma
-        quarterlyComparison: quarterlyComparison.map(q => ({
-          quarter: q.quarter,
-          scenarioANet: q.scenarioANet,
-          scenarioBNet: q.scenarioBNet,
-        })),
-      });
+      await generateScenarioComparisonPdf(pdfContentRef, scenarioA.name, scenarioB.name);
       toast.success('Senaryo karşılaştırma PDF oluşturuldu');
     } catch {
       toast.error('PDF oluşturulamadı');
@@ -714,7 +691,7 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
           </div>
         ) : (
           <ScrollArea className="h-[60vh]">
-            <div className="space-y-4 pr-4">
+            <div ref={pdfContentRef} className="space-y-4 pr-4 bg-background">
               {/* Winner Card */}
               {winner && winner.winner !== 'TIE' && (
                 <Card className="bg-gradient-to-r from-amber-500/10 to-amber-600/5 border-amber-500/20">
