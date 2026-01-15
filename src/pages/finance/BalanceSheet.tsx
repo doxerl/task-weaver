@@ -220,6 +220,15 @@ export default function BalanceSheet() {
   // Get data from balance sheet
   const { totalAssets, totalLiabilities, isBalanced, difference } = balanceSheet;
 
+  // Check for negative bank balance
+  const bankBalance = balanceSheet.currentAssets.banks;
+  const hasNegativeBankBalance = bankBalance < 0;
+  
+  // Check for missing asset purchase dates
+  const hasMissingPurchaseDates = 
+    (settings.vehicles_value > 0 && !settings.vehicles_purchase_date) ||
+    ((settings as any).fixtures_value > 0 && !settings.fixtures_purchase_date);
+
   // Prepare chart data
   const assetChartData = {
     cashAndBanks: balanceSheet.currentAssets.cash + balanceSheet.currentAssets.banks,
@@ -575,6 +584,40 @@ export default function BalanceSheet() {
             <Shield className="h-4 w-4 text-green-600" />
             <AlertDescription className="text-green-800 dark:text-green-200">
               Bu yıl resmi onaylı bilanço olarak kilitlenmiştir. Değerler değiştirilemez ve hesaplama yapılmaz.
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Negative Bank Balance Warning */}
+        {hasNegativeBankBalance && !isLocked && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertTitle>Banka Bakiyesi Negatif</AlertTitle>
+            <AlertDescription>
+              Banka hesabı negatif ({formatValue(bankBalance)}) görünüyor. Bu genellikle yanlış açılış bakiyesinden kaynaklanır.{' '}
+              <button 
+                onClick={() => setSettingsOpen(true)}
+                className="underline font-medium hover:no-underline"
+              >
+                Açılış bakiyesini düzeltin
+              </button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Missing Purchase Date Warning */}
+        {hasMissingPurchaseDates && !isLocked && (
+          <Alert variant="default" className="bg-amber-50 dark:bg-amber-950/20 border-amber-200">
+            <Info className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800 dark:text-amber-200">Eksik Alım Tarihi</AlertTitle>
+            <AlertDescription className="text-amber-700 dark:text-amber-300">
+              Duran varlıklar için alım tarihi girilmemiş. Amortisman hesaplaması yapılabilmesi için{' '}
+              <button 
+                onClick={() => setSettingsOpen(true)}
+                className="underline font-medium hover:no-underline"
+              >
+                alım tarihlerini girin
+              </button>
             </AlertDescription>
           </Alert>
         )}

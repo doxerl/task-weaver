@@ -8,10 +8,11 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { GitHubIntegration } from '@/components/GitHubIntegration';
-import { ArrowLeft, Loader2, Save, User, Globe, Clock, Wallet, CreditCard, Plus, DollarSign } from 'lucide-react';
+import { ArrowLeft, Loader2, Save, User, Globe, Clock, Wallet, CreditCard, Plus, DollarSign, Building2 } from 'lucide-react';
 import { ExchangeRateEditor } from '@/components/finance/ExchangeRateEditor';
 import { toast } from 'sonner';
 import { useFixedExpenses, FixedExpenseDefinition } from '@/hooks/finance/useFixedExpenses';
+import { useFinancialSettings } from '@/hooks/finance/useFinancialSettings';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { FixedExpenseForm } from '@/components/finance/FixedExpenseForm';
 import { FixedExpenseCard } from '@/components/finance/FixedExpenseCard';
@@ -62,6 +63,15 @@ export default function Settings() {
   
   const { definitions, summary, createDefinition, updateDefinition, deleteDefinition } = useFixedExpenses();
   const { categories } = useCategories();
+  const { settings: financialSettings, upsertSettings: upsertFinancialSettings } = useFinancialSettings();
+  
+  // Balance sheet settings state
+  const [balanceSettings, setBalanceSettings] = useState({
+    opening_bank_balance: 0,
+    vehicles_purchase_date: '',
+    fixtures_purchase_date: '',
+  });
+  const [isBalanceSettingsLoaded, setIsBalanceSettingsLoaded] = useState(false);
 
   const handleSaveProfile = async () => {
     if (!firstName.trim() || !lastName.trim()) {
@@ -116,6 +126,24 @@ export default function Settings() {
 
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(val);
+
+  // Load balance settings when financial settings are ready
+  if (!isBalanceSettingsLoaded && financialSettings.id) {
+    setBalanceSettings({
+      opening_bank_balance: financialSettings.opening_bank_balance || 0,
+      vehicles_purchase_date: financialSettings.vehicles_purchase_date || '',
+      fixtures_purchase_date: financialSettings.fixtures_purchase_date || '',
+    });
+    setIsBalanceSettingsLoaded(true);
+  }
+
+  const handleSaveBalanceSettings = () => {
+    upsertFinancialSettings.mutate({
+      opening_bank_balance: balanceSettings.opening_bank_balance,
+      vehicles_purchase_date: balanceSettings.vehicles_purchase_date || null,
+      fixtures_purchase_date: balanceSettings.fixtures_purchase_date || null,
+    });
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -348,6 +376,77 @@ export default function Settings() {
           </CardHeader>
           <CardContent>
             <ExchangeRateEditor />
+          </CardContent>
+        </Card>
+
+        <Separator />
+
+        {/* Balance Sheet Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Building2 className="h-5 w-5" />
+              Bilanço Ayarları
+            </CardTitle>
+            <CardDescription>
+              Açılış bakiyesi ve varlık alım tarihlerini yönetin
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="space-y-2">
+              <Label htmlFor="openingBankBalance">2024 Yıl Sonu Banka Bakiyesi (Açılış) (₺)</Label>
+              <Input
+                id="openingBankBalance"
+                type="number"
+                value={balanceSettings.opening_bank_balance}
+                onChange={(e) => setBalanceSettings(p => ({ ...p, opening_bank_balance: Number(e.target.value) }))}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground">
+                2025 yılı başındaki banka bakiyenizi girin. Bu değer bilanço hesaplamasında kullanılır.
+              </p>
+            </div>
+
+            <Separator />
+
+            <div className="space-y-2">
+              <Label htmlFor="vehiclesPurchaseDate">Taşıtlar Alım Tarihi</Label>
+              <Input
+                id="vehiclesPurchaseDate"
+                type="date"
+                value={balanceSettings.vehicles_purchase_date}
+                onChange={(e) => setBalanceSettings(p => ({ ...p, vehicles_purchase_date: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Mevcut taşıtlarınızın ortalama alım tarihi. Amortisman hesaplaması için gereklidir.
+              </p>
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="fixturesPurchaseDate">Demirbaşlar Alım Tarihi</Label>
+              <Input
+                id="fixturesPurchaseDate"
+                type="date"
+                value={balanceSettings.fixtures_purchase_date}
+                onChange={(e) => setBalanceSettings(p => ({ ...p, fixtures_purchase_date: e.target.value }))}
+              />
+              <p className="text-xs text-muted-foreground">
+                Mevcut demirbaşlarınızın ortalama alım tarihi. Amortisman hesaplaması için gereklidir.
+              </p>
+            </div>
+
+            <Button 
+              onClick={handleSaveBalanceSettings} 
+              disabled={upsertFinancialSettings.isPending}
+              className="w-full"
+            >
+              {upsertFinancialSettings.isPending ? (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="mr-2 h-4 w-4" />
+              )}
+              Bilanço Ayarlarını Kaydet
+            </Button>
           </CardContent>
         </Card>
 
