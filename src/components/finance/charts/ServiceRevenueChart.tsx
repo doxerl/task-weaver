@@ -1,6 +1,7 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, Tooltip } from 'recharts';
 import { ServiceRevenue } from '@/types/reports';
 import { useMemo } from 'react';
+import { formatCompactUSD, formatCompactTRY } from '@/lib/formatters';
 
 interface ServiceRevenueChartProps {
   data: ServiceRevenue[];
@@ -21,6 +22,18 @@ const COLORS = [
 
 export function ServiceRevenueChart({ data, formatAmount }: ServiceRevenueChartProps) {
   const formatter = formatAmount || defaultFormatCurrency;
+
+  // Compact formatter for legend display
+  const formatCompact = useMemo(() => {
+    return (value: number) => {
+      if (formatAmount) {
+        const sample = formatAmount(1);
+        const isUsd = sample.includes('$');
+        return isUsd ? formatCompactUSD(value) : formatCompactTRY(value);
+      }
+      return formatCompactTRY(value);
+    };
+  }, [formatAmount]);
 
   // Group small items (< 3%) into "Diğer"
   const processedData = useMemo(() => {
@@ -102,7 +115,7 @@ export function ServiceRevenueChart({ data, formatAmount }: ServiceRevenueChartP
               </div>
               <div className="flex items-center gap-2 flex-shrink-0">
                 <span className="text-sm font-semibold whitespace-nowrap">
-                  {formatter(item.amount)}
+                  {formatCompact(item.amount)}
                 </span>
                 <span className="text-xs whitespace-nowrap" style={{ color: '#64748b' }}>
                   ({item.percentage.toFixed(1)}%)
