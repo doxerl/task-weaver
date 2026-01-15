@@ -1,5 +1,6 @@
 import { useState, useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { useYear } from '@/contexts/YearContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
@@ -239,7 +240,7 @@ function TransactionCard({ tx, grouped, onCategoryChange, onDelete, onToggleExcl
 }
 
 export default function BankTransactions() {
-  const [year, setYear] = useState(new Date().getFullYear());
+  const { selectedYear: year, setSelectedYear: setYear } = useYear();
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [commercialFilter, setCommercialFilter] = useState<string>('all');

@@ -1,5 +1,5 @@
-import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useYear } from '@/contexts/YearContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -14,7 +14,7 @@ const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'c
 const formatCompact = (n: number) => new Intl.NumberFormat('tr-TR', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
 
 export default function FinanceDashboard() {
-  const [year, setYear] = useState(new Date().getFullYear());
+  const { selectedYear: year, setSelectedYear: setYear } = useYear();
   const calc = useFinancialCalculations(year);
   const vat = useVatCalculations(year);
   const { balanceSheet, isLoading: balanceLoading } = useBalanceSheet(year);

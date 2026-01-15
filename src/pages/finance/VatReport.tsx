@@ -1,5 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Link } from 'react-router-dom';
+import { useYear } from '@/contexts/YearContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,7 @@ import { toast } from 'sonner';
 const months = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
 export default function VatReport() {
-  const [year, setYear] = useState(new Date().getFullYear());
+  const { selectedYear: year, setSelectedYear: setYear } = useYear();
   const vat = useVatCalculations(year);
   const { currency, formatAmount, yearlyAverageRate } = useCurrency();
   const { generateVatReportPdf, isGenerating } = usePdfEngine();

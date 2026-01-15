@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useYear } from '@/contexts/YearContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Checkbox } from '@/components/ui/checkbox';
@@ -170,7 +171,7 @@ function ReceiptCard({ receipt, categories, onCategoryChange, onToggleReport, on
 }
 
 export default function Receipts() {
-  const [year, setYear] = useState(new Date().getFullYear());
+  const { selectedYear: year, setSelectedYear: setYear } = useYear();
   const [activeTab, setActiveTab] = useState<TabType>('slip');
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [isReprocessingAll, setIsReprocessingAll] = useState(false);

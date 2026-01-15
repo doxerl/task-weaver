@@ -1,5 +1,6 @@
-import { useState, useMemo, useRef } from 'react';
+import { useMemo, useRef } from 'react';
 import { Link } from 'react-router-dom';
+import { useYear } from '@/contexts/YearContext';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -27,8 +28,8 @@ import { ReportPeriod, FullReportData, MonthlyDataPoint, MONTH_NAMES_SHORT_TR } 
 import { toast } from 'sonner';
 
 export default function Reports() {
-  const [year, setYear] = useState(new Date().getFullYear());
-  const [period, setPeriod] = useState<ReportPeriod>('yearly');
+  const { selectedYear: year, setSelectedYear: setYear } = useYear();
+  const period: ReportPeriod = 'yearly';
   const dashboardRef = useRef<HTMLDivElement>(null);
   const incomeRef = useRef<HTMLDivElement>(null);
   const expenseRef = useRef<HTMLDivElement>(null);
