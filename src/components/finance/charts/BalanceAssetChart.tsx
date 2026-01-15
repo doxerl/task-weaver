@@ -81,8 +81,8 @@ export function BalanceAssetChart({ data, formatAmount }: BalanceAssetChartProps
             <Tooltip
               formatter={(value: number) => formatter(value)}
               contentStyle={{
-                backgroundColor: 'hsl(var(--popover))',
-                border: '1px solid hsl(var(--border))',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
                 borderRadius: '8px',
               }}
             />
@@ -98,7 +98,7 @@ export function BalanceAssetChart({ data, formatAmount }: BalanceAssetChartProps
               className="w-3 h-3 rounded-full flex-shrink-0"
               style={{ backgroundColor: item.color }}
             />
-            <span className="truncate" style={{ color: '#64748b' }}>{item.name}</span>
+            <span className="truncate" style={{ color: '#334155' }}>{item.name}</span>
             <span className="font-medium ml-auto" style={{ color: '#0f172a' }}>{item.percentage}%</span>
           </div>
         ))}
