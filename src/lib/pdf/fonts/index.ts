@@ -3,42 +3,17 @@
 // Türkçe karakter desteği için font yükleme
 // ============================================
 
-let fontBase64Cache: string | null = null;
-let fontLoadPromise: Promise<string> | null = null;
-
-/**
- * Load Roboto font as base64 for jsPDF
- * Font is loaded from public/fonts/Roboto-Regular.ttf
- */
-export async function loadRobotoFont(): Promise<string> {
-  if (fontBase64Cache) {
-    return fontBase64Cache;
-  }
-
-  if (fontLoadPromise) {
-    return fontLoadPromise;
-  }
-
-  fontLoadPromise = (async () => {
-    try {
-      const response = await fetch('/fonts/Roboto-Regular.ttf');
-      if (!response.ok) {
-        throw new Error(`Font fetch failed: ${response.status}`);
-      }
-      
-      const arrayBuffer = await response.arrayBuffer();
-      const base64 = arrayBufferToBase64(arrayBuffer);
-      fontBase64Cache = base64;
-      console.log('[PDF] Roboto font loaded successfully, size:', base64.length);
-      return base64;
-    } catch (error) {
-      console.error('[PDF] Failed to load Roboto font:', error);
-      throw error;
-    }
-  })();
-
-  return fontLoadPromise;
+interface FontCache {
+  regular: string | null;
+  bold: string | null;
 }
+
+const fontCache: FontCache = {
+  regular: null,
+  bold: null,
+};
+
+let fontLoadPromise: Promise<FontCache> | null = null;
 
 /**
  * Convert ArrayBuffer to Base64 string
@@ -54,31 +29,94 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 }
 
 /**
- * Add Roboto font to jsPDF instance
+ * Fetch a font file and convert to base64
+ */
+async function fetchFont(url: string): Promise<string> {
+  const response = await fetch(url);
+  if (!response.ok) {
+    throw new Error(`Font fetch failed: ${response.status} - ${url}`);
+  }
+  const arrayBuffer = await response.arrayBuffer();
+  return arrayBufferToBase64(arrayBuffer);
+}
+
+/**
+ * Load Roboto fonts (Regular and Bold) as base64 for jsPDF
+ * Fonts are loaded from public/fonts/
+ */
+export async function loadRobotoFonts(): Promise<FontCache> {
+  // Return cached fonts if available
+  if (fontCache.regular && fontCache.bold) {
+    return fontCache;
+  }
+
+  // Return existing promise if loading
+  if (fontLoadPromise) {
+    return fontLoadPromise;
+  }
+
+  fontLoadPromise = (async () => {
+    try {
+      console.log('[PDF] Loading Roboto fonts...');
+      
+      // Load both fonts in parallel
+      const [regular, bold] = await Promise.all([
+        fetchFont('/fonts/Roboto-Regular.ttf'),
+        fetchFont('/fonts/Roboto-Bold.ttf'),
+      ]);
+
+      fontCache.regular = regular;
+      fontCache.bold = bold;
+
+      console.log('[PDF] Roboto fonts loaded - Regular:', regular.length, 'bytes, Bold:', bold.length, 'bytes');
+      
+      return fontCache;
+    } catch (error) {
+      console.error('[PDF] Failed to load Roboto fonts:', error);
+      throw error;
+    }
+  })();
+
+  return fontLoadPromise;
+}
+
+/**
+ * Add Roboto fonts to jsPDF instance
+ * This enables proper Turkish character support (ğ, ü, ş, ö, ç, ı, İ, Ğ, Ü, Ş, Ö, Ç)
  */
 export async function addRobotoToJsPDF(pdf: any): Promise<void> {
   try {
-    const fontBase64 = await loadRobotoFont();
+    const fonts = await loadRobotoFonts();
     
-    // Add font to jsPDF VFS
-    pdf.addFileToVFS('Roboto-Regular.ttf', fontBase64);
+    if (!fonts.regular || !fonts.bold) {
+      throw new Error('Fonts not loaded properly');
+    }
+    
+    // Add Regular font
+    pdf.addFileToVFS('Roboto-Regular.ttf', fonts.regular);
     pdf.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+    
+    // Add Bold font
+    pdf.addFileToVFS('Roboto-Bold.ttf', fonts.bold);
+    pdf.addFont('Roboto-Bold.ttf', 'Roboto', 'bold');
+    
+    // Set as default font
     pdf.setFont('Roboto', 'normal');
     
-    console.log('[PDF] Roboto font added to jsPDF');
+    console.log('[PDF] Roboto fonts added to jsPDF successfully');
   } catch (error) {
-    console.warn('[PDF] Could not add Roboto font, falling back to Helvetica:', error);
-    // Fallback to Helvetica
+    console.warn('[PDF] Could not add Roboto fonts, falling back to Helvetica:', error);
+    // Fallback to Helvetica (no Turkish support)
     pdf.setFont('helvetica', 'normal');
   }
 }
 
 /**
- * Preload Roboto font for faster PDF generation
+ * Preload Roboto fonts for faster PDF generation
  * Call this early in the app lifecycle
  */
 export function preloadRobotoFont(): void {
-  loadRobotoFont().catch(() => {
-    // Silently fail - font will be loaded on demand
+  loadRobotoFonts().catch(() => {
+    // Silently fail - fonts will be loaded on demand
   });
 }
