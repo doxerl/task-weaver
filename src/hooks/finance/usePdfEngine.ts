@@ -1363,11 +1363,11 @@ export function usePdfEngine(): UsePdfEngineReturn {
         }
       };
       
-      // 1. Trend Chart - tam genişlik, üst kısım (~55mm yükseklik)
+      // 1. Trend Chart - tam genişlik, üst kısım (100mm yükseklik - büyütüldü)
       setProgress({ current: 2, total: 4, stage: 'Trend grafiği...' });
       const trendData = await captureChart(elements.trendChart);
       if (trendData) {
-        const maxHeight = 55;
+        const maxHeight = 100; // 55mm → 100mm büyütüldü
         let imgWidth = contentWidth;
         let imgHeight = imgWidth / trendData.aspectRatio;
         if (imgHeight > maxHeight) {
@@ -1376,38 +1376,42 @@ export function usePdfEngine(): UsePdfEngineReturn {
         }
         const xPos = margin + (contentWidth - imgWidth) / 2;
         pdf.addImage(trendData.imgData, 'JPEG', xPos, currentY, imgWidth, imgHeight);
-        currentY += imgHeight + 5;
+        currentY += imgHeight + 8;
       }
       
-      // 2. Revenue Chart (Pie) ve 3. Expense Chart (Bar) - yan yana
+      // 2. Revenue Chart (Pie) ve 3. Expense Chart (Bar) - yan yana, YARI BOYUTTA
       setProgress({ current: 3, total: 4, stage: 'Gelir ve gider grafikleri...' });
       const revenueData = await captureChart(elements.revenueChart);
       const expenseData = await captureChart(elements.expenseChart);
       
-      // Kalan alan hesapla
+      // Kalan alan hesapla - alt chartlar yarı boyutta
       const remainingHeight = pageHeight - currentY - margin - 5;
-      const halfWidth = (contentWidth - 5) / 2; // 5mm boşluk ortada
+      const chartWidth = (contentWidth - 5) / 4; // 136mm → 68mm (yarısı)
+      const maxChartHeight = remainingHeight * 0.7; // Yükseklik de küçültüldü
       
-      // Sol: Revenue (Pie) Chart
+      // Sol: Revenue (Pie) Chart - küçültülmüş, sol çeyreğe hizalı
       if (revenueData) {
-        let imgWidth = halfWidth;
+        let imgWidth = chartWidth;
         let imgHeight = imgWidth / revenueData.aspectRatio;
-        if (imgHeight > remainingHeight) {
-          imgHeight = remainingHeight;
+        if (imgHeight > maxChartHeight) {
+          imgHeight = maxChartHeight;
           imgWidth = imgHeight * revenueData.aspectRatio;
         }
-        pdf.addImage(revenueData.imgData, 'JPEG', margin, currentY, imgWidth, imgHeight);
+        // Sol çeyreğin ortasına hizala
+        const xPos = margin + (contentWidth / 4) - (imgWidth / 2);
+        pdf.addImage(revenueData.imgData, 'JPEG', xPos, currentY, imgWidth, imgHeight);
       }
       
-      // Sağ: Expense (Bar) Chart
+      // Sağ: Expense (Bar) Chart - küçültülmüş, sağ çeyreğe hizalı
       if (expenseData) {
-        let imgWidth = halfWidth;
+        let imgWidth = chartWidth;
         let imgHeight = imgWidth / expenseData.aspectRatio;
-        if (imgHeight > remainingHeight) {
-          imgHeight = remainingHeight;
+        if (imgHeight > maxChartHeight) {
+          imgHeight = maxChartHeight;
           imgWidth = imgHeight * expenseData.aspectRatio;
         }
-        const xPos = margin + halfWidth + 5;
+        // Sağ çeyreğin ortasına hizala
+        const xPos = margin + (contentWidth * 3 / 4) - (imgWidth / 2);
         pdf.addImage(expenseData.imgData, 'JPEG', xPos, currentY, imgWidth, imgHeight);
       }
       
