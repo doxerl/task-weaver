@@ -261,7 +261,7 @@ export function useFinancialDataHub(year: number, manualBankBalance?: number | n
   const { categories, isLoading: loadingCats } = useCategories();
   const { settings, isLoading: loadingSettings } = useFinancialSettings();
   const { summary: fixedExpenses, isLoading: loadingFixed } = useFixedExpenses();
-  const { summary: payrollSummary, isLoading: loadingPayroll } = usePayrollAccruals(year);
+  const { accruals: payrollAccruals, summary: payrollSummary, isLoading: loadingPayroll } = usePayrollAccruals(year);
   // Önceki yılın kilitli bilançosunu al (2025 için 2024'ü getirir)
   const { previousYearBalance, isLoading: loadingPrevBalance } = usePreviousYearBalance(year - 1);
   
@@ -400,15 +400,16 @@ export function useFinancialDataHub(year: number, manualBankBalance?: number | n
       vat: income.reduce((sum, t) => sum + t.vat, 0)
     };
 
-    // Expense summary
+    // Expense summary - personel giderleri dahil
     const fixedExpenseAmount = expense.filter(t => t.expenseBehavior === 'fixed').reduce((sum, t) => sum + t.net, 0);
     const variableExpenseAmount = expense.filter(t => t.expenseBehavior !== 'fixed').reduce((sum, t) => sum + t.net, 0);
+    const personnelExpenseTotal = payrollSummary.totalPersonnelExpense;
     
     const expenseSummary = {
-      gross: expense.reduce((sum, t) => sum + t.gross, 0),
-      net: expense.reduce((sum, t) => sum + t.net, 0),
+      gross: expense.reduce((sum, t) => sum + t.gross, 0) + personnelExpenseTotal,
+      net: expense.reduce((sum, t) => sum + t.net, 0) + personnelExpenseTotal,
       vat: expense.reduce((sum, t) => sum + t.vat, 0),
-      fixed: fixedExpenseAmount,
+      fixed: fixedExpenseAmount + personnelExpenseTotal, // Personel sabit gider
       variable: variableExpenseAmount
     };
 
@@ -542,6 +543,16 @@ export function useFinancialDataHub(year: number, manualBankBalance?: number | n
       const monthInvestment = monthTx.filter(t => t.categoryType === 'INVESTMENT');
       const monthPartner = monthTx.filter(t => t.categoryType === 'PARTNER');
       
+      // Personel giderlerini bu ay için hesapla
+      const monthPayroll = payrollAccruals.find(p => p.month === m);
+      const personnelExpense = monthPayroll 
+        ? monthPayroll.grossSalary + monthPayroll.employerSgkPayable + monthPayroll.unemploymentPayable 
+        : 0;
+      
+      const baseExpenseGross = monthExpense.reduce((sum, t) => sum + t.gross, 0);
+      const baseExpenseNet = monthExpense.reduce((sum, t) => sum + t.net, 0);
+      const baseExpenseFixed = monthExpense.filter(t => t.expenseBehavior === 'fixed').reduce((sum, t) => sum + t.net, 0);
+      
       byMonth[m] = {
         month: m,
         income: {
@@ -550,10 +561,10 @@ export function useFinancialDataHub(year: number, manualBankBalance?: number | n
           vat: monthIncome.reduce((sum, t) => sum + t.vat, 0)
         },
         expense: {
-          gross: monthExpense.reduce((sum, t) => sum + t.gross, 0),
-          net: monthExpense.reduce((sum, t) => sum + t.net, 0),
+          gross: baseExpenseGross + personnelExpense,
+          net: baseExpenseNet + personnelExpense,
           vat: monthExpense.reduce((sum, t) => sum + t.vat, 0),
-          fixed: monthExpense.filter(t => t.expenseBehavior === 'fixed').reduce((sum, t) => sum + t.net, 0),
+          fixed: baseExpenseFixed + personnelExpense, // Personel sabit gider
           variable: monthExpense.filter(t => t.expenseBehavior !== 'fixed').reduce((sum, t) => sum + t.net, 0)
         },
         financing: {
@@ -565,7 +576,7 @@ export function useFinancialDataHub(year: number, manualBankBalance?: number | n
           in: monthPartner.filter(t => t.isIncome).reduce((sum, t) => sum + t.gross, 0),
           out: monthPartner.filter(t => !t.isIncome).reduce((sum, t) => sum + t.gross, 0)
         },
-        net: monthIncome.reduce((sum, t) => sum + t.net, 0) - monthExpense.reduce((sum, t) => sum + t.net, 0)
+        net: monthIncome.reduce((sum, t) => sum + t.net, 0) - (baseExpenseNet + personnelExpense)
       };
     }
 
