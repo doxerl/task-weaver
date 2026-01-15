@@ -116,7 +116,7 @@ export function ServiceRevenueChart({ data, formatAmount, formatCompactAmount }:
                   className="w-3 h-3 rounded-full flex-shrink-0" 
                   style={{ backgroundColor: item.color }} 
                 />
-                <span className="text-sm font-medium truncate" style={{ color: '#334155' }}>
+                <span className="text-sm font-medium" style={{ color: '#334155', wordBreak: 'break-word' }}>
                   {item.name}
                 </span>
               </div>
