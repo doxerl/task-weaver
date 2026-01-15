@@ -38,6 +38,21 @@ import {
 } from '@/lib/pdf/builders';
 import type { BalanceSheet } from '@/types/finance';
 import type { IncomeStatementData, DetailedIncomeStatementData } from '@/types/reports';
+import type { FinancialDataHub } from './useFinancialDataHub';
+
+// ============================================
+// FULL REPORT PARAMETRELERİ
+// ============================================
+
+export interface FullReportPdfParams {
+  hub: FinancialDataHub;
+  incomeStatement: IncomeStatementData | null;
+  detailedStatement: DetailedIncomeStatementData | null;
+  balanceSheet: BalanceSheet | null;
+  year: number;
+  formatAmount: (value: number) => string;
+  currency: 'TRY' | 'USD';
+}
 
 // ============================================
 // TİP TANIMLARI
@@ -48,6 +63,8 @@ export interface UsePdfEngineReturn {
   // DATA-DRIVEN PDF FONKSİYONLARI (ÖNERILEN)
   // jspdf-autotable kullanır - tablolar için ideal
   // ============================================
+  
+  generateFullReportPdfData: (params: FullReportPdfParams) => Promise<boolean>;
   
   generateBalanceSheetPdfData: (
     balanceSheet: BalanceSheet,
@@ -670,6 +687,155 @@ export function usePdfEngine(): UsePdfEngineReturn {
   }, []);
 
   /**
+   * Tam Finansal Rapor PDF - Data-Driven (AKILLI SAYFA BÖLME)
+   * html2canvas yerine jspdf-autotable kullanır
+   * Tablolar otomatik olarak sayfa başlarında bölünür
+   */
+  const generateFullReportPdfData = useCallback(async (
+    params: FullReportPdfParams
+  ): Promise<boolean> => {
+    const { hub, incomeStatement, detailedStatement, balanceSheet, year, formatAmount, currency } = params;
+    
+    setIsGenerating(true);
+    setProgress({ current: 1, total: 6, stage: 'Kapak sayfası hazırlanıyor...' });
+    
+    try {
+      const builder = createPortraitBuilder({ margin: 10 });
+      
+      // 1. Kapak sayfası
+      builder.addCover(
+        `Finansal Rapor - ${year}`,
+        `Para Birimi: ${currency}`,
+        new Date().toLocaleDateString('tr-TR')
+      );
+      
+      setProgress({ current: 2, total: 6, stage: 'Özet göstergeler...' });
+      
+      // 2. Özet Göstergeler Tablosu (KPI'lar)
+      builder.addTable({
+        title: 'Finansal Özet',
+        headers: ['Gösterge', 'Değer'],
+        rows: [
+          ['Brüt Gelir (KDV Dahil)', formatAmount(hub.incomeSummary.gross)],
+          ['Net Gelir (KDV Hariç)', formatAmount(hub.incomeSummary.net)],
+          ['Brüt Gider (KDV Dahil)', formatAmount(hub.expenseSummary.gross)],
+          ['Net Gider (KDV Hariç)', formatAmount(hub.expenseSummary.net)],
+          ['Faaliyet Kârı', formatAmount(hub.operatingProfit)],
+          ['Kâr Marjı', `${hub.profitMargin.toFixed(1)}%`],
+        ],
+        options: {
+          columnStyles: {
+            0: { cellWidth: 100 },
+            1: { halign: 'right' },
+          }
+        }
+      });
+      
+      builder.addSpacer(5);
+      
+      // 3. KDV Özeti Tablosu
+      builder.addTable({
+        title: 'KDV Özeti',
+        headers: ['Kalem', 'Tutar'],
+        rows: [
+          ['Hesaplanan KDV (Satışlardan)', formatAmount(hub.vatSummary.calculated)],
+          ['İndirilecek KDV (Alışlardan)', formatAmount(hub.vatSummary.deductible)],
+          ['Net Ödenecek/Devreden KDV', formatAmount(hub.vatSummary.net)],
+        ],
+        options: {
+          headerColor: [34, 197, 94], // Yeşil
+          columnStyles: {
+            0: { cellWidth: 100 },
+            1: { halign: 'right' },
+          }
+        }
+      });
+      
+      builder.addSpacer(5);
+      
+      // 4. Finansman Özeti (varsa)
+      if (hub.financingSummary.creditIn > 0 || hub.financingSummary.creditOut > 0) {
+        builder.addTable({
+          title: 'Finansman Özeti',
+          headers: ['Kalem', 'Tutar'],
+          rows: [
+            ['Kredi Girişi', formatAmount(hub.financingSummary.creditIn)],
+            ['Kredi Ödemesi', formatAmount(hub.financingSummary.creditOut)],
+            ['Leasing Ödemesi', formatAmount(hub.financingSummary.leasingOut)],
+            ['Ödenen Faiz', formatAmount(hub.financingSummary.interestPaid)],
+            ['Kalan Borç', formatAmount(hub.financingSummary.remainingDebt)],
+          ],
+          options: {
+            headerColor: [239, 68, 68], // Kırmızı
+            columnStyles: {
+              0: { cellWidth: 100 },
+              1: { halign: 'right' },
+            }
+          }
+        });
+      }
+      
+      // 5. Ortak Hesabı (varsa)
+      if (hub.partnerSummary.deposits > 0 || hub.partnerSummary.withdrawals > 0) {
+        builder.addTable({
+          title: 'Ortak Hesabı',
+          headers: ['Kalem', 'Tutar'],
+          rows: [
+            ['Ortak Sermaye Girişi', formatAmount(hub.partnerSummary.deposits)],
+            ['Ortak Çekişi', formatAmount(hub.partnerSummary.withdrawals)],
+            ['Net Bakiye', formatAmount(hub.partnerSummary.balance)],
+          ],
+          options: {
+            headerColor: [168, 85, 247], // Mor
+            columnStyles: {
+              0: { cellWidth: 100 },
+              1: { halign: 'right' },
+            }
+          }
+        });
+      }
+      
+      // Sayfa sonu - Gelir Tablosu için
+      builder.addPageBreak();
+      setProgress({ current: 3, total: 6, stage: 'Gelir tablosu hazırlanıyor...' });
+      
+      // 6. Gelir Tablosu (otomatik sayfa yönetimi)
+      if (incomeStatement) {
+        builder.addIncomeStatement(incomeStatement, year, formatAmount);
+      }
+      
+      // Sayfa sonu - Detaylı Gelir Tablosu için
+      builder.addPageBreak();
+      setProgress({ current: 4, total: 6, stage: 'Detaylı gelir tablosu...' });
+      
+      // 7. Detaylı Gelir Tablosu
+      if (detailedStatement) {
+        builder.addDetailedIncomeStatement(detailedStatement, formatAmount);
+      }
+      
+      // 8. Bilanço (varsa)
+      if (balanceSheet) {
+        builder.addPageBreak();
+        setProgress({ current: 5, total: 6, stage: 'Bilanço hazırlanıyor...' });
+        builder.addBalanceSheet(balanceSheet, year, formatAmount);
+      }
+      
+      setProgress({ current: 6, total: 6, stage: 'PDF oluşturuluyor...' });
+      
+      const filename = `Finansal_Rapor_${year}_${currency}.pdf`;
+      const result = await builder.build(filename);
+      
+      return result;
+    } catch (error) {
+      console.error('[PDF] Full report generation error:', error);
+      return false;
+    } finally {
+      setIsGenerating(false);
+      setProgress({ current: 0, total: 0, stage: '' });
+    }
+  }, []);
+
+  /**
    * Gelir Tablosu PDF - jspdf-autotable ile
    */
   const generateIncomeStatementPdfData = useCallback(async (
@@ -900,6 +1066,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
 
   return {
     // Data-driven (önerilen - tablolar için)
+    generateFullReportPdfData,
     generateBalanceSheetPdfData,
     generateIncomeStatementPdfData,
     generateDetailedIncomePdfData,

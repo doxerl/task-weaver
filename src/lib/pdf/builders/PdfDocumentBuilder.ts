@@ -365,6 +365,7 @@ export class PdfDocumentBuilder {
     const preparedRows = rows.map(row => row.map(cell => String(cell)));
 
     // AutoTable ayarları - Roboto font ile Türkçe karakter desteği
+    // rowPageBreak: 'avoid' satırların ortadan bölünmesini engeller
     const tableOptions: UserOptions = {
       head: [headers],
       body: preparedRows,
@@ -390,6 +391,7 @@ export class PdfDocumentBuilder {
         : { fillColor: [249, 250, 251] },
       showHead: options.showHead || 'everyPage',
       pageBreak: options.pageBreak || 'auto',
+      rowPageBreak: 'avoid', // Satırları ortadan bölme - sayfa sonunda yeni sayfaya taşı
       columnStyles: this.convertColumnStyles(options.columnStyles),
       didDrawPage: () => {
         // Her sayfa sonunda footer için yer bırak

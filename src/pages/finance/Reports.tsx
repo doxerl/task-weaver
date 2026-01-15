@@ -47,6 +47,7 @@ export default function Reports() {
   
   // Merkezi PDF hook - tablo ve grafik PDF işlemleri için
   const { 
+    generateFullReportPdfData,
     generateBalanceSheetPdf,
     generateIncomeStatementPdf,
     generateVatReportPdf,
@@ -86,11 +87,24 @@ export default function Reports() {
   const incomeStatementRef = useRef<HTMLDivElement>(null);
   const financingRef = useRef<HTMLDivElement>(null);
 
+  // Data-driven Full Report PDF - akıllı sayfa bölme ile
   const handleFullReportPdf = async () => {
-    if (!fullReportRef.current) return;
     try {
-      await generateFullReportPdf(fullReportRef, year, currency);
-      toast.success(`Kapsamlı rapor PDF oluşturuldu (${currency})`);
+      const success = await generateFullReportPdfData({
+        hub,
+        incomeStatement: incomeStatement.statement ?? null,
+        detailedStatement: detailedStatement.data ?? null,
+        balanceSheet,
+        year,
+        formatAmount: (n: number) => formatAmount(n, undefined, year),
+        currency,
+      });
+      
+      if (success) {
+        toast.success(`Kapsamlı rapor PDF oluşturuldu (${currency})`);
+      } else {
+        toast.error('PDF oluşturulamadı');
+      }
     } catch {
       toast.error('PDF oluşturulamadı');
     }
