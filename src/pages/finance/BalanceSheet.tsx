@@ -170,6 +170,11 @@ export default function BalanceSheet() {
     personnel_payables: (settings as any).personnel_payables || 0,
     tax_payables: (settings as any).tax_payables || 0,
     social_security_payables: (settings as any).social_security_payables || 0,
+    deferred_tax_liabilities: (settings as any).deferred_tax_liabilities || 0,
+    // 2024 açılış değerleri
+    opening_bank_balance: (settings as any).opening_bank_balance || 0,
+    partner_payables: (settings as any).partner_payables || 0,
+    tax_provision: (settings as any).tax_provision || 0,
   });
 
   // Sync formData when settings load - use stable reference to prevent infinite loops
@@ -191,6 +196,11 @@ export default function BalanceSheet() {
         personnel_payables: (settings as any).personnel_payables || 0,
         tax_payables: (settings as any).tax_payables || 0,
         social_security_payables: (settings as any).social_security_payables || 0,
+        deferred_tax_liabilities: (settings as any).deferred_tax_liabilities || 0,
+        // 2024 açılış değerleri
+        opening_bank_balance: (settings as any).opening_bank_balance || 0,
+        partner_payables: (settings as any).partner_payables || 0,
+        tax_provision: (settings as any).tax_provision || 0,
       });
     }
   }, [settings.id, isLoading]);
@@ -371,6 +381,14 @@ export default function BalanceSheet() {
                       />
                     </div>
                     <div className="space-y-1">
+                      <Label>Ortaklara Borçlar (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.partner_payables}
+                        onChange={e => setFormData(p => ({ ...p, partner_payables: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
                       <Label>Personele Borçlar (₺)</Label>
                       <Input 
                         type="number" 
@@ -393,6 +411,38 @@ export default function BalanceSheet() {
                         value={formData.social_security_payables}
                         onChange={e => setFormData(p => ({ ...p, social_security_payables: Number(e.target.value) }))}
                       />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Vadesi Geçmiş Ert. Vergi (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.deferred_tax_liabilities}
+                        onChange={e => setFormData(p => ({ ...p, deferred_tax_liabilities: Number(e.target.value) }))}
+                      />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Dön.Karı Vergi Karşılığı (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.tax_provision}
+                        onChange={e => setFormData(p => ({ ...p, tax_provision: Number(e.target.value) }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+                
+                {/* 2024 Açılış Bakiyeleri */}
+                <div className="border-b pb-3 mb-3">
+                  <h4 className="font-medium mb-3 text-sm text-muted-foreground">2024 AÇILIŞ BAKİYELERİ</h4>
+                  <div className="space-y-3">
+                    <div className="space-y-1">
+                      <Label>Açılış Banka Bakiyesi (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.opening_bank_balance}
+                        onChange={e => setFormData(p => ({ ...p, opening_bank_balance: Number(e.target.value) }))}
+                      />
+                      <p className="text-xs text-muted-foreground">2024 yıl sonu banka bakiyesi (2025 açılış)</p>
                     </div>
                   </div>
                 </div>

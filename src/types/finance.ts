@@ -300,6 +300,10 @@ export interface FinancialSettings {
   deferred_tax_liabilities: number; // Vadesi Geçmiş Ert. Vergi
   calculated_vat_payable: number; // Hesaplanan KDV
   fixtures_value: number;         // Demirbaşlar (yeni alan)
+  // 2024 açılış değerleri - yeni alanlar
+  opening_bank_balance: number;   // Açılış Banka Bakiyesi (2024 kapanış)
+  partner_payables: number;       // Ortaklara Borçlar (2024 kapanış)
+  tax_provision: number;          // Dönem Karı Vergi Karşılığı (2024)
   notes: string | null;
   created_at: string | null;
   updated_at: string | null;

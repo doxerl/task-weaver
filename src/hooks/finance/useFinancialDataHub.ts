@@ -531,7 +531,10 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
 
     // Balance sheet data calculation - Türk Tekdüzen Hesap Planı formatında
     
-    // Bank balance - use last balance if available, otherwise calculate cumulatively
+    // Bank balance - açılış bakiyesi ile başla, ardından işlemleri ekle
+    const openingBankBalance = (settings as any)?.opening_bank_balance || 0;
+    
+    // Bank balance - use last balance if available, otherwise calculate cumulatively from opening
     const sortedBankTx = [...bankTx].sort((a, b) => 
       new Date(b.transaction_date || 0).getTime() - new Date(a.transaction_date || 0).getTime()
     );
@@ -539,12 +542,13 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     // Try to get balance from latest transaction first
     let bankBalance = sortedBankTx[0]?.balance;
     
-    // If balance column is null, calculate cumulative balance from transactions
+    // If balance column is null, calculate cumulative balance from transactions + opening balance
     if (bankBalance == null) {
       const txSortedAsc = [...bankTx].sort((a, b) => 
         new Date(a.transaction_date || 0).getTime() - new Date(b.transaction_date || 0).getTime()
       );
-      bankBalance = txSortedAsc.reduce((balance, tx) => {
+      // Açılış bakiyesi ile başla ve işlemleri ekle
+      bankBalance = openingBankBalance + txSortedAsc.reduce((balance, tx) => {
         if (tx.is_excluded) return balance;
         return balance + (tx.amount || 0);
       }, 0);
@@ -615,7 +619,10 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     
     // C - Diğer Borçlar
     const personnelPayables = (settings as any)?.personnel_payables || 0;
-    const otherDebtsTotal = partnerPayables + personnelPayables;
+    // Ortaklara borçları ayarlardan al (2024'ten devir veya hesaplanan)
+    const settingsPartnerPayables = (settings as any)?.partner_payables || 0;
+    const calculatedPartnerPayables = partnerPayables > 0 ? partnerPayables : settingsPartnerPayables;
+    const otherDebtsTotal = calculatedPartnerPayables + personnelPayables;
     
     // F - Ödenecek Vergi ve Diğer Yükümlülükler
     const taxPayables = (settings as any)?.tax_payables || 0;
@@ -624,7 +631,7 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     const taxLiabilitiesTotal = taxPayables + socialSecurityPayables + deferredTaxLiabilities;
     
     // G - Borç ve Gider Karşılıkları
-    const taxProvision = 0; // Dönem karı vergi karşılığı - hesaplanabilir
+    const taxProvision = (settings as any)?.tax_provision || 0; // Dönem karı vergi karşılığı
     
     // I - Diğer Kısa Vadeli Yabancı Kaynaklar
     const vatPayable = vatSummary.net > 0 ? vatSummary.net : 0;
@@ -694,7 +701,7 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       financialDebtsTotal,
       tradePayables,
       tradePayablesTotal,
-      partnerPayables,
+      partnerPayables: calculatedPartnerPayables,
       personnelPayables,
       otherDebtsTotal,
       taxPayables,
