@@ -14,6 +14,7 @@ export { useIncomeAnalysis } from './useIncomeAnalysis';
 export { useExpenseAnalysis } from './useExpenseAnalysis';
 export { useIncomeStatement } from './useIncomeStatement';
 export { useFinancialDataHub } from './useFinancialDataHub';
+export type { FinancialDataHub } from './useFinancialDataHub';
 export { useFixedExpenses } from './useFixedExpenses';
 export { useExchangeRates } from './useExchangeRates';
 export { separateVat, calculateVatFromGross, calculateVatFromNet } from './utils/vatSeparation';
@@ -21,3 +22,4 @@ export { usePayrollAccruals } from './usePayrollAccruals';
 export { useDetailedIncomeStatement } from './useDetailedIncomeStatement';
 // Merkezi PDF Engine - tüm PDF işlemleri için tek hook
 export { usePdfEngine } from './usePdfEngine';
+export type { FullReportPdfParams } from './usePdfEngine';
