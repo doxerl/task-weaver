@@ -9,13 +9,14 @@ interface ServiceRevenueChartProps {
 
 const defaultFormatCurrency = (value: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(value);
 
+// PDF uyumluluğu için hex renk değerleri (CSS değişkenleri html2canvas'ta çalışmıyor)
 const COLORS = [
-  'hsl(var(--chart-1))',
-  'hsl(var(--chart-2))',
-  'hsl(var(--chart-3))',
-  'hsl(var(--chart-4))',
-  'hsl(var(--chart-5))',
-  'hsl(var(--muted-foreground))',
+  '#2563eb', // chart-1 (blue-600)
+  '#16a34a', // chart-2 (green-600)
+  '#ea580c', // chart-3 (orange-600)
+  '#8b5cf6', // chart-4 (violet-500)
+  '#ec4899', // chart-5 (pink-500)
+  '#64748b', // muted-foreground (slate-500)
 ];
 
 export function ServiceRevenueChart({ data, formatAmount }: ServiceRevenueChartProps) {
@@ -71,8 +72,8 @@ export function ServiceRevenueChart({ data, formatAmount }: ServiceRevenueChartP
             <Tooltip 
               formatter={(value: number) => formatter(value)} 
               contentStyle={{ 
-                backgroundColor: 'hsl(var(--card))', 
-                border: '1px solid hsl(var(--border))',
+                backgroundColor: '#ffffff', 
+                border: '1px solid #e2e8f0',
                 borderRadius: '8px',
                 padding: '8px 12px'
               }} 
@@ -102,7 +103,7 @@ export function ServiceRevenueChart({ data, formatAmount }: ServiceRevenueChartP
                 <span className="text-sm font-semibold whitespace-nowrap">
                   {formatter(item.amount)}
                 </span>
-                <span className="text-xs text-muted-foreground whitespace-nowrap">
+                <span className="text-xs whitespace-nowrap" style={{ color: '#64748b' }}>
                   ({item.percentage.toFixed(1)}%)
                 </span>
               </div>

@@ -37,19 +37,19 @@ export function MonthlyTrendChart({ data, formatAmount }: MonthlyTrendChartProps
   return (
     <ResponsiveContainer width="100%" height={300}>
       <ComposedChart data={data} margin={{ top: 20, right: 20, left: 0, bottom: 0 }}>
-        <CartesianGrid strokeDasharray="3 3" className="stroke-muted" />
-        <XAxis dataKey="monthName" tick={{ fontSize: 12 }} className="fill-muted-foreground" />
-        <YAxis yAxisId="left" tick={{ fontSize: 10 }} tickFormatter={formatShort} className="fill-muted-foreground" />
-        <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10 }} tickFormatter={formatShort} className="fill-muted-foreground" />
+        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+        <XAxis dataKey="monthName" tick={{ fontSize: 12, fill: '#64748b' }} />
+        <YAxis yAxisId="left" tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={formatShort} />
+        <YAxis yAxisId="right" orientation="right" tick={{ fontSize: 10, fill: '#64748b' }} tickFormatter={formatShort} />
         <Tooltip
           formatter={tooltipFormatter}
           labelFormatter={(label) => `${label}`}
-          contentStyle={{ backgroundColor: 'hsl(var(--card))', border: '1px solid hsl(var(--border))' }}
+          contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }}
         />
         <Legend formatter={(value) => value === 'income' ? 'Gelir' : value === 'expense' ? 'Gider' : 'Net Kâr'} />
-        <Bar yAxisId="left" dataKey="income" fill="hsl(142, 76%, 36%)" name="income" radius={[4, 4, 0, 0]} />
-        <Bar yAxisId="left" dataKey="expense" fill="hsl(0, 84%, 60%)" name="expense" radius={[4, 4, 0, 0]} />
-        <Line yAxisId="right" type="monotone" dataKey="net" stroke="hsl(221, 83%, 53%)" strokeWidth={2} name="net" dot={{ r: 3 }} />
+        <Bar yAxisId="left" dataKey="income" fill="#16a34a" name="income" radius={[4, 4, 0, 0]} />
+        <Bar yAxisId="left" dataKey="expense" fill="#ef4444" name="expense" radius={[4, 4, 0, 0]} />
+        <Line yAxisId="right" type="monotone" dataKey="net" stroke="#2563eb" strokeWidth={2} name="net" dot={{ r: 3 }} />
       </ComposedChart>
     </ResponsiveContainer>
   );
