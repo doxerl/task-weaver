@@ -4,7 +4,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, Loader2, TrendingUp, TrendingDown, X, Trash2 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
+import { ArrowLeft, Loader2, TrendingUp, TrendingDown, X, Trash2, FileX } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -44,9 +45,10 @@ interface TransactionCardProps {
   grouped: GroupedCategories;
   onCategoryChange: (id: string, categoryId: string | null) => void;
   onDelete: (id: string) => void;
+  onToggleExcluded: (id: string, isExcluded: boolean) => void;
 }
 
-function TransactionCard({ tx, grouped, onCategoryChange, onDelete }: TransactionCardProps) {
+function TransactionCard({ tx, grouped, onCategoryChange, onDelete, onToggleExcluded }: TransactionCardProps) {
   const isIncome = tx.amount > 0;
   
   // Calculate VAT if not stored
@@ -66,12 +68,21 @@ function TransactionCard({ tx, grouped, onCategoryChange, onDelete }: Transactio
   });
 
   return (
-    <Card className={cn(!tx.category_id && "ring-2 ring-amber-400")}>
+    <Card className={cn(
+      !tx.category_id && "ring-2 ring-amber-400",
+      tx.is_excluded && "opacity-60 bg-muted/50"
+    )}>
       <CardContent className="p-3">
         <div className="flex justify-between items-start gap-2 mb-2">
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2">
               <p className="text-xs text-muted-foreground">{formatDate(tx.transaction_date)}</p>
+              {tx.is_excluded && (
+                <Badge variant="outline" className="text-[10px] px-1 py-0 bg-orange-100 text-orange-700 border-orange-300">
+                  <FileX className="h-3 w-3 mr-0.5" />
+                  Tahakkuk
+                </Badge>
+              )}
               {tx.is_commercial === false && (
                 <Badge variant="outline" className="text-[10px] px-1 py-0 text-muted-foreground">
                   Ticari Dışı
@@ -209,6 +220,19 @@ function TransactionCard({ tx, grouped, onCategoryChange, onDelete }: Transactio
             )}
           </SelectContent>
         </Select>
+        
+        {/* Tahakkuk Toggle */}
+        <div className="flex items-center justify-between mt-2 pt-2 border-t">
+          <span className="text-xs text-muted-foreground flex items-center gap-1">
+            <FileX className="h-3 w-3" />
+            Banka ekstresinde yok (Tahakkuk)
+          </span>
+          <Switch
+            checked={tx.is_excluded || false}
+            onCheckedChange={(checked) => onToggleExcluded(tx.id, checked)}
+            className="scale-75"
+          />
+        </div>
       </CardContent>
     </Card>
   );
@@ -219,8 +243,9 @@ export default function BankTransactions() {
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [commercialFilter, setCommercialFilter] = useState<string>('all');
+  const [excludedFilter, setExcludedFilter] = useState<string>('all');
   
-  const { transactions, isLoading, updateCategory, deleteTransaction, deleteAllTransactions, stats } = useBankTransactions(year);
+  const { transactions, isLoading, updateCategory, deleteTransaction, deleteAllTransactions, toggleExcluded, stats } = useBankTransactions(year);
   const { grouped } = useCategories();
 
   // Get available months from transactions
@@ -258,8 +283,14 @@ export default function BankTransactions() {
       result = result.filter(tx => tx.is_commercial === false);
     }
     
+    if (excludedFilter === 'excluded') {
+      result = result.filter(tx => tx.is_excluded === true);
+    } else if (excludedFilter === 'included') {
+      result = result.filter(tx => tx.is_excluded !== true);
+    }
+    
     return result;
-  }, [transactions, selectedMonth, categoryFilter, commercialFilter]);
+  }, [transactions, selectedMonth, categoryFilter, commercialFilter, excludedFilter]);
 
   // Calculate summary for filtered transactions
   const summary = useMemo(() => {
@@ -307,6 +338,10 @@ export default function BankTransactions() {
     deleteTransaction.mutate(id);
   };
 
+  const handleToggleExcluded = (id: string, isExcluded: boolean) => {
+    toggleExcluded.mutate({ id, isExcluded });
+  };
+
   const handleDeleteAll = () => {
     deleteAllTransactions.mutate();
   };
@@ -315,9 +350,10 @@ export default function BankTransactions() {
     setSelectedMonth('all');
     setCategoryFilter('all');
     setCommercialFilter('all');
+    setExcludedFilter('all');
   };
 
-  const hasActiveFilters = selectedMonth !== 'all' || categoryFilter !== 'all' || commercialFilter !== 'all';
+  const hasActiveFilters = selectedMonth !== 'all' || categoryFilter !== 'all' || commercialFilter !== 'all' || excludedFilter !== 'all';
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -407,6 +443,18 @@ export default function BankTransactions() {
             </SelectContent>
           </Select>
 
+          {/* Excluded Filter */}
+          <Select value={excludedFilter} onValueChange={setExcludedFilter}>
+            <SelectTrigger className="w-[130px]">
+              <SelectValue placeholder="Kaynak" />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="all">Tümü</SelectItem>
+              <SelectItem value="included">📄 Banka Ekstresi</SelectItem>
+              <SelectItem value="excluded">📝 Tahakkuk</SelectItem>
+            </SelectContent>
+          </Select>
+
           {/* Year Selector */}
           <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
             <SelectTrigger className="w-20">
@@ -452,6 +500,15 @@ export default function BankTransactions() {
                 />
               </Badge>
             )}
+            {excludedFilter !== 'all' && (
+              <Badge variant="secondary" className="gap-1">
+                {excludedFilter === 'excluded' ? '📝 Tahakkuk' : '📄 Banka Ekstresi'}
+                <X 
+                  className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                  onClick={() => setExcludedFilter('all')}
+                />
+              </Badge>
+            )}
             <button 
               className="text-xs text-muted-foreground hover:text-foreground underline"
               onClick={clearFilters}
@@ -462,10 +519,15 @@ export default function BankTransactions() {
         )}
 
         {/* Stats Badge */}
-        <div className="flex gap-2 text-sm">
+        <div className="flex gap-2 text-sm flex-wrap">
           <Badge variant="outline">{filteredTransactions.length} işlem</Badge>
           {summary.uncategorized > 0 && (
             <Badge variant="destructive">{summary.uncategorized} kategorisiz</Badge>
+          )}
+          {filteredTransactions.filter(tx => tx.is_excluded).length > 0 && (
+            <Badge variant="outline" className="bg-orange-100 text-orange-700 border-orange-300">
+              {filteredTransactions.filter(tx => tx.is_excluded).length} tahakkuk
+            </Badge>
           )}
         </div>
 
@@ -570,6 +632,7 @@ export default function BankTransactions() {
                       grouped={grouped}
                       onCategoryChange={handleCategoryChange}
                       onDelete={handleDelete}
+                      onToggleExcluded={handleToggleExcluded}
                     />
                   ))}
                 </div>
@@ -598,6 +661,7 @@ export default function BankTransactions() {
                       grouped={grouped}
                       onCategoryChange={handleCategoryChange}
                       onDelete={handleDelete}
+                      onToggleExcluded={handleToggleExcluded}
                     />
                   ))}
                 </div>
