@@ -65,7 +65,14 @@ export function useCategories() {
         keywords: data.keywords || [],
         vendor_patterns: data.vendor_patterns || [],
         user_id: user?.id,
-        is_system: false 
+        is_system: data.is_system ?? false,
+        account_code: data.account_code || null,
+        account_subcode: data.account_subcode || null,
+        parent_category_id: data.parent_category_id || null,
+        cost_center: data.cost_center || null,
+        depth: data.depth ?? 0,
+        is_kkeg: data.is_kkeg ?? false,
+        sort_order: data.sort_order ?? 0,
       };
       const { error } = await supabase
         .from('transaction_categories')
