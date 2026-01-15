@@ -46,7 +46,7 @@ import {
 } from 'lucide-react';
 import { SimulationScenario } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
-import { useScenarioComparisonPdf } from '@/hooks/finance/useScenarioComparisonPdf';
+import { toast } from 'sonner';
 import {
   ChartConfig,
   ChartContainer,
@@ -555,7 +555,7 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
 }) => {
   const [scenarioAId, setScenarioAId] = useState<string | null>(currentScenarioId);
   const [scenarioBId, setScenarioBId] = useState<string | null>(null);
-  const { generatePdf, isGenerating } = useScenarioComparisonPdf();
+  const isGenerating = false; // TODO: usePdfEngine entegrasyonu yapılacak
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   const scenarioA = useMemo(() => scenarios.find(s => s.id === scenarioAId), [scenarios, scenarioAId]);
@@ -600,41 +600,8 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
   const handleExportPdf = () => {
-    if (!scenarioA || !scenarioB || !summaryA || !summaryB || !winner) return;
-    
-    generatePdf({
-      scenarioA,
-      scenarioB,
-      summaryA,
-      summaryB,
-      winner: {
-        winner: winner.winner,
-        scenarioName: winner.winnerName,
-        scoreA: winner.scoreA,
-        scoreB: winner.scoreB,
-        totalMetrics: winner.totalMetrics,
-        advantages: winner.advantages,
-        disadvantages: winner.disadvantages,
-      },
-      insights: insights.map(i => ({
-        type: i.type,
-        category: i.category as any,
-        title: i.title,
-        description: i.description,
-        impact: i.impact,
-        recommendation: i.recommendation,
-      })),
-      recommendations: recommendations.map((r, idx) => ({
-        id: `rec-${idx}`,
-        title: r.title,
-        description: r.description,
-        riskLevel: r.risk,
-        suitableFor: [r.suitableFor],
-        keyActions: r.keyActions || [],
-        expectedOutcome: r.expectedOutcome || r.suitableFor,
-      })),
-      quarterlyComparison,
-    });
+    // TODO: usePdfEngine'e ScenarioComparison PDF desteği eklenecek
+    toast.info('Senaryo karşılaştırma PDF yakında eklenecek');
   };
 
   const chartConfig: ChartConfig = {
