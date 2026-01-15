@@ -1,18 +1,27 @@
 /**
- * Formats a number as compact USD (K for thousands, M for millions)
- * Examples: $150.5K, $2.2M, $500
+ * Universal compact currency formatter
+ * Formats a number as compact with proper currency symbol (K for thousands, M for millions)
+ * Examples: $73.1K, ₺2.9M, $500, ₺1.2M
  */
-export function formatCompactUSD(value: number): string {
+export function formatCompact(value: number, currencyCode: 'TRY' | 'USD' = 'TRY'): string {
   const absValue = Math.abs(value);
   const sign = value < 0 ? '-' : '';
+  const symbol = currencyCode === 'USD' ? '$' : '₺';
   
   if (absValue >= 1000000) {
-    return `${sign}$${(absValue / 1000000).toFixed(1)}M`;
+    return `${sign}${symbol}${(absValue / 1000000).toFixed(1)}M`;
   }
   if (absValue >= 1000) {
-    return `${sign}$${(absValue / 1000).toFixed(1)}K`;
+    return `${sign}${symbol}${(absValue / 1000).toFixed(1)}K`;
   }
-  return `${sign}$${absValue.toFixed(0)}`;
+  return `${sign}${symbol}${absValue.toFixed(0)}`;
+}
+
+/**
+ * @deprecated Use formatCompact(value, 'USD') instead
+ */
+export function formatCompactUSD(value: number): string {
+  return formatCompact(value, 'USD');
 }
 
 /**
@@ -29,20 +38,10 @@ export function formatFullUSD(value: number): string {
 }
 
 /**
- * Formats a number as compact TRY (K for thousands, M for millions)
- * Examples: ₺150.5K, ₺12.6M, ₺500
+ * @deprecated Use formatCompact(value, 'TRY') instead
  */
 export function formatCompactTRY(value: number): string {
-  const absValue = Math.abs(value);
-  const sign = value < 0 ? '-' : '';
-  
-  if (absValue >= 1000000) {
-    return `${sign}₺${(absValue / 1000000).toFixed(1)}M`;
-  }
-  if (absValue >= 1000) {
-    return `${sign}₺${(absValue / 1000).toFixed(0)}K`;
-  }
-  return `${sign}₺${absValue.toFixed(0)}`;
+  return formatCompact(value, 'TRY');
 }
 
 /**

@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useMemo, ReactNode } from 'react';
 import { useExchangeRates, ExchangeRate } from '@/hooks/finance/useExchangeRates';
+import { formatCompact } from '@/lib/formatters';
 
 export type CurrencyType = 'TRY' | 'USD';
 
@@ -7,6 +8,7 @@ interface CurrencyContextType {
   currency: CurrencyType;
   setCurrency: (currency: CurrencyType) => void;
   formatAmount: (amount: number, month?: number, year?: number) => string;
+  formatCompactAmount: (amount: number, month?: number, year?: number) => string;
   canShowUsd: (month: number, year: number) => boolean;
   getRate: (month: number, year: number) => number | null;
   convertToUsd: (amount: number, month: number, year: number) => number | null;
@@ -109,10 +111,41 @@ export function CurrencyProvider({ children, defaultYear }: CurrencyProviderProp
     }).format(amount);
   }, [currency, getRate, yearlyAverageRate]);
 
+  // Compact currency formatter with proper conversion
+  const formatCompactAmount = useCallback((
+    amount: number, 
+    month?: number, 
+    year?: number
+  ): string => {
+    // TRY mode - always show TRY compact
+    if (currency === 'TRY') {
+      return formatCompact(amount, 'TRY');
+    }
+    
+    // USD mode - convert and show USD
+    if (month !== undefined && year !== undefined) {
+      const rate = getRate(month, year);
+      if (rate && rate > 0) {
+        const usdAmount = amount / rate;
+        return formatCompact(usdAmount, 'USD');
+      }
+    }
+    
+    // Use yearly average if no specific month provided
+    if (yearlyAverageRate && yearlyAverageRate > 0) {
+      const usdAmount = amount / yearlyAverageRate;
+      return formatCompact(usdAmount, 'USD');
+    }
+    
+    // Ultimate fallback - show TRY with indicator
+    return formatCompact(amount, 'TRY') + ' *';
+  }, [currency, getRate, yearlyAverageRate]);
+
   const value = useMemo(() => ({
     currency,
     setCurrency,
     formatAmount,
+    formatCompactAmount,
     canShowUsd,
     getRate,
     convertToUsd,
@@ -123,6 +156,7 @@ export function CurrencyProvider({ children, defaultYear }: CurrencyProviderProp
   }), [
     currency, 
     formatAmount, 
+    formatCompactAmount,
     canShowUsd, 
     getRate, 
     convertToUsd, 

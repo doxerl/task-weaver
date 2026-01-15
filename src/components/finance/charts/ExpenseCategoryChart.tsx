@@ -1,24 +1,19 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts';
 import { ExpenseCategory } from '@/types/reports';
 import { useMemo } from 'react';
+import { formatCompact } from '@/lib/formatters';
 
 interface ExpenseCategoryChartProps {
   data: ExpenseCategory[];
   formatAmount?: (value: number) => string;
+  formatCompactAmount?: (value: number) => string;
 }
-
-const defaultFormatCurrency = (value: number) => {
-  if (value >= 1000000) return `₺${(value / 1000000).toFixed(1)}M`;
-  if (value >= 1000) return `₺${(value / 1000).toFixed(0)}K`;
-  return `₺${value.toFixed(0)}`;
-};
 
 const defaultFormatFullCurrency = (value: number) => new Intl.NumberFormat('tr-TR', { 
   style: 'currency', 
   currency: 'TRY', 
   maximumFractionDigits: 0 
 }).format(value);
-
 
 // PDF uyumluluğu için hex renk değerleri (CSS değişkenleri html2canvas'ta çalışmıyor)
 const GRADIENT_COLORS = [
@@ -31,25 +26,16 @@ const GRADIENT_COLORS = [
   '#94a3b8', // muted (slate-400)
 ];
 
-export function ExpenseCategoryChart({ data, formatAmount }: ExpenseCategoryChartProps) {
+export function ExpenseCategoryChart({ data, formatAmount, formatCompactAmount }: ExpenseCategoryChartProps) {
   const formatter = formatAmount || defaultFormatFullCurrency;
   
-  // Create short format based on whether we have custom formatAmount
-  const formatShort = useMemo(() => {
-    if (formatAmount) {
-      // Extract currency symbol from formatted output
-      return (value: number) => {
-        const formatted = formatAmount(value);
-        // Try to detect if it's USD or TRY based on the symbol
-        const isUsd = formatted.includes('$');
-        const symbol = isUsd ? '$' : '₺';
-        if (value >= 1000000) return `${symbol}${(value / 1000000).toFixed(1)}M`;
-        if (value >= 1000) return `${symbol}${(value / 1000).toFixed(0)}K`;
-        return `${symbol}${value.toFixed(0)}`;
-      };
+  // Use provided compact formatter or default to TRY
+  const compactFormatter = useMemo(() => {
+    if (formatCompactAmount) {
+      return formatCompactAmount;
     }
-    return defaultFormatCurrency;
-  }, [formatAmount]);
+    return (value: number) => formatCompact(value, 'TRY');
+  }, [formatCompactAmount]);
 
   const top7 = useMemo(() => {
     return data.slice(0, 7).map((item, index) => ({
@@ -69,7 +55,7 @@ export function ExpenseCategoryChart({ data, formatAmount }: ExpenseCategoryChar
         <XAxis 
           type="number" 
           tick={{ fontSize: 10, fill: '#64748b' }} 
-          tickFormatter={formatShort} 
+          tickFormatter={compactFormatter} 
           axisLine={false}
           tickLine={false}
         />

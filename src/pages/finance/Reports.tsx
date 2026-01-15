@@ -59,7 +59,7 @@ export default function Reports() {
     progress: pdfProgress,
   } = usePdfEngine();
   
-  const { currency, formatAmount, getAvailableMonthsCount, yearlyAverageRate } = useCurrency();
+  const { currency, formatAmount, formatCompactAmount, getAvailableMonthsCount, yearlyAverageRate } = useCurrency();
   
   const availableMonths = getAvailableMonthsCount(year);
   const missingMonths = 12 - availableMonths;
@@ -333,7 +333,7 @@ export default function Reports() {
                   <CardHeader className="pb-2"><CardTitle className="text-sm">Hizmet Bazlı Gelir</CardTitle></CardHeader>
                   <CardContent>
                     <div ref={incomeChartRef}>
-                      <ServiceRevenueChart data={incomeAnalysis.serviceRevenue} formatAmount={(n) => formatAmount(n, undefined, year)} />
+                      <ServiceRevenueChart data={incomeAnalysis.serviceRevenue} formatAmount={(n) => formatAmount(n, undefined, year)} formatCompactAmount={(n) => formatCompactAmount(n, undefined, year)} />
                     </div>
                   </CardContent>
                 </Card>
@@ -341,7 +341,7 @@ export default function Reports() {
                   <CardHeader className="pb-2"><CardTitle className="text-sm">Gider Kategorileri</CardTitle></CardHeader>
                   <CardContent>
                     <div ref={expenseChartRef}>
-                      <ExpenseCategoryChart data={expenseAnalysis.topCategories} formatAmount={(n) => formatAmount(n, undefined, year)} />
+                      <ExpenseCategoryChart data={expenseAnalysis.topCategories} formatAmount={(n) => formatAmount(n, undefined, year)} formatCompactAmount={(n) => formatCompactAmount(n, undefined, year)} />
                     </div>
                   </CardContent>
                 </Card>
@@ -366,7 +366,7 @@ export default function Reports() {
             <div ref={incomeRef} className="bg-background p-4 rounded-lg">
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Hizmet Bazlı Gelir Dağılımı</CardTitle></CardHeader>
-                <CardContent><ServiceRevenueChart data={incomeAnalysis.serviceRevenue} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
+                <CardContent><ServiceRevenueChart data={incomeAnalysis.serviceRevenue} formatAmount={(n) => formatAmount(n, undefined, year)} formatCompactAmount={(n) => formatCompactAmount(n, undefined, year)} /></CardContent>
               </Card>
             </div>
           </TabsContent>
@@ -388,7 +388,7 @@ export default function Reports() {
             <div ref={expenseRef} className="space-y-4 bg-background p-4 rounded-lg">
               <Card>
                 <CardHeader className="pb-2"><CardTitle className="text-sm">Gider Kategorileri</CardTitle></CardHeader>
-                <CardContent><ExpenseCategoryChart data={expenseAnalysis.topCategories} formatAmount={(n) => formatAmount(n, undefined, year)} /></CardContent>
+                <CardContent><ExpenseCategoryChart data={expenseAnalysis.topCategories} formatAmount={(n) => formatAmount(n, undefined, year)} formatCompactAmount={(n) => formatCompactAmount(n, undefined, year)} /></CardContent>
               </Card>
               <div className="grid grid-cols-2 gap-3">
                 <Card>
