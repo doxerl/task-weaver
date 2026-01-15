@@ -3,7 +3,7 @@
 // Tüm PDF oluşturma işlemlerini yöneten tek hook
 // ============================================
 
-import { useState, useCallback } from 'react';
+import { useState, useCallback, RefObject } from 'react';
 import { 
   PdfEngine, 
   createPdfDocument,
@@ -15,6 +15,7 @@ import type {
   SimulationData,
 } from '@/lib/pdf/pdfTypes';
 import type { IncomeStatementData, IncomeStatementLine } from '@/types/reports';
+import { captureElementToPdf } from '@/lib/pdfCapture';
 
 export interface PdfProgress {
   current: number;
@@ -23,7 +24,7 @@ export interface PdfProgress {
 }
 
 export interface UsePdfEngineReturn {
-  // Ana fonksiyonlar
+  // Tablo PDF fonksiyonları
   generateBalanceSheetPdf: (
     data: BalanceSheetData,
     year: number,
@@ -76,6 +77,35 @@ export interface UsePdfEngineReturn {
       yearlyAverageRate?: number;
       companyName?: string;
     }
+  ) => Promise<void>;
+  
+  // Grafik PDF fonksiyonları
+  captureChartToPdf: (
+    elementRef: RefObject<HTMLElement>,
+    options: {
+      filename: string;
+      orientation?: 'portrait' | 'landscape';
+      fitToPage?: boolean;
+    }
+  ) => Promise<void>;
+  
+  generateBalanceChartPdf: (
+    chartRef: RefObject<HTMLElement>,
+    year: number,
+    currency: 'TRY' | 'USD'
+  ) => Promise<void>;
+  
+  generateDashboardChartPdf: (
+    dashboardRef: RefObject<HTMLElement>,
+    year: number,
+    currency: 'TRY' | 'USD'
+  ) => Promise<void>;
+  
+  generateDistributionChartPdf: (
+    chartRef: RefObject<HTMLElement>,
+    type: 'income' | 'expense',
+    year: number,
+    currency: 'TRY' | 'USD'
   ) => Promise<void>;
   
   // Durum
@@ -328,12 +358,101 @@ export function usePdfEngine(): UsePdfEngineReturn {
     }
   }, []);
 
+  // ============================================
+  // GRAFİK PDF FONKSİYONLARI
+  // HTML elementlerini ekran görüntüsü alarak PDF'e çevirir
+  // ============================================
+
+  // Genel grafik yakalama
+  const captureChartToPdf = useCallback(async (
+    elementRef: RefObject<HTMLElement>,
+    options: {
+      filename: string;
+      orientation?: 'portrait' | 'landscape';
+      fitToPage?: boolean;
+    }
+  ) => {
+    if (!elementRef.current) {
+      throw new Error('Element ref boş');
+    }
+    
+    setIsGenerating(true);
+    setProgress({ current: 1, total: 2, stage: 'Grafik yakalanıyor...' });
+    
+    try {
+      const success = await captureElementToPdf(elementRef.current, {
+        filename: options.filename,
+        orientation: options.orientation || 'landscape',
+        fitToPage: options.fitToPage ?? true,
+        scale: 2,
+        onProgress: (stage) => setProgress({ current: 1, total: 2, stage }),
+      });
+      
+      if (!success) {
+        throw new Error('PDF oluşturulamadı');
+      }
+      
+      setProgress({ current: 2, total: 2, stage: 'Tamamlandı' });
+    } finally {
+      setIsGenerating(false);
+      setProgress({ current: 0, total: 0, stage: '' });
+    }
+  }, []);
+
+  // Bilanço grafik PDF
+  const generateBalanceChartPdf = useCallback(async (
+    chartRef: RefObject<HTMLElement>,
+    year: number,
+    currency: 'TRY' | 'USD'
+  ) => {
+    await captureChartToPdf(chartRef, {
+      filename: `Bilanco_Grafik_${year}_${currency}.pdf`,
+      orientation: 'landscape',
+      fitToPage: true,
+    });
+  }, [captureChartToPdf]);
+
+  // Dashboard grafik PDF
+  const generateDashboardChartPdf = useCallback(async (
+    dashboardRef: RefObject<HTMLElement>,
+    year: number,
+    currency: 'TRY' | 'USD'
+  ) => {
+    await captureChartToPdf(dashboardRef, {
+      filename: `Dashboard_${year}_${currency}.pdf`,
+      orientation: 'landscape',
+      fitToPage: false, // Çok sayfalı
+    });
+  }, [captureChartToPdf]);
+
+  // Gelir/Gider dağılım grafik PDF
+  const generateDistributionChartPdf = useCallback(async (
+    chartRef: RefObject<HTMLElement>,
+    type: 'income' | 'expense',
+    year: number,
+    currency: 'TRY' | 'USD'
+  ) => {
+    const typeName = type === 'income' ? 'Gelir_Dagilimi' : 'Gider_Dagilimi';
+    await captureChartToPdf(chartRef, {
+      filename: `${typeName}_${year}_${currency}.pdf`,
+      orientation: 'landscape',
+      fitToPage: true,
+    });
+  }, [captureChartToPdf]);
+
   return {
+    // Tablo PDF'leri
     generateBalanceSheetPdf,
     generateIncomeStatementPdf,
     generateVatReportPdf,
     generateSimulationPdf,
     generateFullReportPdf,
+    // Grafik PDF'leri
+    captureChartToPdf,
+    generateBalanceChartPdf,
+    generateDashboardChartPdf,
+    generateDistributionChartPdf,
+    // Durum
     isGenerating,
     progress,
   };
