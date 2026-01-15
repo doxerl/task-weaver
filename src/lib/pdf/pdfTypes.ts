@@ -29,6 +29,28 @@ export interface PdfEngineConfig {
   companyName?: string;
   yearlyAverageRate?: number | null;
   margin?: number;
+  year?: number;
+}
+
+// ============================================
+// DATA TYPES FOR SECTIONS
+// ============================================
+
+// Re-export for convenience
+export type BalanceSheetData = BalanceSheet;
+export type { IncomeStatementData, IncomeStatementLine };
+export type VatReportData = VatCalculations;
+
+export interface SimulationData {
+  scenarioName: string;
+  baseYear: number;
+  targetYear: number;
+  revenues: any[];
+  expenses: any[];
+  investments: any[];
+  summary: any;
+  assumedExchangeRate: number;
+  notes?: string;
 }
 
 export const DEFAULT_CONFIG: PdfEngineConfig = {
