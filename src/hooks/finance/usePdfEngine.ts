@@ -167,11 +167,41 @@ export function usePdfEngine(): UsePdfEngineReturn {
     
     const element = elementRef.current;
     
+    // Hidden element ise geçici olarak görünür yap
+    const wasHidden = element.classList.contains('hidden') || 
+                      element.classList.contains('pdf-hidden-container') ||
+                      window.getComputedStyle(element).display === 'none';
+    
+    const originalStyles = {
+      display: element.style.display,
+      position: element.style.position,
+      left: element.style.left,
+      top: element.style.top,
+      width: element.style.width,
+      visibility: element.style.visibility,
+      opacity: element.style.opacity,
+    };
+    
+    if (wasHidden) {
+      console.log('[PDF] Hidden element tespit edildi, geçici olarak görünür yapılıyor...');
+      element.classList.remove('hidden');
+      element.style.display = 'block';
+      element.style.position = 'absolute';
+      element.style.left = '-9999px';
+      element.style.top = '0';
+      element.style.width = '1200px'; // PDF için sabit genişlik
+      element.style.visibility = 'visible';
+      element.style.opacity = '1';
+      
+      // DOM'un güncellenmesi için kısa bekle
+      await new Promise(resolve => setTimeout(resolve, 100));
+    }
+    
     setIsGenerating(true);
     setProgress({ current: 1, total: 5, stage: 'Sayfa hazırlanıyor...' });
     onProgress?.('Sayfa hazırlanıyor...', 20);
     
-    console.log('[PDF] Stage 1: Başlatılıyor...', { filename, orientation });
+    console.log('[PDF] Stage 1: Başlatılıyor...', { filename, orientation, wasHidden });
     
     try {
       // 1. Grafiklerin render edilmesini bekle
@@ -335,6 +365,19 @@ export function usePdfEngine(): UsePdfEngineReturn {
       console.error('[PDF] Oluşturma hatası:', error);
       return false;
     } finally {
+      // Hidden element ise eski haline getir
+      if (wasHidden) {
+        console.log('[PDF] Element eski haline getiriliyor...');
+        element.classList.add('hidden');
+        element.style.display = originalStyles.display;
+        element.style.position = originalStyles.position;
+        element.style.left = originalStyles.left;
+        element.style.top = originalStyles.top;
+        element.style.width = originalStyles.width;
+        element.style.visibility = originalStyles.visibility;
+        element.style.opacity = originalStyles.opacity;
+      }
+      
       // Orijinal elementteki data-pdf-id attribute'larını temizle
       cleanupOriginalElement(element);
       
