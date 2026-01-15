@@ -81,8 +81,8 @@ export function BalanceLiabilityChart({ data, formatAmount }: BalanceLiabilityCh
             <Tooltip
               formatter={(value: number) => formatter(value)}
               contentStyle={{
-                backgroundColor: 'hsl(var(--popover))',
-                border: '1px solid hsl(var(--border))',
+                backgroundColor: '#ffffff',
+                border: '1px solid #e2e8f0',
                 borderRadius: '8px',
               }}
             />
@@ -100,13 +100,13 @@ export function BalanceLiabilityChart({ data, formatAmount }: BalanceLiabilityCh
                 style={{ backgroundColor: item.color }}
               />
               <span className="font-medium" style={{ color: '#0f172a' }}>{item.name}</span>
-              <span className="ml-auto" style={{ color: '#64748b' }}>{item.percentage}%</span>
+              <span className="ml-auto" style={{ color: '#334155' }}>{item.percentage}%</span>
               <span className="font-medium" style={{ color: '#0f172a' }}>{formatter(item.value)}</span>
             </div>
             
             {/* Detailed breakdown */}
             {item.name === 'Kısa Vadeli Borçlar' && (
-              <div className="pl-5 space-y-0.5" style={{ color: '#64748b' }}>
+              <div className="pl-5 space-y-0.5" style={{ color: '#334155' }}>
                 {data.loanInstallments > 0 && (
                   <div className="flex justify-between">
                     <span>Banka Kredileri (KV)</span>
@@ -135,7 +135,7 @@ export function BalanceLiabilityChart({ data, formatAmount }: BalanceLiabilityCh
             )}
             
             {item.name === 'Uzun Vadeli Borçlar' && data.bankLoans > 0 && (
-              <div className="pl-5 space-y-0.5" style={{ color: '#64748b' }}>
+              <div className="pl-5 space-y-0.5" style={{ color: '#334155' }}>
                 <div className="flex justify-between">
                   <span>Banka Kredileri (UV)</span>
                   <span>{formatter(data.bankLoans)}</span>
@@ -144,7 +144,7 @@ export function BalanceLiabilityChart({ data, formatAmount }: BalanceLiabilityCh
             )}
             
             {item.name === 'Özkaynaklar' && (
-              <div className="pl-5 space-y-0.5" style={{ color: '#64748b' }}>
+              <div className="pl-5 space-y-0.5" style={{ color: '#334155' }}>
                 {data.paidCapital > 0 && (
                   <div className="flex justify-between">
                     <span>Ödenmiş Sermaye</span>
