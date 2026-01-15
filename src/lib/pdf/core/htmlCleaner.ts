@@ -63,15 +63,25 @@ export function prepareReportForPdf(container: HTMLElement): void {
     }
   });
   
-  // Hover ve focus state'leri temizle
-  container.querySelectorAll('.hover\\:bg-*, .focus\\:ring-*, .group-hover\\:*').forEach(el => {
+  // Hover ve focus state class'larını temizle
+  // Not: querySelectorAll wildcard desteklemediği için tüm elementleri kontrol ediyoruz
+  container.querySelectorAll('*').forEach(el => {
     const htmlEl = el as HTMLElement;
-    // Bu sınıfları kaldırmak yerine stillerini sıfırla
-    htmlEl.classList.forEach(cls => {
-      if (cls.includes('hover:') || cls.includes('focus:')) {
-        htmlEl.classList.remove(cls);
-      }
-    });
+    if (htmlEl.classList && htmlEl.classList.length > 0) {
+      const classesToRemove: string[] = [];
+      htmlEl.classList.forEach(cls => {
+        if (
+          cls.startsWith('hover:') ||
+          cls.startsWith('focus:') ||
+          cls.startsWith('group-hover:') ||
+          cls.startsWith('focus-within:') ||
+          cls.startsWith('active:')
+        ) {
+          classesToRemove.push(cls);
+        }
+      });
+      classesToRemove.forEach(cls => htmlEl.classList.remove(cls));
+    }
   });
 }
 
