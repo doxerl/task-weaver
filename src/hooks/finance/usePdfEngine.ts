@@ -648,13 +648,8 @@ export function usePdfEngine(): UsePdfEngineReturn {
     try {
       const builder = createLandscapeBuilder({ margin: 8 });
       
-      builder
-        .addCover(
-          `Bilanço - ${year}`,
-          'Tekdüzen Hesap Planına Uygun',
-          new Date().toLocaleDateString('tr-TR')
-        )
-        .addBalanceSheet(balanceSheet, year, formatAmount);
+      // Kapak sayfası olmadan doğrudan bilanço tablosu
+      builder.addBalanceSheet(balanceSheet, year, formatAmount);
       
       setProgress({ current: 2, total: 2, stage: 'PDF oluşturuluyor...' });
       
