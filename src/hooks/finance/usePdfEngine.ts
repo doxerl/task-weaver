@@ -810,15 +810,6 @@ export function usePdfEngine(): UsePdfEngineReturn {
         });
       }
       
-      // Sayfa sonu - Gelir Tablosu için
-      builder.addPageBreak();
-      setProgress({ current: 4, total: 7, stage: 'Gelir tablosu hazırlanıyor...' });
-      
-      // 6. Gelir Tablosu (otomatik sayfa yönetimi)
-      if (incomeStatement) {
-        builder.addIncomeStatement(incomeStatement, year, formatAmount);
-      }
-      
       // Sayfa sonu - Detaylı Gelir Tablosu için
       builder.addPageBreak();
       setProgress({ current: 4, total: 6, stage: 'Detaylı gelir tablosu...' });
