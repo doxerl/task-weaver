@@ -44,14 +44,8 @@ import type { IncomeStatementData, DetailedIncomeStatementData } from '@/types/r
 // ============================================
 
 export interface UsePdfEngineReturn {
-  // Ana PDF oluşturma fonksiyonu (HTML tabanlı - grafikler için)
-  generatePdfFromElement: (
-    elementRef: RefObject<HTMLElement>,
-    options: PdfGenerateOptions
-  ) => Promise<boolean>;
-  
   // ============================================
-  // DATA-DRIVEN PDF FONKSİYONLARI (YENİ)
+  // DATA-DRIVEN PDF FONKSİYONLARI (ÖNERILEN)
   // jspdf-autotable kullanır - tablolar için ideal
   // ============================================
   
@@ -76,13 +70,52 @@ export interface UsePdfEngineReturn {
     options?: { currency?: 'TRY' | 'USD' }
   ) => Promise<boolean>;
   
+  generateSimulationPdfData: (
+    data: {
+      scenarioName: string;
+      baseYear: number;
+      targetYear: number;
+      summary: {
+        baseRevenue: number;
+        projectedRevenue: number;
+        baseExpense: number;
+        projectedExpense: number;
+        baseProfit: number;
+        projectedProfit: number;
+        revenueGrowth: number;
+        expenseGrowth: number;
+        profitGrowth: number;
+      };
+      revenues: Array<{
+        id: string;
+        name: string;
+        baseAmount: number;
+        projectedAmount: number;
+        changePercent: number;
+      }>;
+      expenses: Array<{
+        id: string;
+        name: string;
+        baseAmount: number;
+        projectedAmount: number;
+        changePercent: number;
+      }>;
+      exchangeRate: number;
+    }
+  ) => Promise<boolean>;
+  
   // Builder'a doğrudan erişim (gelişmiş kullanım)
   createPdfBuilder: (config?: Partial<PdfBuilderConfig>) => PdfDocumentBuilder;
   
   // ============================================
-  // HTML TABANLI PDF FONKSİYONLARI (MEVCUT)
-  // Grafikler ve karmaşık layoutlar için
+  // HTML TABANLI PDF FONKSİYONLARI
+  // Grafikler ve eski sayfalar için
   // ============================================
+  
+  generatePdfFromElement: (
+    elementRef: RefObject<HTMLElement>,
+    options: PdfGenerateOptions
+  ) => Promise<boolean>;
   
   generateReportPdf: (
     elementRef: RefObject<HTMLElement>,
@@ -109,14 +142,18 @@ export interface UsePdfEngineReturn {
     scenarioBName: string
   ) => Promise<void>;
   
-  /** @deprecated Use generateBalanceSheetPdfData instead for better page control */
   generateBalanceSheetPdf: (
     elementRef: RefObject<HTMLElement>,
     year: number,
     currency?: 'TRY' | 'USD'
   ) => Promise<void>;
   
-  /** @deprecated Use generateIncomeStatementPdfData instead for better page control */
+  generateBalanceChartPdf: (
+    elementRef: RefObject<HTMLElement>,
+    year: number,
+    currency: 'TRY' | 'USD'
+  ) => Promise<void>;
+  
   generateIncomeStatementPdf: (
     elementRef: RefObject<HTMLElement>,
     year: number,
@@ -134,7 +171,6 @@ export interface UsePdfEngineReturn {
     currency?: 'TRY' | 'USD'
   ) => Promise<void>;
   
-  // Dashboard ve grafik PDF'leri
   generateDashboardChartPdf: (
     elementRef: RefObject<HTMLElement>,
     year: number,
@@ -148,13 +184,12 @@ export interface UsePdfEngineReturn {
     currency: 'TRY' | 'USD'
   ) => Promise<void>;
   
-  generateBalanceChartPdf: (
+  generateFinancingSummaryPdf: (
     elementRef: RefObject<HTMLElement>,
     year: number,
-    currency: 'TRY' | 'USD'
+    currency?: 'TRY' | 'USD'
   ) => Promise<void>;
   
-  // Eski API uyumluluğu için alias
   captureChartToPdf: (
     elementRef: RefObject<HTMLElement>,
     options: {
@@ -162,13 +197,6 @@ export interface UsePdfEngineReturn {
       orientation?: 'portrait' | 'landscape';
       fitToPage?: boolean;
     }
-  ) => Promise<void>;
-  
-  // Finansman özeti
-  generateFinancingSummaryPdf: (
-    elementRef: RefObject<HTMLElement>,
-    year: number,
-    currency?: 'TRY' | 'USD'
   ) => Promise<void>;
   
   // Durum
@@ -601,7 +629,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
   }, [generatePdfFromElement]);
 
   // ============================================
-  // DATA-DRIVEN PDF FONKSİYONLARI (YENİ)
+  // DATA-DRIVEN PDF FONKSİYONLARI
   // ============================================
 
   /**
@@ -720,6 +748,152 @@ export function usePdfEngine(): UsePdfEngineReturn {
   }, []);
 
   /**
+   * Simülasyon PDF - jspdf-autotable ile (YENİ)
+   * Gelir ve gider projeksiyonlarını tablolar halinde oluşturur
+   */
+  const generateSimulationPdfData = useCallback(async (
+    data: {
+      scenarioName: string;
+      baseYear: number;
+      targetYear: number;
+      summary: {
+        baseRevenue: number;
+        projectedRevenue: number;
+        baseExpense: number;
+        projectedExpense: number;
+        baseProfit: number;
+        projectedProfit: number;
+        revenueGrowth: number;
+        expenseGrowth: number;
+        profitGrowth: number;
+      };
+      revenues: Array<{
+        id: string;
+        name: string;
+        baseAmount: number;
+        projectedAmount: number;
+        changePercent: number;
+      }>;
+      expenses: Array<{
+        id: string;
+        name: string;
+        baseAmount: number;
+        projectedAmount: number;
+        changePercent: number;
+      }>;
+      exchangeRate: number;
+    }
+  ): Promise<boolean> => {
+    setIsGenerating(true);
+    setProgress({ current: 1, total: 4, stage: 'Simülasyon hazırlanıyor...' });
+    
+    const formatUSD = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    const formatPercent = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
+    
+    try {
+      const builder = createPortraitBuilder({ margin: 10 });
+      
+      // Kapak sayfası
+      builder.addCover(
+        `${data.targetYear} Büyüme Simülasyonu`,
+        data.scenarioName,
+        new Date().toLocaleDateString('tr-TR')
+      );
+      
+      setProgress({ current: 2, total: 4, stage: 'Özet oluşturuluyor...' });
+      
+      // Özet tablosu
+      builder.addTable({
+        title: 'Özet',
+        headers: ['Metrik', `${data.baseYear} Gerçek`, `${data.targetYear} Projeksiyon`, 'Değişim'],
+        rows: [
+          ['Toplam Gelir', formatUSD(data.summary.baseRevenue), formatUSD(data.summary.projectedRevenue), formatPercent(data.summary.revenueGrowth)],
+          ['Toplam Gider', formatUSD(data.summary.baseExpense), formatUSD(data.summary.projectedExpense), formatPercent(data.summary.expenseGrowth)],
+          ['Net Kar', formatUSD(data.summary.baseProfit), formatUSD(data.summary.projectedProfit), formatPercent(data.summary.profitGrowth)],
+        ],
+        options: {
+          showHead: 'everyPage',
+          headerColor: [59, 130, 246],
+          fontSize: 10,
+        }
+      });
+      
+      builder.addSpacer(5);
+      
+      setProgress({ current: 3, total: 4, stage: 'Gelir tablosu oluşturuluyor...' });
+      
+      // Gelir projeksiyonları tablosu
+      builder.addTable({
+        title: 'Gelir Projeksiyonları',
+        headers: ['Kalem', `${data.baseYear}`, `${data.targetYear}`, 'Değişim'],
+        rows: data.revenues.map(r => [
+          r.name,
+          formatUSD(r.baseAmount),
+          formatUSD(r.projectedAmount),
+          formatPercent(r.changePercent)
+        ]),
+        options: {
+          showHead: 'everyPage',
+          headerColor: [34, 197, 94], // Yeşil
+          fontSize: 9,
+          columnStyles: {
+            0: { cellWidth: 80 },
+            1: { halign: 'right' },
+            2: { halign: 'right' },
+            3: { halign: 'right' },
+          }
+        }
+      });
+      
+      builder.addSpacer(5);
+      
+      // Gider projeksiyonları tablosu
+      builder.addTable({
+        title: 'Gider Projeksiyonları',
+        headers: ['Kalem', `${data.baseYear}`, `${data.targetYear}`, 'Değişim'],
+        rows: data.expenses.map(e => [
+          e.name,
+          formatUSD(e.baseAmount),
+          formatUSD(e.projectedAmount),
+          formatPercent(e.changePercent)
+        ]),
+        options: {
+          showHead: 'everyPage',
+          headerColor: [239, 68, 68], // Kırmızı
+          fontSize: 9,
+          columnStyles: {
+            0: { cellWidth: 80 },
+            1: { halign: 'right' },
+            2: { halign: 'right' },
+            3: { halign: 'right' },
+          }
+        }
+      });
+      
+      // Footer bilgisi
+      builder.addSpacer(10);
+      builder.addText(
+        `Varsayılan Kur: ${data.exchangeRate.toFixed(2)} TL/USD`,
+        'caption',
+        'right'
+      );
+      
+      setProgress({ current: 4, total: 4, stage: 'PDF oluşturuluyor...' });
+      
+      const filename = `Simulasyon_${data.scenarioName.replace(/\s+/g, '_')}_${data.targetYear}.pdf`;
+      const result = await builder.build(filename);
+      
+      return result;
+    } catch (error) {
+      console.error('[PDF] Simulation generation error:', error);
+      return false;
+    } finally {
+      setIsGenerating(false);
+      setProgress({ current: 0, total: 0, stage: '' });
+    }
+  }, []);
+
+  /**
    * Builder'a doğrudan erişim (gelişmiş kullanım)
    */
   const createPdfBuilder = useCallback((config?: Partial<PdfBuilderConfig>) => {
@@ -727,27 +901,28 @@ export function usePdfEngine(): UsePdfEngineReturn {
   }, []);
 
   return {
-    // Data-driven (yeni - tablolar için)
+    // Data-driven (önerilen - tablolar için)
     generateBalanceSheetPdfData,
     generateIncomeStatementPdfData,
     generateDetailedIncomePdfData,
+    generateSimulationPdfData,
     createPdfBuilder,
     
-    // HTML tabanlı (mevcut - grafikler için)
-    generatePdfFromElement,
-    generateReportPdf,
-    generateChartPdf,
+    // HTML tabanlı (grafikler ve mevcut sayfalar için)
     generateSimulationPdf,
     generateScenarioComparisonPdf,
+    generateChartPdf,
     generateBalanceSheetPdf,
+    generateBalanceChartPdf,
     generateIncomeStatementPdf,
     generateVatReportPdf,
     generateFullReportPdf,
     generateDashboardChartPdf,
     generateDistributionChartPdf,
-    generateBalanceChartPdf,
-    captureChartToPdf,
     generateFinancingSummaryPdf,
+    captureChartToPdf,
+    generateReportPdf,
+    generatePdfFromElement,
     
     // Durum
     isGenerating,
