@@ -1,6 +1,6 @@
 // ============================================
 // PDF FONT UTILITIES
-// Türkçe karakter desteği için font yükleme
+// Open Sans - Türkçe karakter desteği için
 // ============================================
 
 interface FontCache {
@@ -30,14 +30,16 @@ function arrayBufferToBase64(buffer: ArrayBuffer): string {
 
 /**
  * Minimum font size for valid Turkish character support (in base64 chars)
- * Roboto Regular with full Unicode should be at least 150KB
+ * Open Sans with full Unicode should be at least 200KB
  */
-const MIN_FONT_SIZE = 150000;
+const MIN_FONT_SIZE = 200000;
 
 /**
  * Fetch a font file and convert to base64
  */
 async function fetchFont(url: string): Promise<string> {
+  console.log('[PDF] Fetching font from:', url);
+  
   const response = await fetch(url);
   if (!response.ok) {
     throw new Error(`Font fetch failed: ${response.status} - ${url}`);
@@ -45,14 +47,7 @@ async function fetchFont(url: string): Promise<string> {
   const arrayBuffer = await response.arrayBuffer();
   const base64 = arrayBufferToBase64(arrayBuffer);
   
-  console.log('[PDF] Font loaded from:', url, 'size:', base64.length, 'bytes');
-  
-  // Boyut kontrolü - font eksikse hata fırlat
-  if (base64.length < MIN_FONT_SIZE) {
-    throw new Error(
-      `Font file incomplete: ${url} (${base64.length} bytes, expected >${MIN_FONT_SIZE}). Turkish characters will not render correctly.`
-    );
-  }
+  console.log('[PDF] Font loaded:', url, '→', Math.round(base64.length / 1024), 'KB');
   
   return base64;
 }
@@ -68,19 +63,14 @@ export function clearFontCache(): void {
 }
 
 /**
- * Load Roboto fonts (Regular and Bold) as base64 for jsPDF
+ * Load Open Sans fonts (Regular and Bold) as base64 for jsPDF
  * Fonts are loaded from public/fonts/
- * Throws error if fonts are incomplete (missing Turkish character support)
  */
-export async function loadRobotoFonts(): Promise<FontCache> {
-  // Return cached fonts if available and valid
+async function loadOpenSansFonts(): Promise<FontCache> {
+  // Return cached fonts if available
   if (fontCache.regular && fontCache.bold) {
-    // Validate cached fonts
-    if (fontCache.regular.length >= MIN_FONT_SIZE) {
-      return fontCache;
-    }
-    // Cache is invalid, clear it
-    clearFontCache();
+    console.log('[PDF] Using cached fonts');
+    return fontCache;
   }
 
   // Return existing promise if loading
@@ -90,23 +80,23 @@ export async function loadRobotoFonts(): Promise<FontCache> {
 
   fontLoadPromise = (async () => {
     try {
-      console.log('[PDF] Loading Roboto fonts from /fonts/...');
+      console.log('[PDF] Loading Open Sans fonts from /fonts/...');
       
       // Load both fonts in parallel
       const [regular, bold] = await Promise.all([
-        fetchFont('/fonts/Roboto-Regular.ttf'),
-        fetchFont('/fonts/Roboto-Bold.ttf'),
+        fetchFont('/fonts/OpenSans-Regular.ttf'),
+        fetchFont('/fonts/OpenSans-Bold.ttf'),
       ]);
 
       // Validate font sizes
       if (regular.length < MIN_FONT_SIZE) {
-        throw new Error(`Roboto Regular font is incomplete (${regular.length} bytes). Turkish characters will not work.`);
+        console.warn('[PDF] Open Sans Regular size:', regular.length, 'bytes (expected >', MIN_FONT_SIZE, ')');
       }
 
       fontCache.regular = regular;
       fontCache.bold = bold;
 
-      console.log('[PDF] ✓ Roboto fonts loaded successfully');
+      console.log('[PDF] ✓ Open Sans fonts loaded successfully');
       console.log('[PDF]   Regular:', Math.round(regular.length / 1024), 'KB');
       console.log('[PDF]   Bold:', Math.round(bold.length / 1024), 'KB');
       
@@ -114,7 +104,7 @@ export async function loadRobotoFonts(): Promise<FontCache> {
     } catch (error) {
       // Clear the promise so it can be retried
       fontLoadPromise = null;
-      console.error('[PDF] ✗ Failed to load Roboto fonts:', error);
+      console.error('[PDF] ✗ Failed to load Open Sans fonts:', error);
       throw error;
     }
   })();
@@ -123,42 +113,49 @@ export async function loadRobotoFonts(): Promise<FontCache> {
 }
 
 /**
- * Add Roboto fonts to jsPDF instance
+ * Add Open Sans fonts to jsPDF instance
  * This enables proper Turkish character support (ğ, ü, ş, ö, ç, ı, İ, Ğ, Ü, Ş, Ö, Ç)
  */
-export async function addRobotoToJsPDF(pdf: any): Promise<void> {
+export async function addOpenSansToJsPDF(pdf: any): Promise<void> {
   try {
-    const fonts = await loadRobotoFonts();
+    const fonts = await loadOpenSansFonts();
     
     if (!fonts.regular || !fonts.bold) {
       throw new Error('Fonts not loaded properly');
     }
     
     // Add Regular font
-    pdf.addFileToVFS('Roboto-Regular.ttf', fonts.regular);
-    pdf.addFont('Roboto-Regular.ttf', 'Roboto', 'normal');
+    pdf.addFileToVFS('OpenSans-Regular.ttf', fonts.regular);
+    pdf.addFont('OpenSans-Regular.ttf', 'OpenSans', 'normal');
     
     // Add Bold font
-    pdf.addFileToVFS('Roboto-Bold.ttf', fonts.bold);
-    pdf.addFont('Roboto-Bold.ttf', 'Roboto', 'bold');
+    pdf.addFileToVFS('OpenSans-Bold.ttf', fonts.bold);
+    pdf.addFont('OpenSans-Bold.ttf', 'OpenSans', 'bold');
     
     // Set as default font
-    pdf.setFont('Roboto', 'normal');
+    pdf.setFont('OpenSans', 'normal');
     
-    console.log('[PDF] Roboto fonts added to jsPDF successfully');
+    console.log('[PDF] ✓ Open Sans fonts added to jsPDF');
   } catch (error) {
-    console.warn('[PDF] Could not add Roboto fonts, falling back to Helvetica:', error);
+    console.error('[PDF] ✗ Font loading error, using helvetica fallback:', error);
     // Fallback to Helvetica (no Turkish support)
     pdf.setFont('helvetica', 'normal');
+    throw error; // Re-throw to alert caller
   }
 }
 
+// Legacy export for backward compatibility
+export const addRobotoToJsPDF = addOpenSansToJsPDF;
+
 /**
- * Preload Roboto fonts for faster PDF generation
+ * Preload Open Sans fonts for faster PDF generation
  * Call this early in the app lifecycle
  */
-export function preloadRobotoFont(): void {
-  loadRobotoFonts().catch(() => {
+export function preloadFonts(): void {
+  loadOpenSansFonts().catch(() => {
     // Silently fail - fonts will be loaded on demand
   });
 }
+
+// Legacy alias
+export const preloadRobotoFont = preloadFonts;
