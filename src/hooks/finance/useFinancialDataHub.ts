@@ -667,6 +667,7 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     const otherCurrentAssetsTotal = vatDeductible + otherVat;
     
     // Partner receivables/payables - net calculation (önceki yıldan devir + yıl içi hareketler)
+    // DÜZELTİLMİŞ MANTIK: Net pozisyon hesabı - negatif borç = alacak olarak aktife yazılmalı
     const openingPartnerReceivables = previousYearBalance?.is_locked 
       ? (previousYearBalance.partner_receivables || 0)
       : 0;
@@ -675,12 +676,29 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       : ((settings as any)?.partner_payables || 0);
     
     // Yıl içi partner hareketleri net etkisi
+    // withdrawals = ortağa yapılan ödemeler (ortağın alacağı azalır / şirketin alacağı artar)
+    // deposits = ortaktan alınan paralar (ortağın borcu azalır / şirketin alacağı azalır)
     const partnerNetMovement = partnerSummary.withdrawals - partnerSummary.deposits;
     
-    // Alacak = önceki yıldan devir + yıl içi net artış (eğer pozitif)
-    const partnerReceivables = Math.max(0, openingPartnerReceivables + partnerNetMovement);
-    // Borç = önceki yıldan devir - yıl içi net azalış (eğer hala borç varsa)
-    const partnerPayables = Math.max(0, openingPartnerPayables - partnerNetMovement);
+    // Net pozisyon hesabı: Pozitif = Ortaklardan Alacak (AKTİF), Negatif = Ortaklara Borç (PASİF)
+    // Açılışta: alacak (+) - borç (-) + hareket
+    const netPartnerPosition = (openingPartnerReceivables - openingPartnerPayables) + partnerNetMovement;
+    
+    // Pozitif pozisyon = Ortaklardan Alacak (AKTİF)
+    // Negatif pozisyon = Ortaklara Borç (PASİF)
+    const partnerReceivables = netPartnerPosition > 0 ? netPartnerPosition : 0;
+    const partnerPayables = netPartnerPosition < 0 ? Math.abs(netPartnerPosition) : 0;
+    
+    console.log('👥 Ortak Hesabı Debug:', {
+      openingReceivables: openingPartnerReceivables,
+      openingPayables: openingPartnerPayables,
+      withdrawals: partnerSummary.withdrawals,
+      deposits: partnerSummary.deposits,
+      netMovement: partnerNetMovement,
+      netPosition: netPartnerPosition,
+      finalReceivables: partnerReceivables,
+      finalPayables: partnerPayables
+    });
     
     // Legacy inventory and vat receivable
     const openingInventory = previousYearBalance?.is_locked 
@@ -835,16 +853,44 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     
     // I - KISA VADELİ YABANCI KAYNAKLAR
     // A - Mali Borçlar (Banka Kredileri - 12 ay içi)
+    
+    // DÜZELTİLMİŞ: Kredi borcu hesaplama
+    // 1. Önceki yıldan devir eden kredi borcu
+    const openingLoanDebt = previousYearBalance?.is_locked 
+      ? (previousYearBalance.bank_loans || 0) + (previousYearBalance.short_term_loan_debt || 0)
+      : (settings?.bank_loans || 0);
+    
+    // 2. Yıl içi kredi kullanımı ve ödemeleri (financingSummary'den)
+    const yearCreditUsed = financingSummary.creditIn;
+    const yearCreditPaid = financingSummary.creditOut;
+    
+    // 3. Kalan kredi borcu = açılış + kullanım - ödeme
+    const remainingLoanDebt = Math.max(0, openingLoanDebt + yearCreditUsed - yearCreditPaid);
+    
+    console.log('🏦 Kredi Borcu Debug:', {
+      openingLoanDebt,
+      yearCreditUsed,
+      yearCreditPaid,
+      remainingLoanDebt,
+      fixedExpensesInstallments: fixedExpenses.installmentDetails.length
+    });
+    
+    // Taksit detaylarından kısa/uzun vade ayrımı
     let totalShortTermInstallments = 0;
     let totalLongTermInstallments = 0;
     
-    fixedExpenses.installmentDetails.forEach(detail => {
-      const { remainingMonths, monthlyAmount } = detail;
-      const shortTermMonths = Math.min(12, remainingMonths);
-      const longTermMonths = Math.max(0, remainingMonths - 12);
-      totalShortTermInstallments += shortTermMonths * monthlyAmount;
-      totalLongTermInstallments += longTermMonths * monthlyAmount;
-    });
+    if (fixedExpenses.installmentDetails.length > 0) {
+      fixedExpenses.installmentDetails.forEach(detail => {
+        const { remainingMonths, monthlyAmount } = detail;
+        const shortTermMonths = Math.min(12, remainingMonths);
+        const longTermMonths = Math.max(0, remainingMonths - 12);
+        totalShortTermInstallments += shortTermMonths * monthlyAmount;
+        totalLongTermInstallments += longTermMonths * monthlyAmount;
+      });
+    } else if (remainingLoanDebt > 0) {
+      // Eğer taksit detayı yoksa ama borç varsa, tamamını uzun vadeli say
+      totalLongTermInstallments = remainingLoanDebt;
+    }
     
     const shortTermBankCredits = totalShortTermInstallments;
     const financialDebtsTotal = shortTermBankCredits;
@@ -860,9 +906,9 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       ? payrollSummary.totalNetPayable 
       : settingsPersonnelPayables;
     
-    // Ortaklara borçları ayarlardan al (2024'ten devir veya hesaplanan)
-    const settingsPartnerPayables = (settings as any)?.partner_payables || 0;
-    const calculatedPartnerPayables = partnerPayables > 0 ? partnerPayables : settingsPartnerPayables;
+    // DÜZELTİLMİŞ: Ortaklara borçları net pozisyon hesabından al (partnerPayables yukarıda hesaplandı)
+    // Eğer partnerPayables > 0 ise şirket ortaklara borçlu demektir
+    const calculatedPartnerPayables = partnerPayables; // Artık doğru hesaplanmış değer
     const otherDebtsTotal = calculatedPartnerPayables + personnelPayables;
     
     // F - Ödenecek Vergi ve Diğer Yükümlülükler
@@ -893,7 +939,8 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     const shortTermTotal = financialDebtsTotal + tradePayablesTotal + otherDebtsTotal + taxLiabilitiesTotal + otherShortTermTotal;
     
     // II - UZUN VADELİ YABANCI KAYNAKLAR
-    const longTermBankLoans = totalLongTermInstallments;
+    // DÜZELTİLMİŞ: Taksit detayından veya kalan borçtan uzun vadeli kısım
+    const longTermBankLoans = totalLongTermInstallments > 0 ? totalLongTermInstallments : 0;
     const longTermTotal = longTermBankLoans;
     
     // III - ÖZKAYNAKLAR
@@ -907,8 +954,17 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     const profitReservesTotal = legalReserves;
     
     // D - Geçmiş Yıllar Karları
-    const retainedEarnings = settings?.retained_earnings || 0;
+    // DÜZELTİLMİŞ: Önceki yılın dönem karını geçmiş yıllar karlarına devret
+    const settingsRetainedEarnings = settings?.retained_earnings || 0;
+    const previousYearProfit = previousYearBalance?.is_locked ? (previousYearBalance.current_profit || 0) : 0;
+    const retainedEarnings = settingsRetainedEarnings + previousYearProfit;
     const retainedEarningsTotal = retainedEarnings;
+    
+    console.log('📈 Geçmiş Yıl Karı Devri:', {
+      settingsRetainedEarnings,
+      previousYearProfit,
+      totalRetainedEarnings: retainedEarnings
+    });
     
     // F - Dönem Net Karı (Zararı)
     const currentProfit = operatingProfit >= 0 ? operatingProfit : 0;
