@@ -2,17 +2,16 @@
 // MERKEZI PDF ENGINE - BARREL EXPORT
 // ============================================
 
-// Engine
-export { PdfEngine, createPdfDocument, generatePdfFromDocument } from './pdfEngine';
+// Configuration (excluding duplicates)
+export { 
+  PDF_CONFIG, 
+  PDF_SELECTORS, 
+  MEMORY_OPTIMIZATION,
+  type PdfGenerateOptions 
+} from './config/pdf';
 
-// Types
+// Core modules
+export * from './core';
+
+// Types (primary source for type definitions)
 export * from './pdfTypes';
-
-// Utils
-export * from './pdfUtils';
-
-// Section renderers
-export * from './sections/balanceSheet';
-export * from './sections/incomeStatement';
-export * from './sections/vatReport';
-export * from './sections/simulation';
