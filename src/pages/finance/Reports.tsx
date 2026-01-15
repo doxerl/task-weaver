@@ -296,11 +296,10 @@ export default function Reports() {
 
         {/* Tabs */}
         <Tabs defaultValue="dashboard" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6 h-auto">
+          <TabsList className="grid w-full grid-cols-5 h-auto">
             <TabsTrigger value="dashboard" className="text-xs py-2"><BarChart3 className="h-3 w-3 mr-1 hidden sm:inline" />Özet</TabsTrigger>
             <TabsTrigger value="income" className="text-xs py-2"><TrendingUp className="h-3 w-3 mr-1 hidden sm:inline" />Gelir</TabsTrigger>
             <TabsTrigger value="expense" className="text-xs py-2"><TrendingDown className="h-3 w-3 mr-1 hidden sm:inline" />Gider</TabsTrigger>
-            <TabsTrigger value="statement" className="text-xs py-2"><FileText className="h-3 w-3 mr-1 hidden sm:inline" />Tablo</TabsTrigger>
             <TabsTrigger value="detailed" className="text-xs py-2"><FileText className="h-3 w-3 mr-1 hidden sm:inline" />Resmi</TabsTrigger>
             <TabsTrigger value="financing" className="text-xs py-2"><CreditCard className="h-3 w-3 mr-1 hidden sm:inline" />Finans</TabsTrigger>
           </TabsList>
@@ -407,30 +406,7 @@ export default function Reports() {
             </div>
           </TabsContent>
 
-          {/* Tab 4: Income Statement */}
-          <TabsContent value="statement" className="space-y-3">
-            <div className="flex justify-end">
-              <Button 
-                onClick={handleIncomeStatementPdf} 
-                disabled={isPdfEngineGenerating} 
-                size="sm" 
-                variant="outline"
-                className="gap-1"
-              >
-                {isPdfEngineGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                PDF
-              </Button>
-            </div>
-            <div ref={incomeStatementRef} className="bg-background">
-              <IncomeStatementTable 
-                lines={incomeStatement.lines} 
-                year={year}
-                formatAmount={(n) => formatAmount(n, undefined, year)}
-              />
-            </div>
-          </TabsContent>
-
-          {/* Tab 5: Detailed Income Statement (Official Format) */}
+          {/* Tab 4: Detailed Income Statement (Official Format) */}
           <TabsContent value="detailed" className="space-y-3">
             <div className="flex justify-end">
               <Button 
