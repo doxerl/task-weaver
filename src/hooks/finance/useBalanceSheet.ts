@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useFinancialDataHub, CashFlowSummary } from './useFinancialDataHub';
 import { useYearlyBalanceSheet } from './useYearlyBalanceSheet';
+import { useIncomeStatement } from './useIncomeStatement';
 import { BalanceSheet } from '@/types/finance';
 
 export function useBalanceSheet(year: number): { 
@@ -19,6 +20,7 @@ export function useBalanceSheet(year: number): {
   cashFlowSummary: CashFlowSummary;
 } {
   const hub = useFinancialDataHub(year);
+  const incomeStatement = useIncomeStatement(year);
   const { 
     yearlyBalance, 
     isLoading: isYearlyLoading, 
@@ -184,13 +186,21 @@ export function useBalanceSheet(year: number): {
       total: balanceData.longTermTotal,
     };
 
+    // Dönem karını gelir tablosundan al (tutarlılık için)
+    const currentProfitFromIncomeStatement = incomeStatement.statement?.netProfit ?? balanceData.currentProfit;
+    
     const equity = {
       paidCapital: balanceData.paidCapital,
       unpaidCapital: balanceData.unpaidCapital,
       retainedEarnings: balanceData.retainedEarnings,
-      currentProfit: balanceData.currentProfit,
-      total: balanceData.equityTotal,
+      currentProfit: currentProfitFromIncomeStatement,
+      total: balanceData.paidCapital - balanceData.unpaidCapital + balanceData.retainedEarnings + currentProfitFromIncomeStatement,
     };
+
+    // Özsermaye değişikliğine göre toplam pasif ve dengeyi yeniden hesapla
+    const newTotalLiabilities = shortTermLiabilities.total + longTermLiabilities.total + equity.total;
+    const newDifference = balanceData.totalAssets - newTotalLiabilities;
+    const newIsBalanced = Math.abs(newDifference) < 0.01;
 
     const balanceSheet: BalanceSheet = {
       asOfDate: `${year}-12-31`,
@@ -201,9 +211,9 @@ export function useBalanceSheet(year: number): {
       shortTermLiabilities,
       longTermLiabilities,
       equity,
-      totalLiabilities: balanceData.totalLiabilities,
-      isBalanced: balanceData.isBalanced,
-      difference: balanceData.difference,
+      totalLiabilities: newTotalLiabilities,
+      isBalanced: newIsBalanced,
+      difference: newDifference,
     };
 
     return { 
@@ -220,5 +230,5 @@ export function useBalanceSheet(year: number): {
       expenseSummaryNet: hub.expenseSummary.net,
       cashFlowSummary: hub.cashFlowSummary,
     };
-  }, [hub.isLoading, hub.balanceData, hub.uncategorizedCount, hub.uncategorizedTotal, hub.operatingProfit, hub.incomeSummary.net, hub.expenseSummary.net, hub.cashFlowSummary, year, isYearlyLoading, isLocked, yearlyBalance, lockBalance, upsertBalance, isUpdating]);
+  }, [hub.isLoading, hub.balanceData, hub.uncategorizedCount, hub.uncategorizedTotal, hub.operatingProfit, hub.incomeSummary.net, hub.expenseSummary.net, hub.cashFlowSummary, year, isYearlyLoading, isLocked, yearlyBalance, lockBalance, upsertBalance, isUpdating, incomeStatement.statement?.netProfit]);
 }
