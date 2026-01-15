@@ -66,6 +66,13 @@ export interface MonthlyDataPoint {
   expense: number;
   net: number;
   cumulativeProfit: number;
+  // 4-layer income breakdown by service
+  incomeByService?: {
+    leadership: number;    // L&S - Leadership Denetim (bottom)
+    sbtTracker: number;    // SBT - SBT Tracker
+    danismanlik: number;   // DANIS - Danışmanlık
+    zdhcOther: number;     // ZDHC ve Diğerleri (top)
+  };
 }
 
 // Partner Transaction

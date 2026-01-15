@@ -7,6 +7,14 @@ interface MonthlyTrendChartProps {
   formatAmount?: (value: number) => string;
 }
 
+// Service colors (dark → light, bottom → top)
+const SERVICE_COLORS = {
+  leadership: '#166534',    // Dark green (bottom)
+  sbtTracker: '#16a34a',    // Green
+  danismanlik: '#22c55e',   // Light green
+  zdhcOther: '#86efac',     // Lightest green (top)
+};
+
 const defaultFormatCurrency = (value: number) => {
   if (value >= 1000000) return `₺${(value / 1000000).toFixed(1)}M`;
   if (value >= 1000) return `₺${(value / 1000).toFixed(0)}K`;
@@ -31,8 +39,30 @@ export function MonthlyTrendChart({ data, formatAmount }: MonthlyTrendChartProps
 
   const tooltipFormatter = useMemo(() => {
     const formatter = formatAmount || ((v: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY', maximumFractionDigits: 0 }).format(v));
-    return (value: number, name: string) => [formatter(value), name === 'income' ? 'Gelir' : name === 'expense' ? 'Gider' : 'Net'];
+    return (value: number, name: string) => {
+      const labels: Record<string, string> = {
+        'incomeByService.leadership': 'Leadership',
+        'incomeByService.sbtTracker': 'SBT Tracker',
+        'incomeByService.danismanlik': 'Danışmanlık',
+        'incomeByService.zdhcOther': 'ZDHC ve Diğerleri',
+        'expense': 'Gider',
+        'net': 'Net Kâr',
+      };
+      return [formatter(value), labels[name] || name];
+    };
   }, [formatAmount]);
+
+  const legendFormatter = (value: string) => {
+    const labels: Record<string, string> = {
+      'incomeByService.leadership': 'Leadership',
+      'incomeByService.sbtTracker': 'SBT Tracker',
+      'incomeByService.danismanlik': 'Danışmanlık',
+      'incomeByService.zdhcOther': 'ZDHC ve Diğerleri',
+      'expense': 'Gider',
+      'net': 'Net Kâr',
+    };
+    return labels[value] || value;
+  };
 
   return (
     <ResponsiveContainer width="100%" height={300}>
@@ -46,9 +76,40 @@ export function MonthlyTrendChart({ data, formatAmount }: MonthlyTrendChartProps
           labelFormatter={(label) => `${label}`}
           contentStyle={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }}
         />
-        <Legend formatter={(value) => value === 'income' ? 'Gelir' : value === 'expense' ? 'Gider' : 'Net Kâr'} />
-        <Bar yAxisId="left" dataKey="income" fill="#16a34a" name="income" radius={[4, 4, 0, 0]} />
+        <Legend formatter={legendFormatter} />
+        {/* Stacked Income Bars - order matters: first added = bottom */}
+        <Bar 
+          yAxisId="left" 
+          dataKey="incomeByService.leadership" 
+          stackId="income"
+          fill={SERVICE_COLORS.leadership} 
+          name="incomeByService.leadership"
+        />
+        <Bar 
+          yAxisId="left" 
+          dataKey="incomeByService.sbtTracker" 
+          stackId="income"
+          fill={SERVICE_COLORS.sbtTracker} 
+          name="incomeByService.sbtTracker"
+        />
+        <Bar 
+          yAxisId="left" 
+          dataKey="incomeByService.danismanlik" 
+          stackId="income"
+          fill={SERVICE_COLORS.danismanlik} 
+          name="incomeByService.danismanlik"
+        />
+        <Bar 
+          yAxisId="left" 
+          dataKey="incomeByService.zdhcOther" 
+          stackId="income"
+          fill={SERVICE_COLORS.zdhcOther} 
+          name="incomeByService.zdhcOther"
+          radius={[4, 4, 0, 0]}
+        />
+        {/* Expense Bar */}
         <Bar yAxisId="left" dataKey="expense" fill="#ef4444" name="expense" radius={[4, 4, 0, 0]} />
+        {/* Net Line */}
         <Line yAxisId="right" type="monotone" dataKey="net" stroke="#2563eb" strokeWidth={2} name="net" dot={{ r: 3 }} />
       </ComposedChart>
     </ResponsiveContainer>

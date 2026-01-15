@@ -66,23 +66,46 @@ export default function Reports() {
   const availableMonths = getAvailableMonthsCount(year);
   const missingMonths = 12 - availableMonths;
 
-  // Combine monthly data from hub
+  // Combine monthly data from hub with service breakdown
   const monthlyData = useMemo((): MonthlyDataPoint[] => {
     const months = Object.entries(hub.byMonth || {});
     let cumulative = 0;
+    
     return months.map(([m, data]) => {
+      const month = parseInt(m);
       const net = data.income.net - data.expense.net;
       cumulative += net;
+      
+      // Calculate income by service for this month
+      let leadership = 0, sbtTracker = 0, danismanlik = 0, zdhcOther = 0;
+      
+      incomeAnalysis.serviceRevenue.forEach(service => {
+        const monthAmount = service.byMonth[month] || 0;
+        const code = service.code.toUpperCase();
+        
+        if (code === 'L&S') {
+          leadership += monthAmount;
+        } else if (code === 'SBT') {
+          sbtTracker += monthAmount;
+        } else if (code === 'DANIS') {
+          danismanlik += monthAmount;
+        } else {
+          // ZDHC, LISANS, FAIZ_IN and other income
+          zdhcOther += monthAmount;
+        }
+      });
+      
       return {
-        month: parseInt(m),
-        monthName: MONTH_NAMES_SHORT_TR[parseInt(m) - 1],
+        month,
+        monthName: MONTH_NAMES_SHORT_TR[month - 1],
         income: data.income.net,
         expense: data.expense.net,
         net,
         cumulativeProfit: cumulative,
+        incomeByService: { leadership, sbtTracker, danismanlik, zdhcOther },
       };
     });
-  }, [hub.byMonth]);
+  }, [hub.byMonth, incomeAnalysis.serviceRevenue]);
 
   // Content refs for PDF
   const fullReportRef = useRef<HTMLDivElement>(null);
