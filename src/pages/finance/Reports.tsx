@@ -317,7 +317,9 @@ export default function Reports() {
             <CardContent className="p-3">
               <TrendingDown className="h-4 w-4 text-red-600 mb-1" />
               <p className="text-xs text-muted-foreground">Net Gider (KDV Hariç)</p>
-              <p className="text-lg font-bold text-red-600">{formatAmount(hub.expenseSummary.net)}</p>
+              <p className="text-lg font-bold text-red-600">
+                {formatAmount((incomeStatement.statement?.costOfSales || 0) + (incomeStatement.statement?.operatingExpenses.total || 0))}
+              </p>
             </CardContent>
           </Card>
           <Card>
