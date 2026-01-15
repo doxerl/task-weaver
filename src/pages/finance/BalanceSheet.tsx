@@ -36,7 +36,7 @@ export default function BalanceSheet() {
   const { settings, upsertSettings } = useFinancialSettings();
   const { summary: fixedExpensesSummary } = useFixedExpenses();
   const { currency, formatAmount, yearlyAverageRate, getAvailableMonthsCount } = useCurrency();
-  const { generateBalanceSheetPdf, generateBalanceChartPdf, isGenerating: isPdfGenerating, progress: pdfEngineProgress } = usePdfEngine();
+  const { generateBalanceSheetPdfData, generateBalanceChartPdf, isGenerating: isPdfGenerating, progress: pdfEngineProgress } = usePdfEngine();
   
   // Create format function for balance sheet values (uses yearly average)
   const formatValue = (n: number) => formatAmount(n, undefined, year);
@@ -101,15 +101,28 @@ export default function BalanceSheet() {
   };
 
   const handleExportPdf = async () => {
-    if (!contentRef.current) return;
-    
     try {
-      await generateBalanceSheetPdf(contentRef, year, currency);
+      // Data-driven PDF - jspdf-autotable ile
+      // Sayfa sonu kontrolü, başlık tekrarı, Türkçe metin desteği
+      const success = await generateBalanceSheetPdfData(
+        balanceSheet,
+        year,
+        formatValue,
+        { currency }
+      );
       
-      toast({
-        title: 'PDF oluşturuldu',
-        description: `Bilanço PDF olarak indirildi (${currency}).`,
-      });
+      if (success) {
+        toast({
+          title: 'PDF oluşturuldu',
+          description: `Bilanço PDF olarak indirildi (${currency}).`,
+        });
+      } else {
+        toast({
+          title: 'Hata',
+          description: 'PDF oluşturulurken bir hata oluştu.',
+          variant: 'destructive',
+        });
+      }
     } catch (error) {
       console.error('PDF export error:', error);
       toast({
