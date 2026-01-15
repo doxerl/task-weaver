@@ -364,7 +364,7 @@ export class PdfDocumentBuilder {
     // Tablo verilerini string'e çevir
     const preparedRows = rows.map(row => row.map(cell => String(cell)));
 
-    // AutoTable ayarları
+    // AutoTable ayarları - Roboto font ile Türkçe karakter desteği
     const tableOptions: UserOptions = {
       head: [headers],
       body: preparedRows,
@@ -376,12 +376,14 @@ export class PdfDocumentBuilder {
         cellPadding: options.cellPadding || 2,
         overflow: 'linebreak',
         minCellHeight: options.minCellHeight || 6,
+        font: 'Roboto', // Türkçe karakter desteği
       },
       headStyles: {
         fillColor: options.headerColor || this.config.headerColor || [59, 130, 246],
         textColor: options.headerTextColor || [255, 255, 255],
         fontStyle: 'bold',
         halign: 'center',
+        font: 'Roboto', // Türkçe karakter desteği
       },
       alternateRowStyles: options.alternateRowColor
         ? { fillColor: options.alternateRowColor }
@@ -495,11 +497,12 @@ export class PdfDocumentBuilder {
         tableWidth: halfWidth,
         theme: 'plain',
         showHead: 'everyPage',
-        styles: { fontSize: 8, cellPadding: 1.5 },
+        styles: { fontSize: 8, cellPadding: 1.5, font: 'Roboto' },
         headStyles: {
           fillColor: [34, 197, 94],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
+          font: 'Roboto',
         },
         columnStyles: {
           0: { cellWidth: halfWidth * 0.65 },
@@ -523,11 +526,12 @@ export class PdfDocumentBuilder {
         tableWidth: halfWidth,
         theme: 'plain',
         showHead: 'everyPage',
-        styles: { fontSize: 8, cellPadding: 1.5 },
+        styles: { fontSize: 8, cellPadding: 1.5, font: 'Roboto' },
         headStyles: {
           fillColor: [239, 68, 68],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
+          font: 'Roboto',
         },
         columnStyles: {
           0: { cellWidth: halfWidth * 0.65 },
@@ -553,11 +557,12 @@ export class PdfDocumentBuilder {
         margin: { left: margin, right: margin },
         theme: 'plain',
         showHead: 'everyPage',
-        styles: { fontSize: 9, cellPadding: 2 },
+        styles: { fontSize: 9, cellPadding: 2, font: 'Roboto' },
         headStyles: {
           fillColor: [34, 197, 94],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
+          font: 'Roboto',
         },
         columnStyles: {
           0: { cellWidth: 'auto' },
@@ -575,11 +580,12 @@ export class PdfDocumentBuilder {
         margin: { left: margin, right: margin },
         theme: 'plain',
         showHead: 'everyPage',
-        styles: { fontSize: 9, cellPadding: 2 },
+        styles: { fontSize: 9, cellPadding: 2, font: 'Roboto' },
         headStyles: {
           fillColor: [239, 68, 68],
           textColor: [255, 255, 255],
           fontStyle: 'bold',
+          font: 'Roboto',
         },
         columnStyles: {
           0: { cellWidth: 'auto' },
@@ -625,11 +631,12 @@ export class PdfDocumentBuilder {
       margin: { left: margin, right: margin },
       theme: 'plain',
       showHead: 'everyPage',
-      styles: { fontSize: 9, cellPadding: 2 },
+      styles: { fontSize: 9, cellPadding: 2, font: 'Roboto' },
       headStyles: {
         fillColor: [59, 130, 246],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
+        font: 'Roboto',
       },
       columnStyles: {
         0: { cellWidth: 'auto' },
@@ -683,11 +690,12 @@ export class PdfDocumentBuilder {
       margin: { left: margin, right: margin },
       theme: 'plain',
       showHead: 'everyPage',
-      styles: { fontSize: 8, cellPadding: 1.5 },
+      styles: { fontSize: 8, cellPadding: 1.5, font: 'Roboto' },
       headStyles: {
         fillColor: [59, 130, 246],
         textColor: [255, 255, 255],
         fontStyle: 'bold',
+        font: 'Roboto',
       },
       columnStyles: {
         0: { cellWidth: 'auto' },
