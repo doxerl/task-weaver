@@ -5,6 +5,7 @@ import { useCategories } from './useCategories';
 import { useFinancialSettings } from './useFinancialSettings';
 import { useFixedExpenses, FixedExpenseSummary } from './useFixedExpenses';
 import { separateVat, VatSeparationResult } from './utils/vatSeparation';
+import { calculateDepreciation } from '@/lib/depreciationCalculator';
 
 // Types
 export interface ProcessedTransaction {
@@ -591,7 +592,46 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     const equipmentPurchases = investment.filter(t => t.categoryCode?.includes('EKIPMAN')).reduce((sum, t) => sum + t.gross, 0);
     const fixturesValue = ((settings as any)?.fixtures_value || settings?.equipment_value || 0) + equipmentPurchases;
     
-    const depreciationTotal = settings?.accumulated_depreciation || 0;
+    // Bilanço tarihi (yıl sonu)
+    const asOfDate = `${year}-12-31`;
+    
+    // Otomatik amortisman hesaplama - alım tarihi girilmişse otomatik hesapla
+    const hasVehiclePurchaseDate = !!(settings as any)?.vehicles_purchase_date;
+    const hasFixturesPurchaseDate = !!(settings as any)?.fixtures_purchase_date;
+    
+    let depreciationTotal: number;
+    
+    if (hasVehiclePurchaseDate || hasFixturesPurchaseDate) {
+      // Taşıtlar amortismanı
+      const vehicleDepreciation = calculateDepreciation({
+        assetValue: vehiclesTotal,
+        purchaseDate: (settings as any)?.vehicles_purchase_date || null,
+        usefulLifeYears: (settings as any)?.vehicles_useful_life_years || 5,
+        method: 'straight_line',
+        asOfDate
+      });
+      
+      // Demirbaşlar amortismanı
+      const fixturesDepreciation = calculateDepreciation({
+        assetValue: fixturesValue,
+        purchaseDate: (settings as any)?.fixtures_purchase_date || null,
+        usefulLifeYears: (settings as any)?.fixtures_useful_life_years || 5,
+        method: 'straight_line',
+        asOfDate
+      });
+      
+      depreciationTotal = vehicleDepreciation.accumulatedDepreciation + fixturesDepreciation.accumulatedDepreciation;
+      
+      console.log('📊 Otomatik Amortisman Hesabı:', {
+        taşıtlar: { değer: vehiclesTotal, alımTarihi: (settings as any)?.vehicles_purchase_date, birikmiş: vehicleDepreciation.accumulatedDepreciation },
+        demirbaşlar: { değer: fixturesValue, alımTarihi: (settings as any)?.fixtures_purchase_date, birikmiş: fixturesDepreciation.accumulatedDepreciation },
+        toplam: depreciationTotal
+      });
+    } else {
+      // Alım tarihi girilmemişse manuel değeri kullan (geriye dönük uyumluluk)
+      depreciationTotal = settings?.accumulated_depreciation || 0;
+    }
+    
     const tangibleAssetsTotal = vehiclesTotal + fixturesValue - depreciationTotal;
     const fixedAssetsTotal = tangibleAssetsTotal;
     

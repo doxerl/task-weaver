@@ -88,6 +88,14 @@ export function useFinancialSettings() {
       notes: null,
       created_at: null,
       updated_at: null,
+      // Amortisman hesaplama alanları
+      depreciation_method: 'straight_line',
+      vehicles_purchase_date: null,
+      vehicles_useful_life_years: 5,
+      fixtures_purchase_date: null,
+      fixtures_useful_life_years: 5,
+      equipment_purchase_date: null,
+      equipment_useful_life_years: 5,
     };
   }, [settings, user?.id]);
 

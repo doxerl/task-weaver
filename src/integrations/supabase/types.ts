@@ -737,8 +737,13 @@ export type Database = {
           cash_on_hand: number | null
           created_at: string | null
           deferred_tax_liabilities: number | null
+          depreciation_method: string | null
+          equipment_purchase_date: string | null
+          equipment_useful_life_years: number | null
           equipment_value: number | null
           fiscal_year_start: number | null
+          fixtures_purchase_date: string | null
+          fixtures_useful_life_years: number | null
           fixtures_value: number | null
           id: string
           inventory_value: number | null
@@ -758,6 +763,8 @@ export type Database = {
           unpaid_capital: number | null
           updated_at: string | null
           user_id: string
+          vehicles_purchase_date: string | null
+          vehicles_useful_life_years: number | null
           vehicles_value: number | null
         }
         Insert: {
@@ -767,8 +774,13 @@ export type Database = {
           cash_on_hand?: number | null
           created_at?: string | null
           deferred_tax_liabilities?: number | null
+          depreciation_method?: string | null
+          equipment_purchase_date?: string | null
+          equipment_useful_life_years?: number | null
           equipment_value?: number | null
           fiscal_year_start?: number | null
+          fixtures_purchase_date?: string | null
+          fixtures_useful_life_years?: number | null
           fixtures_value?: number | null
           id?: string
           inventory_value?: number | null
@@ -788,6 +800,8 @@ export type Database = {
           unpaid_capital?: number | null
           updated_at?: string | null
           user_id: string
+          vehicles_purchase_date?: string | null
+          vehicles_useful_life_years?: number | null
           vehicles_value?: number | null
         }
         Update: {
@@ -797,8 +811,13 @@ export type Database = {
           cash_on_hand?: number | null
           created_at?: string | null
           deferred_tax_liabilities?: number | null
+          depreciation_method?: string | null
+          equipment_purchase_date?: string | null
+          equipment_useful_life_years?: number | null
           equipment_value?: number | null
           fiscal_year_start?: number | null
+          fixtures_purchase_date?: string | null
+          fixtures_useful_life_years?: number | null
           fixtures_value?: number | null
           id?: string
           inventory_value?: number | null
@@ -818,6 +837,8 @@ export type Database = {
           unpaid_capital?: number | null
           updated_at?: string | null
           user_id?: string
+          vehicles_purchase_date?: string | null
+          vehicles_useful_life_years?: number | null
           vehicles_value?: number | null
         }
         Relationships: []
