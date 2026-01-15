@@ -19,8 +19,6 @@ export function useBalanceSheet(year: number): {
   expenseSummaryNet: number;
   cashFlowSummary: CashFlowSummary;
 } {
-  const hub = useFinancialDataHub(year);
-  const incomeStatement = useIncomeStatement(year);
   const { 
     yearlyBalance, 
     isLoading: isYearlyLoading, 
@@ -29,6 +27,11 @@ export function useBalanceSheet(year: number): {
     upsertBalance, 
     isUpdating 
   } = useYearlyBalanceSheet(year);
+  
+  // Pass manual bank_balance from yearly_balance_sheets to hub if set
+  const manualBankBalance = yearlyBalance?.bank_balance;
+  const hub = useFinancialDataHub(year, manualBankBalance);
+  const incomeStatement = useIncomeStatement(year);
 
   return useMemo(() => {
     const loading = hub.isLoading || isYearlyLoading;

@@ -255,7 +255,7 @@ export interface FinancialDataHub {
   uncategorizedTotal: number;
 }
 
-export function useFinancialDataHub(year: number): FinancialDataHub {
+export function useFinancialDataHub(year: number, manualBankBalance?: number | null): FinancialDataHub {
   const { transactions: bankTx, isLoading: loadingTx } = useBankTransactions(year);
   const { receipts, isLoading: loadingReceipts } = useReceipts(year);
   const { categories, isLoading: loadingCats } = useCategories();
@@ -626,24 +626,35 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       kullanılanKasa: openingCashOnHand
     });
     
-    // Bank balance - use last balance if available, otherwise calculate cumulatively from opening
-    const sortedBankTx = [...bankTx].sort((a, b) => 
-      new Date(b.transaction_date || 0).getTime() - new Date(a.transaction_date || 0).getTime()
-    );
+    // Bank balance - use manual override if provided, otherwise calculate
+    let bankBalance: number;
     
-    // Try to get balance from latest transaction first
-    let bankBalance = sortedBankTx[0]?.balance;
-    
-    // If balance column is null, calculate cumulative balance from transactions + opening balance
-    if (bankBalance == null) {
-      const txSortedAsc = [...bankTx].sort((a, b) => 
-        new Date(a.transaction_date || 0).getTime() - new Date(b.transaction_date || 0).getTime()
+    // Manuel değer varsa (yearly_balance_sheets'ten gelen), onu kullan
+    if (manualBankBalance != null && manualBankBalance !== 0) {
+      bankBalance = manualBankBalance;
+      console.log('💰 Manuel banka bakiyesi kullanılıyor:', manualBankBalance);
+    } else {
+      // Yoksa mevcut hesaplama mantığını uygula
+      const sortedBankTx = [...bankTx].sort((a, b) => 
+        new Date(b.transaction_date || 0).getTime() - new Date(a.transaction_date || 0).getTime()
       );
-      // Açılış bakiyesi ile başla ve işlemleri ekle
-      bankBalance = openingBankBalance + txSortedAsc.reduce((balance, tx) => {
-        if (tx.is_excluded) return balance;
-        return balance + (tx.amount || 0);
-      }, 0);
+      
+      // Try to get balance from latest transaction first
+      const lastTxBalance = sortedBankTx[0]?.balance;
+      
+      // If balance column is null, calculate cumulative balance from transactions + opening balance
+      if (lastTxBalance == null) {
+        const txSortedAsc = [...bankTx].sort((a, b) => 
+          new Date(a.transaction_date || 0).getTime() - new Date(b.transaction_date || 0).getTime()
+        );
+        // Açılış bakiyesi ile başla ve işlemleri ekle
+        bankBalance = openingBankBalance + txSortedAsc.reduce((balance, tx) => {
+          if (tx.is_excluded) return balance;
+          return balance + (tx.amount || 0);
+        }, 0);
+      } else {
+        bankBalance = lastTxBalance;
+      }
     }
     
     // I - DÖNEN VARLIKLAR
