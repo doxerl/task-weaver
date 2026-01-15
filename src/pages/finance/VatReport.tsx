@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -22,14 +22,16 @@ export default function VatReport() {
   const vat = useVatCalculations(year);
   const { currency, formatAmount, yearlyAverageRate } = useCurrency();
   const { generateVatReportPdf, isGenerating } = usePdfEngine();
-  const contentRef = React.useRef<HTMLDivElement>(null);
 
   const fmt = (value: number) => formatAmount(value, undefined, year);
 
   const handleExportPdf = async () => {
-    if (!contentRef.current) return;
     try {
-      await generateVatReportPdf(contentRef, year);
+      await generateVatReportPdf(vat, year, {
+        currency,
+        yearlyAverageRate: yearlyAverageRate || undefined,
+        formatAmount: fmt,
+      });
       toast.success(`KDV Raporu PDF oluşturuldu (${currency})`);
     } catch {
       toast.error('PDF oluşturulamadı');
@@ -55,7 +57,7 @@ export default function VatReport() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div ref={contentRef} className="p-4 space-y-6 bg-background">
+      <div className="p-4 space-y-6">
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">

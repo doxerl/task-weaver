@@ -130,13 +130,44 @@ function GrowthSimulationContent() {
     scenariosHook.setCurrentScenarioId(null);
   };
 
-  // PDF content ref
-  const pdfContentRef = useRef<HTMLDivElement>(null);
-
   const handleExportPdf = async () => {
-    if (!pdfContentRef.current) return;
     try {
-      await generateSimulationPdf(pdfContentRef, scenarioName, targetYear);
+      await generateSimulationPdf(
+        {
+          scenarioName,
+          baseYear,
+          targetYear,
+          revenues,
+          expenses,
+          investments,
+          summary,
+          assumedExchangeRate,
+          notes,
+          // Add Capital Analysis data
+          advancedAnalysis: advancedAnalysis ? {
+            currentCash: advancedAnalysis.currentCash,
+            workingCapital: advancedAnalysis.workingCapital,
+            burnRateAnalysis: advancedAnalysis.burnRateAnalysis ? {
+              quarterlyProjectionsWithInvestment: advancedAnalysis.burnRateAnalysis.quarterlyProjectionsWithInvestment,
+              criticalQuarter: advancedAnalysis.burnRateAnalysis.criticalQuarter,
+              runwayMonths: advancedAnalysis.burnRateAnalysis.runwayMonths,
+              grossBurnRate: advancedAnalysis.burnRateAnalysis.grossBurnRate,
+              netBurnRate: advancedAnalysis.burnRateAnalysis.netBurnRate,
+            } : undefined,
+            capitalNeeds: advancedAnalysis.capitalNeeds,
+          } : undefined,
+          // Add ROI Analysis data
+          roiAnalysis: roiAnalysis ? {
+            simpleROI: roiAnalysis.simpleROI,
+            paybackPeriod: roiAnalysis.paybackPeriod,
+            npvAnalysis: roiAnalysis.npvAnalysis,
+            sensitivity: roiAnalysis.sensitivity,
+          } : undefined,
+        },
+        {
+          companyName: 'Şirket',
+        }
+      );
       toast.success('PDF başarıyla oluşturuldu');
     } catch {
       toast.error('PDF oluşturulurken hata oluştu');
@@ -229,7 +260,7 @@ function GrowthSimulationContent() {
         </div>
       </header>
 
-      <main ref={pdfContentRef} className="container mx-auto px-4 py-6 space-y-6 bg-background">
+      <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Scenario Settings */}
         <Card>
           <CardContent className="pt-4">
