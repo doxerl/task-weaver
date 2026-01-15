@@ -674,47 +674,61 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     let settingsDepreciation = 0;
     
     const settingsVehiclesValue = settings?.vehicles_value || 0;
-    const settingsFixturesValue = (settings as any)?.fixtures_value || 0;
+    const settingsFixturesValue = settings?.fixtures_value || 0;
     const settingsEquipmentValue = settings?.equipment_value || 0;
     
-    if ((settings as any)?.vehicles_purchase_date && settingsVehiclesValue > 0) {
+    // Debug log for settings depreciation
+    console.log('🔧 Settings Amortisman Debug:', {
+      settingsVehiclesValue,
+      settingsFixturesValue,
+      settingsEquipmentValue,
+      vehicles_purchase_date: settings?.vehicles_purchase_date,
+      fixtures_purchase_date: settings?.fixtures_purchase_date,
+      equipment_purchase_date: settings?.equipment_purchase_date,
+      asOfDate
+    });
+    
+    if (settings?.vehicles_purchase_date && settingsVehiclesValue > 0) {
       const vehicleResult = calculateDepreciation({
         assetValue: settingsVehiclesValue,
-        purchaseDate: (settings as any).vehicles_purchase_date,
-        usefulLifeYears: (settings as any)?.vehicles_useful_life_years || 5,
+        purchaseDate: settings.vehicles_purchase_date,
+        usefulLifeYears: settings?.vehicles_useful_life_years || 5,
         method: 'straight_line',
         asOfDate
       });
       settingsDepreciation += vehicleResult.accumulatedDepreciation;
+      console.log('🚗 Taşıt Amortisman:', vehicleResult);
     }
     
-    if ((settings as any)?.fixtures_purchase_date && settingsFixturesValue > 0) {
+    if (settings?.fixtures_purchase_date && settingsFixturesValue > 0) {
       const fixturesResult = calculateDepreciation({
         assetValue: settingsFixturesValue,
-        purchaseDate: (settings as any).fixtures_purchase_date,
-        usefulLifeYears: (settings as any)?.fixtures_useful_life_years || 5,
+        purchaseDate: settings.fixtures_purchase_date,
+        usefulLifeYears: settings?.fixtures_useful_life_years || 5,
         method: 'straight_line',
         asOfDate
       });
       settingsDepreciation += fixturesResult.accumulatedDepreciation;
+      console.log('🪑 Demirbaş Amortisman:', fixturesResult);
     }
     
-    if ((settings as any)?.equipment_purchase_date && settingsEquipmentValue > 0) {
+    if (settings?.equipment_purchase_date && settingsEquipmentValue > 0) {
       const equipmentResult = calculateDepreciation({
         assetValue: settingsEquipmentValue,
-        purchaseDate: (settings as any).equipment_purchase_date,
-        usefulLifeYears: (settings as any)?.equipment_useful_life_years || 10,
+        purchaseDate: settings.equipment_purchase_date,
+        usefulLifeYears: settings?.equipment_useful_life_years || 10,
         method: 'straight_line',
         asOfDate
       });
       settingsDepreciation += equipmentResult.accumulatedDepreciation;
+      console.log('⚙️ Ekipman Amortisman:', equipmentResult);
     }
     
     // Eğer hiç alım tarihi yoksa (ne işlemlerde ne settings'te), manuel değeri kullan
     const hasAnyPurchaseDate = investment.length > 0 || 
-      (settings as any)?.vehicles_purchase_date || 
-      (settings as any)?.fixtures_purchase_date ||
-      (settings as any)?.equipment_purchase_date;
+      settings?.vehicles_purchase_date || 
+      settings?.fixtures_purchase_date ||
+      settings?.equipment_purchase_date;
     
     const depreciationTotal = hasAnyPurchaseDate 
       ? investmentDepreciation + settingsDepreciation
@@ -900,7 +914,7 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
       uncategorizedCount: bankTx.filter(tx => !tx.category_id && !tx.is_excluded).length,
       uncategorizedTotal: bankTx.filter(tx => !tx.category_id && !tx.is_excluded).reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0)
     };
-  }, [isLoading, bankTx, receipts, categories, settings, fixedExpenses]);
+  }, [isLoading, bankTx, receipts, categories, settings, fixedExpenses, year]);
 
   return hub;
 }
