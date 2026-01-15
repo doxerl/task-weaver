@@ -81,6 +81,10 @@ export function useFinancialSettings() {
       deferred_tax_liabilities: 0,
       calculated_vat_payable: 0,
       fixtures_value: 0,
+      // 2024 açılış değerleri
+      opening_bank_balance: 0,
+      partner_payables: 0,
+      tax_provision: 0,
       notes: null,
       created_at: null,
       updated_at: null,

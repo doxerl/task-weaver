@@ -744,12 +744,15 @@ export type Database = {
           inventory_value: number | null
           legal_reserves: number | null
           notes: string | null
+          opening_bank_balance: number | null
           other_vat: number | null
           paid_capital: number | null
+          partner_payables: number | null
           personnel_payables: number | null
           retained_earnings: number | null
           social_security_payables: number | null
           tax_payables: number | null
+          tax_provision: number | null
           trade_payables: number | null
           trade_receivables: number | null
           unpaid_capital: number | null
@@ -771,12 +774,15 @@ export type Database = {
           inventory_value?: number | null
           legal_reserves?: number | null
           notes?: string | null
+          opening_bank_balance?: number | null
           other_vat?: number | null
           paid_capital?: number | null
+          partner_payables?: number | null
           personnel_payables?: number | null
           retained_earnings?: number | null
           social_security_payables?: number | null
           tax_payables?: number | null
+          tax_provision?: number | null
           trade_payables?: number | null
           trade_receivables?: number | null
           unpaid_capital?: number | null
@@ -798,12 +804,15 @@ export type Database = {
           inventory_value?: number | null
           legal_reserves?: number | null
           notes?: string | null
+          opening_bank_balance?: number | null
           other_vat?: number | null
           paid_capital?: number | null
+          partner_payables?: number | null
           personnel_payables?: number | null
           retained_earnings?: number | null
           social_security_payables?: number | null
           tax_payables?: number | null
+          tax_provision?: number | null
           trade_payables?: number | null
           trade_receivables?: number | null
           unpaid_capital?: number | null
