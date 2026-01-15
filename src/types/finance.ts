@@ -306,6 +306,7 @@ export interface FinancialSettings {
   fixtures_value: number;         // Demirbaşlar (yeni alan)
   // 2024 açılış değerleri - yeni alanlar
   opening_bank_balance: number;   // Açılış Banka Bakiyesi (2024 kapanış)
+  opening_cash_on_hand: number;   // Açılış Kasa Bakiyesi (2024 kapanış)
   partner_payables: number;       // Ortaklara Borçlar (2024 kapanış)
   tax_provision: number;          // Dönem Karı Vergi Karşılığı (2024)
   notes: string | null;

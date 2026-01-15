@@ -68,6 +68,7 @@ export default function Settings() {
   // Balance sheet settings state
   const [balanceSettings, setBalanceSettings] = useState({
     opening_bank_balance: 0,
+    opening_cash_on_hand: 0,
     vehicles_purchase_date: '',
     fixtures_purchase_date: '',
   });
@@ -131,6 +132,7 @@ export default function Settings() {
   if (!isBalanceSettingsLoaded && financialSettings.id) {
     setBalanceSettings({
       opening_bank_balance: financialSettings.opening_bank_balance || 0,
+      opening_cash_on_hand: (financialSettings as any).opening_cash_on_hand || 0,
       vehicles_purchase_date: financialSettings.vehicles_purchase_date || '',
       fixtures_purchase_date: financialSettings.fixtures_purchase_date || '',
     });
@@ -140,9 +142,10 @@ export default function Settings() {
   const handleSaveBalanceSettings = () => {
     upsertFinancialSettings.mutate({
       opening_bank_balance: balanceSettings.opening_bank_balance,
+      opening_cash_on_hand: balanceSettings.opening_cash_on_hand,
       vehicles_purchase_date: balanceSettings.vehicles_purchase_date || null,
       fixtures_purchase_date: balanceSettings.fixtures_purchase_date || null,
-    });
+    } as any);
   };
 
   return (
@@ -394,6 +397,20 @@ export default function Settings() {
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
+              <Label htmlFor="openingCashOnHand">2024 Yıl Sonu Kasa Bakiyesi (Açılış) (₺)</Label>
+              <Input
+                id="openingCashOnHand"
+                type="number"
+                value={balanceSettings.opening_cash_on_hand}
+                onChange={(e) => setBalanceSettings(p => ({ ...p, opening_cash_on_hand: Number(e.target.value) }))}
+                placeholder="0"
+              />
+              <p className="text-xs text-muted-foreground">
+                2025 yılı başındaki kasa bakiyenizi girin (resmi bilanço değeri: ₺33.118,55).
+              </p>
+            </div>
+
+            <div className="space-y-2">
               <Label htmlFor="openingBankBalance">2024 Yıl Sonu Banka Bakiyesi (Açılış) (₺)</Label>
               <Input
                 id="openingBankBalance"
@@ -403,7 +420,7 @@ export default function Settings() {
                 placeholder="0"
               />
               <p className="text-xs text-muted-foreground">
-                2025 yılı başındaki banka bakiyenizi girin. Bu değer bilanço hesaplamasında kullanılır.
+                2025 yılı başındaki banka bakiyenizi girin (resmi bilanço değeri: ₺68.194,77).
               </p>
             </div>
 

@@ -579,7 +579,11 @@ export function useFinancialDataHub(year: number): FinancialDataHub {
     
     // I - DÖNEN VARLIKLAR
     // A - Hazır Değerler
-    const cashOnHand = settings?.cash_on_hand || 0;
+    // Açılış kasa değerini kullan (DB'den gelen, resmi bilanço değeri)
+    const openingCashOnHand = (settings as any)?.opening_cash_on_hand || 0;
+    const currentCashOnHand = settings?.cash_on_hand || 0;
+    // Açılış kasa değeri öncelikli (resmi bilanço), yoksa mevcut değer
+    const cashOnHand = openingCashOnHand > 0 ? openingCashOnHand : currentCashOnHand;
     const readyValuesTotal = cashOnHand + bankBalance;
     
     // C - Ticari Alacaklar
