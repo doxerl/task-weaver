@@ -7,7 +7,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, FileDown, Settings, CheckCircle, AlertTriangle, Loader2, Info, BarChart3 } from 'lucide-react';
+import { ArrowLeft, FileDown, Settings, CheckCircle, AlertTriangle, Loader2, Info, BarChart3, Lock, Unlock, Shield } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { useFinancialSettings } from '@/hooks/finance/useFinancialSettings';
@@ -34,7 +34,7 @@ export default function BalanceSheet() {
   const contentRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<HTMLDivElement>(null);
   
-  const { balanceSheet, isLoading, uncategorizedCount, uncategorizedTotal } = useBalanceSheet(year);
+  const { balanceSheet, isLoading, uncategorizedCount, uncategorizedTotal, isLocked, lockBalance, isUpdating } = useBalanceSheet(year);
   const { settings, upsertSettings } = useFinancialSettings();
   const { summary: fixedExpensesSummary } = useFixedExpenses();
   const { currency, formatAmount, yearlyAverageRate, getAvailableMonthsCount } = useCurrency();
@@ -255,13 +255,38 @@ export default function BalanceSheet() {
           </Link>
           <h1 className="text-xl font-bold flex-1">Bilanço</h1>
           <CurrencyToggle year={year} />
-          <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
-            <SheetTrigger asChild>
-              <Button variant="outline" size="icon">
-                <Settings className="h-4 w-4" />
-              </Button>
-            </SheetTrigger>
-            <SheetContent className="overflow-y-auto">
+          {/* Lock/Unlock button */}
+          {!isLocked ? (
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => lockBalance(true)}
+              disabled={isUpdating}
+              title="Bu yılı resmi onaylı olarak kilitle"
+            >
+              <Lock className="h-4 w-4" />
+            </Button>
+          ) : (
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => lockBalance(false)}
+              disabled={isUpdating}
+              className="text-green-600"
+              title="Kilidi aç"
+            >
+              <Unlock className="h-4 w-4" />
+            </Button>
+          )}
+          {/* Settings - only show when not locked */}
+          {!isLocked && (
+            <Sheet open={settingsOpen} onOpenChange={setSettingsOpen}>
+              <SheetTrigger asChild>
+                <Button variant="outline" size="icon">
+                  <Settings className="h-4 w-4" />
+                </Button>
+              </SheetTrigger>
+              <SheetContent className="overflow-y-auto">
               <SheetHeader>
                 <SheetTitle>Bilanço Ayarları</SheetTitle>
               </SheetHeader>
@@ -453,6 +478,7 @@ export default function BalanceSheet() {
               </div>
             </SheetContent>
           </Sheet>
+          )}
           <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
             <SelectTrigger className="w-20">
               <SelectValue />
@@ -488,13 +514,29 @@ export default function BalanceSheet() {
           </Alert>
         )}
 
-        {/* Date indicator */}
+        {/* Date indicator with lock status */}
         <div className="text-center">
-          <p className="text-base font-semibold">
+          <p className="text-base font-semibold flex items-center justify-center gap-2">
             31.12.{year} TARİHLİ BİLANÇO
-            {currency === 'USD' && <span className="text-muted-foreground ml-2">(USD)</span>}
+            {currency === 'USD' && <span className="text-muted-foreground">(USD)</span>}
+            {isLocked && (
+              <span className="inline-flex items-center gap-1 text-xs bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-400 px-2 py-0.5 rounded-full">
+                <Shield className="h-3 w-3" />
+                Resmi Onaylı
+              </span>
+            )}
           </p>
         </div>
+
+        {/* Locked Year Alert */}
+        {isLocked && (
+          <Alert variant="default" className="bg-green-50 dark:bg-green-950/20 border-green-200">
+            <Shield className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-800 dark:text-green-200">
+              Bu yıl resmi onaylı bilanço olarak kilitlenmiştir. Değerler değiştirilemez ve hesaplama yapılmaz.
+            </AlertDescription>
+          </Alert>
+        )}
 
         {/* Balance Check */}
         <Card className={cn(
