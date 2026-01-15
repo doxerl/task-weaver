@@ -411,10 +411,8 @@ export default function Reports() {
 
         {/* Tabs */}
         <Tabs defaultValue="dashboard" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-6 h-auto">
+          <TabsList className="grid w-full grid-cols-4 h-auto">
             <TabsTrigger value="dashboard" className="text-xs py-2"><BarChart3 className="h-3 w-3 mr-1 hidden sm:inline" />Özet</TabsTrigger>
-            <TabsTrigger value="income" className="text-xs py-2"><TrendingUp className="h-3 w-3 mr-1 hidden sm:inline" />Gelir</TabsTrigger>
-            <TabsTrigger value="expense" className="text-xs py-2"><TrendingDown className="h-3 w-3 mr-1 hidden sm:inline" />Gider</TabsTrigger>
             <TabsTrigger value="detailed" className="text-xs py-2"><FileText className="h-3 w-3 mr-1 hidden sm:inline" />Resmi</TabsTrigger>
             <TabsTrigger value="financing" className="text-xs py-2"><CreditCard className="h-3 w-3 mr-1 hidden sm:inline" />Finans</TabsTrigger>
             <TabsTrigger value="cashflow" className="text-xs py-2"><Wallet className="h-3 w-3 mr-1 hidden sm:inline" />Nakit</TabsTrigger>
@@ -464,65 +462,8 @@ export default function Reports() {
             </div>
           </TabsContent>
 
-          {/* Tab 2: Income */}
-          <TabsContent value="income" className="space-y-4">
-            <div className="flex justify-end">
-              <Button 
-                onClick={handleIncomePdf} 
-                disabled={isPdfEngineGenerating} 
-                size="sm" 
-                variant="outline"
-                className="gap-1"
-              >
-                {isPdfEngineGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                Grafik PDF
-              </Button>
-            </div>
-            <div ref={incomeRef} className="bg-background p-4 rounded-lg">
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm">Hizmet Bazlı Gelir Dağılımı</CardTitle></CardHeader>
-                <CardContent><ServiceRevenueChart data={incomeAnalysis.serviceRevenue} formatAmount={(n) => formatAmount(n, undefined, year)} formatCompactAmount={(n) => formatCompactAmount(n, undefined, year)} /></CardContent>
-              </Card>
-            </div>
-          </TabsContent>
 
-          {/* Tab 3: Expense */}
-          <TabsContent value="expense" className="space-y-4">
-            <div className="flex justify-end">
-              <Button 
-                onClick={handleExpensePdf} 
-                disabled={isPdfEngineGenerating} 
-                size="sm" 
-                variant="outline"
-                className="gap-1"
-              >
-                {isPdfEngineGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
-                Grafik PDF
-              </Button>
-            </div>
-            <div ref={expenseRef} className="space-y-4 bg-background p-4 rounded-lg">
-              <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm">Gider Kategorileri</CardTitle></CardHeader>
-                <CardContent><ExpenseCategoryChart data={expenseAnalysis.topCategories} formatAmount={(n) => formatAmount(n, undefined, year)} formatCompactAmount={(n) => formatCompactAmount(n, undefined, year)} /></CardContent>
-              </Card>
-              <div className="grid grid-cols-2 gap-3">
-                <Card>
-                  <CardContent className="p-3">
-                    <p className="text-xs text-muted-foreground">Sabit Gider</p>
-                    <p className="text-lg font-bold">{formatAmount(hub.expenseSummary.fixed)}</p>
-                  </CardContent>
-                </Card>
-                <Card>
-                  <CardContent className="p-3">
-                    <p className="text-xs text-muted-foreground">Değişken Gider</p>
-                    <p className="text-lg font-bold">{formatAmount(hub.expenseSummary.variable)}</p>
-                  </CardContent>
-                </Card>
-              </div>
-            </div>
-          </TabsContent>
-
-          {/* Tab 4: Detailed Income Statement (Official Format) */}
+          {/* Tab 2: Detailed Income Statement (Official Format) */}
           <TabsContent value="detailed" className="space-y-3">
             <div className="flex justify-end">
               <Button 
