@@ -1218,7 +1218,274 @@ function ScenarioComparisonContent() {
             </div>
           </div>
 
-          {/* SAYFA 4: AI INSIGHTS */}
+          {/* SAYFA 4: YATIRIMCI METRİKLERİ */}
+          {unifiedAnalysis && (
+            <div className="page-break-after" style={{ 
+              width: '1200px', 
+              height: '848px', 
+              padding: '40px',
+              boxSizing: 'border-box',
+              background: 'white'
+            }}>
+              <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '3px solid #3b82f6', paddingBottom: '12px', color: '#1e3a8a' }}>
+                Yatırımcı Analizi
+              </h2>
+              
+              {/* Deal Analysis Score */}
+              {unifiedAnalysis.deal_analysis && (
+                <div style={{ 
+                  display: 'flex', 
+                  justifyContent: 'space-between', 
+                  alignItems: 'center',
+                  marginBottom: '24px',
+                  padding: '20px',
+                  background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)',
+                  borderRadius: '16px',
+                  color: 'white'
+                }}>
+                  <div>
+                    <p style={{ fontSize: '14px', opacity: 0.9 }}>Anlaşma Skoru</p>
+                    <p style={{ fontSize: '48px', fontWeight: 'bold' }}>{unifiedAnalysis.deal_analysis.deal_score}/100</p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: '14px', opacity: 0.9 }}>Değerleme Görüşü</p>
+                    <p style={{ fontSize: '24px', fontWeight: 'bold', textTransform: 'capitalize' }}>
+                      {unifiedAnalysis.deal_analysis.valuation_verdict === 'premium' ? '💎 Premium' : 
+                       unifiedAnalysis.deal_analysis.valuation_verdict === 'fair' ? '✅ Adil' : '💰 Ucuz'}
+                    </p>
+                  </div>
+                  <div style={{ textAlign: 'right', maxWidth: '400px' }}>
+                    <p style={{ fontSize: '14px', opacity: 0.9 }}>Yatırımcı Çekiciliği</p>
+                    <p style={{ fontSize: '13px', lineHeight: '1.4' }}>{unifiedAnalysis.deal_analysis.investor_attractiveness}</p>
+                  </div>
+                </div>
+              )}
+
+              {/* Metrics Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '24px' }}>
+                {/* Deal Configuration */}
+                <div style={{ 
+                  padding: '20px', 
+                  borderRadius: '12px', 
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Yatırım Miktarı</p>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e3a8a' }}>${dealConfig.investmentAmount.toLocaleString()}</p>
+                </div>
+                <div style={{ 
+                  padding: '20px', 
+                  borderRadius: '12px', 
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Equity Oranı</p>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e3a8a' }}>%{dealConfig.equityPercentage}</p>
+                </div>
+                <div style={{ 
+                  padding: '20px', 
+                  borderRadius: '12px', 
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Pre-Money Valuation</p>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e3a8a' }}>
+                    ${((dealConfig.investmentAmount / dealConfig.equityPercentage) * 100 - dealConfig.investmentAmount).toLocaleString()}
+                  </p>
+                </div>
+                <div style={{ 
+                  padding: '20px', 
+                  borderRadius: '12px', 
+                  background: '#f8fafc',
+                  border: '1px solid #e2e8f0'
+                }}>
+                  <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Sektör Çarpanı</p>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e3a8a' }}>{dealConfig.sectorMultiple}x</p>
+                </div>
+              </div>
+
+              {/* Risk Factors */}
+              {unifiedAnalysis.deal_analysis?.risk_factors && unifiedAnalysis.deal_analysis.risk_factors.length > 0 && (
+                <div style={{ marginBottom: '24px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>Risk Faktörleri</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
+                    {unifiedAnalysis.deal_analysis.risk_factors.slice(0, 6).map((risk, i) => (
+                      <div key={i} style={{ 
+                        padding: '12px 16px', 
+                        background: '#fef2f2', 
+                        borderRadius: '8px',
+                        borderLeft: '3px solid #ef4444',
+                        fontSize: '13px',
+                        color: '#991b1b'
+                      }}>
+                        ⚠️ {risk}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* Exit Strategy Preview */}
+              <div style={{ 
+                padding: '20px', 
+                background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+                borderRadius: '12px',
+                border: '1px solid #86efac'
+              }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '12px', color: '#166534' }}>Çıkış Stratejisi</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+                  <div>
+                    <p style={{ fontSize: '12px', color: '#166534', marginBottom: '4px' }}>3 Yıllık MOIC</p>
+                    <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#166534' }}>
+                      {((summaryB?.netProfit || 0) * 3 / dealConfig.investmentAmount + 1).toFixed(1)}x
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '12px', color: '#166534', marginBottom: '4px' }}>5 Yıllık MOIC</p>
+                    <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#166534' }}>
+                      {((summaryB?.netProfit || 0) * 5 / dealConfig.investmentAmount + 1).toFixed(1)}x
+                    </p>
+                  </div>
+                  <div>
+                    <p style={{ fontSize: '12px', color: '#166534', marginBottom: '4px' }}>Tahmini ROI</p>
+                    <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#166534' }}>
+                      +{(((summaryB?.netProfit || 0) * 3 / dealConfig.investmentAmount) * 100).toFixed(0)}%
+                    </p>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SAYFA 5: GLOBAL VİZYON */}
+          {unifiedAnalysis?.next_year_projection && (
+            <div className="page-break-after" style={{ 
+              width: '1200px', 
+              height: '848px', 
+              padding: '40px',
+              boxSizing: 'border-box',
+              background: 'white'
+            }}>
+              <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '3px solid #3b82f6', paddingBottom: '12px', color: '#1e3a8a' }}>
+                {(scenarioB?.targetYear || new Date().getFullYear()) + 1} Yılı Global Vizyonu
+              </h2>
+              
+              {/* Strategy Note */}
+              <div style={{ 
+                marginBottom: '24px', 
+                padding: '20px', 
+                background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)', 
+                borderRadius: '16px', 
+                border: '1px solid #bfdbfe' 
+              }}>
+                <p style={{ fontSize: '16px', color: '#1e3a8a', fontStyle: 'italic', lineHeight: '1.6' }}>
+                  "{unifiedAnalysis.next_year_projection.strategy_note}"
+                </p>
+              </div>
+
+              {/* Virtual Opening Balance & Summary */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px', marginBottom: '24px' }}>
+                {unifiedAnalysis.next_year_projection.virtual_opening_balance && (
+                  <>
+                    <div style={{ padding: '20px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                      <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Açılış Nakit</p>
+                      <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e3a8a' }}>
+                        ${unifiedAnalysis.next_year_projection.virtual_opening_balance.opening_cash?.toLocaleString() || '0'}
+                      </p>
+                    </div>
+                    <div style={{ padding: '20px', borderRadius: '12px', background: '#f8fafc', border: '1px solid #e2e8f0' }}>
+                      <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Savaş Fonu Durumu</p>
+                      <p style={{ 
+                        fontSize: '20px', 
+                        fontWeight: 'bold', 
+                        color: unifiedAnalysis.next_year_projection.virtual_opening_balance.war_chest_status === 'Hazır' ? '#16a34a' : 
+                               unifiedAnalysis.next_year_projection.virtual_opening_balance.war_chest_status === 'Yakın' ? '#f59e0b' : '#ef4444'
+                      }}>
+                        {unifiedAnalysis.next_year_projection.virtual_opening_balance.war_chest_status === 'Hazır' ? '🟢' : 
+                         unifiedAnalysis.next_year_projection.virtual_opening_balance.war_chest_status === 'Yakın' ? '🟡' : '🔴'} {unifiedAnalysis.next_year_projection.virtual_opening_balance.war_chest_status}
+                      </p>
+                    </div>
+                  </>
+                )}
+                <div style={{ padding: '20px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #86efac' }}>
+                  <p style={{ fontSize: '12px', color: '#166534', marginBottom: '8px', textTransform: 'uppercase' }}>Tahmini Yıllık Gelir</p>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#166534' }}>
+                    ${unifiedAnalysis.next_year_projection.summary?.total_revenue?.toLocaleString() || '0'}
+                  </p>
+                </div>
+                <div style={{ padding: '20px', borderRadius: '12px', background: '#f0fdf4', border: '1px solid #86efac' }}>
+                  <p style={{ fontSize: '12px', color: '#166534', marginBottom: '8px', textTransform: 'uppercase' }}>Tahmini Net Kâr</p>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#166534' }}>
+                    ${unifiedAnalysis.next_year_projection.summary?.net_profit?.toLocaleString() || '0'}
+                  </p>
+                </div>
+              </div>
+
+              {/* Quarterly Events */}
+              <div style={{ marginBottom: '24px' }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>Çeyreklik Hedefler</h3>
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                  {(['q1', 'q2', 'q3', 'q4'] as const).map((q, i) => {
+                    const quarterData = unifiedAnalysis.next_year_projection.quarterly?.[q];
+                    return (
+                      <div key={q} style={{ 
+                        padding: '16px', 
+                        borderRadius: '12px', 
+                        background: 'white',
+                        border: '1px solid #e5e7eb',
+                        boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
+                      }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '12px' }}>
+                          <span style={{ 
+                            background: '#3b82f6', 
+                            color: 'white', 
+                            padding: '4px 10px', 
+                            borderRadius: '20px',
+                            fontSize: '12px',
+                            fontWeight: 'bold'
+                          }}>Q{i + 1}</span>
+                        </div>
+                        <p style={{ fontSize: '14px', color: '#374151', fontWeight: '500', marginBottom: '8px', minHeight: '40px' }}>
+                          {quarterData?.key_event || '-'}
+                        </p>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px', color: '#6b7280' }}>
+                          <span>Gelir: ${quarterData?.revenue?.toLocaleString() || '0'}</span>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Investor Hooks */}
+              {unifiedAnalysis.next_year_projection.investor_hook && (
+                <div style={{ 
+                  padding: '20px', 
+                  background: 'linear-gradient(135deg, #fef3c7 0%, #fde68a 100%)',
+                  borderRadius: '12px',
+                  border: '1px solid #f59e0b'
+                }}>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#92400e' }}>Yatırımcı Çekici Noktalar</h3>
+                  <div style={{ display: 'flex', gap: '20px', flexWrap: 'wrap' }}>
+                    <span style={{ background: 'white', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: '500', color: '#1e3a8a' }}>
+                      📈 {unifiedAnalysis.next_year_projection.investor_hook.revenue_growth_yoy}
+                    </span>
+                    <span style={{ background: 'white', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: '500', color: '#166534' }}>
+                      💰 {unifiedAnalysis.next_year_projection.investor_hook.margin_improvement}
+                    </span>
+                    <span style={{ background: 'white', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: '500', color: '#7c3aed' }}>
+                      🎯 {unifiedAnalysis.next_year_projection.investor_hook.valuation_multiple_target}
+                    </span>
+                    <span style={{ background: 'white', padding: '8px 16px', borderRadius: '20px', fontSize: '13px', fontWeight: '500', color: '#0d9488' }}>
+                      🛡️ {unifiedAnalysis.next_year_projection.investor_hook.competitive_moat}
+                    </span>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* SAYFA 6: AI INSIGHTS */}
           {unifiedAnalysis?.insights && unifiedAnalysis.insights.length > 0 && (
             <div className="page-break-after" style={{ 
               width: '1200px', 
@@ -1281,7 +1548,7 @@ function ScenarioComparisonContent() {
             </div>
           )}
 
-          {/* SAYFA 5: PITCH DECK - Son sayfa (page-break-after yok) */}
+          {/* SAYFA 7: PITCH DECK - Son sayfa (page-break-after yok) */}
           {unifiedAnalysis?.pitch_deck?.slides && unifiedAnalysis.pitch_deck.slides.length > 0 && (
             <div style={{ 
               width: '1200px', 
