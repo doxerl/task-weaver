@@ -340,8 +340,8 @@ export function DetailedBalanceSheet({ balanceSheet, year, formatAmount }: Detai
           <DetailedRow code="369" label="Öd.Diğ.Yük." value={0} level={2} />
           
           {/* G - Borç ve Gider Karşılıkları */}
-          <SubSectionHeader letter="G" title="Borç ve Gider Karşılıkları" total={0} />
-          <DetailedRow code="370" label="Dön.Karı Ver.ve Diğ.Yas.Yük.Kar." value={0} level={2} />
+          <SubSectionHeader letter="G" title="Borç ve Gider Karşılıkları" total={(shortTermLiabilities as any).taxProvision || 0} />
+          <DetailedRow code="370" label="Dön.Karı Ver.ve Diğ.Yas.Yük.Kar." value={(shortTermLiabilities as any).taxProvision || 0} level={2} />
           <DetailedRow code="371" label="Dön.Karının Peş.Öd.Ver.ve Diğ.Yük.(-)" value={0} level={2} isNegative />
           <DetailedRow code="372" label="Kıdem Tazminatı Karşılığı" value={0} level={2} />
           <DetailedRow code="373" label="Mal.Sor.Taz.Karş." value={0} level={2} />
