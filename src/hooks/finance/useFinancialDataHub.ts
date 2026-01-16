@@ -253,6 +253,9 @@ export interface FinancialDataHub {
   // Uncategorized transaction tracking
   uncategorizedCount: number;
   uncategorizedTotal: number;
+  
+  // Financial settings (for tax provision, etc.)
+  settings: any;
 }
 
 export function useFinancialDataHub(year: number, manualBankBalance?: number | null): FinancialDataHub {
@@ -964,7 +967,9 @@ export function useFinancialDataHub(year: number, manualBankBalance?: number | n
     const otherShortTermTotal = calculatedVatPayable;
     
     const shortTermLoanDebt = shortTermBankCredits;
-    const shortTermTotal = financialDebtsTotal + tradePayablesTotal + otherDebtsTotal + taxLiabilitiesTotal + otherShortTermTotal;
+    // G bölümü (Borç ve Gider Karşılıkları) toplamını da dahil et
+    const borrowAndExpenseProvisions = taxProvision;
+    const shortTermTotal = financialDebtsTotal + tradePayablesTotal + otherDebtsTotal + taxLiabilitiesTotal + borrowAndExpenseProvisions + otherShortTermTotal;
     
     // II - UZUN VADELİ YABANCI KAYNAKLAR
     // DÜZELTİLMİŞ: Taksit detayından veya kalan borçtan uzun vadeli kısım
@@ -1131,7 +1136,8 @@ export function useFinancialDataHub(year: number, manualBankBalance?: number | n
       profitMargin,
       cashFlowSummary,
       uncategorizedCount: bankTx.filter(tx => !tx.category_id && !tx.is_excluded).length,
-      uncategorizedTotal: bankTx.filter(tx => !tx.category_id && !tx.is_excluded).reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0)
+      uncategorizedTotal: bankTx.filter(tx => !tx.category_id && !tx.is_excluded).reduce((sum, tx) => sum + Math.abs(tx.amount || 0), 0),
+      settings
     };
   }, [isLoading, bankTx, receipts, categories, settings, fixedExpenses, year, previousYearBalance]);
 
@@ -1258,6 +1264,7 @@ function createEmptyHub(fixedExpenses: FixedExpenseSummary): FinancialDataHub {
       }
     },
     uncategorizedCount: 0,
-    uncategorizedTotal: 0
+    uncategorizedTotal: 0,
+    settings: null
   };
 }
