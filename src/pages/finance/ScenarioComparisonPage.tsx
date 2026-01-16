@@ -674,11 +674,25 @@ function ScenarioComparisonContent() {
                 return (
                   <Card key={m.label}>
                     <CardContent className="pt-4">
-                      <div className="text-xs text-muted-foreground mb-2">{m.label}</div>
+                      <div className="text-xs text-muted-foreground mb-3">{m.label}</div>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-sm font-mono">{formatValue(m.scenarioA, m.format)}</span>
+                        {/* Senaryo A - Sol Taraf */}
+                        <div className="flex flex-col items-start min-w-0 flex-1">
+                          <span className="text-[10px] text-blue-600 font-medium mb-1 truncate w-full" title={scenarioA?.name}>
+                            {scenarioA?.name || 'A'}
+                          </span>
+                          <span className="text-sm font-mono">{formatValue(m.scenarioA, m.format)}</span>
+                        </div>
+                        
                         <ArrowRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
-                        <span className="text-sm font-bold font-mono">{formatValue(m.scenarioB, m.format)}</span>
+                        
+                        {/* Senaryo B - Sağ Taraf */}
+                        <div className="flex flex-col items-end min-w-0 flex-1">
+                          <span className="text-[10px] text-emerald-600 font-medium mb-1 truncate w-full text-right" title={scenarioB?.name}>
+                            {scenarioB?.name || 'B'}
+                          </span>
+                          <span className="text-sm font-bold font-mono">{formatValue(m.scenarioB, m.format)}</span>
+                        </div>
                       </div>
                       <div className="mt-2">
                         <DiffBadge diff={diff} format={m.format} higherIsBetter={m.higherIsBetter} />
