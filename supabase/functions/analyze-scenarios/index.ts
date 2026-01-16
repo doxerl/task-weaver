@@ -112,22 +112,21 @@ Bu verilere dayanarak:
                     type: "object",
                     properties: {
                       priority: { 
-                        type: "number", 
-                        enum: [1, 2, 3],
+                        type: "integer",
                         description: "1=Acil (bu hafta), 2=Kısa vade (1-3 ay), 3=Orta vade (3-6 ay)"
                       },
-                      title: { type: "string", description: "Öneri başlığı (max 8 kelime)" },
-                      description: { type: "string", description: "Önerinin detaylı açıklaması" },
-                      action_plan: { 
+                      recommendation_title: { type: "string", description: "Öneri başlığı (max 8 kelime)" },
+                      recommendation_description: { type: "string", description: "Önerinin detaylı açıklaması" },
+                      action_steps: { 
                         type: "array", 
                         items: { type: "string" },
                         description: "Adım adım uygulama planı (3-5 adım)"
                       },
-                      expected_outcome: { type: "string", description: "Bu öneri uygulanırsa beklenen sonuç (rakamsal tahmin)" },
-                      risk_mitigation: { type: "string", description: "Bu hamlede dikkat edilmesi gerekenler" },
-                      timeframe: { type: "string", description: "Tahmini uygulama süresi" }
+                      expected_result: { type: "string", description: "Bu öneri uygulanırsa beklenen sonuç (rakamsal tahmin)" },
+                      risk_notes: { type: "string", description: "Bu hamlede dikkat edilmesi gerekenler" },
+                      time_estimate: { type: "string", description: "Tahmini uygulama süresi" }
                     },
-                    required: ["priority", "title", "description", "action_plan", "expected_outcome"]
+                    required: ["priority", "recommendation_title", "recommendation_description", "action_steps", "expected_result"]
                   }
                 },
                 quarterly_analysis: {
