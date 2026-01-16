@@ -1430,63 +1430,131 @@ export function usePdfEngine(): UsePdfEngineReturn {
       const html2canvasModule = await import('html2canvas');
       const html2canvas = html2canvasModule.default;
       
-      // Helper: Grafik yakalama
+      // Helper: Gelişmiş grafik yakalama (SVG + Recharts optimizasyonu)
       const captureChart = async (
         element: HTMLElement | null
       ): Promise<{ imgData: string; aspectRatio: number } | null> => {
         if (!element) return null;
         try {
+          // SVG'lerin render olmasını bekle
+          await new Promise(resolve => setTimeout(resolve, 500));
+          
+          // Recharts SVG'lerini zorla görünür yap
+          const svgs = element.querySelectorAll('svg');
+          svgs.forEach(svg => {
+            if (svg.style.opacity === '0') svg.style.opacity = '1';
+            // SVG boyutlarını sabitle
+            const rect = svg.getBoundingClientRect();
+            if (rect.width > 0) {
+              svg.setAttribute('width', String(rect.width));
+              svg.setAttribute('height', String(rect.height));
+            }
+          });
+          
           const canvas = await html2canvas(element, {
-            scale: 2,
+            scale: 3,  // Daha yüksek çözünürlük
             useCORS: true,
             logging: false,
             backgroundColor: '#ffffff',
+            allowTaint: true,
+            foreignObjectRendering: true,  // SVG desteği
+            windowWidth: element.scrollWidth * 2,
+            windowHeight: element.scrollHeight * 2,
+            onclone: (clonedDoc, clonedElement) => {
+              // Clone'da SVG'leri düzelt
+              const clonedSvgs = clonedElement.querySelectorAll('svg');
+              clonedSvgs.forEach(svg => {
+                svg.style.opacity = '1';
+                svg.style.visibility = 'visible';
+              });
+              // Recharts tooltip'leri gizle
+              clonedElement.querySelectorAll('.recharts-tooltip-wrapper').forEach(el => {
+                (el as HTMLElement).style.display = 'none';
+              });
+            }
           });
+          
           if (canvas.width === 0 || canvas.height === 0) return null;
+          
           return {
-            imgData: canvas.toDataURL('image/jpeg', 0.9),
+            imgData: canvas.toDataURL('image/png'),  // PNG daha iyi SVG kalitesi
             aspectRatio: canvas.width / canvas.height
           };
-        } catch {
+        } catch (e) {
+          console.error('[captureChart] Error:', e);
           return null;
         }
       };
       
-      // ===== SAYFA 1: KAPAK =====
+      // ===== SAYFA 1: KAPAK (Zenginleştirilmiş) =====
       setProgress({ current: 2, total: 10, stage: 'Kapak sayfası...' });
       
       // Gradient arka plan efekti
       pdf.setFillColor(30, 58, 138); // Blue-900
-      pdf.rect(0, 0, pageWidth, pageHeight * 0.55, 'F');
-      pdf.setFillColor(255, 255, 255);
-      pdf.rect(0, pageHeight * 0.55, pageWidth, pageHeight * 0.45, 'F');
+      pdf.rect(0, 0, pageWidth, pageHeight * 0.6, 'F');
+      
+      // Dekoratif şekiller
+      pdf.setFillColor(59, 130, 246); // Blue-500
+      pdf.ellipse(pageWidth * 0.85, pageHeight * 0.25, 35, 35, 'F');
+      pdf.setFillColor(37, 99, 235); // Blue-600
+      pdf.ellipse(pageWidth * 0.12, pageHeight * 0.35, 20, 20, 'F');
+      pdf.setFillColor(96, 165, 250); // Blue-400
+      pdf.ellipse(pageWidth * 0.75, pageHeight * 0.45, 15, 15, 'F');
+      
+      // Alt kısım açık renk
+      pdf.setFillColor(248, 250, 252);
+      pdf.rect(0, pageHeight * 0.6, pageWidth, pageHeight * 0.4, 'F');
       
       // Dekoratif çizgi
       pdf.setDrawColor(59, 130, 246);
-      pdf.setLineWidth(1);
-      pdf.line(margin, pageHeight * 0.55, pageWidth - margin, pageHeight * 0.55);
+      pdf.setLineWidth(2);
+      pdf.line(margin, pageHeight * 0.6, pageWidth - margin, pageHeight * 0.6);
       
-      // Başlık
-      pdf.setFontSize(32);
+      // Ana başlık (daha büyük)
+      pdf.setFontSize(36);
       pdf.setTextColor(255, 255, 255);
-      pdf.text('Senaryo Karşılaştırma Raporu', pageWidth / 2, pageHeight / 3, { align: 'center' });
+      pdf.text('Senaryo Karşılaştırma', pageWidth / 2, pageHeight / 3.5, { align: 'center' });
+      pdf.text('Raporu', pageWidth / 2, pageHeight / 3.5 + 14, { align: 'center' });
       
-      // Alt başlık
-      pdf.setFontSize(18);
-      pdf.setTextColor(219, 234, 254); // Blue-100
-      pdf.text(`${data.scenarioA.name} vs ${data.scenarioB.name}`, pageWidth / 2, pageHeight / 3 + 15, { align: 'center' });
+      // Senaryo isimleri badge
+      const badgeWidth = 140;
+      pdf.setFillColor(255, 255, 255);
+      pdf.roundedRect((pageWidth - badgeWidth) / 2, pageHeight / 2 - 5, badgeWidth, 22, 11, 11, 'F');
+      pdf.setFontSize(12);
+      pdf.setTextColor(30, 58, 138);
+      pdf.text(`${data.scenarioA.name} vs ${data.scenarioB.name}`, pageWidth / 2, pageHeight / 2 + 7, { align: 'center' });
       
-      // Yıl bilgisi
-      pdf.setFontSize(14);
-      pdf.text(`Hedef Yıl: ${data.scenarioB.targetYear}`, pageWidth / 2, pageHeight / 3 + 28, { align: 'center' });
+      // Alt kısımda özet metrikler (capsule görünümü)
+      const capsuleY = pageHeight * 0.72;
+      const capsuleW = 60;
+      const capsuleH = 28;
+      const startX = (pageWidth - (4 * capsuleW + 3 * 10)) / 2;
       
-      // Tarih (alt kısımda)
+      data.metrics.slice(0, 4).forEach((m, i) => {
+        const x = startX + (capsuleW + 10) * i;
+        // Kapsül arka plan
+        pdf.setFillColor(m.isPositive ? 220 : 254, m.isPositive ? 252 : 226, m.isPositive ? 231 : 226);
+        pdf.roundedRect(x, capsuleY, capsuleW, capsuleH, 4, 4, 'F');
+        // Label
+        pdf.setFontSize(7);
+        pdf.setTextColor(100, 116, 139);
+        const shortLabel = m.label.length > 12 ? m.label.substring(0, 10) + '..' : m.label;
+        pdf.text(shortLabel, x + capsuleW/2, capsuleY + 8, { align: 'center' });
+        // Value
+        pdf.setFontSize(10);
+        pdf.setTextColor(30, 41, 59);
+        const mValue = m.format === 'currency' ? formatUSD(m.scenarioB) : 
+                      m.format === 'percent' ? formatPercent(m.scenarioB) : m.scenarioB.toFixed(0);
+        pdf.text(mValue, x + capsuleW/2, capsuleY + 20, { align: 'center' });
+      });
+      
+      // Tarih ve footer
       pdf.setFontSize(11);
       pdf.setTextColor(100, 116, 139);
-      pdf.text(new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }), pageWidth / 2, pageHeight - 25, { align: 'center' });
+      pdf.text(new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }), pageWidth / 2, pageHeight - 28, { align: 'center' });
       pdf.setFontSize(9);
       pdf.setTextColor(148, 163, 184);
-      pdf.text('AI Destekli Finansal Analiz Raporu', pageWidth / 2, pageHeight - 18, { align: 'center' });
+      pdf.text(`AI Destekli Finansal Analiz Raporu • Hedef Yıl: ${data.scenarioB.targetYear}`, pageWidth / 2, pageHeight - 18, { align: 'center' });
       
       // ===== SAYFA 2: ÖZET DASHBOARD =====
       pdf.addPage();
@@ -1573,8 +1641,11 @@ export function usePdfEngine(): UsePdfEngineReturn {
           ];
         }),
         startY: tableY,
+        showHead: 'everyPage',      // Her sayfada başlık tekrarla
         margin: { left: margin, right: margin },
         theme: 'grid',
+        pageBreak: 'auto',
+        rowPageBreak: 'avoid',       // Satır ortasında kesmez
         styles: { fontSize: 9, cellPadding: 3, font: 'helvetica' },
         headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
         columnStyles: {
@@ -1617,7 +1688,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
             imgHeight = chartMaxHeight;
             imgWidth = imgHeight * chartData.aspectRatio;
           }
-          pdf.addImage(chartData.imgData, 'JPEG', margin, chartY, imgWidth, imgHeight);
+          pdf.addImage(chartData.imgData, 'PNG', margin, chartY, imgWidth, imgHeight);
         }
       }
       
@@ -1635,7 +1706,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
             imgHeight = chartMaxHeight;
             imgWidth = imgHeight * chartData.aspectRatio;
           }
-          pdf.addImage(chartData.imgData, 'JPEG', pageWidth / 2 + 5, chartY, imgWidth, imgHeight);
+          pdf.addImage(chartData.imgData, 'PNG', pageWidth / 2 + 5, chartY, imgWidth, imgHeight);
         }
       }
       
@@ -1757,56 +1828,91 @@ export function usePdfEngine(): UsePdfEngineReturn {
         }
       }
       
-      // ===== SAYFA 5-6: AI INSIGHTS =====
+      // ===== SAYFA 5-6: AI INSIGHTS (Kart Tabanlı Profesyonel Görünüm) =====
       if (data.insights && data.insights.length > 0) {
         pdf.addPage();
         setProgress({ current: 6, total: 10, stage: 'AI çıkarımları...' });
         
-        // Sayfa başlığı
-        pdf.setFillColor(241, 245, 249);
-        pdf.rect(0, 0, pageWidth, 18, 'F');
-        pdf.setFontSize(14);
-        pdf.setTextColor(30, 41, 59);
-        pdf.text('AI Analiz Çıkarımları', margin, 12);
-        
-        // Insights tablosu
-        const severityColors: Record<string, [number, number, number]> = {
-          'critical': [220, 38, 38],
-          'high': [234, 88, 12],
-          'medium': [234, 179, 8],
-          'low': [34, 197, 94],
-          'info': [59, 130, 246]
+        // Severity renk haritası
+        const getSeverityStyle = (severity: string): { bg: [number, number, number]; fg: [number, number, number]; label: string } => {
+          const styles: Record<string, { bg: [number, number, number]; fg: [number, number, number]; label: string }> = {
+            'critical': { bg: [254, 226, 226], fg: [220, 38, 38], label: 'Kritik' },
+            'high': { bg: [255, 237, 213], fg: [234, 88, 12], label: 'Yüksek' },
+            'medium': { bg: [254, 249, 195], fg: [161, 98, 7], label: 'Orta' },
+            'low': { bg: [220, 252, 231], fg: [22, 163, 74], label: 'Düşük' },
+            'info': { bg: [219, 234, 254], fg: [37, 99, 235], label: 'Bilgi' }
+          };
+          return styles[severity?.toLowerCase()] || styles['medium'];
         };
         
-        const insightRows = data.insights.slice(0, 8).map(insight => [
-          insight.category || '-',
-          insight.title,
-          insight.description.length > 100 ? insight.description.substring(0, 97) + '...' : insight.description,
-          insight.severity || 'medium'
-        ]);
+        // Başlık
+        pdf.setFillColor(168, 85, 247); // Purple-500
+        pdf.rect(0, 0, pageWidth, 20, 'F');
+        pdf.setFontSize(14);
+        pdf.setTextColor(255, 255, 255);
+        pdf.text('🔍 AI Analiz Çıkarımları', margin, 13);
+        pdf.setFontSize(9);
+        pdf.text(`Toplam ${data.insights.length} çıkarım`, pageWidth - margin, 13, { align: 'right' });
         
-        autoTable(pdf, {
-          head: [['Kategori', 'Başlık', 'Açıklama', 'Seviye']],
-          body: insightRows,
-          startY: 25,
-          margin: { left: margin, right: margin },
-          theme: 'striped',
-          styles: { fontSize: 8, cellPadding: 3, font: 'helvetica', overflow: 'linebreak' },
-          headStyles: { fillColor: [168, 85, 247], textColor: [255, 255, 255], fontStyle: 'bold' },
-          columnStyles: {
-            0: { cellWidth: 35 },
-            1: { cellWidth: 55 },
-            2: { cellWidth: 140 },
-            3: { cellWidth: 25, halign: 'center' }
-          },
-          didParseCell: (hookData) => {
-            if (hookData.section === 'body' && hookData.column.index === 3) {
-              const severity = String(hookData.cell.raw).toLowerCase();
-              const color = severityColors[severity] || [100, 100, 100];
-              hookData.cell.styles.textColor = color;
-              hookData.cell.styles.fontStyle = 'bold';
-            }
+        const cardHeight = 30;
+        const cardsPerPage = 5;
+        let cardY = 28;
+        
+        data.insights.forEach((insight, idx) => {
+          // Yeni sayfa kontrolü
+          if (idx > 0 && idx % cardsPerPage === 0) {
+            pdf.addPage();
+            // Devam başlığı
+            pdf.setFillColor(168, 85, 247);
+            pdf.rect(0, 0, pageWidth, 20, 'F');
+            pdf.setFontSize(12);
+            pdf.setTextColor(255, 255, 255);
+            pdf.text('AI Analiz Çıkarımları (devam)', margin, 13);
+            pdf.setFontSize(9);
+            pdf.text(`${idx + 1}-${Math.min(idx + cardsPerPage, data.insights.length)} / ${data.insights.length}`, pageWidth - margin, 13, { align: 'right' });
+            cardY = 28;
           }
+          
+          const style = getSeverityStyle(insight.severity);
+          
+          // Kart arka planı
+          pdf.setFillColor(style.bg[0], style.bg[1], style.bg[2]);
+          pdf.roundedRect(margin, cardY, contentWidth, cardHeight, 3, 3, 'F');
+          
+          // Sol: Severity göstergesi (dikey çubuk)
+          pdf.setFillColor(style.fg[0], style.fg[1], style.fg[2]);
+          pdf.roundedRect(margin, cardY, 4, cardHeight, 2, 2, 'F');
+          
+          // Kategori badge
+          const catWidth = 45;
+          pdf.setFillColor(255, 255, 255);
+          pdf.roundedRect(margin + 10, cardY + 4, catWidth, 10, 2, 2, 'F');
+          pdf.setFontSize(7);
+          pdf.setTextColor(style.fg[0], style.fg[1], style.fg[2]);
+          const shortCat = (insight.category || 'Genel').substring(0, 12);
+          pdf.text(shortCat, margin + 10 + catWidth/2, cardY + 10, { align: 'center' });
+          
+          // Severity badge (sağ üst)
+          pdf.setFillColor(style.fg[0], style.fg[1], style.fg[2]);
+          pdf.roundedRect(pageWidth - margin - 35, cardY + 4, 30, 10, 2, 2, 'F');
+          pdf.setFontSize(7);
+          pdf.setTextColor(255, 255, 255);
+          pdf.text(style.label, pageWidth - margin - 20, cardY + 10, { align: 'center' });
+          
+          // Başlık
+          pdf.setFontSize(10);
+          pdf.setTextColor(30, 41, 59);
+          const titleMaxWidth = contentWidth - 110;
+          const truncTitle = insight.title.length > 50 ? insight.title.substring(0, 47) + '...' : insight.title;
+          pdf.text(truncTitle, margin + 60, cardY + 11);
+          
+          // Açıklama
+          pdf.setFontSize(8);
+          pdf.setTextColor(71, 85, 105);
+          const descLines = pdf.splitTextToSize(insight.description, contentWidth - 20);
+          pdf.text(descLines.slice(0, 2), margin + 10, cardY + 20);
+          
+          cardY += cardHeight + 5;
         });
       }
       
@@ -1839,8 +1945,11 @@ export function usePdfEngine(): UsePdfEngineReturn {
           head: [['Öncelik', 'Öneri', 'Açıklama', 'Risk']],
           body: recRows,
           startY: 25,
+          showHead: 'everyPage',      // Her sayfada başlık tekrarla
           margin: { left: margin, right: margin },
           theme: 'striped',
+          pageBreak: 'auto',
+          rowPageBreak: 'avoid',       // Satır ortasında kesmez
           styles: { fontSize: 8, cellPadding: 4, font: 'helvetica', overflow: 'linebreak' },
           headStyles: { fillColor: [34, 197, 94], textColor: [255, 255, 255], fontStyle: 'bold' },
           columnStyles: {
@@ -1883,14 +1992,14 @@ export function usePdfEngine(): UsePdfEngineReturn {
         const summaryLines = pdf.splitTextToSize(data.pitchDeck.executiveSummary, contentWidth - 10);
         pdf.text(summaryLines.slice(0, 2), margin + 5, 40);
         
-        // Slide'lar kompakt görünümde
+        // Slide'lar 2x3 grid (6 slide göster)
         let slideY = 58;
-        const slideWidth = (contentWidth - 10) / 2;
-        const slideHeight = 55;
+        const slideWidth = (contentWidth - 20) / 3;  // 3 kolon
+        const slideHeight = 50;
         
-        data.pitchDeck.slides.slice(0, 4).forEach((slide, i) => {
-          const col = i % 2;
-          const row = Math.floor(i / 2);
+        data.pitchDeck.slides.slice(0, 6).forEach((slide, i) => {
+          const col = i % 3;  // 3 kolon
+          const row = Math.floor(i / 3);  // 2 satır
           const x = margin + col * (slideWidth + 10);
           const y = slideY + row * (slideHeight + 8);
           
@@ -1899,24 +2008,27 @@ export function usePdfEngine(): UsePdfEngineReturn {
           pdf.setDrawColor(226, 232, 240);
           pdf.roundedRect(x, y, slideWidth, slideHeight, 2, 2, 'FD');
           
-          // Slide numarası
+          // Slide numarası badge
           pdf.setFillColor(59, 130, 246);
-          pdf.circle(x + 8, y + 8, 5, 'F');
-          pdf.setFontSize(9);
+          pdf.roundedRect(x + 4, y + 4, 16, 10, 2, 2, 'F');
+          pdf.setFontSize(8);
           pdf.setTextColor(255, 255, 255);
-          pdf.text(String(slide.slideNumber), x + 8, y + 10, { align: 'center' });
+          pdf.text(String(slide.slideNumber), x + 12, y + 10, { align: 'center' });
           
           // Slide başlığı
-          pdf.setFontSize(10);
+          pdf.setFontSize(9);
           pdf.setTextColor(30, 41, 59);
-          pdf.text(slide.title.substring(0, 35), x + 18, y + 10);
+          const titleMax = slideWidth - 30;
+          const truncatedTitle = slide.title.length > 25 ? slide.title.substring(0, 22) + '...' : slide.title;
+          pdf.text(truncatedTitle, x + 24, y + 10);
           
-          // Bullet points
-          pdf.setFontSize(7);
+          // Bullet points (3 tane)
+          pdf.setFontSize(6);
           pdf.setTextColor(71, 85, 105);
-          slide.bullets.slice(0, 4).forEach((bullet, bi) => {
-            const bulletText = bullet.length > 60 ? bullet.substring(0, 57) + '...' : bullet;
-            pdf.text(`• ${bulletText}`, x + 8, y + 20 + bi * 8);
+          slide.bullets.slice(0, 3).forEach((bullet, bi) => {
+            const maxBulletLen = Math.floor((slideWidth - 10) / 2);
+            const bulletText = bullet.length > maxBulletLen ? bullet.substring(0, maxBulletLen - 3) + '...' : bullet;
+            pdf.text(`• ${bulletText}`, x + 6, y + 20 + bi * 9);
           });
         });
       }

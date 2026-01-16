@@ -701,24 +701,24 @@ function ScenarioComparisonContent() {
         founderRetention: 100 - dealConfig.equityPercentage,
       },
       insights: unifiedAnalysis?.insights?.map(i => ({
-        category: i.category,
-        severity: i.severity,
-        title: i.title,
-        description: i.description,
-      })),
+        category: i.category || 'Genel',
+        severity: i.severity || 'medium',
+        title: i.title || '',
+        description: i.description || '',
+      })) || [],
       recommendations: unifiedAnalysis?.recommendations?.map(r => ({
-        title: r.title,
-        description: r.description,
+        title: r.title || '',
+        description: r.description || '',
         risk: r.expected_outcome || 'Orta',
-        priority: r.priority,
-      })),
+        priority: r.priority || 1,
+      })) || [],
       pitchDeck: unifiedAnalysis?.pitch_deck ? {
-        executiveSummary: unifiedAnalysis.pitch_deck.executive_summary,
-        slides: unifiedAnalysis.pitch_deck.slides.map(s => ({
+        executiveSummary: unifiedAnalysis.pitch_deck.executive_summary || '',
+        slides: unifiedAnalysis.pitch_deck.slides?.map(s => ({
           slideNumber: s.slide_number,
-          title: s.title,
-          bullets: s.content_bullets,
-        })),
+          title: s.title || '',
+          bullets: s.content_bullets || [],
+        })) || [],
       } : undefined,
       chartElements: {
         quarterlyChart: quarterlyChartRef.current,
@@ -877,42 +877,46 @@ function ScenarioComparisonContent() {
             {/* SECTION 2: CHARTS SIDE BY SIDE */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Quarterly Net Profit Bar Chart */}
-              <Card ref={quarterlyChartRef}>
+              <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">Çeyreklik Net Kâr</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ChartContainer config={chartConfig} className="h-[200px] w-full">
-                    <ComposedChart data={quarterlyComparison}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
-                      <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <ChartLegend content={<ChartLegendContent />} />
-                      <Bar dataKey="scenarioANet" fill="var(--color-scenarioANet)" name={scenarioA?.name} radius={4} />
-                      <Bar dataKey="scenarioBNet" fill="var(--color-scenarioBNet)" name={scenarioB?.name} radius={4} />
-                    </ComposedChart>
-                  </ChartContainer>
+                  <div ref={quarterlyChartRef} className="chart-capture-wrapper">
+                    <ChartContainer config={chartConfig} className="h-[200px] w-full">
+                      <ComposedChart data={quarterlyComparison}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
+                        <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <ChartLegend content={<ChartLegendContent />} />
+                        <Bar dataKey="scenarioANet" fill="var(--color-scenarioANet)" name={scenarioA?.name} radius={4} />
+                        <Bar dataKey="scenarioBNet" fill="var(--color-scenarioBNet)" name={scenarioB?.name} radius={4} />
+                      </ComposedChart>
+                    </ChartContainer>
+                  </div>
                 </CardContent>
               </Card>
 
               {/* Cumulative Cash Flow Area Chart */}
-              <Card ref={cumulativeChartRef}>
+              <Card>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">Kümülatif Nakit Akışı</CardTitle>
                 </CardHeader>
                 <CardContent>
-                  <ChartContainer config={cumulativeChartConfig} className="h-[200px] w-full">
-                    <AreaChart data={quarterlyCumulativeData}>
-                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                      <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
-                      <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
-                      <ChartTooltip content={<ChartTooltipContent />} />
-                      <ChartLegend content={<ChartLegendContent />} />
-                      <Area type="monotone" dataKey="scenarioACumulative" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} name={scenarioA?.name} />
-                      <Area type="monotone" dataKey="scenarioBCumulative" stroke="#16a34a" fill="#16a34a" fillOpacity={0.2} name={scenarioB?.name} />
-                    </AreaChart>
-                  </ChartContainer>
+                  <div ref={cumulativeChartRef} className="chart-capture-wrapper">
+                    <ChartContainer config={cumulativeChartConfig} className="h-[200px] w-full">
+                      <AreaChart data={quarterlyCumulativeData}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
+                        <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                        <ChartTooltip content={<ChartTooltipContent />} />
+                        <ChartLegend content={<ChartLegendContent />} />
+                        <Area type="monotone" dataKey="scenarioACumulative" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} name={scenarioA?.name} />
+                        <Area type="monotone" dataKey="scenarioBCumulative" stroke="#16a34a" fill="#16a34a" fillOpacity={0.2} name={scenarioB?.name} />
+                      </AreaChart>
+                    </ChartContainer>
+                  </div>
                 </CardContent>
               </Card>
             </div>
