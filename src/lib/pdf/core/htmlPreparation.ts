@@ -191,3 +191,40 @@ export function resolveCSSVariables(element: HTMLElement): void {
     }
   });
 }
+
+/**
+ * html2canvas için kelime aralıklarını düzeltir
+ * letter-spacing ve word-spacing sorunlarını çözer
+ */
+export function fixTextSpacingForPdf(element: HTMLElement): void {
+  // Tüm text içeren elementleri bul
+  const textElements = element.querySelectorAll(
+    'h1, h2, h3, h4, h5, h6, p, span, div, td, th, label, a, li, strong, em, b, i'
+  );
+  
+  textElements.forEach((el) => {
+    const htmlEl = el as HTMLElement;
+    
+    // word-spacing'i explicit olarak ayarla
+    htmlEl.style.setProperty('word-spacing', 'normal', 'important');
+    
+    // white-space'i koruyarak boşlukların collapse olmasını engelle
+    const currentWhiteSpace = window.getComputedStyle(htmlEl).whiteSpace;
+    if (currentWhiteSpace === 'normal' || currentWhiteSpace === 'nowrap') {
+      htmlEl.style.setProperty('white-space', 'pre-wrap', 'important');
+    }
+    
+    // letter-spacing varsa sıfırla (sorun çıkarabilir)
+    const letterSpacing = window.getComputedStyle(htmlEl).letterSpacing;
+    if (letterSpacing && letterSpacing !== 'normal' && letterSpacing !== '0px') {
+      htmlEl.style.setProperty('letter-spacing', '0', 'important');
+    }
+    
+    // font-feature-settings'i devre dışı bırak (ligature sorunları)
+    htmlEl.style.setProperty('font-feature-settings', 'normal', 'important');
+    htmlEl.style.setProperty('font-variant-ligatures', 'none', 'important');
+    
+    // Text rendering optimize et
+    htmlEl.style.setProperty('text-rendering', 'geometricPrecision', 'important');
+  });
+}
