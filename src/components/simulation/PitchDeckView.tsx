@@ -16,10 +16,13 @@ import {
   AlertTriangle,
   DollarSign,
   Calculator,
-  Users
+  Users,
+  Download,
+  Loader2
 } from 'lucide-react';
 import { PitchDeck, PitchSlide } from '@/types/simulation';
 import { toast } from 'sonner';
+import jsPDF from 'jspdf';
 
 interface PitchDeckViewProps {
   pitchDeck: PitchDeck;
@@ -42,10 +45,28 @@ const slideColors: Record<number, string> = {
   5: 'from-amber-500/20 to-yellow-500/20 border-amber-500/30'
 };
 
+// PDF renk şeması (RGB)
+const slidePdfColors: Record<number, { primary: [number, number, number]; light: [number, number, number] }> = {
+  1: { primary: [59, 130, 246], light: [219, 234, 254] },   // Blue
+  2: { primary: [239, 68, 68], light: [254, 226, 226] },    // Red
+  3: { primary: [34, 197, 94], light: [220, 252, 231] },    // Green
+  4: { primary: [168, 85, 247], light: [243, 232, 255] },   // Purple
+  5: { primary: [245, 158, 11], light: [254, 243, 199] }    // Amber
+};
+
+const slideIconLabels: Record<number, string> = {
+  1: '🚀',
+  2: '⚠️',
+  3: '💰',
+  4: '🧮',
+  5: '👥'
+};
+
 export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showSpeakerNotes, setShowSpeakerNotes] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
 
   const slides = pitchDeck.slides || [];
   const slide = slides[currentSlide];
@@ -70,6 +91,144 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
       setTimeout(() => setCopied(false), 2000);
     } catch {
       toast.error('Kopyalama başarısız');
+    }
+  };
+
+  const handleDownloadPdf = async () => {
+    if (!slides.length) return;
+    
+    setIsGeneratingPdf(true);
+    try {
+      const pdf = new jsPDF({ 
+        orientation: 'landscape', 
+        unit: 'mm', 
+        format: 'a4' 
+      });
+      
+      const pageWidth = 297;
+      const pageHeight = 210;
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
+      
+      // Her slayt için sayfa oluştur
+      slides.forEach((slideData, index) => {
+        if (index > 0) pdf.addPage();
+        
+        const colors = slidePdfColors[slideData.slide_number] || slidePdfColors[1];
+        const icon = slideIconLabels[slideData.slide_number] || '📄';
+        
+        // Arka plan gradient efekti (açık renk)
+        pdf.setFillColor(colors.light[0], colors.light[1], colors.light[2]);
+        pdf.rect(0, 0, pageWidth, 50, 'F');
+        
+        // Header bar
+        pdf.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+        pdf.rect(0, 0, pageWidth, 8, 'F');
+        
+        // Slide numarası ve icon
+        pdf.setFontSize(24);
+        pdf.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+        pdf.text(`${icon} Slide ${slideData.slide_number}`, margin, 28);
+        
+        // Başlık
+        pdf.setFontSize(20);
+        pdf.setTextColor(30, 30, 30);
+        pdf.text(slideData.title, margin, 42);
+        
+        // Key Message (vurgulu kutu)
+        pdf.setFillColor(255, 255, 255);
+        pdf.roundedRect(margin, 52, contentWidth, 20, 3, 3, 'F');
+        pdf.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+        pdf.setLineWidth(0.5);
+        pdf.roundedRect(margin, 52, contentWidth, 20, 3, 3, 'S');
+        
+        pdf.setFontSize(12);
+        pdf.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+        const keyMessageLines = pdf.splitTextToSize(slideData.key_message, contentWidth - 10);
+        pdf.text(keyMessageLines, margin + 5, 64);
+        
+        // Content Bullets
+        pdf.setFontSize(11);
+        pdf.setTextColor(50, 50, 50);
+        let yPos = 85;
+        
+        slideData.content_bullets.forEach((bullet, bulletIndex) => {
+          // Numara dairesi
+          pdf.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
+          pdf.circle(margin + 4, yPos - 1.5, 4, 'F');
+          pdf.setTextColor(255, 255, 255);
+          pdf.setFontSize(9);
+          pdf.text(String(bulletIndex + 1), margin + 2.5, yPos);
+          
+          // Bullet text
+          pdf.setTextColor(50, 50, 50);
+          pdf.setFontSize(11);
+          const bulletLines = pdf.splitTextToSize(bullet, contentWidth - 20);
+          pdf.text(bulletLines, margin + 15, yPos);
+          yPos += bulletLines.length * 6 + 4;
+        });
+        
+        // Speaker Notes (alt kısım)
+        if (slideData.speaker_notes) {
+          pdf.setDrawColor(200, 200, 200);
+          pdf.line(margin, pageHeight - 40, pageWidth - margin, pageHeight - 40);
+          
+          pdf.setFontSize(9);
+          pdf.setTextColor(120, 120, 120);
+          pdf.text('Konusmaci Notlari:', margin, pageHeight - 32);
+          
+          pdf.setFontSize(10);
+          pdf.setTextColor(80, 80, 80);
+          const notesLines = pdf.splitTextToSize(slideData.speaker_notes, contentWidth);
+          pdf.text(notesLines.slice(0, 3), margin, pageHeight - 25);
+        }
+        
+        // Sayfa numarası
+        pdf.setFontSize(9);
+        pdf.setTextColor(150, 150, 150);
+        pdf.text(`${slideData.slide_number} / ${slides.length}`, pageWidth - margin - 10, pageHeight - 10);
+      });
+      
+      // Executive Summary sayfası
+      pdf.addPage();
+      
+      // Header
+      pdf.setFillColor(59, 130, 246);
+      pdf.rect(0, 0, pageWidth, 8, 'F');
+      
+      pdf.setFontSize(24);
+      pdf.setTextColor(59, 130, 246);
+      pdf.text('📋 Executive Summary', margin, 30);
+      
+      pdf.setFontSize(12);
+      pdf.setTextColor(100, 100, 100);
+      pdf.text('Yatirimciya gonderilecek e-posta ozeti', margin, 42);
+      
+      // Summary content
+      pdf.setFillColor(249, 250, 251);
+      pdf.roundedRect(margin, 50, contentWidth, pageHeight - 70, 5, 5, 'F');
+      
+      pdf.setFontSize(11);
+      pdf.setTextColor(50, 50, 50);
+      const summaryLines = pdf.splitTextToSize(pitchDeck.executive_summary, contentWidth - 20);
+      pdf.text(summaryLines, margin + 10, 65);
+      
+      // Footer
+      pdf.setFontSize(9);
+      pdf.setTextColor(150, 150, 150);
+      const today = new Date().toLocaleDateString('tr-TR');
+      pdf.text(`Olusturulma Tarihi: ${today}`, margin, pageHeight - 10);
+      pdf.text(`${slides.length + 1} / ${slides.length + 1}`, pageWidth - margin - 10, pageHeight - 10);
+      
+      // PDF'i indir
+      pdf.save('Yatirimci_Pitch_Deck.pdf');
+      toast.success('Pitch Deck PDF olarak indirildi!');
+      
+    } catch (error) {
+      console.error('PDF oluşturma hatası:', error);
+      toast.error('PDF oluşturulurken hata oluştu');
+    } finally {
+      setIsGeneratingPdf(false);
     }
   };
 
@@ -102,6 +261,20 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
           >
             <MessageSquare className="h-4 w-4" />
             {showSpeakerNotes ? 'Notları Gizle' : 'Konuşmacı Notları'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadPdf}
+            disabled={isGeneratingPdf}
+            className="gap-2"
+          >
+            {isGeneratingPdf ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            PDF İndir
           </Button>
         </div>
       </div>
