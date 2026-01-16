@@ -92,9 +92,24 @@ export function useScenarioAIAnalysis() {
         throw new Error('Geçersiz AI yanıtı');
       }
 
-      setAnalysis(data as AIAnalysisResult);
+      // Transform the renamed properties from API back to type-compatible names
+      const transformedData: AIAnalysisResult = {
+        insights: data.insights,
+        recommendations: data.recommendations.map((rec: any) => ({
+          priority: rec.priority,
+          title: rec.recommendation_title || rec.title,
+          description: rec.recommendation_description || rec.description,
+          action_plan: rec.action_steps || rec.action_plan || [],
+          expected_outcome: rec.expected_result || rec.expected_outcome,
+          risk_mitigation: rec.risk_notes || rec.risk_mitigation,
+          timeframe: rec.time_estimate || rec.timeframe
+        })),
+        quarterly_analysis: data.quarterly_analysis
+      };
+
+      setAnalysis(transformedData);
       toast.success('AI analizi tamamlandı');
-      return data as AIAnalysisResult;
+      return transformedData;
     } catch (e) {
       const message = e instanceof Error ? e.message : 'AI analizi başarısız';
       setError(message);
