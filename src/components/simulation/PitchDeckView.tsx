@@ -23,7 +23,7 @@ import {
 import { PitchDeck, PitchSlide } from '@/types/simulation';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
-import { fixTextSpacingForPdf } from '@/lib/pdf/core/htmlPreparation';
+import { turkishToAscii } from '@/lib/pdf/fonts/roboto-base64';
 
 interface PitchDeckViewProps {
   pitchDeck: PitchDeck;
@@ -97,16 +97,9 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
 
   const handleDownloadPdf = async () => {
     if (!slides.length) return;
-    // Boşlukları non-breaking space ile değiştirerek html2canvas'ın yutmasını engelle
-    const forceSpacing = (text: string): string => {
-      return text.replace(/ /g, '\u00A0');
-    };
     
     setIsGeneratingPdf(true);
     try {
-      const html2canvasModule = await import('html2canvas');
-      const html2canvas = html2canvasModule.default;
-      
       const pdf = new jsPDF({ 
         orientation: 'landscape', 
         unit: 'mm', 
@@ -115,146 +108,181 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
       
       const pageWidth = 297;
       const pageHeight = 210;
+      const margin = 20;
+      const contentWidth = pageWidth - (margin * 2);
       
-      // Create temporary container for rendering
-      const tempContainer = document.createElement('div');
-      tempContainer.style.cssText = 'position: fixed; left: -9999px; top: 0; z-index: -1;';
-      document.body.appendChild(tempContainer);
+      // Helper: Hex to RGB
+      const hexToRgb = (hex: string) => {
+        const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+        return result ? {
+          r: parseInt(result[1], 16),
+          g: parseInt(result[2], 16),
+          b: parseInt(result[3], 16)
+        } : { r: 0, g: 0, b: 0 };
+      };
+      
+      // Helper: Word wrap text
+      const wrapText = (text: string, maxWidth: number, fontSize: number): string[] => {
+        pdf.setFontSize(fontSize);
+        const words = text.split(' ');
+        const lines: string[] = [];
+        let currentLine = '';
+        
+        words.forEach(word => {
+          const testLine = currentLine ? `${currentLine} ${word}` : word;
+          const testWidth = pdf.getTextWidth(testLine);
+          if (testWidth > maxWidth && currentLine) {
+            lines.push(currentLine);
+            currentLine = word;
+          } else {
+            currentLine = testLine;
+          }
+        });
+        if (currentLine) lines.push(currentLine);
+        return lines;
+      };
       
       // Render each slide
       for (let i = 0; i < slides.length; i++) {
         const slideData = slides[i];
         const slideNumber = slideData.slide_number;
         const colors = slidePdfColors[slideNumber] || slidePdfColors[1];
-        const iconLabel = slideIconLabels[slideNumber] || '📊';
-        
-        // Create slide HTML
-        const slideElement = document.createElement('div');
-        slideElement.style.cssText = `
-          width: 1120px;
-          height: 794px;
-          padding: 48px;
-          background: linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%);
-          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          color: white;
-          box-sizing: border-box;
-          display: flex;
-          flex-direction: column;
-        `;
-        
-        slideElement.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
-            <div style="width: 56px; height: 56px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px;">
-              ${iconLabel}
-            </div>
-            <div>
-              <div style="font-size: 14px; opacity: 0.8; text-transform: uppercase;">Slide ${slideNumber} / ${slides.length}</div>
-              <h1 style="font-size: 32px; font-weight: 700; margin: 4px 0 0 0;">${forceSpacing(slideData.title)}</h1>
-            </div>
-          </div>
-          
-          <div style="background: rgba(255,255,255,0.15); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px;">
-            <div style="font-size: 22px; font-weight: 600; line-height: 1.4;">${forceSpacing(slideData.key_message)}</div>
-          </div>
-          
-          <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
-            ${slideData.content_bullets.map((bullet, idx) => `
-              <div style="display: flex; align-items: flex-start; gap: 12px; background: rgba(255,255,255,0.1); border-radius: 8px; padding: 14px 18px;">
-                <div style="min-width: 28px; height: 28px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">${idx + 1}</div>
-                <div style="font-size: 16px; line-height: 1.5; flex: 1;">${forceSpacing(bullet)}</div>
-              </div>
-            `).join('')}
-          </div>
-          
-          ${slideData.speaker_notes ? `
-            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
-              <div style="font-size: 12px; text-transform: uppercase; opacity: 0.7; margin-bottom: 8px;">📝 Konuşmacı Notları</div>
-              <div style="font-size: 14px; line-height: 1.6; opacity: 0.9; font-style: italic;">${forceSpacing(slideData.speaker_notes)}</div>
-            </div>
-          ` : ''}
-        `;
-        
-        tempContainer.appendChild(slideElement);
-        
-        // Kelime aralıklarını düzelt (html2canvas spacing fix)
-        fixTextSpacingForPdf(slideElement);
-        
-        const canvas = await html2canvas(slideElement, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: null
-        });
+        const iconLabel = slideIconLabels[slideNumber] || '>';
         
         if (i > 0) pdf.addPage();
         
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
+        // Background (solid color - gradient not supported in jsPDF)
+        const bgColor = hexToRgb(colors.primary);
+        pdf.setFillColor(bgColor.r, bgColor.g, bgColor.b);
+        pdf.rect(0, 0, pageWidth, pageHeight, 'F');
         
-        tempContainer.removeChild(slideElement);
-      }
-      
-      // Add Executive Summary page
-      if (pitchDeck.executive_summary) {
-        const summaryElement = document.createElement('div');
-        summaryElement.style.cssText = `
-          width: 1120px;
-          height: 794px;
-          padding: 48px;
-          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-          color: white;
-          box-sizing: border-box;
-          display: flex;
-          flex-direction: column;
-        `;
+        // Slide number badge
+        pdf.setFillColor(255, 255, 255, 0.2);
+        pdf.roundedRect(margin, margin, 50, 10, 2, 2, 'F');
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(10);
+        pdf.setFont('Helvetica', 'normal');
+        pdf.text(`Slide ${slideNumber} / ${slides.length}`, margin + 5, margin + 7);
         
-        summaryElement.innerHTML = `
-          <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
-            <div style="width: 64px; height: 64px; background: rgba(59, 130, 246, 0.3); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 32px;">📋</div>
-            <div>
-              <h1 style="font-size: 36px; font-weight: 700; margin: 0;">Executive Summary</h1>
-              <div style="font-size: 16px; opacity: 0.7; margin-top: 4px;">Yatırımcıya gönderilecek e-posta özeti</div>
-            </div>
-          </div>
-          
-          <div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 16px; padding: 32px; border: 1px solid rgba(255,255,255,0.1);">
-            <div style="font-size: 16px; line-height: 1.8; white-space: pre-wrap;">${forceSpacing(pitchDeck.executive_summary)}</div>
-          </div>
-          
-          <div style="margin-top: 24px; text-align: center; opacity: 0.5; font-size: 12px;">
-            Oluşturulma Tarihi: ${new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
-          </div>
-        `;
+        // Icon placeholder
+        pdf.setFillColor(255, 255, 255, 0.2);
+        pdf.roundedRect(margin, margin + 15, 15, 15, 3, 3, 'F');
+        pdf.setFontSize(12);
+        pdf.text(iconLabel, margin + 5, margin + 25);
         
-        tempContainer.appendChild(summaryElement);
+        // Title
+        pdf.setFontSize(26);
+        pdf.setFont('Helvetica', 'bold');
+        pdf.setTextColor(255, 255, 255);
+        const titleText = turkishToAscii(slideData.title);
+        pdf.text(titleText, margin + 20, margin + 27);
         
-        // Kelime aralıklarını düzelt (html2canvas spacing fix)
-        fixTextSpacingForPdf(summaryElement);
+        // Key message box
+        let currentY = margin + 40;
+        pdf.setFillColor(255, 255, 255, 0.15);
+        pdf.roundedRect(margin, currentY, contentWidth, 20, 3, 3, 'F');
         
-        const canvas = await html2canvas(summaryElement, {
-          scale: 2,
-          useCORS: true,
-          logging: false,
-          backgroundColor: null
+        pdf.setFontSize(14);
+        pdf.setFont('Helvetica', 'bold');
+        const keyMessageLines = wrapText(turkishToAscii(slideData.key_message), contentWidth - 10, 14);
+        keyMessageLines.forEach((line, idx) => {
+          pdf.text(line, margin + 5, currentY + 8 + (idx * 6));
         });
         
-        pdf.addPage();
-        const imgData = canvas.toDataURL('image/jpeg', 0.95);
-        pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
+        currentY += 25 + (keyMessageLines.length - 1) * 6;
         
-        tempContainer.removeChild(summaryElement);
+        // Bullet points
+        pdf.setFont('Helvetica', 'normal');
+        pdf.setFontSize(12);
+        
+        slideData.content_bullets.forEach((bullet, idx) => {
+          // Bullet background
+          pdf.setFillColor(255, 255, 255, 0.1);
+          const bulletLines = wrapText(turkishToAscii(bullet), contentWidth - 25, 12);
+          const boxHeight = 10 + (bulletLines.length - 1) * 5;
+          pdf.roundedRect(margin, currentY, contentWidth, boxHeight, 2, 2, 'F');
+          
+          // Number circle
+          pdf.setFillColor(255, 255, 255, 0.25);
+          pdf.circle(margin + 6, currentY + 5, 4, 'F');
+          pdf.setFontSize(10);
+          pdf.setFont('Helvetica', 'bold');
+          pdf.text(`${idx + 1}`, margin + 4.5, currentY + 6.5);
+          
+          // Bullet text
+          pdf.setFont('Helvetica', 'normal');
+          pdf.setFontSize(12);
+          bulletLines.forEach((line, lineIdx) => {
+            pdf.text(line, margin + 15, currentY + 6 + (lineIdx * 5));
+          });
+          
+          currentY += boxHeight + 4;
+        });
+        
+        // Speaker notes
+        if (slideData.speaker_notes) {
+          const notesY = pageHeight - 30;
+          pdf.setDrawColor(255, 255, 255, 0.3);
+          pdf.line(margin, notesY - 5, pageWidth - margin, notesY - 5);
+          
+          pdf.setFontSize(9);
+          pdf.setFont('Helvetica', 'italic');
+          pdf.setTextColor(255, 255, 255, 0.8);
+          pdf.text('Konusmaci Notlari:', margin, notesY);
+          
+          pdf.setFontSize(10);
+          const notesLines = wrapText(turkishToAscii(slideData.speaker_notes), contentWidth, 10);
+          notesLines.slice(0, 3).forEach((line, idx) => {
+            pdf.text(line, margin, notesY + 5 + (idx * 4));
+          });
+        }
       }
       
-      // Cleanup
-      document.body.removeChild(tempContainer);
+      // Executive Summary page
+      if (pitchDeck.executive_summary) {
+        pdf.addPage();
+        
+        // Dark background
+        pdf.setFillColor(30, 41, 59);
+        pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+        
+        // Header
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(28);
+        pdf.setFont('Helvetica', 'bold');
+        pdf.text('Executive Summary', margin, margin + 15);
+        
+        pdf.setFontSize(12);
+        pdf.setFont('Helvetica', 'normal');
+        pdf.setTextColor(180, 180, 180);
+        pdf.text('Yatirimciya gonderilecek e-posta ozeti', margin, margin + 25);
+        
+        // Summary content box
+        pdf.setFillColor(40, 50, 70);
+        pdf.roundedRect(margin, margin + 35, contentWidth, pageHeight - margin - 55, 5, 5, 'F');
+        
+        pdf.setTextColor(255, 255, 255);
+        pdf.setFontSize(11);
+        const summaryLines = wrapText(turkishToAscii(pitchDeck.executive_summary), contentWidth - 20, 11);
+        summaryLines.forEach((line, idx) => {
+          if (margin + 45 + (idx * 6) < pageHeight - 30) {
+            pdf.text(line, margin + 10, margin + 45 + (idx * 6));
+          }
+        });
+        
+        // Footer
+        pdf.setFontSize(9);
+        pdf.setTextColor(120, 120, 120);
+        const dateText = `Olusturulma Tarihi: ${new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+        pdf.text(turkishToAscii(dateText), pageWidth / 2, pageHeight - 10, { align: 'center' });
+      }
       
       pdf.save('Yatirimci_Pitch_Deck.pdf');
       toast.success('Pitch Deck PDF olarak indirildi!');
       
     } catch (error) {
-      console.error('PDF oluşturma hatası:', error);
-      toast.error('PDF oluşturulurken hata oluştu');
+      console.error('PDF olusturma hatasi:', error);
+      toast.error('PDF olusturulurken hata olustu');
     } finally {
       setIsGeneratingPdf(false);
     }
