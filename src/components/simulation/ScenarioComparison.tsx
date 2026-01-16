@@ -50,13 +50,16 @@ import {
   CheckCircle2,
   XCircle,
   ArrowRight,
-  Calendar
+  Calendar,
+  Rocket
 } from 'lucide-react';
-import { SimulationScenario, AIScenarioInsight, AIRecommendation, QuarterlyAIAnalysis } from '@/types/simulation';
+import { SimulationScenario, AIScenarioInsight, AIRecommendation, QuarterlyAIAnalysis, DEFAULT_DEAL_CONFIG } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
 import { useScenarioAIAnalysis } from '@/hooks/finance/useScenarioAIAnalysis';
+import { useInvestorAnalysis } from '@/hooks/finance/useInvestorAnalysis';
+import { InvestmentTab } from './InvestmentTab';
 import {
   ChartConfig,
   ChartContainer,
@@ -692,6 +695,14 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
   
   const { generatePdfFromElement, isGenerating } = usePdfEngine();
   const { analysis: aiAnalysis, isLoading: aiLoading, analyzeScenarios, clearAnalysis } = useScenarioAIAnalysis();
+  const { 
+    dealConfig, 
+    updateDealConfig, 
+    investorAnalysis, 
+    isLoading: investorLoading, 
+    analyzeForInvestors,
+    clearAnalysis: clearInvestorAnalysis 
+  } = useInvestorAnalysis();
 
   const scenarioA = useMemo(() => scenarios.find(s => s.id === scenarioAId), [scenarios, scenarioAId]);
   const scenarioB = useMemo(() => scenarios.find(s => s.id === scenarioBId), [scenarios, scenarioBId]);
@@ -1073,7 +1084,7 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
 
                 {/* Tabs */}
                 <Tabs defaultValue="summary" className="w-full">
-                  <TabsList className="grid w-full grid-cols-5">
+                  <TabsList className="grid w-full grid-cols-6">
                     <TabsTrigger value="summary">Özet</TabsTrigger>
                     <TabsTrigger value="trend">
                       <LineChartIcon className="h-4 w-4 mr-1" />
@@ -1082,6 +1093,10 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
                     <TabsTrigger value="quarterly">
                       <Calendar className="h-4 w-4 mr-1" />
                       Çeyreklik
+                    </TabsTrigger>
+                    <TabsTrigger value="investment" className="text-amber-400">
+                      <Rocket className="h-4 w-4 mr-1" />
+                      Yatırım
                     </TabsTrigger>
                     <TabsTrigger value="insights">
                       <Sparkles className="h-4 w-4 mr-1" />
@@ -1289,6 +1304,50 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
                         </CardContent>
                       </Card>
                     )}
+                  </TabsContent>
+
+                  {/* Investment Tab */}
+                  <TabsContent value="investment" className="mt-4">
+                    <InvestmentTab
+                      scenarioA={scenarioA}
+                      scenarioB={scenarioB}
+                      summaryA={{ totalRevenue: summaryA.totalRevenue, totalExpenses: summaryA.totalExpense, netProfit: summaryA.netProfit, profitMargin: summaryA.profitMargin }}
+                      summaryB={{ totalRevenue: summaryB.totalRevenue, totalExpenses: summaryB.totalExpense, netProfit: summaryB.netProfit, profitMargin: summaryB.profitMargin }}
+                      quarterlyA={{
+                        q1: quarterlyComparison[0]?.scenarioANet || 0,
+                        q2: quarterlyComparison[1]?.scenarioANet || 0,
+                        q3: quarterlyComparison[2]?.scenarioANet || 0,
+                        q4: quarterlyComparison[3]?.scenarioANet || 0,
+                      }}
+                      quarterlyB={{
+                        q1: quarterlyComparison[0]?.scenarioBNet || 0,
+                        q2: quarterlyComparison[1]?.scenarioBNet || 0,
+                        q3: quarterlyComparison[2]?.scenarioBNet || 0,
+                        q4: quarterlyComparison[3]?.scenarioBNet || 0,
+                      }}
+                      dealConfig={dealConfig}
+                      onDealConfigChange={updateDealConfig}
+                      investorAnalysis={investorAnalysis}
+                      isLoading={investorLoading}
+                      onAnalyze={() => analyzeForInvestors(
+                        scenarioA,
+                        scenarioB,
+                        { totalRevenue: summaryA.totalRevenue, totalExpenses: summaryA.totalExpense, netProfit: summaryA.netProfit, profitMargin: summaryA.profitMargin },
+                        { totalRevenue: summaryB.totalRevenue, totalExpenses: summaryB.totalExpense, netProfit: summaryB.netProfit, profitMargin: summaryB.profitMargin },
+                        {
+                          q1: quarterlyComparison[0]?.scenarioANet || 0,
+                          q2: quarterlyComparison[1]?.scenarioANet || 0,
+                          q3: quarterlyComparison[2]?.scenarioANet || 0,
+                          q4: quarterlyComparison[3]?.scenarioANet || 0,
+                        },
+                        {
+                          q1: quarterlyComparison[0]?.scenarioBNet || 0,
+                          q2: quarterlyComparison[1]?.scenarioBNet || 0,
+                          q3: quarterlyComparison[2]?.scenarioBNet || 0,
+                          q4: quarterlyComparison[3]?.scenarioBNet || 0,
+                        }
+                      )}
+                    />
                   </TabsContent>
 
                   {/* Enhanced Insights Tab with AI */}
