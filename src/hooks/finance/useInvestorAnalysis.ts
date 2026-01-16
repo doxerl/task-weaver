@@ -124,14 +124,114 @@ export const calculateExitPlan = (
   };
 };
 
+interface CachedInvestorInfo {
+  id: string;
+  updatedAt: Date;
+}
+
 export function useInvestorAnalysis() {
   const [dealConfig, setDealConfig] = useState<DealConfiguration>(DEFAULT_DEAL_CONFIG);
   const [investorAnalysis, setInvestorAnalysis] = useState<AIInvestorAnalysis | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [cachedInfo, setCachedInfo] = useState<CachedInvestorInfo | null>(null);
+  const [isCacheLoading, setIsCacheLoading] = useState(false);
 
   const updateDealConfig = useCallback((updates: Partial<DealConfiguration>) => {
     setDealConfig(prev => ({ ...prev, ...updates }));
+  }, []);
+
+  // Load cached investor analysis from database
+  const loadCachedInvestorAnalysis = useCallback(async (
+    scenarioAId: string,
+    scenarioBId: string
+  ): Promise<boolean> => {
+    setIsCacheLoading(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) {
+        setIsCacheLoading(false);
+        return false;
+      }
+
+      const { data, error: fetchError } = await supabase
+        .from('scenario_ai_analyses')
+        .select('id, investor_analysis, deal_config, updated_at')
+        .eq('user_id', user.id)
+        .eq('scenario_a_id', scenarioAId)
+        .eq('scenario_b_id', scenarioBId)
+        .eq('analysis_type', 'investor_pitch')
+        .maybeSingle();
+
+      if (fetchError) {
+        console.error('Error loading cached investor analysis:', fetchError);
+        setIsCacheLoading(false);
+        return false;
+      }
+
+      if (data && data.investor_analysis) {
+        setInvestorAnalysis(data.investor_analysis as unknown as AIInvestorAnalysis);
+        if (data.deal_config) {
+          setDealConfig(data.deal_config as unknown as DealConfiguration);
+        }
+        setCachedInfo({
+          id: data.id,
+          updatedAt: new Date(data.updated_at),
+        });
+        setIsCacheLoading(false);
+        return true;
+      }
+
+      setIsCacheLoading(false);
+      return false;
+    } catch (e) {
+      console.error('Error loading cached investor analysis:', e);
+      setIsCacheLoading(false);
+      return false;
+    }
+  }, []);
+
+  // Save investor analysis to database
+  const saveInvestorAnalysis = useCallback(async (
+    result: AIInvestorAnalysis,
+    config: DealConfiguration,
+    scenarioAId: string,
+    scenarioBId: string
+  ): Promise<void> => {
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user) return;
+
+      const { data, error: upsertError } = await supabase
+        .from('scenario_ai_analyses')
+        .upsert([{
+          user_id: user.id,
+          scenario_a_id: scenarioAId,
+          scenario_b_id: scenarioBId,
+          analysis_type: 'investor_pitch',
+          investor_analysis: result as any,
+          deal_config: config as any,
+          updated_at: new Date().toISOString(),
+        }], {
+          onConflict: 'user_id,scenario_a_id,scenario_b_id,analysis_type'
+        })
+        .select('id, updated_at')
+        .single();
+
+      if (upsertError) {
+        console.error('Error saving investor analysis:', upsertError);
+        return;
+      }
+
+      if (data) {
+        setCachedInfo({
+          id: data.id,
+          updatedAt: new Date(data.updated_at),
+        });
+      }
+    } catch (e) {
+      console.error('Error saving investor analysis:', e);
+    }
   }, []);
 
   const analyzeForInvestors = useCallback(async (
@@ -225,6 +325,12 @@ export function useInvestorAnalysis() {
 
       setInvestorAnalysis(analysis);
       toast.success('Yatırımcı analizi tamamlandı');
+
+      // Save to database
+      if (scenarioA.id && scenarioB.id) {
+        await saveInvestorAnalysis(analysis, dealConfig, scenarioA.id, scenarioB.id);
+      }
+
       return analysis;
     } catch (e) {
       const message = e instanceof Error ? e.message : 'Yatırımcı analizi başarısız';
@@ -234,11 +340,12 @@ export function useInvestorAnalysis() {
     } finally {
       setIsLoading(false);
     }
-  }, [dealConfig]);
+  }, [dealConfig, saveInvestorAnalysis]);
 
   const clearAnalysis = useCallback(() => {
     setInvestorAnalysis(null);
     setError(null);
+    setCachedInfo(null);
   }, []);
 
   return {
@@ -246,8 +353,11 @@ export function useInvestorAnalysis() {
     updateDealConfig,
     investorAnalysis,
     isLoading,
+    isCacheLoading,
     error,
+    cachedInfo,
     analyzeForInvestors,
+    loadCachedInvestorAnalysis,
     clearAnalysis,
     calculateCapitalNeeds,
     calculateExitPlan,
