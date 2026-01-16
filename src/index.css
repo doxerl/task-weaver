@@ -2,6 +2,17 @@
 @tailwind components;
 @tailwind utilities;
 
+/* PDF için grafik yakalama alanı - her zaman görünür */
+.chart-capture-wrapper {
+  min-height: 200px;
+  position: relative;
+}
+
+.chart-capture-wrapper svg {
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */
