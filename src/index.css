@@ -13,6 +13,27 @@
   visibility: visible !important;
 }
 
+/* PDF sayfa kesme kuralları */
+.page-break-after {
+  page-break-after: always;
+  break-after: page;
+}
+
+.page-break-before {
+  page-break-before: always;
+  break-before: page;
+}
+
+/* PDF hidden container stilleri */
+.pdf-hidden-container .recharts-wrapper,
+.pdf-hidden-container .recharts-surface,
+.pdf-hidden-container svg {
+  width: 100% !important;
+  height: 100% !important;
+  opacity: 1 !important;
+  visibility: visible !important;
+}
+
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
 All colors MUST be HSL.
 */

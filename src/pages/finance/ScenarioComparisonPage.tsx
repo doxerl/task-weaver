@@ -58,7 +58,7 @@ import {
 import { SimulationScenario, AnalysisHistoryItem, NextYearProjection, QuarterlyItemizedData } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
 import { toast } from 'sonner';
-import { usePdfEngine, ScenarioPresentationPdfData } from '@/hooks/finance/usePdfEngine';
+import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
 import { useUnifiedAnalysis } from '@/hooks/finance/useUnifiedAnalysis';
 import { useInvestorAnalysis, calculateCapitalNeeds, calculateExitPlan } from '@/hooks/finance/useInvestorAnalysis';
 import { useScenarios } from '@/hooks/finance/useScenarios';
@@ -396,13 +396,14 @@ function ScenarioComparisonContent() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
   const quarterlyChartRef = useRef<HTMLDivElement>(null);
   const cumulativeChartRef = useRef<HTMLDivElement>(null);
+  const presentationPdfRef = useRef<HTMLDivElement>(null);
   
   // Sheet states
   const [selectedHistoricalAnalysis, setSelectedHistoricalAnalysis] = useState<AnalysisHistoryItem | null>(null);
   const [historySheetType, setHistorySheetType] = useState<'scenario_comparison' | 'investor_pitch'>('scenario_comparison');
   const [showPitchDeck, setShowPitchDeck] = useState(false);
 
-  const { generatePdfFromElement, generateScenarioPresentationPdf, isGenerating } = usePdfEngine();
+  const { generatePdfFromElement, isGenerating } = usePdfEngine();
   
   // Unified Analysis Hook - TEK AI hook, tüm fonksiyonlar burada
   const { 
@@ -610,130 +611,32 @@ function ScenarioComparisonContent() {
   };
 
   // Create next year scenario from AI projection
-  // PDF Presentation Handler
+  // PDF Presentation Handler - HTML yakalama ile (Türkçe karakter + grafik desteği)
   const handleExportPresentationPdf = useCallback(async () => {
-    if (!scenarioA || !scenarioB || !summaryA || !summaryB) {
-      toast.error('Karşılaştırma için senaryo seçilmeli');
+    if (!scenarioA || !scenarioB || !summaryA || !summaryB || !presentationPdfRef.current) {
+      toast.error('PDF için gerekli veriler eksik');
       return;
     }
     
-    // Quarterly net profit data for capital needs
-    const quarterlyNetA = {
-      q1: quarterlyComparison[0]?.scenarioANet || 0,
-      q2: quarterlyComparison[1]?.scenarioANet || 0,
-      q3: quarterlyComparison[2]?.scenarioANet || 0,
-      q4: quarterlyComparison[3]?.scenarioANet || 0,
-    };
-    const quarterlyNetB = {
-      q1: quarterlyComparison[0]?.scenarioBNet || 0,
-      q2: quarterlyComparison[1]?.scenarioBNet || 0,
-      q3: quarterlyComparison[2]?.scenarioBNet || 0,
-      q4: quarterlyComparison[3]?.scenarioBNet || 0,
-    };
+    toast.info('PDF hazırlanıyor...');
     
-    const capitalA = calculateCapitalNeeds(quarterlyNetA);
-    const capitalB = calculateCapitalNeeds(quarterlyNetB);
-    
-    // Exit plan calculation
-    const exitPlanResult = calculateExitPlan(
-      dealConfig,
-      summaryB.totalRevenue,
-      summaryB.totalExpense,
-      0.15 // Default growth rate
-    );
-    
-    const pdfData: ScenarioPresentationPdfData = {
-      scenarioA: {
-        id: scenarioA.id!,
-        name: scenarioA.name,
-        targetYear: scenarioA.targetYear,
-        summary: {
-          revenue: summaryA.totalRevenue,
-          expense: summaryA.totalExpense,
-          profit: summaryA.netProfit,
-          margin: summaryA.profitMargin,
-        },
-      },
-      scenarioB: {
-        id: scenarioB.id!,
-        name: scenarioB.name,
-        targetYear: scenarioB.targetYear,
-        summary: {
-          revenue: summaryB.totalRevenue,
-          expense: summaryB.totalExpense,
-          profit: summaryB.netProfit,
-          margin: summaryB.profitMargin,
-        },
-      },
-      metrics: metrics.map(m => ({
-        label: m.label,
-        scenarioA: m.scenarioA,
-        scenarioB: m.scenarioB,
-        format: m.format,
-        higherIsBetter: m.higherIsBetter,
-        diffPercent: calculateDiff(m.scenarioA, m.scenarioB).percent,
-        isPositive: m.higherIsBetter 
-          ? m.scenarioB > m.scenarioA 
-          : m.scenarioB < m.scenarioA,
-      })),
-      quarterlyData: quarterlyCumulativeData.map(q => ({
-        quarter: q.quarter,
-        scenarioANet: q.scenarioANet,
-        scenarioBNet: q.scenarioBNet,
-        scenarioACumulative: q.scenarioACumulative,
-        scenarioBCumulative: q.scenarioBCumulative,
-      })),
-      capitalAnalysis: {
-        scenarioANeed: capitalA.requiredInvestment,
-        scenarioASelfSustaining: capitalA.selfSustaining,
-        scenarioBNeed: capitalB.requiredInvestment,
-        scenarioBSelfSustaining: capitalB.selfSustaining,
-        burnRate: capitalB.burnRateMonthly,
-        runway: capitalB.runwayMonths,
-        criticalQuarter: capitalB.criticalQuarter,
-        opportunityCost: summaryB.netProfit - summaryA.netProfit,
-      },
-      dealConfig: dealConfig,
-      exitPlan: {
-        postMoneyValuation: exitPlanResult.postMoneyValuation,
-        exitValue: exitPlanResult.year5Projection?.companyValuation || 0,
-        investorReturn: exitPlanResult.moic5Year || 0,
-        founderRetention: 100 - dealConfig.equityPercentage,
-      },
-      insights: unifiedAnalysis?.insights?.map(i => ({
-        category: i.category || 'Genel',
-        severity: i.severity || 'medium',
-        title: i.title || '',
-        description: i.description || '',
-      })) || [],
-      recommendations: unifiedAnalysis?.recommendations?.map(r => ({
-        title: r.title || '',
-        description: r.description || '',
-        risk: r.expected_outcome || 'Orta',
-        priority: r.priority || 1,
-      })) || [],
-      pitchDeck: unifiedAnalysis?.pitch_deck ? {
-        executiveSummary: unifiedAnalysis.pitch_deck.executive_summary || '',
-        slides: unifiedAnalysis.pitch_deck.slides?.map(s => ({
-          slideNumber: s.slide_number,
-          title: s.title || '',
-          bullets: s.content_bullets || [],
-        })) || [],
-      } : undefined,
-      chartElements: {
-        quarterlyChart: quarterlyChartRef.current,
-        cumulativeChart: cumulativeChartRef.current,
-      },
-    };
-    
-    const success = await generateScenarioPresentationPdf(pdfData);
+    const success = await generatePdfFromElement(presentationPdfRef, {
+      filename: `Senaryo_Sunum_${scenarioA.name.replace(/\s+/g, '_')}_vs_${scenarioB.name.replace(/\s+/g, '_')}.pdf`,
+      orientation: 'landscape',
+      margin: 10,
+      scale: 2,
+      fitToPage: false,
+      onProgress: (stage, percent) => {
+        console.log(`[PDF] ${stage}: ${percent}%`);
+      }
+    });
     
     if (success) {
       toast.success('PDF sunumu oluşturuldu!');
     } else {
       toast.error('PDF oluşturulamadı');
     }
-  }, [scenarioA, scenarioB, summaryA, summaryB, metrics, quarterlyComparison, quarterlyCumulativeData, dealConfig, unifiedAnalysis, generateScenarioPresentationPdf]);
+  }, [scenarioA, scenarioB, summaryA, summaryB, generatePdfFromElement]);
 
   const handleCreateNextYear = async () => {
     if (!unifiedAnalysis?.next_year_projection || !scenarioB) return;
@@ -1122,6 +1025,251 @@ function ScenarioComparisonContent() {
           )}
         </SheetContent>
       </Sheet>
+      
+      {/* PDF SUNUM HIDDEN CONTAINER - HTML yakalamalı */}
+      <div 
+        ref={presentationPdfRef} 
+        className="pdf-hidden-container"
+        style={{ position: 'absolute', left: '-9999px', top: 0 }}
+      >
+        <div style={{ width: '1400px', background: 'white', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+          
+          {/* SAYFA 1: KAPAK */}
+          <div className="page-break-after" style={{ height: '700px', position: 'relative', background: 'linear-gradient(180deg, #1e3a8a 0%, #3b82f6 60%, #ffffff 60%)', padding: '48px' }}>
+            <div style={{ textAlign: 'center', paddingTop: '80px' }}>
+              <h1 style={{ fontSize: '36px', fontWeight: 'bold', color: 'white', marginBottom: '16px' }}>
+                Senaryo Karşılaştırma Raporu
+              </h1>
+              <p style={{ fontSize: '20px', color: '#93c5fd', marginBottom: '8px' }}>
+                {scenarioA?.name} vs {scenarioB?.name}
+              </p>
+              <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)' }}>
+                Hedef Yıl: {scenarioB?.targetYear || new Date().getFullYear()}
+              </p>
+            </div>
+            
+            {/* Özet Metrikleri */}
+            <div style={{ position: 'absolute', bottom: '100px', left: '48px', right: '48px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+                {metrics.slice(0, 4).map((m, i) => {
+                  const diff = calculateDiff(m.scenarioA, m.scenarioB);
+                  const isPositive = m.higherIsBetter ? m.scenarioB > m.scenarioA : m.scenarioB < m.scenarioA;
+                  return (
+                    <div key={i} style={{ background: 'white', borderRadius: '12px', padding: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', textAlign: 'center' }}>
+                      <p style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>{m.label}</p>
+                      <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#2563eb' }}>{formatValue(m.scenarioB, m.format)}</p>
+                      <p style={{ fontSize: '12px', fontWeight: 'bold', color: isPositive ? '#16a34a' : '#dc2626', marginTop: '4px' }}>
+                        {diff.percent >= 0 ? '+' : ''}{diff.percent.toFixed(1)}%
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+
+          {/* SAYFA 2: METRİKLER ve TABLO */}
+          <div className="page-break-after" style={{ padding: '32px', minHeight: '700px' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '2px solid #e5e7eb', paddingBottom: '8px' }}>
+              Finansal Özet Karşılaştırması
+            </h2>
+            
+            {/* Metrik Kartları */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+              {metrics.map((m, i) => {
+                const diff = calculateDiff(m.scenarioA, m.scenarioB);
+                const isPositive = m.higherIsBetter ? m.scenarioB > m.scenarioA : m.scenarioB < m.scenarioA;
+                return (
+                  <div key={i} style={{ 
+                    padding: '16px', 
+                    borderRadius: '8px', 
+                    background: isPositive ? '#f0fdf4' : '#fef2f2',
+                    border: `1px solid ${isPositive ? '#86efac' : '#fecaca'}`
+                  }}>
+                    <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px' }}>{m.label}</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                      <span style={{ color: '#2563eb', fontWeight: '600' }}>{formatValue(m.scenarioA, m.format)}</span>
+                      <span style={{ color: '#16a34a', fontWeight: '600' }}>{formatValue(m.scenarioB, m.format)}</span>
+                    </div>
+                    <p style={{ textAlign: 'center', fontWeight: 'bold', color: isPositive ? '#16a34a' : '#dc2626' }}>
+                      {diff.percent >= 0 ? '+' : ''}{diff.percent.toFixed(1)}%
+                    </p>
+                  </div>
+                );
+              })}
+            </div>
+            
+            {/* Çeyreklik Tablo */}
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+              <thead>
+                <tr style={{ background: '#3b82f6', color: 'white' }}>
+                  <th style={{ padding: '12px', textAlign: 'left' }}>Çeyrek</th>
+                  <th style={{ padding: '12px', textAlign: 'right' }}>{scenarioA?.name}</th>
+                  <th style={{ padding: '12px', textAlign: 'right' }}>{scenarioB?.name}</th>
+                  <th style={{ padding: '12px', textAlign: 'center' }}>Fark</th>
+                </tr>
+              </thead>
+              <tbody>
+                {quarterlyComparison.map((q, i) => {
+                  const diffPercent = q.scenarioANet !== 0 
+                    ? ((q.scenarioBNet - q.scenarioANet) / Math.abs(q.scenarioANet) * 100) 
+                    : 0;
+                  return (
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#f9fafb' : 'white' }}>
+                      <td style={{ padding: '12px', fontWeight: '500' }}>{q.quarter}</td>
+                      <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'monospace' }}>{formatCompactUSD(q.scenarioANet)}</td>
+                      <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'monospace' }}>{formatCompactUSD(q.scenarioBNet)}</td>
+                      <td style={{ padding: '12px', textAlign: 'center', color: diffPercent >= 0 ? '#16a34a' : '#dc2626', fontWeight: 'bold' }}>
+                        {diffPercent >= 0 ? '+' : ''}{diffPercent.toFixed(1)}%
+                      </td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
+
+          {/* SAYFA 3: GRAFİKLER */}
+          <div className="page-break-after" style={{ padding: '32px', minHeight: '700px' }}>
+            <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '2px solid #e5e7eb', paddingBottom: '8px' }}>
+              Görsel Analiz
+            </h2>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+              {/* Çeyreklik Net Kâr Grafiği */}
+              <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px', background: 'white' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Çeyreklik Net Kâr</h3>
+                <ChartContainer config={chartConfig} className="h-[280px] w-full">
+                  <ComposedChart data={quarterlyComparison}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
+                    <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Bar dataKey="scenarioANet" fill="#2563eb" name={scenarioA?.name} radius={4} />
+                    <Bar dataKey="scenarioBNet" fill="#16a34a" name={scenarioB?.name} radius={4} />
+                  </ComposedChart>
+                </ChartContainer>
+              </div>
+              
+              {/* Kümülatif Nakit Akışı Grafiği */}
+              <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px', background: 'white' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Kümülatif Nakit Akışı</h3>
+                <ChartContainer config={cumulativeChartConfig} className="h-[280px] w-full">
+                  <AreaChart data={quarterlyCumulativeData}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                    <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
+                    <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                    <ChartTooltip content={<ChartTooltipContent />} />
+                    <ChartLegend content={<ChartLegendContent />} />
+                    <Area type="monotone" dataKey="scenarioACumulative" stroke="#2563eb" fill="#2563eb" fillOpacity={0.3} name={scenarioA?.name} />
+                    <Area type="monotone" dataKey="scenarioBCumulative" stroke="#16a34a" fill="#16a34a" fillOpacity={0.3} name={scenarioB?.name} />
+                  </AreaChart>
+                </ChartContainer>
+              </div>
+            </div>
+          </div>
+
+          {/* SAYFA 4: AI INSIGHTS */}
+          {unifiedAnalysis?.insights && unifiedAnalysis.insights.length > 0 && (
+            <div className="page-break-after" style={{ padding: '32px', minHeight: '700px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '2px solid #e5e7eb', paddingBottom: '8px' }}>
+                AI Analiz Sonuçları
+              </h2>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                {unifiedAnalysis.insights.map((insight, i) => (
+                  <div 
+                    key={i} 
+                    style={{ 
+                      padding: '16px', 
+                      borderRadius: '8px', 
+                      borderLeft: `4px solid ${insight.severity === 'high' ? '#ef4444' : insight.severity === 'medium' ? '#f59e0b' : '#22c55e'}`,
+                      background: insight.severity === 'high' ? '#fef2f2' : insight.severity === 'medium' ? '#fffbeb' : '#f0fdf4'
+                    }}
+                  >
+                    <h4 style={{ fontWeight: '600', marginBottom: '8px', color: '#111827' }}>{insight.title}</h4>
+                    <p style={{ fontSize: '13px', color: '#4b5563' }}>{insight.description}</p>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Öneriler */}
+              {unifiedAnalysis.recommendations && unifiedAnalysis.recommendations.length > 0 && (
+                <div style={{ marginTop: '32px' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px' }}>Stratejik Öneriler</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                    {unifiedAnalysis.recommendations.slice(0, 4).map((rec, i) => (
+                      <div key={i} style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
+                          <span style={{ background: '#3b82f6', color: 'white', width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>
+                            {rec.priority || i + 1}
+                          </span>
+                          <span style={{ fontWeight: '600', fontSize: '14px' }}>{rec.title}</span>
+                        </div>
+                        <p style={{ fontSize: '12px', color: '#6b7280' }}>{rec.description}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* SAYFA 5: PITCH DECK */}
+          {unifiedAnalysis?.pitch_deck?.slides && unifiedAnalysis.pitch_deck.slides.length > 0 && (
+            <div style={{ padding: '32px', minHeight: '700px' }}>
+              <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '2px solid #e5e7eb', paddingBottom: '8px' }}>
+                Yatırımcı Sunumu
+              </h2>
+              
+              {/* Executive Summary */}
+              {unifiedAnalysis.pitch_deck.executive_summary && (
+                <div style={{ marginBottom: '24px', padding: '16px', background: 'linear-gradient(to right, #eff6ff, #f0fdf4)', borderRadius: '12px', border: '1px solid #bfdbfe' }}>
+                  <p style={{ fontSize: '14px', color: '#374151', fontStyle: 'italic' }}>
+                    "{unifiedAnalysis.pitch_deck.executive_summary}"
+                  </p>
+                </div>
+              )}
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                {unifiedAnalysis.pitch_deck.slides.map((slide, i) => (
+                  <div key={i} style={{ 
+                    background: 'linear-gradient(to bottom right, #eff6ff, white)', 
+                    padding: '20px', 
+                    borderRadius: '12px', 
+                    border: '1px solid #e5e7eb' 
+                  }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                      <span style={{ 
+                        background: '#3b82f6', 
+                        color: 'white', 
+                        width: '28px', 
+                        height: '28px', 
+                        borderRadius: '50%', 
+                        display: 'flex', 
+                        alignItems: 'center', 
+                        justifyContent: 'center', 
+                        fontSize: '12px', 
+                        fontWeight: 'bold' 
+                      }}>
+                        {slide.slide_number}
+                      </span>
+                      <h3 style={{ fontWeight: '600', fontSize: '15px' }}>{slide.title}</h3>
+                    </div>
+                    <ul style={{ paddingLeft: '16px', margin: 0 }}>
+                      {slide.content_bullets?.map((bullet, j) => (
+                        <li key={j} style={{ fontSize: '13px', color: '#4b5563', marginBottom: '4px' }}>
+                          {bullet}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+          
+        </div>
+      </div>
     </div>
   );
 }
