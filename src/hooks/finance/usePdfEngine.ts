@@ -39,6 +39,7 @@ import {
 import type { BalanceSheet } from '@/types/finance';
 import type { IncomeStatementData, DetailedIncomeStatementData } from '@/types/reports';
 import type { FinancialDataHub } from './useFinancialDataHub';
+import type { CashFlowStatement } from './useCashFlowStatement';
 
 // ============================================
 // FULL REPORT PARAMETRELERİ
@@ -163,6 +164,12 @@ export interface UsePdfEngineReturn {
   ) => Promise<boolean>;
   
   generateScenarioComparisonPdfData: (data: ScenarioComparisonPdfData) => Promise<boolean>;
+  
+  generateCashFlowPdfData: (
+    cashFlowStatement: CashFlowStatement,
+    year: number,
+    formatAmount: (value: number) => string
+  ) => Promise<boolean>;
   
   // Builder'a doğrudan erişim (gelişmiş kullanım)
   createPdfBuilder: (config?: Partial<PdfBuilderConfig>) => PdfDocumentBuilder;
@@ -1438,6 +1445,143 @@ export function usePdfEngine(): UsePdfEngineReturn {
     return new PdfDocumentBuilder(config);
   }, []);
 
+  /**
+   * Nakit Akış Tablosu PDF - Data-driven (jspdf-autotable)
+   * A4 dikey, tek sayfa, kapaksız
+   */
+  const generateCashFlowPdfData = useCallback(async (
+    cashFlowStatement: CashFlowStatement,
+    year: number,
+    formatAmount: (value: number) => string
+  ): Promise<boolean> => {
+    setIsGenerating(true);
+    setProgress({ current: 1, total: 3, stage: 'Nakit akış tablosu hazırlanıyor...' });
+    
+    try {
+      const builder = createPortraitBuilder({ margin: 10 });
+      
+      // Başlık (Kapaksız - doğrudan tablo)
+      builder.addText(`Nakit Akış Tablosu - ${year}`, 'title', 'center');
+      builder.addText('Dolaylı Yöntem (Indirect Method)', 'subtitle', 'center');
+      builder.addSpacer(5);
+      
+      setProgress({ current: 2, total: 3, stage: 'Tablolar oluşturuluyor...' });
+      
+      // A. İşletme Faaliyetleri
+      builder.addTable({
+        title: 'A. İŞLETME FAALİYETLERİNDEN NAKİT AKIŞLARI',
+        headers: ['Kalem', 'Tutar'],
+        rows: [
+          ['Dönem Net Kârı', formatAmount(cashFlowStatement.operating.netProfit)],
+          ['(+) Amortisman ve İtfa Payları', formatAmount(cashFlowStatement.operating.depreciation)],
+          ['Ticari Alacaklardaki Değişim', formatAmount(cashFlowStatement.operating.receivablesChange)],
+          ['Ticari Borçlardaki Değişim', formatAmount(cashFlowStatement.operating.payablesChange)],
+          ['Personel Borçlarındaki Değişim', formatAmount(cashFlowStatement.operating.personnelChange)],
+          ['Stoklardaki Değişim', formatAmount(cashFlowStatement.operating.inventoryChange)],
+          ['KDV Alacak/Borç Değişimi', formatAmount(cashFlowStatement.operating.vatChange)],
+          ['İşletme Faaliyetlerinden Net Nakit', formatAmount(cashFlowStatement.operating.total)],
+        ],
+        options: {
+          headerColor: [59, 130, 246],
+          columnStyles: { 0: { cellWidth: 120 }, 1: { halign: 'right' } }
+        }
+      });
+      
+      builder.addSpacer(3);
+      
+      // B. Yatırım Faaliyetleri
+      const investingRows: [string, string][] = [];
+      if (cashFlowStatement.investing.vehiclePurchases > 0) {
+        investingRows.push(['(-) Taşıt Alımları', formatAmount(-cashFlowStatement.investing.vehiclePurchases)]);
+      }
+      if (cashFlowStatement.investing.equipmentPurchases > 0) {
+        investingRows.push(['(-) Ekipman Alımları', formatAmount(-cashFlowStatement.investing.equipmentPurchases)]);
+      }
+      if (cashFlowStatement.investing.fixturePurchases > 0) {
+        investingRows.push(['(-) Demirbaş Alımları', formatAmount(-cashFlowStatement.investing.fixturePurchases)]);
+      }
+      investingRows.push(['Yatırım Faaliyetlerinden Net Nakit', formatAmount(cashFlowStatement.investing.total)]);
+      
+      builder.addTable({
+        title: 'B. YATIRIM FAALİYETLERİNDEN NAKİT AKIŞLARI',
+        headers: ['Kalem', 'Tutar'],
+        rows: investingRows,
+        options: {
+          headerColor: [34, 197, 94],
+          columnStyles: { 0: { cellWidth: 120 }, 1: { halign: 'right' } }
+        }
+      });
+      
+      builder.addSpacer(3);
+      
+      // C. Finansman Faaliyetleri
+      const financingRows: [string, string][] = [];
+      if (cashFlowStatement.financing.loanProceeds > 0) {
+        financingRows.push(['(+) Kredi Kullanımı', formatAmount(cashFlowStatement.financing.loanProceeds)]);
+      }
+      if (cashFlowStatement.financing.loanRepayments > 0) {
+        financingRows.push(['(-) Kredi Geri Ödemeleri', formatAmount(-cashFlowStatement.financing.loanRepayments)]);
+      }
+      if (cashFlowStatement.financing.leasingPayments > 0) {
+        financingRows.push(['(-) Leasing Ödemeleri', formatAmount(-cashFlowStatement.financing.leasingPayments)]);
+      }
+      if (cashFlowStatement.financing.partnerDeposits > 0) {
+        financingRows.push(['(+) Ortaktan Gelen', formatAmount(cashFlowStatement.financing.partnerDeposits)]);
+      }
+      if (cashFlowStatement.financing.partnerWithdrawals > 0) {
+        financingRows.push(['(-) Ortağa Ödeme', formatAmount(-cashFlowStatement.financing.partnerWithdrawals)]);
+      }
+      if (cashFlowStatement.financing.capitalIncrease > 0) {
+        financingRows.push(['(+) Sermaye Artırımı', formatAmount(cashFlowStatement.financing.capitalIncrease)]);
+      }
+      financingRows.push(['Finansman Faaliyetlerinden Net Nakit', formatAmount(cashFlowStatement.financing.total)]);
+      
+      builder.addTable({
+        title: 'C. FİNANSMAN FAALİYETLERİNDEN NAKİT AKIŞLARI',
+        headers: ['Kalem', 'Tutar'],
+        rows: financingRows,
+        options: {
+          headerColor: [168, 85, 247],
+          columnStyles: { 0: { cellWidth: 120 }, 1: { halign: 'right' } }
+        }
+      });
+      
+      builder.addSpacer(5);
+      
+      // Özet Tablosu
+      builder.addTable({
+        title: 'NAKİT ÖZET',
+        headers: ['', 'Tutar'],
+        rows: [
+          ['Nakitteki Net Değişim (A + B + C)', formatAmount(cashFlowStatement.netCashChange)],
+          ['Dönem Başı Nakit', formatAmount(cashFlowStatement.openingCash)],
+          ['DÖNEM SONU NAKİT', formatAmount(cashFlowStatement.closingCash)],
+        ],
+        options: {
+          headerColor: [15, 23, 42],
+          columnStyles: { 0: { cellWidth: 120 }, 1: { halign: 'right' } }
+        }
+      });
+      
+      // Denklem kontrolü
+      if (!cashFlowStatement.isBalanced) {
+        builder.addSpacer(3);
+        builder.addText(`⚠ Fark: ${formatAmount(cashFlowStatement.difference)}`, 'subtitle', 'center');
+      }
+      
+      setProgress({ current: 3, total: 3, stage: 'PDF oluşturuluyor...' });
+      
+      const filename = `Nakit_Akis_Tablosu_${year}.pdf`;
+      return await builder.build(filename);
+    } catch (error) {
+      console.error('[PDF] Cash flow statement error:', error);
+      return false;
+    } finally {
+      setIsGenerating(false);
+      setProgress({ current: 0, total: 0, stage: '' });
+    }
+  }, []);
+
   return {
     // Data-driven (önerilen - tablolar için)
     generateFullReportPdfData,
@@ -1446,6 +1590,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
     generateDetailedIncomePdfData,
     generateSimulationPdfData,
     generateScenarioComparisonPdfData,
+    generateCashFlowPdfData,
     createPdfBuilder,
     
     // HTML tabanlı (grafikler ve mevcut sayfalar için)

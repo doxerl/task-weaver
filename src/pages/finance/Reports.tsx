@@ -60,6 +60,7 @@ export default function Reports() {
     generateDashboardChartPdf,
     generateDashboardPdfSmart,
     generateDistributionChartPdf,
+    generateCashFlowPdfData,
     createPdfBuilder,
     isGenerating: isPdfEngineGenerating,
     progress: pdfProgress,
@@ -282,7 +283,24 @@ export default function Reports() {
     }
   };
 
-  // Financing PDF artık usePdfEngine'e taşındığında burası güncellenecek
+  const handleCashFlowPdf = async () => {
+    if (!cashFlowStatement) {
+      toast.error('Nakit akış verileri yüklenemedi');
+      return;
+    }
+    
+    const success = await generateCashFlowPdfData(
+      cashFlowStatement,
+      year,
+      (n) => formatAmount(n, undefined, year)
+    );
+    
+    if (success) {
+      toast.success('Nakit Akış Tablosu PDF oluşturuldu');
+    } else {
+      toast.error('PDF oluşturulurken hata oluştu');
+    }
+  };
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -669,6 +687,18 @@ export default function Reports() {
 
           {/* Tab 6: Cash Flow Statement */}
           <TabsContent value="cashflow" className="space-y-4">
+            <div className="flex justify-end">
+              <Button 
+                onClick={handleCashFlowPdf} 
+                disabled={isPdfEngineGenerating || !cashFlowStatement} 
+                size="sm" 
+                variant="outline"
+                className="gap-1"
+              >
+                {isPdfEngineGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileDown className="h-4 w-4" />}
+                PDF
+              </Button>
+            </div>
             {cashFlowLoading ? (
               <div className="flex items-center justify-center py-12">
                 <Loader2 className="h-8 w-8 animate-spin text-muted-foreground" />
