@@ -45,13 +45,13 @@ const slideColors: Record<number, string> = {
   5: 'from-amber-500/20 to-yellow-500/20 border-amber-500/30'
 };
 
-// PDF renk şeması (RGB)
-const slidePdfColors: Record<number, { primary: [number, number, number]; light: [number, number, number] }> = {
-  1: { primary: [59, 130, 246], light: [219, 234, 254] },   // Blue
-  2: { primary: [239, 68, 68], light: [254, 226, 226] },    // Red
-  3: { primary: [34, 197, 94], light: [220, 252, 231] },    // Green
-  4: { primary: [168, 85, 247], light: [243, 232, 255] },   // Purple
-  5: { primary: [245, 158, 11], light: [254, 243, 199] }    // Amber
+// PDF renk şeması (CSS gradient için)
+const slidePdfColors: Record<number, { primary: string; secondary: string }> = {
+  1: { primary: '#3b82f6', secondary: '#6366f1' },   // Blue to Indigo
+  2: { primary: '#ef4444', secondary: '#f97316' },   // Red to Orange
+  3: { primary: '#22c55e', secondary: '#10b981' },   // Green to Emerald
+  4: { primary: '#a855f7', secondary: '#ec4899' },   // Purple to Pink
+  5: { primary: '#f59e0b', secondary: '#eab308' }    // Amber to Yellow
 };
 
 const slideIconLabels: Record<number, string> = {
@@ -99,6 +99,9 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
     
     setIsGeneratingPdf(true);
     try {
+      const html2canvasModule = await import('html2canvas');
+      const html2canvas = html2canvasModule.default;
+      
       const pdf = new jsPDF({ 
         orientation: 'landscape', 
         unit: 'mm', 
@@ -107,120 +110,134 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
       
       const pageWidth = 297;
       const pageHeight = 210;
-      const margin = 20;
-      const contentWidth = pageWidth - (margin * 2);
       
-      // Her slayt için sayfa oluştur
-      slides.forEach((slideData, index) => {
-        if (index > 0) pdf.addPage();
+      // Create temporary container for rendering
+      const tempContainer = document.createElement('div');
+      tempContainer.style.cssText = 'position: fixed; left: -9999px; top: 0; z-index: -1;';
+      document.body.appendChild(tempContainer);
+      
+      // Render each slide
+      for (let i = 0; i < slides.length; i++) {
+        const slideData = slides[i];
+        const slideNumber = slideData.slide_number;
+        const colors = slidePdfColors[slideNumber] || slidePdfColors[1];
+        const iconLabel = slideIconLabels[slideNumber] || '📊';
         
-        const colors = slidePdfColors[slideData.slide_number] || slidePdfColors[1];
-        const icon = slideIconLabels[slideData.slide_number] || '📄';
+        // Create slide HTML
+        const slideElement = document.createElement('div');
+        slideElement.style.cssText = `
+          width: 1120px;
+          height: 794px;
+          padding: 48px;
+          background: linear-gradient(135deg, ${colors.primary} 0%, ${colors.secondary} 100%);
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          color: white;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+        `;
         
-        // Arka plan gradient efekti (açık renk)
-        pdf.setFillColor(colors.light[0], colors.light[1], colors.light[2]);
-        pdf.rect(0, 0, pageWidth, 50, 'F');
-        
-        // Header bar
-        pdf.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-        pdf.rect(0, 0, pageWidth, 8, 'F');
-        
-        // Slide numarası ve icon
-        pdf.setFontSize(24);
-        pdf.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-        pdf.text(`${icon} Slide ${slideData.slide_number}`, margin, 28);
-        
-        // Başlık
-        pdf.setFontSize(20);
-        pdf.setTextColor(30, 30, 30);
-        pdf.text(slideData.title, margin, 42);
-        
-        // Key Message (vurgulu kutu)
-        pdf.setFillColor(255, 255, 255);
-        pdf.roundedRect(margin, 52, contentWidth, 20, 3, 3, 'F');
-        pdf.setDrawColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-        pdf.setLineWidth(0.5);
-        pdf.roundedRect(margin, 52, contentWidth, 20, 3, 3, 'S');
-        
-        pdf.setFontSize(12);
-        pdf.setTextColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-        const keyMessageLines = pdf.splitTextToSize(slideData.key_message, contentWidth - 10);
-        pdf.text(keyMessageLines, margin + 5, 64);
-        
-        // Content Bullets
-        pdf.setFontSize(11);
-        pdf.setTextColor(50, 50, 50);
-        let yPos = 85;
-        
-        slideData.content_bullets.forEach((bullet, bulletIndex) => {
-          // Numara dairesi
-          pdf.setFillColor(colors.primary[0], colors.primary[1], colors.primary[2]);
-          pdf.circle(margin + 4, yPos - 1.5, 4, 'F');
-          pdf.setTextColor(255, 255, 255);
-          pdf.setFontSize(9);
-          pdf.text(String(bulletIndex + 1), margin + 2.5, yPos);
+        slideElement.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 24px;">
+            <div style="width: 56px; height: 56px; background: rgba(255,255,255,0.2); border-radius: 12px; display: flex; align-items: center; justify-content: center; font-size: 28px;">
+              ${iconLabel}
+            </div>
+            <div>
+              <div style="font-size: 14px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px;">Slide ${slideNumber} / ${slides.length}</div>
+              <h1 style="font-size: 32px; font-weight: 700; margin: 4px 0 0 0;">${slideData.title}</h1>
+            </div>
+          </div>
           
-          // Bullet text
-          pdf.setTextColor(50, 50, 50);
-          pdf.setFontSize(11);
-          const bulletLines = pdf.splitTextToSize(bullet, contentWidth - 20);
-          pdf.text(bulletLines, margin + 15, yPos);
-          yPos += bulletLines.length * 6 + 4;
+          <div style="background: rgba(255,255,255,0.15); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px;">
+            <div style="font-size: 22px; font-weight: 600; line-height: 1.4;">${slideData.key_message}</div>
+          </div>
+          
+          <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
+            ${slideData.content_bullets.map((bullet, idx) => `
+              <div style="display: flex; align-items: flex-start; gap: 12px; background: rgba(255,255,255,0.1); border-radius: 8px; padding: 14px 18px;">
+                <div style="min-width: 28px; height: 28px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">${idx + 1}</div>
+                <div style="font-size: 16px; line-height: 1.5; flex: 1;">${bullet}</div>
+              </div>
+            `).join('')}
+          </div>
+          
+          ${slideData.speaker_notes ? `
+            <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
+              <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; margin-bottom: 8px;">📝 Konuşmacı Notları</div>
+              <div style="font-size: 14px; line-height: 1.6; opacity: 0.9; font-style: italic;">${slideData.speaker_notes}</div>
+            </div>
+          ` : ''}
+        `;
+        
+        tempContainer.appendChild(slideElement);
+        
+        const canvas = await html2canvas(slideElement, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: null
         });
         
-        // Speaker Notes (alt kısım)
-        if (slideData.speaker_notes) {
-          pdf.setDrawColor(200, 200, 200);
-          pdf.line(margin, pageHeight - 40, pageWidth - margin, pageHeight - 40);
-          
-          pdf.setFontSize(9);
-          pdf.setTextColor(120, 120, 120);
-          pdf.text('Konusmaci Notlari:', margin, pageHeight - 32);
-          
-          pdf.setFontSize(10);
-          pdf.setTextColor(80, 80, 80);
-          const notesLines = pdf.splitTextToSize(slideData.speaker_notes, contentWidth);
-          pdf.text(notesLines.slice(0, 3), margin, pageHeight - 25);
-        }
+        if (i > 0) pdf.addPage();
         
-        // Sayfa numarası
-        pdf.setFontSize(9);
-        pdf.setTextColor(150, 150, 150);
-        pdf.text(`${slideData.slide_number} / ${slides.length}`, pageWidth - margin - 10, pageHeight - 10);
-      });
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
+        
+        tempContainer.removeChild(slideElement);
+      }
       
-      // Executive Summary sayfası
-      pdf.addPage();
+      // Add Executive Summary page
+      if (pitchDeck.executive_summary) {
+        const summaryElement = document.createElement('div');
+        summaryElement.style.cssText = `
+          width: 1120px;
+          height: 794px;
+          padding: 48px;
+          background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+          font-family: system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+          color: white;
+          box-sizing: border-box;
+          display: flex;
+          flex-direction: column;
+        `;
+        
+        summaryElement.innerHTML = `
+          <div style="display: flex; align-items: center; gap: 16px; margin-bottom: 32px;">
+            <div style="width: 64px; height: 64px; background: rgba(59, 130, 246, 0.3); border-radius: 16px; display: flex; align-items: center; justify-content: center; font-size: 32px;">📋</div>
+            <div>
+              <h1 style="font-size: 36px; font-weight: 700; margin: 0;">Executive Summary</h1>
+              <div style="font-size: 16px; opacity: 0.7; margin-top: 4px;">Yatırımcıya gönderilecek e-posta özeti</div>
+            </div>
+          </div>
+          
+          <div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 16px; padding: 32px; border: 1px solid rgba(255,255,255,0.1);">
+            <div style="font-size: 16px; line-height: 1.8; white-space: pre-wrap;">${pitchDeck.executive_summary}</div>
+          </div>
+          
+          <div style="margin-top: 24px; text-align: center; opacity: 0.5; font-size: 12px;">
+            Oluşturulma Tarihi: ${new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
+          </div>
+        `;
+        
+        tempContainer.appendChild(summaryElement);
+        
+        const canvas = await html2canvas(summaryElement, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: null
+        });
+        
+        pdf.addPage();
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        pdf.addImage(imgData, 'JPEG', 0, 0, pageWidth, pageHeight);
+        
+        tempContainer.removeChild(summaryElement);
+      }
       
-      // Header
-      pdf.setFillColor(59, 130, 246);
-      pdf.rect(0, 0, pageWidth, 8, 'F');
+      // Cleanup
+      document.body.removeChild(tempContainer);
       
-      pdf.setFontSize(24);
-      pdf.setTextColor(59, 130, 246);
-      pdf.text('📋 Executive Summary', margin, 30);
-      
-      pdf.setFontSize(12);
-      pdf.setTextColor(100, 100, 100);
-      pdf.text('Yatirimciya gonderilecek e-posta ozeti', margin, 42);
-      
-      // Summary content
-      pdf.setFillColor(249, 250, 251);
-      pdf.roundedRect(margin, 50, contentWidth, pageHeight - 70, 5, 5, 'F');
-      
-      pdf.setFontSize(11);
-      pdf.setTextColor(50, 50, 50);
-      const summaryLines = pdf.splitTextToSize(pitchDeck.executive_summary, contentWidth - 20);
-      pdf.text(summaryLines, margin + 10, 65);
-      
-      // Footer
-      pdf.setFontSize(9);
-      pdf.setTextColor(150, 150, 150);
-      const today = new Date().toLocaleDateString('tr-TR');
-      pdf.text(`Olusturulma Tarihi: ${today}`, margin, pageHeight - 10);
-      pdf.text(`${slides.length + 1} / ${slides.length + 1}`, pageWidth - margin - 10, pageHeight - 10);
-      
-      // PDF'i indir
       pdf.save('Yatirimci_Pitch_Deck.pdf');
       toast.success('Pitch Deck PDF olarak indirildi!');
       
