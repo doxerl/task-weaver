@@ -1,4 +1,4 @@
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -58,7 +58,7 @@ import {
 import { SimulationScenario, AnalysisHistoryItem, NextYearProjection, QuarterlyItemizedData } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
 import { toast } from 'sonner';
-import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
+import { usePdfEngine, ScenarioPresentationPdfData } from '@/hooks/finance/usePdfEngine';
 import { useUnifiedAnalysis } from '@/hooks/finance/useUnifiedAnalysis';
 import { useInvestorAnalysis, calculateCapitalNeeds, calculateExitPlan } from '@/hooks/finance/useInvestorAnalysis';
 import { useScenarios } from '@/hooks/finance/useScenarios';
@@ -356,13 +356,15 @@ function ScenarioComparisonContent() {
   const [scenarioAId, setScenarioAId] = useState<string | null>(currentScenarioId);
   const [scenarioBId, setScenarioBId] = useState<string | null>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  const quarterlyChartRef = useRef<HTMLDivElement>(null);
+  const cumulativeChartRef = useRef<HTMLDivElement>(null);
   
   // Sheet states
   const [selectedHistoricalAnalysis, setSelectedHistoricalAnalysis] = useState<AnalysisHistoryItem | null>(null);
   const [historySheetType, setHistorySheetType] = useState<'scenario_comparison' | 'investor_pitch'>('scenario_comparison');
   const [showPitchDeck, setShowPitchDeck] = useState(false);
 
-  const { generatePdfFromElement, isGenerating } = usePdfEngine();
+  const { generatePdfFromElement, generateScenarioPresentationPdf, isGenerating } = usePdfEngine();
   
   // Unified Analysis Hook - TEK AI hook, tüm fonksiyonlar burada
   const { 
@@ -570,6 +572,131 @@ function ScenarioComparisonContent() {
   };
 
   // Create next year scenario from AI projection
+  // PDF Presentation Handler
+  const handleExportPresentationPdf = useCallback(async () => {
+    if (!scenarioA || !scenarioB || !summaryA || !summaryB) {
+      toast.error('Karşılaştırma için senaryo seçilmeli');
+      return;
+    }
+    
+    // Quarterly net profit data for capital needs
+    const quarterlyNetA = {
+      q1: quarterlyComparison[0]?.scenarioANet || 0,
+      q2: quarterlyComparison[1]?.scenarioANet || 0,
+      q3: quarterlyComparison[2]?.scenarioANet || 0,
+      q4: quarterlyComparison[3]?.scenarioANet || 0,
+    };
+    const quarterlyNetB = {
+      q1: quarterlyComparison[0]?.scenarioBNet || 0,
+      q2: quarterlyComparison[1]?.scenarioBNet || 0,
+      q3: quarterlyComparison[2]?.scenarioBNet || 0,
+      q4: quarterlyComparison[3]?.scenarioBNet || 0,
+    };
+    
+    const capitalA = calculateCapitalNeeds(quarterlyNetA);
+    const capitalB = calculateCapitalNeeds(quarterlyNetB);
+    
+    // Exit plan calculation
+    const exitPlanResult = calculateExitPlan(
+      dealConfig,
+      summaryB.totalRevenue,
+      summaryB.totalExpense,
+      0.15 // Default growth rate
+    );
+    
+    const pdfData: ScenarioPresentationPdfData = {
+      scenarioA: {
+        id: scenarioA.id!,
+        name: scenarioA.name,
+        targetYear: scenarioA.targetYear,
+        summary: {
+          revenue: summaryA.totalRevenue,
+          expense: summaryA.totalExpense,
+          profit: summaryA.netProfit,
+          margin: summaryA.profitMargin,
+        },
+      },
+      scenarioB: {
+        id: scenarioB.id!,
+        name: scenarioB.name,
+        targetYear: scenarioB.targetYear,
+        summary: {
+          revenue: summaryB.totalRevenue,
+          expense: summaryB.totalExpense,
+          profit: summaryB.netProfit,
+          margin: summaryB.profitMargin,
+        },
+      },
+      metrics: metrics.map(m => ({
+        label: m.label,
+        scenarioA: m.scenarioA,
+        scenarioB: m.scenarioB,
+        format: m.format,
+        higherIsBetter: m.higherIsBetter,
+        diffPercent: calculateDiff(m.scenarioA, m.scenarioB).percent,
+        isPositive: m.higherIsBetter 
+          ? m.scenarioB > m.scenarioA 
+          : m.scenarioB < m.scenarioA,
+      })),
+      quarterlyData: quarterlyCumulativeData.map(q => ({
+        quarter: q.quarter,
+        scenarioANet: q.scenarioANet,
+        scenarioBNet: q.scenarioBNet,
+        scenarioACumulative: q.scenarioACumulative,
+        scenarioBCumulative: q.scenarioBCumulative,
+      })),
+      capitalAnalysis: {
+        scenarioANeed: capitalA.requiredInvestment,
+        scenarioASelfSustaining: capitalA.selfSustaining,
+        scenarioBNeed: capitalB.requiredInvestment,
+        scenarioBSelfSustaining: capitalB.selfSustaining,
+        burnRate: capitalB.burnRateMonthly,
+        runway: capitalB.runwayMonths,
+        criticalQuarter: capitalB.criticalQuarter,
+        opportunityCost: summaryB.netProfit - summaryA.netProfit,
+      },
+      dealConfig: dealConfig,
+      exitPlan: {
+        postMoneyValuation: exitPlanResult.postMoneyValuation,
+        exitValue: exitPlanResult.year5Projection?.companyValuation || 0,
+        investorReturn: exitPlanResult.moic5Year || 0,
+        founderRetention: 100 - dealConfig.equityPercentage,
+      },
+      insights: unifiedAnalysis?.insights?.map(i => ({
+        category: i.category,
+        severity: i.severity,
+        title: i.title,
+        description: i.description,
+      })),
+      recommendations: unifiedAnalysis?.recommendations?.map(r => ({
+        title: r.title,
+        description: r.description,
+        risk: r.expected_outcome || 'Orta',
+        priority: r.priority,
+      })),
+      pitchDeck: unifiedAnalysis?.pitch_deck ? {
+        executiveSummary: unifiedAnalysis.pitch_deck.executive_summary,
+        slides: unifiedAnalysis.pitch_deck.slides.map(s => ({
+          slideNumber: s.slide_number,
+          title: s.title,
+          bullets: s.content_bullets,
+        })),
+      } : undefined,
+      chartElements: {
+        quarterlyChart: quarterlyChartRef.current,
+        cumulativeChart: cumulativeChartRef.current,
+      },
+    };
+    
+    const success = await generateScenarioPresentationPdf(pdfData);
+    
+    if (success) {
+      toast.success('PDF sunumu oluşturuldu!');
+    } else {
+      toast.error('PDF oluşturulamadı');
+    }
+  }, [scenarioA, scenarioB, summaryA, summaryB, metrics, quarterlyComparison, quarterlyCumulativeData, dealConfig, unifiedAnalysis, generateScenarioPresentationPdf]);
+
   const handleCreateNextYear = async () => {
     if (!unifiedAnalysis?.next_year_projection || !scenarioB) return;
     
@@ -625,9 +752,15 @@ function ScenarioComparisonContent() {
               </div>
             </div>
             {canCompare && (
-              <Button variant="outline" size="sm" disabled={isGenerating} className="gap-2">
-                {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Download className="h-4 w-4" />}
-                PDF
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={isGenerating} 
+                className="gap-2"
+                onClick={handleExportPresentationPdf}
+              >
+                {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Presentation className="h-4 w-4" />}
+                PDF Sunum
               </Button>
             )}
           </div>
@@ -706,7 +839,7 @@ function ScenarioComparisonContent() {
             {/* SECTION 2: CHARTS SIDE BY SIDE */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
               {/* Quarterly Net Profit Bar Chart */}
-              <Card ref={chartContainerRef}>
+              <Card ref={quarterlyChartRef}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">Çeyreklik Net Kâr</CardTitle>
                 </CardHeader>
@@ -726,7 +859,7 @@ function ScenarioComparisonContent() {
               </Card>
 
               {/* Cumulative Cash Flow Area Chart */}
-              <Card>
+              <Card ref={cumulativeChartRef}>
                 <CardHeader className="pb-2">
                   <CardTitle className="text-sm">Kümülatif Nakit Akışı</CardTitle>
                 </CardHeader>
