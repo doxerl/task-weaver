@@ -282,3 +282,83 @@ export interface AIAnalysisResult {
   recommendations: AIRecommendation[];
   quarterly_analysis: QuarterlyAIAnalysis;
 }
+
+// =====================================================
+// INVESTOR PITCH DECK TYPES
+// =====================================================
+
+/** Deal Configuration for Investor Pitch */
+export interface DealConfiguration {
+  investmentAmount: number;      // Talep edilen yatırım
+  equityPercentage: number;      // Teklif edilen hisse %
+  sectorMultiple: number;        // Çıkış çarpanı (SaaS: 8x, E-ticaret: 2x)
+  safetyMargin: number;          // Güvenlik tamponu % (varsayılan: 20)
+}
+
+/** Capital Requirement Calculation (Death Valley Analysis) */
+export interface CapitalRequirement {
+  minCumulativeCash: number;     // En derin nakit açığı (Ölüm Vadisi)
+  criticalQuarter: string;       // Nakit açığının en derin olduğu çeyrek
+  requiredInvestment: number;    // Gereken yatırım (açık + güvenlik marjı)
+  burnRateMonthly: number;       // Aylık nakit yakma hızı
+  runwayMonths: number;          // Mevcut nakitle kaç ay gidilebilir
+  selfSustaining: boolean;       // Kendi kendini finanse edebiliyor mu?
+}
+
+/** Multi-Year Financial Projection */
+export interface MultiYearProjection {
+  year: number;
+  revenue: number;
+  expenses: number;
+  netProfit: number;
+  cumulativeProfit: number;
+  companyValuation: number;      // Ciro x Çarpan
+}
+
+/** Exit Plan for Investors */
+export interface ExitPlan {
+  postMoneyValuation: number;    // Yatırım / Hisse %
+  year3Projection: MultiYearProjection;
+  year5Projection: MultiYearProjection;
+  investorShare3Year: number;    // 3. yıl yatırımcı payı değeri
+  investorShare5Year: number;    // 5. yıl yatırımcı payı değeri
+  moic3Year: number;             // 3 yıllık MOIC (Multiple on Invested Capital)
+  moic5Year: number;             // 5 yıllık MOIC
+  breakEvenYear: number | null;  // Başa baş yılı
+  potentialAcquirers: string[];  // Potansiyel alıcılar (AI tarafından)
+  exitStrategy: 'series_b' | 'strategic_sale' | 'ipo' | 'hold' | 'unknown';
+}
+
+/** AI Investor Analysis Result */
+export interface AIInvestorAnalysis {
+  capitalStory: string;          // Sermaye hikayesi özeti
+  opportunityCost: string;       // Yatırımsızlık maliyeti
+  investorROI: string;           // Yatırımcı getiri analizi
+  exitNarrative: string;         // Çıkış senaryosu anlatısı
+  potentialAcquirers: string[];  // Potansiyel alıcılar
+  riskFactors: string[];         // Risk faktörleri
+  keyMetrics: {
+    capitalEfficiency: number;   // Her 1$ yatırımın getirdiği ciro
+    paybackMonths: number;       // Geri ödeme süresi
+    burnMultiple: number;        // Burn / Net ARR
+  };
+  recommendedExit: 'series_b' | 'strategic_sale' | 'ipo' | 'hold';
+}
+
+/** Default sector multiples */
+export const SECTOR_MULTIPLES: Record<string, number> = {
+  'SaaS': 8,
+  'E-commerce': 2,
+  'Fintech': 6,
+  'Marketplace': 5,
+  'B2B Services': 4,
+  'Consulting': 3,
+};
+
+/** Default deal configuration */
+export const DEFAULT_DEAL_CONFIG: DealConfiguration = {
+  investmentAmount: 150000,
+  equityPercentage: 10,
+  sectorMultiple: 8,
+  safetyMargin: 20,
+};

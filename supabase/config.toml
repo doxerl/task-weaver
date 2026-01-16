@@ -38,3 +38,6 @@ verify_jwt = false
 
 [functions.analyze-scenarios]
 verify_jwt = false
+
+[functions.analyze-investor-pitch]
+verify_jwt = false
