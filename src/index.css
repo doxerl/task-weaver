@@ -13,25 +13,60 @@
   visibility: visible !important;
 }
 
-/* PDF sayfa kesme kuralları */
-.page-break-after {
-  page-break-after: always;
-  break-after: page;
+/* PDF sayfa kesme kuralları - print media için */
+@media print {
+  .page-break-after {
+    page-break-after: always;
+    break-after: page;
+  }
+
+  .page-break-before {
+    page-break-before: always;
+    break-before: page;
+  }
 }
 
-.page-break-before {
-  page-break-before: always;
-  break-before: page;
+/* PDF hidden container stilleri - Geliştirilmiş */
+.pdf-hidden-container {
+  position: absolute;
+  left: -9999px;
+  top: 0;
 }
 
-/* PDF hidden container stilleri */
-.pdf-hidden-container .recharts-wrapper,
-.pdf-hidden-container .recharts-surface,
-.pdf-hidden-container svg {
+/* Her sayfa bölümü tam görünür olmalı */
+.pdf-hidden-container > div > div {
+  display: block !important;
+  visibility: visible !important;
+  opacity: 1 !important;
+}
+
+/* Recharts grafikleri için sabit boyutlar */
+.pdf-hidden-container .recharts-responsive-container {
   width: 100% !important;
   height: 100% !important;
+}
+
+.pdf-hidden-container .recharts-wrapper {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+.pdf-hidden-container .recharts-wrapper svg,
+.pdf-hidden-container .recharts-surface {
+  width: 100% !important;
+  height: 100% !important;
+  overflow: visible !important;
   opacity: 1 !important;
   visibility: visible !important;
+}
+
+/* Tablo başlık tekrarı */
+.pdf-hidden-container thead {
+  display: table-header-group;
+}
+
+.pdf-hidden-container tbody {
+  display: table-row-group;
 }
 
 /* Definition of the design system. All colors, gradients, fonts, etc should be defined here. 
