@@ -559,6 +559,126 @@ const RecommendationCard: React.FC<{ recommendation: DecisionRecommendation }> =
   );
 };
 
+// AI Insight Card Component
+const AIInsightCard: React.FC<{ insight: AIScenarioInsight }> = ({ insight }) => {
+  const severityColors = {
+    critical: 'bg-red-500/10 border-red-500/20 text-red-400',
+    high: 'bg-amber-500/10 border-amber-500/20 text-amber-400',
+    medium: 'bg-blue-500/10 border-blue-500/20 text-blue-400',
+  };
+
+  const categoryIcons: Record<string, React.ReactNode> = {
+    revenue: <DollarSign className="h-4 w-4" />,
+    profit: <TrendingUp className="h-4 w-4" />,
+    cash_flow: <PiggyBank className="h-4 w-4" />,
+    risk: <AlertTriangle className="h-4 w-4" />,
+    efficiency: <Zap className="h-4 w-4" />,
+    opportunity: <Target className="h-4 w-4" />,
+  };
+
+  return (
+    <Card className={`border ${severityColors[insight.severity]}`}>
+      <CardContent className="p-4">
+        <div className="flex items-start gap-3">
+          <div className={`p-2 rounded-lg bg-muted ${severityColors[insight.severity]}`}>
+            {categoryIcons[insight.category] || <Lightbulb className="h-4 w-4" />}
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="flex items-center gap-2 mb-1">
+              <h4 className="font-medium text-sm">{insight.title}</h4>
+              <Badge variant="outline" className={severityColors[insight.severity]}>
+                {insight.severity === 'critical' ? 'Kritik' : insight.severity === 'high' ? 'Önemli' : 'Orta'}
+              </Badge>
+            </div>
+            <p className="text-sm text-muted-foreground">{insight.description}</p>
+            <p className="text-xs text-muted-foreground mt-2 italic">
+              📊 {insight.impact_analysis}
+            </p>
+            {insight.data_points && insight.data_points.length > 0 && (
+              <div className="mt-2 flex flex-wrap gap-1">
+                {insight.data_points.map((point, i) => (
+                  <Badge key={i} variant="secondary" className="text-xs">{point}</Badge>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
+// AI Recommendation Card Component
+const AIRecommendationCard: React.FC<{ recommendation: AIRecommendation }> = ({ recommendation }) => {
+  const priorityColors = {
+    1: 'bg-red-500/10 text-red-400 border-red-500/30',
+    2: 'bg-amber-500/10 text-amber-400 border-amber-500/30',
+    3: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+  };
+
+  const priorityLabels = {
+    1: 'Acil',
+    2: 'Kısa Vade',
+    3: 'Orta Vade',
+  };
+
+  return (
+    <Card className="bg-card/50">
+      <CardContent className="p-4">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2">
+            <div className="p-2 rounded-lg bg-muted">
+              <Target className="h-4 w-4 text-primary" />
+            </div>
+            <h4 className="font-medium flex-1">{recommendation.title}</h4>
+            <Badge variant="outline" className={priorityColors[recommendation.priority]}>
+              {priorityLabels[recommendation.priority]}
+            </Badge>
+          </div>
+          <p className="text-sm text-muted-foreground">{recommendation.description}</p>
+          
+          {recommendation.action_plan && recommendation.action_plan.length > 0 && (
+            <div className="space-y-1 pt-2 border-t">
+              <h5 className="text-xs font-semibold flex items-center gap-1">
+                <CheckCircle2 className="h-3 w-3 text-emerald-400" />
+                Aksiyon Planı
+              </h5>
+              <ul className="text-xs text-muted-foreground space-y-1 pl-4">
+                {recommendation.action_plan.map((step, i) => (
+                  <li key={i} className="flex items-start gap-1">
+                    <ArrowRight className="h-3 w-3 mt-0.5 shrink-0" />
+                    {step}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <div className="grid grid-cols-2 gap-2 text-xs pt-2">
+            <div className="p-2 rounded bg-muted/50">
+              <span className="font-semibold block text-emerald-400">Beklenen Sonuç</span>
+              <span className="text-muted-foreground">{recommendation.expected_outcome}</span>
+            </div>
+            {recommendation.risk_mitigation && (
+              <div className="p-2 rounded bg-muted/50">
+                <span className="font-semibold block text-amber-400">Risk Azaltma</span>
+                <span className="text-muted-foreground">{recommendation.risk_mitigation}</span>
+              </div>
+            )}
+          </div>
+
+          {recommendation.timeframe && (
+            <div className="flex items-center gap-1 text-xs text-muted-foreground">
+              <Clock className="h-3 w-3" />
+              <span>{recommendation.timeframe}</span>
+            </div>
+          )}
+        </div>
+      </CardContent>
+    </Card>
+  );
+};
+
 export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
   open,
   onOpenChange,
