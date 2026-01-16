@@ -23,6 +23,7 @@ import {
 import { PitchDeck, PitchSlide } from '@/types/simulation';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
+import { fixTextSpacingForPdf } from '@/lib/pdf/core/htmlPreparation';
 
 interface PitchDeckViewProps {
   pitchDeck: PitchDeck;
@@ -143,7 +144,7 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
               ${iconLabel}
             </div>
             <div>
-              <div style="font-size: 14px; opacity: 0.8; text-transform: uppercase; letter-spacing: 1px;">Slide ${slideNumber} / ${slides.length}</div>
+              <div style="font-size: 14px; opacity: 0.8; text-transform: uppercase;">Slide ${slideNumber} / ${slides.length}</div>
               <h1 style="font-size: 32px; font-weight: 700; margin: 4px 0 0 0;">${slideData.title}</h1>
             </div>
           </div>
@@ -163,13 +164,16 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
           
           ${slideData.speaker_notes ? `
             <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
-              <div style="font-size: 12px; text-transform: uppercase; letter-spacing: 1px; opacity: 0.7; margin-bottom: 8px;">📝 Konuşmacı Notları</div>
+              <div style="font-size: 12px; text-transform: uppercase; opacity: 0.7; margin-bottom: 8px;">📝 Konuşmacı Notları</div>
               <div style="font-size: 14px; line-height: 1.6; opacity: 0.9; font-style: italic;">${slideData.speaker_notes}</div>
             </div>
           ` : ''}
         `;
         
         tempContainer.appendChild(slideElement);
+        
+        // Kelime aralıklarını düzelt (html2canvas spacing fix)
+        fixTextSpacingForPdf(slideElement);
         
         const canvas = await html2canvas(slideElement, {
           scale: 2,
@@ -220,6 +224,9 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
         `;
         
         tempContainer.appendChild(summaryElement);
+        
+        // Kelime aralıklarını düzelt (html2canvas spacing fix)
+        fixTextSpacingForPdf(summaryElement);
         
         const canvas = await html2canvas(summaryElement, {
           scale: 2,
