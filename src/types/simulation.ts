@@ -231,3 +231,54 @@ export interface ROIAnalysis {
   npvAnalysis: NPVAnalysis;
   sensitivity: SensitivityAnalysis;
 }
+
+// =====================================================
+// AI SCENARIO ANALYSIS TYPES
+// =====================================================
+
+/** AI-generated scenario insight */
+export interface AIScenarioInsight {
+  category: 'revenue' | 'profit' | 'cash_flow' | 'risk' | 'efficiency' | 'opportunity';
+  severity: 'critical' | 'high' | 'medium';
+  title: string;
+  description: string;
+  impact_analysis: string;
+  data_points?: string[];
+}
+
+/** AI-generated strategic recommendation */
+export interface AIRecommendation {
+  priority: 1 | 2 | 3;
+  title: string;
+  description: string;
+  action_plan: string[];
+  expected_outcome: string;
+  risk_mitigation?: string;
+  timeframe?: string;
+}
+
+/** AI-generated quarterly analysis */
+export interface QuarterlyAIAnalysis {
+  overview: string;
+  critical_periods: { 
+    quarter: string; 
+    reason: string; 
+    risk_level?: 'high' | 'medium' | 'low';
+  }[];
+  seasonal_trends: string[];
+  cash_burn_warning?: string;
+  growth_trajectory: string;
+  winner_by_quarter?: { 
+    q1: string; 
+    q2: string; 
+    q3: string; 
+    q4: string; 
+  };
+}
+
+/** Complete AI analysis result */
+export interface AIAnalysisResult {
+  insights: AIScenarioInsight[];
+  recommendations: AIRecommendation[];
+  quarterly_analysis: QuarterlyAIAnalysis;
+}

@@ -35,3 +35,6 @@ verify_jwt = false
 
 [functions.match-receipts]
 verify_jwt = false
+
+[functions.analyze-scenarios]
+verify_jwt = false

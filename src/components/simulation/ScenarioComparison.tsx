@@ -1,4 +1,4 @@
-import React, { useState, useMemo, useRef } from 'react';
+import React, { useState, useMemo, useRef, useEffect } from 'react';
 import {
   Dialog,
   DialogContent,
@@ -22,9 +22,10 @@ import {
 } from '@/components/ui/table';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import { Skeleton } from '@/components/ui/skeleton';
 import { 
   TrendingUp, 
   TrendingDown, 
@@ -42,12 +43,20 @@ import {
   TrendingUpDown,
   Download,
   Loader2,
-  LineChart as LineChartIcon
+  LineChart as LineChartIcon,
+  Sparkles,
+  Brain,
+  Clock,
+  CheckCircle2,
+  XCircle,
+  ArrowRight,
+  Calendar
 } from 'lucide-react';
-import { SimulationScenario } from '@/types/simulation';
+import { SimulationScenario, AIScenarioInsight, AIRecommendation, QuarterlyAIAnalysis } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
+import { useScenarioAIAnalysis } from '@/hooks/finance/useScenarioAIAnalysis';
 import {
   ChartConfig,
   ChartContainer,
@@ -64,6 +73,8 @@ import {
   YAxis,
   CartesianGrid,
   ResponsiveContainer,
+  Area,
+  AreaChart,
 } from 'recharts';
 
 interface ScenarioComparisonProps {
@@ -560,6 +571,7 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
   const pdfContainerRef = useRef<HTMLDivElement>(null);
   
   const { generatePdfFromElement, isGenerating } = usePdfEngine();
+  const { analysis: aiAnalysis, isLoading: aiLoading, analyzeScenarios, clearAnalysis } = useScenarioAIAnalysis();
 
   const scenarioA = useMemo(() => scenarios.find(s => s.id === scenarioAId), [scenarios, scenarioAId]);
   const scenarioB = useMemo(() => scenarios.find(s => s.id === scenarioBId), [scenarios, scenarioBId]);
@@ -600,7 +612,54 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
     return calculateQuarterlyComparison(scenarioA, scenarioB);
   }, [scenarioA, scenarioB]);
 
+  // Calculate cumulative data for quarterly chart
+  const quarterlyCumulativeData = useMemo(() => {
+    let cumulativeA = 0;
+    let cumulativeB = 0;
+    return quarterlyComparison.map(q => {
+      cumulativeA += q.scenarioANet;
+      cumulativeB += q.scenarioBNet;
+      return {
+        quarter: q.quarter,
+        ...q,
+        scenarioACumulative: cumulativeA,
+        scenarioBCumulative: cumulativeB,
+      };
+    });
+  }, [quarterlyComparison]);
+
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
+
+  // Clear AI analysis when scenarios change
+  useEffect(() => {
+    clearAnalysis();
+  }, [scenarioAId, scenarioBId, clearAnalysis]);
+
+  const handleAIAnalysis = async () => {
+    if (!scenarioA || !scenarioB || !summaryA || !summaryB) return;
+
+    const quarterlyA = {
+      q1: quarterlyComparison[0]?.scenarioANet || 0,
+      q2: quarterlyComparison[1]?.scenarioANet || 0,
+      q3: quarterlyComparison[2]?.scenarioANet || 0,
+      q4: quarterlyComparison[3]?.scenarioANet || 0,
+    };
+    const quarterlyB = {
+      q1: quarterlyComparison[0]?.scenarioBNet || 0,
+      q2: quarterlyComparison[1]?.scenarioBNet || 0,
+      q3: quarterlyComparison[2]?.scenarioBNet || 0,
+      q4: quarterlyComparison[3]?.scenarioBNet || 0,
+    };
+
+    await analyzeScenarios(
+      scenarioA,
+      scenarioB,
+      { totalRevenue: summaryA.totalRevenue, totalExpenses: summaryA.totalExpense, netProfit: summaryA.netProfit, profitMargin: summaryA.profitMargin },
+      { totalRevenue: summaryB.totalRevenue, totalExpenses: summaryB.totalExpense, netProfit: summaryB.netProfit, profitMargin: summaryB.profitMargin },
+      quarterlyA,
+      quarterlyB
+    );
+  };
 
   const handleExportPdf = async () => {
     if (!pdfContainerRef.current || !scenarioA || !scenarioB) return;
@@ -894,17 +953,24 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
 
                 {/* Tabs */}
                 <Tabs defaultValue="summary" className="w-full">
-                  <TabsList className="grid w-full grid-cols-4">
+                  <TabsList className="grid w-full grid-cols-5">
                     <TabsTrigger value="summary">Özet</TabsTrigger>
                     <TabsTrigger value="trend">
                       <LineChartIcon className="h-4 w-4 mr-1" />
                       Trend
                     </TabsTrigger>
+                    <TabsTrigger value="quarterly">
+                      <Calendar className="h-4 w-4 mr-1" />
+                      Çeyreklik
+                    </TabsTrigger>
                     <TabsTrigger value="insights">
-                      <Lightbulb className="h-4 w-4 mr-1" />
+                      <Sparkles className="h-4 w-4 mr-1" />
                       Çıkarımlar
                     </TabsTrigger>
-                    <TabsTrigger value="recommendations">Öneriler</TabsTrigger>
+                    <TabsTrigger value="recommendations">
+                      <Brain className="h-4 w-4 mr-1" />
+                      Öneriler
+                    </TabsTrigger>
                   </TabsList>
 
                   <TabsContent value="summary" className="mt-4">
@@ -960,14 +1026,224 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
                     </Card>
                   </TabsContent>
 
-                  <TabsContent value="insights" className="mt-4">
-                    {insights.length > 0 ? (
+                  {/* New Quarterly Tab */}
+                  <TabsContent value="quarterly" className="mt-4 space-y-4">
+                    {/* Detailed Quarterly Table */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm flex items-center gap-2">
+                          <Calendar className="h-4 w-4" />
+                          Çeyreklik Detay Tablosu
+                        </CardTitle>
+                      </CardHeader>
+                      <CardContent>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead>Çeyrek</TableHead>
+                              <TableHead className="text-right">{scenarioA?.name} Gelir</TableHead>
+                              <TableHead className="text-right">{scenarioB?.name} Gelir</TableHead>
+                              <TableHead className="text-right">{scenarioA?.name} Net</TableHead>
+                              <TableHead className="text-right">{scenarioB?.name} Net</TableHead>
+                              <TableHead className="text-center">Kazanan</TableHead>
+                              <TableHead className="text-center">Trend</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {quarterlyCumulativeData.map((q, idx) => {
+                              const winnerQ = q.scenarioBNet > q.scenarioANet ? 'B' : q.scenarioANet > q.scenarioBNet ? 'A' : '-';
+                              const prevNet = idx > 0 ? quarterlyCumulativeData[idx - 1] : null;
+                              const trendA = prevNet ? (q.scenarioANet > prevNet.scenarioANet ? '↗' : q.scenarioANet < prevNet.scenarioANet ? '↘' : '→') : '-';
+                              const trendB = prevNet ? (q.scenarioBNet > prevNet.scenarioBNet ? '↗' : q.scenarioBNet < prevNet.scenarioBNet ? '↘' : '→') : '-';
+                              return (
+                                <TableRow key={q.quarter}>
+                                  <TableCell className="font-semibold">{q.quarter}</TableCell>
+                                  <TableCell className="text-right font-mono text-sm">{formatCompactUSD(q.scenarioARevenue)}</TableCell>
+                                  <TableCell className="text-right font-mono text-sm">{formatCompactUSD(q.scenarioBRevenue)}</TableCell>
+                                  <TableCell className={`text-right font-mono text-sm ${q.scenarioANet >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                    {formatCompactUSD(q.scenarioANet)}
+                                  </TableCell>
+                                  <TableCell className={`text-right font-mono text-sm ${q.scenarioBNet >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                                    {formatCompactUSD(q.scenarioBNet)}
+                                  </TableCell>
+                                  <TableCell className="text-center">
+                                    <Badge variant={winnerQ === 'B' ? 'default' : winnerQ === 'A' ? 'secondary' : 'outline'}>
+                                      {winnerQ === 'A' ? scenarioA?.name.slice(0, 8) : winnerQ === 'B' ? scenarioB?.name.slice(0, 8) : 'Eşit'}
+                                    </Badge>
+                                  </TableCell>
+                                  <TableCell className="text-center text-lg">
+                                    <span className="text-blue-500">{trendA}</span> / <span className="text-emerald-500">{trendB}</span>
+                                  </TableCell>
+                                </TableRow>
+                              );
+                            })}
+                          </TableBody>
+                        </Table>
+                      </CardContent>
+                    </Card>
+
+                    {/* Cumulative Cash Flow Chart */}
+                    <Card>
+                      <CardHeader className="pb-2">
+                        <CardTitle className="text-sm">Kümülatif Nakit Akışı</CardTitle>
+                        <CardDescription className="text-xs">Yıl boyunca birikimli net kâr karşılaştırması</CardDescription>
+                      </CardHeader>
+                      <CardContent>
+                        <ChartContainer config={{
+                          scenarioACumulative: { label: `${scenarioA?.name} Kümülatif`, color: '#2563eb' },
+                          scenarioBCumulative: { label: `${scenarioB?.name} Kümülatif`, color: '#16a34a' },
+                        }} className="h-[200px] w-full">
+                          <AreaChart data={quarterlyCumulativeData}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                            <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
+                            <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                            <ChartTooltip content={<ChartTooltipContent />} />
+                            <ChartLegend content={<ChartLegendContent />} />
+                            <Area type="monotone" dataKey="scenarioACumulative" stroke="#2563eb" fill="#2563eb" fillOpacity={0.2} name={scenarioA?.name} />
+                            <Area type="monotone" dataKey="scenarioBCumulative" stroke="#16a34a" fill="#16a34a" fillOpacity={0.2} name={scenarioB?.name} />
+                          </AreaChart>
+                        </ChartContainer>
+                      </CardContent>
+                    </Card>
+
+                    {/* AI Quarterly Analysis */}
+                    {aiAnalysis?.quarterly_analysis && (
+                      <Card className="bg-gradient-to-r from-purple-500/5 to-blue-500/5 border-purple-500/20">
+                        <CardHeader className="pb-2">
+                          <CardTitle className="text-sm flex items-center gap-2">
+                            <Brain className="h-4 w-4 text-purple-400" />
+                            AI Mevsimsellik Analizi
+                          </CardTitle>
+                        </CardHeader>
+                        <CardContent className="space-y-3">
+                          <p className="text-sm text-muted-foreground">{aiAnalysis.quarterly_analysis.overview}</p>
+                          
+                          {aiAnalysis.quarterly_analysis.critical_periods.length > 0 && (
+                            <div>
+                              <h5 className="text-xs font-semibold mb-2 flex items-center gap-1">
+                                <AlertTriangle className="h-3 w-3 text-amber-400" />
+                                Kritik Dönemler
+                              </h5>
+                              <div className="space-y-1">
+                                {aiAnalysis.quarterly_analysis.critical_periods.map((period, i) => (
+                                  <div key={i} className="flex items-center gap-2 text-xs">
+                                    <Badge variant="outline" className={
+                                      period.risk_level === 'high' ? 'border-red-500 text-red-400' :
+                                      period.risk_level === 'medium' ? 'border-amber-500 text-amber-400' :
+                                      'border-blue-500 text-blue-400'
+                                    }>{period.quarter}</Badge>
+                                    <span className="text-muted-foreground">{period.reason}</span>
+                                  </div>
+                                ))}
+                              </div>
+                            </div>
+                          )}
+
+                          {aiAnalysis.quarterly_analysis.seasonal_trends.length > 0 && (
+                            <div>
+                              <h5 className="text-xs font-semibold mb-2">Mevsimsel Trendler</h5>
+                              <ul className="text-xs text-muted-foreground space-y-1">
+                                {aiAnalysis.quarterly_analysis.seasonal_trends.map((trend, i) => (
+                                  <li key={i} className="flex items-start gap-1">
+                                    <TrendingUp className="h-3 w-3 mt-0.5 text-emerald-400 shrink-0" />
+                                    {trend}
+                                  </li>
+                                ))}
+                              </ul>
+                            </div>
+                          )}
+
+                          {aiAnalysis.quarterly_analysis.cash_burn_warning && (
+                            <div className="p-2 rounded bg-red-500/10 border border-red-500/20">
+                              <p className="text-xs text-red-400 flex items-start gap-1">
+                                <AlertTriangle className="h-3 w-3 mt-0.5 shrink-0" />
+                                {aiAnalysis.quarterly_analysis.cash_burn_warning}
+                              </p>
+                            </div>
+                          )}
+
+                          <div className="text-xs">
+                            <span className="font-semibold">Büyüme Eğilimi: </span>
+                            <span className="text-muted-foreground">{aiAnalysis.quarterly_analysis.growth_trajectory}</span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    )}
+                  </TabsContent>
+
+                  {/* Enhanced Insights Tab with AI */}
+                  <TabsContent value="insights" className="mt-4 space-y-4">
+                    {/* AI Analysis Button */}
+                    <div className="flex items-center justify-between">
+                      <div className="text-sm text-muted-foreground">
+                        {aiAnalysis ? (
+                          <span className="flex items-center gap-1 text-emerald-400">
+                            <CheckCircle2 className="h-4 w-4" />
+                            AI analizi tamamlandı
+                          </span>
+                        ) : (
+                          <span>AI ile derin analiz yapın</span>
+                        )}
+                      </div>
+                      <Button 
+                        onClick={handleAIAnalysis} 
+                        disabled={aiLoading}
+                        variant={aiAnalysis ? "outline" : "default"}
+                        size="sm"
+                        className="gap-2"
+                      >
+                        {aiLoading ? (
+                          <>
+                            <Loader2 className="h-4 w-4 animate-spin" />
+                            Analiz ediliyor... (10-15 sn)
+                          </>
+                        ) : (
+                          <>
+                            <Sparkles className="h-4 w-4" />
+                            {aiAnalysis ? 'Yeniden Analiz Et' : 'AI ile Analiz Et'}
+                          </>
+                        )}
+                      </Button>
+                    </div>
+
+                    {/* AI Loading Skeleton */}
+                    {aiLoading && (
                       <div className="space-y-3">
+                        {[1, 2, 3].map((i) => (
+                          <Card key={i} className="p-4">
+                            <div className="flex items-start gap-3">
+                              <Skeleton className="h-8 w-8 rounded" />
+                              <div className="flex-1 space-y-2">
+                                <Skeleton className="h-4 w-1/3" />
+                                <Skeleton className="h-3 w-full" />
+                                <Skeleton className="h-3 w-2/3" />
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* AI Insights */}
+                    {!aiLoading && aiAnalysis?.insights && aiAnalysis.insights.length > 0 && (
+                      <div className="space-y-3">
+                        {aiAnalysis.insights.map((insight, index) => (
+                          <AIInsightCard key={index} insight={insight} />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Fallback Static Insights */}
+                    {!aiLoading && !aiAnalysis && insights.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="text-xs text-muted-foreground mb-2">Temel çıkarımlar (AI analizi için yukarıdaki butonu kullanın)</p>
                         {insights.map((insight, index) => (
                           <InsightCard key={index} insight={insight} />
                         ))}
                       </div>
-                    ) : (
+                    )}
+
+                    {!aiLoading && !aiAnalysis && insights.length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         <BarChart3 className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p>Senaryolar arasında önemli bir fark bulunamadı.</p>
@@ -975,14 +1251,67 @@ export const ScenarioComparison: React.FC<ScenarioComparisonProps> = ({
                     )}
                   </TabsContent>
 
-                  <TabsContent value="recommendations" className="mt-4">
-                    {recommendations.length > 0 ? (
+                  {/* Enhanced Recommendations Tab with AI */}
+                  <TabsContent value="recommendations" className="mt-4 space-y-4">
+                    {/* AI Analysis Button (if not already analyzed) */}
+                    {!aiAnalysis && !aiLoading && (
+                      <div className="flex items-center justify-center p-4 border border-dashed rounded-lg">
+                        <Button 
+                          onClick={handleAIAnalysis} 
+                          variant="outline"
+                          size="sm"
+                          className="gap-2"
+                        >
+                          <Brain className="h-4 w-4" />
+                          AI Stratejik Öneriler Al
+                        </Button>
+                      </div>
+                    )}
+
+                    {/* AI Loading Skeleton */}
+                    {aiLoading && (
                       <div className="space-y-3">
+                        {[1, 2, 3].map((i) => (
+                          <Card key={i} className="p-4">
+                            <div className="space-y-3">
+                              <div className="flex items-center gap-2">
+                                <Skeleton className="h-6 w-6 rounded" />
+                                <Skeleton className="h-4 w-1/4" />
+                                <Skeleton className="h-5 w-16 rounded-full" />
+                              </div>
+                              <Skeleton className="h-3 w-full" />
+                              <Skeleton className="h-3 w-3/4" />
+                              <div className="space-y-1 pt-2">
+                                <Skeleton className="h-2 w-full" />
+                                <Skeleton className="h-2 w-5/6" />
+                                <Skeleton className="h-2 w-4/6" />
+                              </div>
+                            </div>
+                          </Card>
+                        ))}
+                      </div>
+                    )}
+
+                    {/* AI Recommendations */}
+                    {!aiLoading && aiAnalysis?.recommendations && aiAnalysis.recommendations.length > 0 && (
+                      <div className="space-y-3">
+                        {aiAnalysis.recommendations.map((rec, index) => (
+                          <AIRecommendationCard key={index} recommendation={rec} />
+                        ))}
+                      </div>
+                    )}
+
+                    {/* Fallback Static Recommendations */}
+                    {!aiLoading && !aiAnalysis && recommendations.length > 0 && (
+                      <div className="space-y-3">
+                        <p className="text-xs text-muted-foreground mb-2">Temel öneriler (AI analizi için Çıkarımlar sekmesini kullanın)</p>
                         {recommendations.map((rec, index) => (
                           <RecommendationCard key={index} recommendation={rec} />
                         ))}
                       </div>
-                    ) : (
+                    )}
+
+                    {!aiLoading && !aiAnalysis && recommendations.length === 0 && (
                       <div className="text-center py-8 text-muted-foreground">
                         <Lightbulb className="h-8 w-8 mx-auto mb-2 opacity-50" />
                         <p>Yeterli veri olmadığından öneri oluşturulamadı.</p>
