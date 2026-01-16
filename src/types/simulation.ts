@@ -346,6 +346,75 @@ export interface AIInvestorAnalysis {
 }
 
 // =====================================================
+// UNIFIED ANALYSIS TYPES
+// =====================================================
+
+/** Pitch Deck Slide */
+export interface PitchSlide {
+  slide_number: number;
+  title: string;
+  key_message: string;
+  content_bullets: string[];
+  speaker_notes: string;
+}
+
+/** Next Year Quarterly Projection */
+export interface NextYearQuarterlyData {
+  revenue: number;
+  expenses: number;
+  cash_flow: number;
+  key_event: string;
+}
+
+/** Next Year Projection from AI */
+export interface NextYearProjection {
+  strategy_note: string;
+  quarterly: {
+    q1: NextYearQuarterlyData;
+    q2: NextYearQuarterlyData;
+    q3: NextYearQuarterlyData;
+    q4: NextYearQuarterlyData;
+  };
+  summary: {
+    total_revenue: number;
+    total_expenses: number;
+    net_profit: number;
+    ending_cash: number;
+  };
+}
+
+/** Deal Analysis from AI */
+export interface DealAnalysis {
+  deal_score: number;
+  valuation_verdict: 'premium' | 'fair' | 'cheap';
+  investor_attractiveness: string;
+  risk_factors: string[];
+}
+
+/** Pitch Deck from AI */
+export interface PitchDeck {
+  slides: PitchSlide[];
+  executive_summary: string;
+}
+
+/** Complete Unified Analysis Result */
+export interface UnifiedAnalysisResult {
+  // Senaryo Analizi
+  insights: AIScenarioInsight[];
+  recommendations: AIRecommendation[];
+  quarterly_analysis: QuarterlyAIAnalysis;
+  
+  // Deal Değerlendirmesi
+  deal_analysis: DealAnalysis;
+  
+  // Pitch Deck
+  pitch_deck: PitchDeck;
+  
+  // Gelecek Yıl Projeksiyonu
+  next_year_projection: NextYearProjection;
+}
+
+// =====================================================
 // ANALYSIS HISTORY TYPES
 // =====================================================
 
@@ -353,12 +422,15 @@ export interface AIInvestorAnalysis {
 export interface AnalysisHistoryItem {
   id: string;
   createdAt: Date;
-  analysisType: 'scenario_comparison' | 'investor_pitch';
+  analysisType: 'scenario_comparison' | 'investor_pitch' | 'unified';
   insights?: AIScenarioInsight[];
   recommendations?: AIRecommendation[];
   quarterlyAnalysis?: QuarterlyAIAnalysis;
   investorAnalysis?: AIInvestorAnalysis;
   dealConfig?: DealConfiguration;
+  dealAnalysis?: DealAnalysis;
+  pitchDeck?: PitchDeck;
+  nextYearProjection?: NextYearProjection;
   scenarioADataHash?: string;
   scenarioBDataHash?: string;
 }

@@ -1451,9 +1451,13 @@ export type Database = {
           analysis_type: string
           created_at: string | null
           deal_config: Json | null
+          deal_config_snapshot: Json | null
+          deal_score: number | null
           id: string
           insights: Json | null
           investor_analysis: Json | null
+          next_year_projection: Json | null
+          pitch_deck: Json | null
           quarterly_analysis: Json | null
           recommendations: Json | null
           scenario_a_data_hash: string | null
@@ -1462,14 +1466,19 @@ export type Database = {
           scenario_b_id: string | null
           updated_at: string | null
           user_id: string
+          valuation_verdict: string | null
         }
         Insert: {
           analysis_type: string
           created_at?: string | null
           deal_config?: Json | null
+          deal_config_snapshot?: Json | null
+          deal_score?: number | null
           id?: string
           insights?: Json | null
           investor_analysis?: Json | null
+          next_year_projection?: Json | null
+          pitch_deck?: Json | null
           quarterly_analysis?: Json | null
           recommendations?: Json | null
           scenario_a_data_hash?: string | null
@@ -1478,14 +1487,19 @@ export type Database = {
           scenario_b_id?: string | null
           updated_at?: string | null
           user_id: string
+          valuation_verdict?: string | null
         }
         Update: {
           analysis_type?: string
           created_at?: string | null
           deal_config?: Json | null
+          deal_config_snapshot?: Json | null
+          deal_score?: number | null
           id?: string
           insights?: Json | null
           investor_analysis?: Json | null
+          next_year_projection?: Json | null
+          pitch_deck?: Json | null
           quarterly_analysis?: Json | null
           recommendations?: Json | null
           scenario_a_data_hash?: string | null
@@ -1494,6 +1508,7 @@ export type Database = {
           scenario_b_id?: string | null
           updated_at?: string | null
           user_id?: string
+          valuation_verdict?: string | null
         }
         Relationships: [
           {
