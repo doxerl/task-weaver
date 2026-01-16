@@ -20,8 +20,11 @@ export interface CashFlowStatement {
   // B. Yatırım Faaliyetleri
   investing: {
     vehiclePurchases: number;
+    vehicleSales: number;
     equipmentPurchases: number;
+    equipmentSales: number;
     fixturePurchases: number;
+    fixtureSales: number;
     total: number;
   };
   // C. Finansman Faaliyetleri
@@ -32,6 +35,7 @@ export interface CashFlowStatement {
     partnerDeposits: number;
     partnerWithdrawals: number;
     capitalIncrease: number;
+    unpaidCapitalPayment: number;
     total: number;
   };
   // Özet
@@ -110,6 +114,7 @@ export function useCashFlowStatement(year: number) {
       short_term_loan_debt: prevYearBalance?.short_term_loan_debt ?? 0,
       bank_loans: prevYearBalance?.bank_loans ?? 0,
       paid_capital: prevYearBalance?.paid_capital ?? 0,
+      unpaid_capital: prevYearBalance?.unpaid_capital ?? 0,
       accumulated_depreciation: prevYearBalance?.accumulated_depreciation ?? 0,
       vehicles: prevYearBalance?.vehicles ?? 0,
       fixtures: prevYearBalance?.fixtures ?? 0,
@@ -151,12 +156,18 @@ export function useCashFlowStatement(year: number) {
     // B. YATIRIM FAALİYETLERİ (Veritabanı Farkları - HUB YOK)
     // ═══════════════════════════════════════════════════════════════
     
-    // Duran varlık artışları = yatırım çıkışları
+    // Duran varlık ALIŞLARI = yatırım çıkışları (değer artışı)
     const vehiclePurchases = Math.max(0, (curr.vehicles ?? 0) - prev.vehicles);
     const equipmentPurchases = Math.max(0, (curr.equipment ?? 0) - prev.equipment);
     const fixturePurchases = Math.max(0, (curr.fixtures ?? 0) - prev.fixtures);
     
-    const investingTotal = -(vehiclePurchases + equipmentPurchases + fixturePurchases);
+    // Duran varlık SATIŞLARI = yatırım girişleri (değer düşüşü = satış varsayımı)
+    const vehicleSales = Math.max(0, prev.vehicles - (curr.vehicles ?? 0));
+    const equipmentSales = Math.max(0, prev.equipment - (curr.equipment ?? 0));
+    const fixtureSales = Math.max(0, prev.fixtures - (curr.fixtures ?? 0));
+    
+    const investingTotal = -(vehiclePurchases + equipmentPurchases + fixturePurchases) +
+                          vehicleSales + equipmentSales + fixtureSales;
 
     // ═══════════════════════════════════════════════════════════════
     // C. FİNANSMAN FAALİYETLERİ (Veritabanı Farkları)
@@ -184,11 +195,14 @@ export function useCashFlowStatement(year: number) {
     // Sermaye artışı
     const capitalIncrease = (curr.paid_capital ?? 0) - prev.paid_capital;
     
+    // Ödenmeyen sermaye tahsilatı (azalış = ortaklar ödedi = nakit girişi)
+    const unpaidCapitalPayment = Math.max(0, prev.unpaid_capital - (curr.unpaid_capital ?? 0));
+    
     // Leasing ödemeleri: Veritabanında ayrı alan yok, şimdilik 0
     const leasingPayments = 0;
 
     const financingTotal = loanProceeds - loanRepayments - leasingPayments +
-                          partnerDeposits - partnerWithdrawals + capitalIncrease;
+                          partnerDeposits - partnerWithdrawals + capitalIncrease + unpaidCapitalPayment;
 
     // ═══════════════════════════════════════════════════════════════
     // ÖZET
@@ -217,8 +231,11 @@ export function useCashFlowStatement(year: number) {
       },
       investing: {
         vehiclePurchases,
+        vehicleSales,
         equipmentPurchases,
+        equipmentSales,
         fixturePurchases,
+        fixtureSales,
         total: investingTotal,
       },
       financing: {
@@ -228,6 +245,7 @@ export function useCashFlowStatement(year: number) {
         partnerDeposits,
         partnerWithdrawals,
         capitalIncrease,
+        unpaidCapitalPayment,
         total: financingTotal,
       },
       netCashChange,
