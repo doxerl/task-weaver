@@ -754,6 +754,7 @@ export type Database = {
           other_vat: number | null
           paid_capital: number | null
           partner_payables: number | null
+          partner_receivables_capital: number | null
           personnel_payables: number | null
           retained_earnings: number | null
           social_security_payables: number | null
@@ -792,6 +793,7 @@ export type Database = {
           other_vat?: number | null
           paid_capital?: number | null
           partner_payables?: number | null
+          partner_receivables_capital?: number | null
           personnel_payables?: number | null
           retained_earnings?: number | null
           social_security_payables?: number | null
@@ -830,6 +832,7 @@ export type Database = {
           other_vat?: number | null
           paid_capital?: number | null
           partner_payables?: number | null
+          partner_receivables_capital?: number | null
           personnel_payables?: number | null
           retained_earnings?: number | null
           social_security_payables?: number | null

@@ -183,6 +183,8 @@ export default function BalanceSheet() {
     vehicles_useful_life_years: settings.vehicles_useful_life_years || 5,
     fixtures_purchase_date: settings.fixtures_purchase_date || '',
     fixtures_useful_life_years: settings.fixtures_useful_life_years || 5,
+    // Sermaye kaynaklı ortaklardan alacak
+    partner_receivables_capital: (settings as any).partner_receivables_capital || 0,
   });
 
   // Sync formData when settings load - use stable reference to prevent infinite loops
@@ -214,6 +216,8 @@ export default function BalanceSheet() {
         vehicles_useful_life_years: settings.vehicles_useful_life_years || 5,
         fixtures_purchase_date: settings.fixtures_purchase_date || '',
         fixtures_useful_life_years: settings.fixtures_useful_life_years || 5,
+        // Sermaye kaynaklı ortaklardan alacak
+        partner_receivables_capital: (settings as any).partner_receivables_capital || 0,
       });
     }
   }, [settings.id, isLoading]);
@@ -424,6 +428,15 @@ export default function BalanceSheet() {
                         value={formData.other_vat}
                         onChange={e => setFormData(p => ({ ...p, other_vat: Number(e.target.value) }))}
                       />
+                    </div>
+                    <div className="space-y-1">
+                      <Label>Ortaklardan Alacaklar - Sermaye Kaynaklı (₺)</Label>
+                      <Input 
+                        type="number" 
+                        value={formData.partner_receivables_capital}
+                        onChange={e => setFormData(p => ({ ...p, partner_receivables_capital: Number(e.target.value) }))}
+                      />
+                      <p className="text-xs text-muted-foreground">Ödenmemiş sermaye karşılığı ortak alacağı</p>
                     </div>
                   </div>
                 </div>
