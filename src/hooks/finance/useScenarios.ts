@@ -5,7 +5,8 @@ import { toast } from 'sonner';
 import { 
   ProjectionItem, 
   InvestmentItem, 
-  SimulationScenario 
+  SimulationScenario,
+  NextYearProjection
 } from '@/types/simulation';
 
 interface DatabaseScenario {
@@ -224,6 +225,70 @@ export function useScenarios() {
     return null;
   }, [saveScenario]);
 
+  // Create next year simulation from AI projection
+  const createNextYearFromAI = useCallback(async (
+    currentScenario: SimulationScenario,
+    aiProjection: NextYearProjection
+  ): Promise<SimulationScenario | null> => {
+    const generateId = () => Math.random().toString(36).substr(2, 9);
+    const nextBaseYear = currentScenario.targetYear;
+    const nextTargetYear = currentScenario.targetYear + 1;
+
+    // AI projeksiyonundan gelir ve gider dağılımı
+    const totalAIRevenue = aiProjection.summary.total_revenue;
+    const totalAIExpenses = aiProjection.summary.total_expenses;
+    
+    // Mevcut senaryodaki oranları kullanarak gelir ve giderleri dağıt
+    const currentTotalRevenue = currentScenario.revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
+    const currentTotalExpenses = currentScenario.expenses.reduce((sum, e) => sum + e.projectedAmount, 0);
+
+    const newRevenues = currentScenario.revenues.map(r => {
+      const ratio = currentTotalRevenue > 0 ? r.projectedAmount / currentTotalRevenue : 1 / currentScenario.revenues.length;
+      return {
+        id: generateId(),
+        category: r.category,
+        baseAmount: r.projectedAmount,
+        projectedAmount: Math.round(totalAIRevenue * ratio),
+        description: r.description,
+        isNew: false,
+        startMonth: r.startMonth,
+      };
+    });
+
+    const newExpenses = currentScenario.expenses.map(e => {
+      const ratio = currentTotalExpenses > 0 ? e.projectedAmount / currentTotalExpenses : 1 / currentScenario.expenses.length;
+      return {
+        id: generateId(),
+        category: e.category,
+        baseAmount: e.projectedAmount,
+        projectedAmount: Math.round(totalAIExpenses * ratio),
+        description: e.description,
+        isNew: false,
+        startMonth: e.startMonth,
+      };
+    });
+
+    const newScenario: Omit<SimulationScenario, 'id' | 'createdAt' | 'updatedAt'> = {
+      name: `${nextTargetYear} AI Projeksiyon`,
+      baseYear: nextBaseYear,
+      targetYear: nextTargetYear,
+      revenues: newRevenues,
+      expenses: newExpenses,
+      investments: [],
+      assumedExchangeRate: currentScenario.assumedExchangeRate,
+      notes: `🤖 AI tarafından oluşturuldu (Gemini Pro 3)\n\n📊 Strateji: ${aiProjection.strategy_note}\n\n💰 Toplam Gelir: $${totalAIRevenue.toLocaleString()}\n💸 Toplam Gider: $${totalAIExpenses.toLocaleString()}\n📈 Net Kâr: $${aiProjection.summary.net_profit.toLocaleString()}`,
+    };
+
+    const savedId = await saveScenario(newScenario);
+    if (savedId) {
+      return {
+        ...newScenario,
+        id: savedId,
+      };
+    }
+    return null;
+  }, [saveScenario]);
+
   // Load scenarios on mount
   useEffect(() => {
     if (user) {
@@ -242,5 +307,6 @@ export function useScenarios() {
     deleteScenario,
     duplicateScenario,
     createNextYearSimulation,
+    createNextYearFromAI,
   };
 }
