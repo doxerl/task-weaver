@@ -1068,10 +1068,20 @@ function ScenarioComparisonContent() {
                   const diff = calculateDiff(m.scenarioA, m.scenarioB);
                   const isPositive = m.higherIsBetter ? m.scenarioB > m.scenarioA : m.scenarioB < m.scenarioA;
                   return (
-                    <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 10px 40px rgba(0,0,0,0.15)', textAlign: 'center' }}>
-                      <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{m.label}</p>
-                      <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#2563eb', marginBottom: '4px' }}>{formatValue(m.scenarioB, m.format)}</p>
-                      <p style={{ fontSize: '14px', fontWeight: 'bold', color: isPositive ? '#16a34a' : '#dc2626' }}>
+                    <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 10px 40px rgba(0,0,0,0.15)' }}>
+                      <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '12px', textTransform: 'uppercase' }}>{m.label}</p>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <div style={{ textAlign: 'left' }}>
+                          <p style={{ fontSize: '9px', color: '#2563eb', marginBottom: '2px' }}>{scenarioA?.name}</p>
+                          <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#2563eb' }}>{formatValue(m.scenarioA, m.format)}</p>
+                        </div>
+                        <span style={{ color: '#9ca3af', fontSize: '16px' }}>→</span>
+                        <div style={{ textAlign: 'right' }}>
+                          <p style={{ fontSize: '9px', color: '#16a34a', marginBottom: '2px' }}>{scenarioB?.name}</p>
+                          <p style={{ fontSize: '16px', fontWeight: 'bold', color: '#16a34a' }}>{formatValue(m.scenarioB, m.format)}</p>
+                        </div>
+                      </div>
+                      <p style={{ fontSize: '14px', fontWeight: 'bold', color: isPositive ? '#16a34a' : '#dc2626', textAlign: 'center', marginTop: '8px' }}>
                         {diff.percent >= 0 ? '+' : ''}{diff.percent.toFixed(1)}%
                       </p>
                     </div>
@@ -1093,59 +1103,51 @@ function ScenarioComparisonContent() {
               Finansal Özet Karşılaştırması
             </h2>
             
-            {/* Metrik Kartları */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
+            {/* Metrik Kartları - Senaryo etiketleri ile */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '24px' }}>
               {metrics.map((m, i) => {
                 const diff = calculateDiff(m.scenarioA, m.scenarioB);
                 const isPositive = m.higherIsBetter ? m.scenarioB > m.scenarioA : m.scenarioB < m.scenarioA;
                 return (
                   <div key={i} style={{ 
-                    padding: '16px', 
-                    borderRadius: '12px', 
+                    padding: '24px', 
+                    borderRadius: '16px', 
                     background: isPositive ? '#f0fdf4' : '#fef2f2',
-                    border: `2px solid ${isPositive ? '#86efac' : '#fecaca'}`
+                    border: `2px solid ${isPositive ? '#86efac' : '#fecaca'}`,
+                    boxShadow: '0 4px 6px rgba(0,0,0,0.05)'
                   }}>
-                    <p style={{ fontSize: '11px', color: '#6b7280', marginBottom: '8px', textTransform: 'uppercase' }}>{m.label}</p>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ color: '#2563eb', fontWeight: '700', fontSize: '14px' }}>{formatValue(m.scenarioA, m.format)}</span>
-                      <span style={{ color: '#16a34a', fontWeight: '700', fontSize: '14px' }}>{formatValue(m.scenarioB, m.format)}</span>
+                    <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '16px', textTransform: 'uppercase', fontWeight: '600' }}>{m.label}</p>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                      {/* Senaryo A */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
+                        <span style={{ fontSize: '10px', color: '#2563eb', fontWeight: '500', marginBottom: '4px' }}>
+                          {scenarioA?.name || 'Senaryo A'}
+                        </span>
+                        <span style={{ color: '#2563eb', fontWeight: '700', fontSize: '16px' }}>
+                          {formatValue(m.scenarioA, m.format)}
+                        </span>
+                      </div>
+                      
+                      {/* Ok işareti */}
+                      <span style={{ alignSelf: 'center', color: '#9ca3af', fontSize: '18px' }}>→</span>
+                      
+                      {/* Senaryo B */}
+                      <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
+                        <span style={{ fontSize: '10px', color: '#16a34a', fontWeight: '500', marginBottom: '4px' }}>
+                          {scenarioB?.name || 'Senaryo B'}
+                        </span>
+                        <span style={{ color: '#16a34a', fontWeight: '700', fontSize: '16px' }}>
+                          {formatValue(m.scenarioB, m.format)}
+                        </span>
+                      </div>
                     </div>
-                    <p style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px', color: isPositive ? '#16a34a' : '#dc2626' }}>
+                    <p style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '18px', color: isPositive ? '#16a34a' : '#dc2626' }}>
                       {diff.percent >= 0 ? '+' : ''}{diff.percent.toFixed(1)}%
                     </p>
                   </div>
                 );
               })}
             </div>
-            
-            {/* Çeyreklik Tablo */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderRadius: '12px', overflow: 'hidden' }}>
-              <thead>
-                <tr style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
-                  <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: '600' }}>Çeyrek</th>
-                  <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '600' }}>{scenarioA?.name}</th>
-                  <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '600' }}>{scenarioB?.name}</th>
-                  <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '600' }}>Değişim</th>
-                </tr>
-              </thead>
-              <tbody>
-                {quarterlyComparison.map((q, i) => {
-                  const diffPercent = q.scenarioANet !== 0 
-                    ? ((q.scenarioBNet - q.scenarioANet) / Math.abs(q.scenarioANet) * 100) 
-                    : 0;
-                  return (
-                    <tr key={i} style={{ background: i % 2 === 0 ? '#f8fafc' : 'white', borderBottom: '1px solid #e5e7eb' }}>
-                      <td style={{ padding: '12px 16px', fontWeight: '600', color: '#374151' }}>{q.quarter}</td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'monospace', color: '#2563eb' }}>{formatCompactUSD(q.scenarioANet)}</td>
-                      <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'monospace', color: '#16a34a' }}>{formatCompactUSD(q.scenarioBNet)}</td>
-                      <td style={{ padding: '12px 16px', textAlign: 'center', color: diffPercent >= 0 ? '#16a34a' : '#dc2626', fontWeight: 'bold' }}>
-                        {diffPercent >= 0 ? '+' : ''}{diffPercent.toFixed(1)}%
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
           </div>
 
           {/* SAYFA 3: GRAFİKLER */}

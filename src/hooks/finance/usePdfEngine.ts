@@ -15,6 +15,7 @@ import {
   enhanceContrastForPdf,
   prepareImagesForPdf,
   cleanupOriginalElement,
+  fixTextSpacingForPdf,
 } from '@/lib/pdf/core/htmlPreparation';
 import {
   waitForChartsToRender,
@@ -535,6 +536,9 @@ export function usePdfEngine(): UsePdfEngineReturn {
             
             // Light mode'u zorla
             forceLightModeForPdf(clonedSection);
+            
+            // Text spacing fix - kelime aralıklarını düzelt
+            fixTextSpacingForPdf(clonedSection);
             
             // HTML hazırla
             prepareHTMLForPdf(clonedSection);
