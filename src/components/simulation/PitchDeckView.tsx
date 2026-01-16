@@ -97,6 +97,10 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
 
   const handleDownloadPdf = async () => {
     if (!slides.length) return;
+    // Boşlukları non-breaking space ile değiştirerek html2canvas'ın yutmasını engelle
+    const forceSpacing = (text: string): string => {
+      return text.replace(/ /g, '\u00A0');
+    };
     
     setIsGeneratingPdf(true);
     try {
@@ -145,19 +149,19 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
             </div>
             <div>
               <div style="font-size: 14px; opacity: 0.8; text-transform: uppercase;">Slide ${slideNumber} / ${slides.length}</div>
-              <h1 style="font-size: 32px; font-weight: 700; margin: 4px 0 0 0;">${slideData.title}</h1>
+              <h1 style="font-size: 32px; font-weight: 700; margin: 4px 0 0 0;">${forceSpacing(slideData.title)}</h1>
             </div>
           </div>
           
           <div style="background: rgba(255,255,255,0.15); border-radius: 12px; padding: 20px 24px; margin-bottom: 24px;">
-            <div style="font-size: 22px; font-weight: 600; line-height: 1.4;">${slideData.key_message}</div>
+            <div style="font-size: 22px; font-weight: 600; line-height: 1.4;">${forceSpacing(slideData.key_message)}</div>
           </div>
           
           <div style="flex: 1; display: flex; flex-direction: column; gap: 12px;">
             ${slideData.content_bullets.map((bullet, idx) => `
               <div style="display: flex; align-items: flex-start; gap: 12px; background: rgba(255,255,255,0.1); border-radius: 8px; padding: 14px 18px;">
                 <div style="min-width: 28px; height: 28px; background: rgba(255,255,255,0.25); border-radius: 50%; display: flex; align-items: center; justify-content: center; font-weight: 700; font-size: 14px;">${idx + 1}</div>
-                <div style="font-size: 16px; line-height: 1.5; flex: 1;">${bullet}</div>
+                <div style="font-size: 16px; line-height: 1.5; flex: 1;">${forceSpacing(bullet)}</div>
               </div>
             `).join('')}
           </div>
@@ -165,7 +169,7 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
           ${slideData.speaker_notes ? `
             <div style="margin-top: 24px; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.2);">
               <div style="font-size: 12px; text-transform: uppercase; opacity: 0.7; margin-bottom: 8px;">📝 Konuşmacı Notları</div>
-              <div style="font-size: 14px; line-height: 1.6; opacity: 0.9; font-style: italic;">${slideData.speaker_notes}</div>
+              <div style="font-size: 14px; line-height: 1.6; opacity: 0.9; font-style: italic;">${forceSpacing(slideData.speaker_notes)}</div>
             </div>
           ` : ''}
         `;
@@ -215,7 +219,7 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
           </div>
           
           <div style="flex: 1; background: rgba(255,255,255,0.05); border-radius: 16px; padding: 32px; border: 1px solid rgba(255,255,255,0.1);">
-            <div style="font-size: 16px; line-height: 1.8; white-space: pre-wrap;">${pitchDeck.executive_summary}</div>
+            <div style="font-size: 16px; line-height: 1.8; white-space: pre-wrap;">${forceSpacing(pitchDeck.executive_summary)}</div>
           </div>
           
           <div style="margin-top: 24px; text-align: center; opacity: 0.5; font-size: 12px;">
