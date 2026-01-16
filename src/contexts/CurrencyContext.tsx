@@ -62,12 +62,12 @@ export function CurrencyProvider({ children, defaultYear }: CurrencyProviderProp
   ): string => {
     // TRY mode - always show TRY
     if (currency === 'TRY') {
-      return new Intl.NumberFormat('tr-TR', { 
-        style: 'currency', 
-        currency: 'TRY',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(amount);
+        return new Intl.NumberFormat('tr-TR', {
+          style: 'currency',
+          currency: 'TRY',
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }).format(Math.round(amount));
     }
     
     // USD mode
@@ -78,17 +78,17 @@ export function CurrencyProvider({ children, defaultYear }: CurrencyProviderProp
         return new Intl.NumberFormat('en-US', { 
           style: 'currency', 
           currency: 'USD',
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }).format(usdAmount);
+          minimumFractionDigits: 0,
+          maximumFractionDigits: 0,
+        }).format(Math.round(usdAmount));
       }
       // No rate for this month - fallback to TRY with indicator
       return new Intl.NumberFormat('tr-TR', { 
         style: 'currency', 
         currency: 'TRY',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(amount) + ' *';
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(Math.round(amount)) + ' *';
     }
     
     // Use yearly average if no specific month provided
@@ -97,18 +97,18 @@ export function CurrencyProvider({ children, defaultYear }: CurrencyProviderProp
       return new Intl.NumberFormat('en-US', { 
         style: 'currency', 
         currency: 'USD',
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      }).format(usdAmount);
+        minimumFractionDigits: 0,
+        maximumFractionDigits: 0,
+      }).format(Math.round(usdAmount));
     }
     
     // Ultimate fallback - show TRY
     return new Intl.NumberFormat('tr-TR', { 
       style: 'currency', 
       currency: 'TRY',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(amount);
+      minimumFractionDigits: 0,
+      maximumFractionDigits: 0,
+    }).format(Math.round(amount));
   }, [currency, getRate, yearlyAverageRate]);
 
   // Compact currency formatter with proper conversion

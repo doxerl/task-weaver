@@ -70,8 +70,16 @@ export function useYearlyBalanceSheet(year: number) {
     mutationFn: async (balanceData: Partial<YearlyBalanceSheet>) => {
       if (!user?.id) throw new Error('User not authenticated');
 
+      // Tüm sayısal değerleri tam sayıya yuvarla
+      const roundedData = Object.fromEntries(
+        Object.entries(balanceData).map(([key, value]) => [
+          key,
+          typeof value === 'number' ? Math.round(value) : value
+        ])
+      );
+
       const payload = {
-        ...balanceData,
+        ...roundedData,
         user_id: user.id,
         year,
         updated_at: new Date().toISOString(),
