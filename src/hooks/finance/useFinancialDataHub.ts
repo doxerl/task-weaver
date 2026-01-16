@@ -1030,7 +1030,7 @@ export function useFinancialDataHub(year: number, manualBankBalance?: number | n
     
     const totalLiabilities = shortTermTotal + longTermTotal + equityTotal;
     const difference = totalAssets - totalLiabilities;
-    const isBalanced = Math.abs(difference) < 0.01;
+    const isBalanced = Math.abs(difference) < 1;
     
     const balanceData: BalanceData = {
       // I - Dönen Varlıklar

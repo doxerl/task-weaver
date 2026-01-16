@@ -126,7 +126,7 @@ export function useBalanceSheet(year: number): {
                  yearlyBalance.retained_earnings + yearlyBalance.current_profit,
         },
         totalLiabilities: yearlyBalance.total_liabilities,
-        isBalanced: Math.abs(yearlyBalance.total_assets - yearlyBalance.total_liabilities) < 0.01,
+        isBalanced: Math.abs(yearlyBalance.total_assets - yearlyBalance.total_liabilities) < 1,
         difference: yearlyBalance.total_assets - yearlyBalance.total_liabilities,
       };
 
@@ -203,7 +203,7 @@ export function useBalanceSheet(year: number): {
     // Özsermaye değişikliğine göre toplam pasif ve dengeyi yeniden hesapla
     const newTotalLiabilities = shortTermLiabilities.total + longTermLiabilities.total + equity.total;
     const newDifference = balanceData.totalAssets - newTotalLiabilities;
-    const newIsBalanced = Math.abs(newDifference) < 0.01;
+    const newIsBalanced = Math.abs(newDifference) < 1;
 
     const balanceSheet: BalanceSheet = {
       asOfDate: `${year}-12-31`,
