@@ -1,5 +1,5 @@
 import { useState, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -21,18 +21,17 @@ import { AddItemDialog } from '@/components/simulation/AddItemDialog';
 import { ComparisonChart } from '@/components/simulation/ComparisonChart';
 import { CapitalAnalysis } from '@/components/simulation/CapitalAnalysis';
 import { ScenarioSelector } from '@/components/simulation/ScenarioSelector';
-import { ScenarioComparison } from '@/components/simulation/ScenarioComparison';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SimulationScenario } from '@/types/simulation';
 import { toast } from 'sonner';
 
 function GrowthSimulationContent() {
+  const navigate = useNavigate();
   const simulation = useGrowthSimulation();
   const hub = useFinancialDataHub(simulation.baseYear);
   const scenariosHook = useScenarios();
   const { generateSimulationPdfData, isGenerating, progress } = usePdfEngine();
-  const [showComparison, setShowComparison] = useState(false);
   
   // Chart ref for ComparisonChart
   const chartsContainerRef = useRef<HTMLDivElement>(null);
@@ -236,7 +235,7 @@ function GrowthSimulationContent() {
                 variant="outline" 
                 size="sm" 
                 className="gap-2"
-                onClick={() => setShowComparison(true)}
+                onClick={() => navigate('/finance/simulation/compare')}
                 disabled={scenariosHook.scenarios.length < 2}
               >
                 <GitCompare className="h-4 w-4" />
@@ -402,14 +401,6 @@ function GrowthSimulationContent() {
           </div>
         </DialogContent>
       </Dialog>
-
-      {/* Scenario Comparison Modal */}
-      <ScenarioComparison
-        open={showComparison}
-        onOpenChange={setShowComparison}
-        scenarios={scenariosHook.scenarios}
-        currentScenarioId={scenariosHook.currentScenarioId}
-      />
 
       {/* Next Year Simulation Dialog */}
       <Dialog open={showNextYearDialog} onOpenChange={setShowNextYearDialog}>
