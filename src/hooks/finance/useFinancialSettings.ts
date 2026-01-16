@@ -97,6 +97,7 @@ export function useFinancialSettings() {
       fixtures_useful_life_years: 5,
       equipment_purchase_date: null,
       equipment_useful_life_years: 5,
+      partner_receivables_capital: 0,
     };
   }, [settings, user?.id]);
 

@@ -707,9 +707,13 @@ export function useFinancialDataHub(year: number, manualBankBalance?: number | n
     // Açılışta: alacak (+) - borç (-) + hareket
     const netPartnerPosition = (openingPartnerReceivables - openingPartnerPayables) + partnerNetMovement;
     
+    // Sermaye kaynaklı ortaklardan alacak (ödenmemiş sermaye yerine)
+    const partnerReceivablesCapital = (settings as any)?.partner_receivables_capital || 0;
+    
     // Pozitif pozisyon = Ortaklardan Alacak (AKTİF)
     // Negatif pozisyon = Ortaklara Borç (PASİF)
-    const partnerReceivables = netPartnerPosition > 0 ? netPartnerPosition : 0;
+    // Sermaye kaynaklı alacakları da ekle
+    const partnerReceivables = (netPartnerPosition > 0 ? netPartnerPosition : 0) + partnerReceivablesCapital;
     const partnerPayables = netPartnerPosition < 0 ? Math.abs(netPartnerPosition) : 0;
     
     console.log('👥 Ortak Hesabı Debug:', {
@@ -719,6 +723,7 @@ export function useFinancialDataHub(year: number, manualBankBalance?: number | n
       deposits: partnerSummary.deposits,
       netMovement: partnerNetMovement,
       netPosition: netPartnerPosition,
+      partnerReceivablesCapital,
       finalReceivables: partnerReceivables,
       finalPayables: partnerPayables
     });

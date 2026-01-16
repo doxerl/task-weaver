@@ -320,6 +320,7 @@ export interface FinancialSettings {
   fixtures_useful_life_years: number;       // Demirbaşlar faydalı ömür (varsayılan 5)
   equipment_purchase_date: string | null;   // Ekipman alım tarihi
   equipment_useful_life_years: number;      // Ekipman faydalı ömür (varsayılan 5)
+  partner_receivables_capital: number;      // Sermaye kaynaklı ortaklardan alacak
 }
 
 // Balance Sheet calculated structure
