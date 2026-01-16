@@ -1027,38 +1027,51 @@ function ScenarioComparisonContent() {
       </Sheet>
       
       {/* PDF SUNUM HIDDEN CONTAINER - HTML yakalamalı */}
+      {/* PDF SUNUM HIDDEN CONTAINER - Landscape A4 optimized */}
       <div 
         ref={presentationPdfRef} 
         className="pdf-hidden-container"
         style={{ position: 'absolute', left: '-9999px', top: 0 }}
       >
-        <div style={{ width: '1400px', background: 'white', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
+        {/* 
+          Landscape A4: 297mm x 210mm = 1.414:1 aspect ratio
+          1200px genişlik → 848px yükseklik (1200/1.414)
+          Her sayfa bu boyutta olmalı
+        */}
+        <div style={{ width: '1200px', background: 'white', fontFamily: 'system-ui, -apple-system, sans-serif' }}>
           
-          {/* SAYFA 1: KAPAK */}
-          <div className="page-break-after" style={{ height: '700px', position: 'relative', background: 'linear-gradient(180deg, #1e3a8a 0%, #3b82f6 60%, #ffffff 60%)', padding: '48px' }}>
-            <div style={{ textAlign: 'center', paddingTop: '80px' }}>
-              <h1 style={{ fontSize: '36px', fontWeight: 'bold', color: 'white', marginBottom: '16px' }}>
+          {/* SAYFA 1: KAPAK - Landscape A4 oranında */}
+          <div className="page-break-after" style={{ 
+            width: '1200px', 
+            height: '848px', 
+            position: 'relative', 
+            background: 'linear-gradient(180deg, #1e3a8a 0%, #3b82f6 55%, #ffffff 55%)', 
+            padding: '48px',
+            boxSizing: 'border-box'
+          }}>
+            <div style={{ textAlign: 'center', paddingTop: '60px' }}>
+              <h1 style={{ fontSize: '42px', fontWeight: 'bold', color: 'white', marginBottom: '16px' }}>
                 Senaryo Karşılaştırma Raporu
               </h1>
-              <p style={{ fontSize: '20px', color: '#93c5fd', marginBottom: '8px' }}>
+              <p style={{ fontSize: '22px', color: '#93c5fd', marginBottom: '8px' }}>
                 {scenarioA?.name} vs {scenarioB?.name}
               </p>
-              <p style={{ fontSize: '14px', color: 'rgba(255,255,255,0.7)' }}>
+              <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.7)' }}>
                 Hedef Yıl: {scenarioB?.targetYear || new Date().getFullYear()}
               </p>
             </div>
             
             {/* Özet Metrikleri */}
-            <div style={{ position: 'absolute', bottom: '100px', left: '48px', right: '48px' }}>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px' }}>
+            <div style={{ position: 'absolute', bottom: '80px', left: '48px', right: '48px' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
                 {metrics.slice(0, 4).map((m, i) => {
                   const diff = calculateDiff(m.scenarioA, m.scenarioB);
                   const isPositive = m.higherIsBetter ? m.scenarioB > m.scenarioA : m.scenarioB < m.scenarioA;
                   return (
-                    <div key={i} style={{ background: 'white', borderRadius: '12px', padding: '16px', boxShadow: '0 10px 30px rgba(0,0,0,0.1)', textAlign: 'center' }}>
-                      <p style={{ fontSize: '11px', color: '#6b7280', marginBottom: '4px' }}>{m.label}</p>
-                      <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#2563eb' }}>{formatValue(m.scenarioB, m.format)}</p>
-                      <p style={{ fontSize: '12px', fontWeight: 'bold', color: isPositive ? '#16a34a' : '#dc2626', marginTop: '4px' }}>
+                    <div key={i} style={{ background: 'white', borderRadius: '16px', padding: '20px', boxShadow: '0 10px 40px rgba(0,0,0,0.15)', textAlign: 'center' }}>
+                      <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>{m.label}</p>
+                      <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#2563eb', marginBottom: '4px' }}>{formatValue(m.scenarioB, m.format)}</p>
+                      <p style={{ fontSize: '14px', fontWeight: 'bold', color: isPositive ? '#16a34a' : '#dc2626' }}>
                         {diff.percent >= 0 ? '+' : ''}{diff.percent.toFixed(1)}%
                       </p>
                     </div>
@@ -1069,29 +1082,35 @@ function ScenarioComparisonContent() {
           </div>
 
           {/* SAYFA 2: METRİKLER ve TABLO */}
-          <div className="page-break-after" style={{ padding: '32px', minHeight: '700px' }}>
-            <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '2px solid #e5e7eb', paddingBottom: '8px' }}>
+          <div className="page-break-after" style={{ 
+            width: '1200px', 
+            height: '848px', 
+            padding: '40px',
+            boxSizing: 'border-box',
+            background: 'white'
+          }}>
+            <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '3px solid #3b82f6', paddingBottom: '12px', color: '#1e3a8a' }}>
               Finansal Özet Karşılaştırması
             </h2>
             
             {/* Metrik Kartları */}
-            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '28px' }}>
               {metrics.map((m, i) => {
                 const diff = calculateDiff(m.scenarioA, m.scenarioB);
                 const isPositive = m.higherIsBetter ? m.scenarioB > m.scenarioA : m.scenarioB < m.scenarioA;
                 return (
                   <div key={i} style={{ 
                     padding: '16px', 
-                    borderRadius: '8px', 
+                    borderRadius: '12px', 
                     background: isPositive ? '#f0fdf4' : '#fef2f2',
-                    border: `1px solid ${isPositive ? '#86efac' : '#fecaca'}`
+                    border: `2px solid ${isPositive ? '#86efac' : '#fecaca'}`
                   }}>
-                    <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '8px' }}>{m.label}</p>
+                    <p style={{ fontSize: '11px', color: '#6b7280', marginBottom: '8px', textTransform: 'uppercase' }}>{m.label}</p>
                     <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                      <span style={{ color: '#2563eb', fontWeight: '600' }}>{formatValue(m.scenarioA, m.format)}</span>
-                      <span style={{ color: '#16a34a', fontWeight: '600' }}>{formatValue(m.scenarioB, m.format)}</span>
+                      <span style={{ color: '#2563eb', fontWeight: '700', fontSize: '14px' }}>{formatValue(m.scenarioA, m.format)}</span>
+                      <span style={{ color: '#16a34a', fontWeight: '700', fontSize: '14px' }}>{formatValue(m.scenarioB, m.format)}</span>
                     </div>
-                    <p style={{ textAlign: 'center', fontWeight: 'bold', color: isPositive ? '#16a34a' : '#dc2626' }}>
+                    <p style={{ textAlign: 'center', fontWeight: 'bold', fontSize: '16px', color: isPositive ? '#16a34a' : '#dc2626' }}>
                       {diff.percent >= 0 ? '+' : ''}{diff.percent.toFixed(1)}%
                     </p>
                   </div>
@@ -1100,13 +1119,13 @@ function ScenarioComparisonContent() {
             </div>
             
             {/* Çeyreklik Tablo */}
-            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px' }}>
+            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '14px', boxShadow: '0 4px 6px rgba(0,0,0,0.05)', borderRadius: '12px', overflow: 'hidden' }}>
               <thead>
-                <tr style={{ background: '#3b82f6', color: 'white' }}>
-                  <th style={{ padding: '12px', textAlign: 'left' }}>Çeyrek</th>
-                  <th style={{ padding: '12px', textAlign: 'right' }}>{scenarioA?.name}</th>
-                  <th style={{ padding: '12px', textAlign: 'right' }}>{scenarioB?.name}</th>
-                  <th style={{ padding: '12px', textAlign: 'center' }}>Fark</th>
+                <tr style={{ background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', color: 'white' }}>
+                  <th style={{ padding: '14px 16px', textAlign: 'left', fontWeight: '600' }}>Çeyrek</th>
+                  <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '600' }}>{scenarioA?.name}</th>
+                  <th style={{ padding: '14px 16px', textAlign: 'right', fontWeight: '600' }}>{scenarioB?.name}</th>
+                  <th style={{ padding: '14px 16px', textAlign: 'center', fontWeight: '600' }}>Değişim</th>
                 </tr>
               </thead>
               <tbody>
@@ -1115,11 +1134,11 @@ function ScenarioComparisonContent() {
                     ? ((q.scenarioBNet - q.scenarioANet) / Math.abs(q.scenarioANet) * 100) 
                     : 0;
                   return (
-                    <tr key={i} style={{ background: i % 2 === 0 ? '#f9fafb' : 'white' }}>
-                      <td style={{ padding: '12px', fontWeight: '500' }}>{q.quarter}</td>
-                      <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'monospace' }}>{formatCompactUSD(q.scenarioANet)}</td>
-                      <td style={{ padding: '12px', textAlign: 'right', fontFamily: 'monospace' }}>{formatCompactUSD(q.scenarioBNet)}</td>
-                      <td style={{ padding: '12px', textAlign: 'center', color: diffPercent >= 0 ? '#16a34a' : '#dc2626', fontWeight: 'bold' }}>
+                    <tr key={i} style={{ background: i % 2 === 0 ? '#f8fafc' : 'white', borderBottom: '1px solid #e5e7eb' }}>
+                      <td style={{ padding: '12px 16px', fontWeight: '600', color: '#374151' }}>{q.quarter}</td>
+                      <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'monospace', color: '#2563eb' }}>{formatCompactUSD(q.scenarioANet)}</td>
+                      <td style={{ padding: '12px 16px', textAlign: 'right', fontFamily: 'monospace', color: '#16a34a' }}>{formatCompactUSD(q.scenarioBNet)}</td>
+                      <td style={{ padding: '12px 16px', textAlign: 'center', color: diffPercent >= 0 ? '#16a34a' : '#dc2626', fontWeight: 'bold' }}>
                         {diffPercent >= 0 ? '+' : ''}{diffPercent.toFixed(1)}%
                       </td>
                     </tr>
@@ -1130,82 +1149,128 @@ function ScenarioComparisonContent() {
           </div>
 
           {/* SAYFA 3: GRAFİKLER */}
-          <div className="page-break-after" style={{ padding: '32px', minHeight: '700px' }}>
-            <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '2px solid #e5e7eb', paddingBottom: '8px' }}>
+          <div className="page-break-after" style={{ 
+            width: '1200px', 
+            height: '848px', 
+            padding: '40px',
+            boxSizing: 'border-box',
+            background: 'white'
+          }}>
+            <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '3px solid #3b82f6', paddingBottom: '12px', color: '#1e3a8a' }}>
               Görsel Analiz
             </h2>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
               {/* Çeyreklik Net Kâr Grafiği */}
-              <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px', background: 'white' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Çeyreklik Net Kâr</h3>
-                <ChartContainer config={chartConfig} className="h-[280px] w-full">
-                  <ComposedChart data={quarterlyComparison}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
-                    <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <ChartLegend content={<ChartLegendContent />} />
-                    <Bar dataKey="scenarioANet" fill="#2563eb" name={scenarioA?.name} radius={4} />
-                    <Bar dataKey="scenarioBNet" fill="#16a34a" name={scenarioB?.name} radius={4} />
-                  </ComposedChart>
-                </ChartContainer>
+              <div style={{ 
+                border: '1px solid #e5e7eb', 
+                borderRadius: '16px', 
+                padding: '20px', 
+                background: 'white',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+                height: '420px'
+              }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>
+                  Çeyreklik Net Kâr Karşılaştırması
+                </h3>
+                <div style={{ width: '100%', height: '340px' }}>
+                  <ChartContainer config={chartConfig} style={{ width: '100%', height: '100%' }}>
+                    <ComposedChart data={quarterlyComparison} width={500} height={320}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
+                      <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <ChartLegend content={<ChartLegendContent />} />
+                      <Bar dataKey="scenarioANet" fill="#2563eb" name={scenarioA?.name} radius={4} />
+                      <Bar dataKey="scenarioBNet" fill="#16a34a" name={scenarioB?.name} radius={4} />
+                    </ComposedChart>
+                  </ChartContainer>
+                </div>
               </div>
               
               {/* Kümülatif Nakit Akışı Grafiği */}
-              <div style={{ border: '1px solid #e5e7eb', borderRadius: '12px', padding: '16px', background: 'white' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px' }}>Kümülatif Nakit Akışı</h3>
-                <ChartContainer config={cumulativeChartConfig} className="h-[280px] w-full">
-                  <AreaChart data={quarterlyCumulativeData}>
-                    <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
-                    <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
-                    <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
-                    <ChartTooltip content={<ChartTooltipContent />} />
-                    <ChartLegend content={<ChartLegendContent />} />
-                    <Area type="monotone" dataKey="scenarioACumulative" stroke="#2563eb" fill="#2563eb" fillOpacity={0.3} name={scenarioA?.name} />
-                    <Area type="monotone" dataKey="scenarioBCumulative" stroke="#16a34a" fill="#16a34a" fillOpacity={0.3} name={scenarioB?.name} />
-                  </AreaChart>
-                </ChartContainer>
+              <div style={{ 
+                border: '1px solid #e5e7eb', 
+                borderRadius: '16px', 
+                padding: '20px', 
+                background: 'white',
+                boxShadow: '0 4px 6px rgba(0,0,0,0.05)',
+                height: '420px'
+              }}>
+                <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>
+                  Kümülatif Nakit Akışı
+                </h3>
+                <div style={{ width: '100%', height: '340px' }}>
+                  <ChartContainer config={cumulativeChartConfig} style={{ width: '100%', height: '100%' }}>
+                    <AreaChart data={quarterlyCumulativeData} width={500} height={320}>
+                      <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                      <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
+                      <YAxis tickFormatter={(v) => formatCompactUSD(v)} tick={{ fontSize: 10, fill: '#64748b' }} />
+                      <ChartTooltip content={<ChartTooltipContent />} />
+                      <ChartLegend content={<ChartLegendContent />} />
+                      <Area type="monotone" dataKey="scenarioACumulative" stroke="#2563eb" fill="#2563eb" fillOpacity={0.3} name={scenarioA?.name} />
+                      <Area type="monotone" dataKey="scenarioBCumulative" stroke="#16a34a" fill="#16a34a" fillOpacity={0.3} name={scenarioB?.name} />
+                    </AreaChart>
+                  </ChartContainer>
+                </div>
               </div>
             </div>
           </div>
 
           {/* SAYFA 4: AI INSIGHTS */}
           {unifiedAnalysis?.insights && unifiedAnalysis.insights.length > 0 && (
-            <div className="page-break-after" style={{ padding: '32px', minHeight: '700px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '2px solid #e5e7eb', paddingBottom: '8px' }}>
+            <div className="page-break-after" style={{ 
+              width: '1200px', 
+              height: '848px', 
+              padding: '40px',
+              boxSizing: 'border-box',
+              background: 'white'
+            }}>
+              <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '3px solid #3b82f6', paddingBottom: '12px', color: '#1e3a8a' }}>
                 AI Analiz Sonuçları
               </h2>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
-                {unifiedAnalysis.insights.map((insight, i) => (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px', marginBottom: '32px' }}>
+                {unifiedAnalysis.insights.slice(0, 6).map((insight, i) => (
                   <div 
                     key={i} 
                     style={{ 
-                      padding: '16px', 
-                      borderRadius: '8px', 
-                      borderLeft: `4px solid ${insight.severity === 'high' ? '#ef4444' : insight.severity === 'medium' ? '#f59e0b' : '#22c55e'}`,
-                      background: insight.severity === 'high' ? '#fef2f2' : insight.severity === 'medium' ? '#fffbeb' : '#f0fdf4'
+                      padding: '20px', 
+                      borderRadius: '12px', 
+                      borderLeft: `5px solid ${insight.severity === 'high' ? '#ef4444' : insight.severity === 'medium' ? '#f59e0b' : '#22c55e'}`,
+                      background: insight.severity === 'high' ? '#fef2f2' : insight.severity === 'medium' ? '#fffbeb' : '#f0fdf4',
+                      boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
                     }}
                   >
-                    <h4 style={{ fontWeight: '600', marginBottom: '8px', color: '#111827' }}>{insight.title}</h4>
-                    <p style={{ fontSize: '13px', color: '#4b5563' }}>{insight.description}</p>
+                    <h4 style={{ fontWeight: '600', marginBottom: '8px', color: '#111827', fontSize: '15px' }}>{insight.title}</h4>
+                    <p style={{ fontSize: '13px', color: '#4b5563', lineHeight: '1.5' }}>{insight.description}</p>
                   </div>
                 ))}
               </div>
               
               {/* Öneriler */}
               {unifiedAnalysis.recommendations && unifiedAnalysis.recommendations.length > 0 && (
-                <div style={{ marginTop: '32px' }}>
-                  <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px' }}>Stratejik Öneriler</h3>
-                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                <div>
+                  <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>Stratejik Öneriler</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
                     {unifiedAnalysis.recommendations.slice(0, 4).map((rec, i) => (
-                      <div key={i} style={{ padding: '12px', background: '#f8fafc', borderRadius: '8px', border: '1px solid #e2e8f0' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-                          <span style={{ background: '#3b82f6', color: 'white', width: '20px', height: '20px', borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '11px', fontWeight: 'bold' }}>
+                      <div key={i} style={{ padding: '16px', background: '#f8fafc', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '8px' }}>
+                          <span style={{ 
+                            background: 'linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%)', 
+                            color: 'white', 
+                            width: '24px', 
+                            height: '24px', 
+                            borderRadius: '50%', 
+                            display: 'flex', 
+                            alignItems: 'center', 
+                            justifyContent: 'center', 
+                            fontSize: '12px', 
+                            fontWeight: 'bold' 
+                          }}>
                             {rec.priority || i + 1}
                           </span>
-                          <span style={{ fontWeight: '600', fontSize: '14px' }}>{rec.title}</span>
+                          <span style={{ fontWeight: '600', fontSize: '14px', color: '#1e3a8a' }}>{rec.title}</span>
                         </div>
-                        <p style={{ fontSize: '12px', color: '#6b7280' }}>{rec.description}</p>
+                        <p style={{ fontSize: '12px', color: '#6b7280', lineHeight: '1.5' }}>{rec.description}</p>
                       </div>
                     ))}
                   </div>
@@ -1214,50 +1279,57 @@ function ScenarioComparisonContent() {
             </div>
           )}
 
-          {/* SAYFA 5: PITCH DECK */}
+          {/* SAYFA 5: PITCH DECK - Son sayfa (page-break-after yok) */}
           {unifiedAnalysis?.pitch_deck?.slides && unifiedAnalysis.pitch_deck.slides.length > 0 && (
-            <div style={{ padding: '32px', minHeight: '700px' }}>
-              <h2 style={{ fontSize: '24px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '2px solid #e5e7eb', paddingBottom: '8px' }}>
+            <div style={{ 
+              width: '1200px', 
+              height: '848px', 
+              padding: '40px',
+              boxSizing: 'border-box',
+              background: 'white'
+            }}>
+              <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '20px', borderBottom: '3px solid #3b82f6', paddingBottom: '12px', color: '#1e3a8a' }}>
                 Yatırımcı Sunumu
               </h2>
               
               {/* Executive Summary */}
               {unifiedAnalysis.pitch_deck.executive_summary && (
-                <div style={{ marginBottom: '24px', padding: '16px', background: 'linear-gradient(to right, #eff6ff, #f0fdf4)', borderRadius: '12px', border: '1px solid #bfdbfe' }}>
-                  <p style={{ fontSize: '14px', color: '#374151', fontStyle: 'italic' }}>
+                <div style={{ marginBottom: '24px', padding: '20px', background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)', borderRadius: '16px', border: '1px solid #bfdbfe' }}>
+                  <p style={{ fontSize: '15px', color: '#374151', fontStyle: 'italic', lineHeight: '1.6' }}>
                     "{unifiedAnalysis.pitch_deck.executive_summary}"
                   </p>
                 </div>
               )}
               
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                {unifiedAnalysis.pitch_deck.slides.map((slide, i) => (
+                {unifiedAnalysis.pitch_deck.slides.slice(0, 4).map((slide, i) => (
                   <div key={i} style={{ 
-                    background: 'linear-gradient(to bottom right, #eff6ff, white)', 
+                    background: 'linear-gradient(to bottom right, #f8fafc, white)', 
                     padding: '20px', 
-                    borderRadius: '12px', 
-                    border: '1px solid #e5e7eb' 
+                    borderRadius: '16px', 
+                    border: '1px solid #e5e7eb',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
                   }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
                       <span style={{ 
-                        background: '#3b82f6', 
+                        background: 'linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%)', 
                         color: 'white', 
-                        width: '28px', 
-                        height: '28px', 
+                        width: '32px', 
+                        height: '32px', 
                         borderRadius: '50%', 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center', 
-                        fontSize: '12px', 
+                        fontSize: '14px', 
                         fontWeight: 'bold' 
                       }}>
                         {slide.slide_number}
                       </span>
-                      <h3 style={{ fontWeight: '600', fontSize: '15px' }}>{slide.title}</h3>
+                      <h3 style={{ fontWeight: '600', fontSize: '16px', color: '#1e3a8a' }}>{slide.title}</h3>
                     </div>
-                    <ul style={{ paddingLeft: '16px', margin: 0 }}>
-                      {slide.content_bullets?.map((bullet, j) => (
-                        <li key={j} style={{ fontSize: '13px', color: '#4b5563', marginBottom: '4px' }}>
+                    <ul style={{ paddingLeft: '20px', margin: 0 }}>
+                      {slide.content_bullets?.slice(0, 3).map((bullet, j) => (
+                        <li key={j} style={{ fontSize: '13px', color: '#4b5563', marginBottom: '6px', lineHeight: '1.4' }}>
                           {bullet}
                         </li>
                       ))}

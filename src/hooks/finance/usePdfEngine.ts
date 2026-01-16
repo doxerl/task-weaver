@@ -457,79 +457,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
       onProgress?.('Grafikler yükleniyor...', 40);
       await waitForChartsToRender(element, waitTime);
       
-      // 2. CLONE'DAN ÖNCE grafik boyutlarını yakala (kritik!)
-      console.log('[PDF] Stage 3: Boyutlar ve stiller toplanıyor...');
-      setProgress({ current: 3, total: 5, stage: 'Stiller toplanıyor...' });
-      onProgress?.('Stiller toplanıyor...', 50);
-      
-      const chartDimensions = captureChartDimensions(element);
-      console.log('[PDF] Yakalanan grafik boyutları:', chartDimensions.size);
-      
-      // 3. Orijinal elementten stilleri topla (CSS değişkenleri çözümlenmiş)
-      const styleMap = collectStylesFromOriginal(element);
-      console.log('[PDF] Toplanan stil sayısı:', styleMap.size);
-      
-      // 4. html2canvas ile yakala
-      console.log('[PDF] Stage 4: Canvas oluşturuluyor...');
-      setProgress({ current: 4, total: 5, stage: 'Ekran yakalanıyor...' });
-      onProgress?.('Ekran yakalanıyor...', 60);
-      
-      const html2canvasModule = await import('html2canvas');
-      const html2canvas = html2canvasModule.default;
-      
-      const canvas = await html2canvas(element, {
-        scale,
-        useCORS: true,
-        logging: false,
-        allowTaint: true,
-        backgroundColor: '#ffffff',
-        windowWidth: element.scrollWidth,
-        windowHeight: element.scrollHeight,
-        
-        // Clone üzerinde işlem yap
-        onclone: (_clonedDoc: Document, clonedElement: HTMLElement) => {
-          console.log('[PDF] onclone: Clone işleniyor...');
-          
-          // Stilleri uygula
-          applyCollectedStyles(clonedElement, styleMap);
-          
-          // Light mode'u zorla
-          forceLightModeForPdf(clonedElement);
-          
-          // HTML hazırla
-          prepareHTMLForPdf(clonedElement);
-          prepareImagesForPdf(clonedElement);
-          enhanceContrastForPdf(clonedElement);
-          
-          // KAYITLI boyutları clone'a uygula (kritik!)
-          applyChartDimensions(clonedElement, chartDimensions);
-          
-          // SVG'leri optimize et
-          optimizeSVGsForPdf(clonedElement);
-          
-          // Gereksiz elementleri temizle
-          fullCleanupForPdf(clonedElement);
-          
-          console.log('[PDF] onclone: Clone işleme tamamlandı');
-        },
-      });
-      
-      // Canvas kontrolü
-      if (!canvas) {
-        throw new Error('html2canvas içerik yakalayamadı');
-      }
-      
-      if (canvas.width === 0 || canvas.height === 0) {
-        throw new Error('Canvas boş - element görünür olmayabilir');
-      }
-      
-      console.log('[PDF] Canvas boyutları:', canvas.width, 'x', canvas.height);
-      
-      // 5. PDF oluştur
-      console.log('[PDF] Stage 5: PDF oluşturuluyor...');
-      setProgress({ current: 5, total: 5, stage: 'PDF oluşturuluyor...' });
-      onProgress?.('PDF oluşturuluyor...', 80);
-      
+      // 2. PDF oluştur (Landscape A4: 297mm x 210mm)
       const pdf = new jsPDF({
         orientation,
         unit: 'mm',
@@ -538,63 +466,131 @@ export function usePdfEngine(): UsePdfEngineReturn {
       
       const pageWidth = pdf.internal.pageSize.getWidth();
       const pageHeight = pdf.internal.pageSize.getHeight();
-      const contentAreaWidth = pageWidth - (margin * 2);
-      const contentAreaHeight = pageHeight - (margin * 2);
+      const contentWidth = pageWidth - (margin * 2);
+      const contentHeight = pageHeight - (margin * 2);
       
-      // Canvas'ın PDF'teki boyutları
-      const imgWidth = contentAreaWidth;
-      const imgHeight = (canvas.height * imgWidth) / canvas.width;
+      console.log('[PDF] Sayfa boyutları:', pageWidth, 'x', pageHeight, 'mm');
       
-      // JPEG formatı kullan - PNG'ye göre ~10x daha küçük dosya boyutu
-      const jpegQuality = 0.85;
+      // 3. AKILLI SAYFA BÖLME: page-break-after sınıflı elementleri bul
+      const pageBreakElements = element.querySelectorAll('.page-break-after');
+      const allSections: HTMLElement[] = [];
       
-      if (fitToPage && imgHeight > contentAreaHeight) {
-        // Tek sayfaya sığdırma modu
-        const scaleRatio = contentAreaHeight / imgHeight;
-        const scaledWidth = imgWidth * scaleRatio;
-        const scaledHeight = contentAreaHeight;
-        const xOffset = margin + (contentAreaWidth - scaledWidth) / 2;
-        const imgData = canvas.toDataURL('image/jpeg', jpegQuality);
-        pdf.addImage(imgData, 'JPEG', xOffset, margin, scaledWidth, scaledHeight);
-      } else if (imgHeight <= contentAreaHeight) {
-        // İçerik tek sayfaya sığıyor
-        const imgData = canvas.toDataURL('image/jpeg', jpegQuality);
-        pdf.addImage(imgData, 'JPEG', margin, margin, imgWidth, imgHeight);
-      } else {
-        // Çok sayfalı mod - canvas'ı sayfalara böl
-        const pageCanvasHeight = (contentAreaHeight * canvas.width) / imgWidth;
-        const totalPages = Math.ceil(canvas.height / pageCanvasHeight);
+      if (pageBreakElements.length > 0) {
+        console.log('[PDF] page-break-after ile işaretlenmiş bölümler bulundu:', pageBreakElements.length);
         
-        console.log('[PDF] Çok sayfalı mod:', totalPages, 'sayfa');
+        // page-break-after ile işaretlenmiş bölümleri topla
+        pageBreakElements.forEach(section => {
+          allSections.push(section as HTMLElement);
+        });
         
-        for (let page = 0; page < totalPages; page++) {
-          if (page > 0) pdf.addPage();
-          
-          const sliceCanvas = document.createElement('canvas');
-          const ctx = sliceCanvas.getContext('2d');
-          
-          if (!ctx) continue;
-          
-          sliceCanvas.width = canvas.width;
-          const remainingHeight = canvas.height - (page * pageCanvasHeight);
-          sliceCanvas.height = Math.min(pageCanvasHeight, remainingHeight);
-          
-          ctx.drawImage(
-            canvas,
-            0, page * pageCanvasHeight,
-            canvas.width, sliceCanvas.height,
-            0, 0,
-            sliceCanvas.width, sliceCanvas.height
-          );
-          
-          const sliceData = sliceCanvas.toDataURL('image/jpeg', jpegQuality);
-          const sliceImgHeight = (sliceCanvas.height * imgWidth) / sliceCanvas.width;
-          
-          pdf.addImage(sliceData, 'JPEG', margin, margin, imgWidth, sliceImgHeight);
+        // Son section (page-break olmadan) - wrapper'ın son çocuğu
+        const wrapper = element.querySelector(':scope > div');
+        if (wrapper) {
+          const lastChild = wrapper.lastElementChild;
+          if (lastChild && !lastChild.classList.contains('page-break-after')) {
+            allSections.push(lastChild as HTMLElement);
+          }
         }
+      } else {
+        // Page break yoksa, tüm elementi tek section olarak al (eski davranış)
+        allSections.push(element);
+      }
+      
+      console.log('[PDF] Toplam sayfa sayısı:', allSections.length);
+      
+      // 4. Her section'ı ayrı sayfa olarak yakala
+      const html2canvasModule = await import('html2canvas');
+      const html2canvas = html2canvasModule.default;
+      
+      for (let i = 0; i < allSections.length; i++) {
+        const section = allSections[i];
+        
+        if (i > 0) {
+          pdf.addPage();
+        }
+        
+        const progressPercent = 30 + (i * 50 / allSections.length);
+        setProgress({ current: 3, total: 5, stage: `Sayfa ${i + 1}/${allSections.length} yakalanıyor...` });
+        onProgress?.(`Sayfa ${i + 1}/${allSections.length} yakalanıyor...`, progressPercent);
+        
+        // Section boyutlarını ve stillerini kaydet
+        const chartDimensions = captureChartDimensions(section);
+        const styleMap = collectStylesFromOriginal(section);
+        
+        console.log(`[PDF] Sayfa ${i + 1}: Grafik boyutları: ${chartDimensions.size}, Stiller: ${styleMap.size}`);
+        
+        // Section'ı canvas'a çevir
+        const canvas = await html2canvas(section, {
+          scale: scale,
+          useCORS: true,
+          logging: false,
+          allowTaint: true,
+          backgroundColor: '#ffffff',
+          width: section.scrollWidth,
+          height: section.scrollHeight,
+          
+          onclone: (_clonedDoc: Document, clonedSection: HTMLElement) => {
+            // Stilleri uygula
+            applyCollectedStyles(clonedSection, styleMap);
+            
+            // Light mode'u zorla
+            forceLightModeForPdf(clonedSection);
+            
+            // HTML hazırla
+            prepareHTMLForPdf(clonedSection);
+            prepareImagesForPdf(clonedSection);
+            enhanceContrastForPdf(clonedSection);
+            
+            // KAYITLI boyutları clone'a uygula
+            applyChartDimensions(clonedSection, chartDimensions);
+            
+            // SVG'leri optimize et
+            optimizeSVGsForPdf(clonedSection);
+            
+            // Gereksiz elementleri temizle
+            fullCleanupForPdf(clonedSection);
+          },
+        });
+        
+        if (!canvas || canvas.width === 0 || canvas.height === 0) {
+          console.warn(`[PDF] Sayfa ${i + 1} boş veya yakalanamadı, atlanıyor...`);
+          continue;
+        }
+        
+        console.log(`[PDF] Sayfa ${i + 1} canvas boyutları: ${canvas.width}x${canvas.height}`);
+        
+        // 5. Canvas'ı sayfaya sığdır (aspect ratio koruyarak)
+        const aspectRatio = canvas.width / canvas.height;
+        let imgWidth = contentWidth;
+        let imgHeight = imgWidth / aspectRatio;
+        
+        // Yükseklik fazlaysa, yüksekliğe göre ölçekle
+        if (imgHeight > contentHeight) {
+          imgHeight = contentHeight;
+          imgWidth = imgHeight * aspectRatio;
+        }
+        
+        // fitToPage modunda bile aspect ratio koru
+        if (fitToPage) {
+          const scaleToFit = Math.min(contentWidth / (canvas.width / scale), contentHeight / (canvas.height / scale));
+          imgWidth = (canvas.width / scale) * scaleToFit;
+          imgHeight = (canvas.height / scale) * scaleToFit;
+        }
+        
+        // Sayfada ortala
+        const xOffset = margin + (contentWidth - imgWidth) / 2;
+        const yOffset = margin + (contentHeight - imgHeight) / 2;
+        
+        // JPEG formatı kullan
+        const jpegQuality = 0.92;
+        const imgData = canvas.toDataURL('image/jpeg', jpegQuality);
+        pdf.addImage(imgData, 'JPEG', xOffset, yOffset, imgWidth, imgHeight);
+        
+        console.log(`[PDF] Sayfa ${i + 1}: ${imgWidth.toFixed(0)}x${imgHeight.toFixed(0)}mm konumda (${xOffset.toFixed(0)}, ${yOffset.toFixed(0)})`);
       }
       
       // 6. İndir
+      setProgress({ current: 5, total: 5, stage: 'PDF oluşturuluyor...' });
       onProgress?.('İndiriliyor...', 100);
       
       const blob = pdf.output('blob');
