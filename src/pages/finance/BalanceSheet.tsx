@@ -8,7 +8,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { ArrowLeft, FileDown, Settings, CheckCircle, AlertTriangle, Loader2, Info, BarChart3, Lock, Unlock, Shield } from 'lucide-react';
+import { ArrowLeft, FileDown, Settings, CheckCircle, AlertTriangle, Loader2, Info, BarChart3, Lock, Unlock, Shield, Save } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { useFinancialSettings } from '@/hooks/finance/useFinancialSettings';
@@ -40,6 +40,7 @@ export default function BalanceSheet() {
     uncategorizedTotal, 
     isLocked, 
     lockBalance, 
+    saveYearlyBalance,
     isUpdating,
     operatingProfit,
     incomeSummaryNet,
@@ -276,6 +277,51 @@ export default function BalanceSheet() {
           </Link>
           <h1 className="text-xl font-bold flex-1">Bilanço</h1>
           <CurrencyToggle year={year} />
+          {/* Save button - only show when not locked */}
+          {!isLocked && (
+            <Button 
+              variant="outline" 
+              size="icon" 
+              onClick={() => {
+                saveYearlyBalance({
+                  cash_on_hand: Math.round(balanceSheet.currentAssets.cash),
+                  bank_balance: Math.round(balanceSheet.currentAssets.banks),
+                  trade_receivables: Math.round(balanceSheet.currentAssets.receivables),
+                  partner_receivables: Math.round(balanceSheet.currentAssets.partnerReceivables || 0),
+                  vat_receivable: Math.round(balanceSheet.currentAssets.vatReceivable),
+                  other_vat: Math.round((balanceSheet.currentAssets as any).otherVat || 0),
+                  inventory: Math.round(balanceSheet.currentAssets.inventory),
+                  vehicles: Math.round(balanceSheet.fixedAssets.vehicles),
+                  fixtures: Math.round(balanceSheet.fixedAssets.equipment),
+                  accumulated_depreciation: Math.round(balanceSheet.fixedAssets.depreciation),
+                  trade_payables: Math.round(balanceSheet.shortTermLiabilities.payables),
+                  vat_payable: Math.round(balanceSheet.shortTermLiabilities.vatPayable),
+                  tax_payables: Math.round((balanceSheet.shortTermLiabilities as any).taxPayables || 0),
+                  social_security_payables: Math.round((balanceSheet.shortTermLiabilities as any).socialSecurityPayables || 0),
+                  personnel_payables: Math.round((balanceSheet.shortTermLiabilities as any).personnelPayables || 0),
+                  partner_payables: Math.round(balanceSheet.shortTermLiabilities.partnerPayables),
+                  deferred_tax_liabilities: Math.round((balanceSheet.shortTermLiabilities as any).deferredTaxLiabilities || 0),
+                  tax_provision: Math.round((balanceSheet.shortTermLiabilities as any).taxProvision || 0),
+                  short_term_loan_debt: Math.round(balanceSheet.shortTermLiabilities.loanInstallments),
+                  bank_loans: Math.round(balanceSheet.longTermLiabilities.bankLoans),
+                  paid_capital: Math.round(balanceSheet.equity.paidCapital),
+                  unpaid_capital: Math.round((balanceSheet.equity as any).unpaidCapital || 0),
+                  retained_earnings: Math.round(balanceSheet.equity.retainedEarnings),
+                  current_profit: Math.round(balanceSheet.equity.currentProfit),
+                  total_assets: Math.round(balanceSheet.totalAssets),
+                  total_liabilities: Math.round(balanceSheet.totalLiabilities),
+                });
+                toast({
+                  title: 'Kaydedildi',
+                  description: `${year} yılı bilanço verileri veritabanına kaydedildi.`,
+                });
+              }}
+              disabled={isUpdating}
+              title="Bilançoyu kaydet"
+            >
+              <Save className="h-4 w-4" />
+            </Button>
+          )}
           {/* Lock/Unlock button */}
           {!isLocked ? (
             <Button 
