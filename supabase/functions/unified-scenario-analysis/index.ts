@@ -141,7 +141,8 @@ serve(async (req) => {
       dealConfig, 
       exitPlan, 
       capitalNeeds,
-      historicalBalance 
+      historicalBalance,
+      quarterlyItemized
     } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -257,7 +258,40 @@ ${scenarioB.revenues.map((r: { category: string; projectedAmount: number }) => `
 Senaryo B Giderleri:
 ${scenarioB.expenses.map((e: { category: string; projectedAmount: number }) => `- ${e.category}: $${e.projectedAmount.toLocaleString()}`).join('\n')}
 
-Tüm bu verileri (özellikle geçmiş yıl bilançosunu) analiz et ve yukarıdaki 5 bölümün hepsini içeren yapılandırılmış çıktı üret.
+${quarterlyItemized ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+ÇEYREKLİK BAZDA GELİR/GİDER DETAYLARI:
+
+SENARYO A - ÇEYREKLİK GELİRLER:
+${quarterlyItemized.scenarioA.revenues.map((r: any) => 
+  `${r.category}: Q1=$${Math.round(r.q1).toLocaleString()}, Q2=$${Math.round(r.q2).toLocaleString()}, Q3=$${Math.round(r.q3).toLocaleString()}, Q4=$${Math.round(r.q4).toLocaleString()} | Toplam=$${Math.round(r.total).toLocaleString()}`
+).join('\n')}
+
+SENARYO B - ÇEYREKLİK GELİRLER:
+${quarterlyItemized.scenarioB.revenues.map((r: any) => 
+  `${r.category}: Q1=$${Math.round(r.q1).toLocaleString()}, Q2=$${Math.round(r.q2).toLocaleString()}, Q3=$${Math.round(r.q3).toLocaleString()}, Q4=$${Math.round(r.q4).toLocaleString()} | Toplam=$${Math.round(r.total).toLocaleString()}`
+).join('\n')}
+
+SENARYO FARKLARI - GELİR KALEMLERİ:
+${quarterlyItemized.diffs.revenues.map((d: any) => 
+  `${d.category}: Q1 Fark=$${Math.round(d.diffQ1).toLocaleString()}, Q2=$${Math.round(d.diffQ2).toLocaleString()}, Q3=$${Math.round(d.diffQ3).toLocaleString()}, Q4=$${Math.round(d.diffQ4).toLocaleString()} | Toplam Fark=$${Math.round(d.totalDiff).toLocaleString()} (${d.percentChange.toFixed(1)}%)`
+).join('\n')}
+
+SENARYO FARKLARI - GİDER KALEMLERİ:
+${quarterlyItemized.diffs.expenses.map((d: any) => 
+  `${d.category}: Q1 Fark=$${Math.round(d.diffQ1).toLocaleString()}, Q2=$${Math.round(d.diffQ2).toLocaleString()}, Q3=$${Math.round(d.diffQ3).toLocaleString()}, Q4=$${Math.round(d.diffQ4).toLocaleString()} | Toplam Fark=$${Math.round(d.totalDiff).toLocaleString()} (${d.percentChange.toFixed(1)}%)`
+).join('\n')}
+
+📊 ÇEYREKLİK ANALİZ TALİMATLARI:
+1. Hangi gelir kalemi büyümeyi sürüklüyor? (En yüksek pozitif fark)
+2. Hangi gider kalemi sermaye ihtiyacının ana nedeni? (En yüksek artış)
+3. Q1-Q4 arasında hangi çeyrek kritik? (Cash flow açısından)
+4. Mevsimsel trendler var mı? (Q1 düşük, Q4 yüksek gibi)
+5. Büyüme senaryosu hangi kalemde en agresif?
+` : ''}
+
+Tüm bu verileri (özellikle geçmiş yıl bilançosunu ve çeyreklik kalem bazlı verileri) analiz et ve yukarıdaki 5 bölümün hepsini içeren yapılandırılmış çıktı üret.
 `;
 
     console.log("Calling Lovable AI with Pro model for unified analysis...");

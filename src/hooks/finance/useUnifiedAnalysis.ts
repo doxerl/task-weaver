@@ -9,7 +9,8 @@ import {
   UnifiedAnalysisResult,
   AnalysisHistoryItem,
   QuarterlyAmounts,
-  YearlyBalanceSheet
+  YearlyBalanceSheet,
+  QuarterlyItemizedData
 } from '@/types/simulation';
 import { generateScenarioHash } from '@/lib/scenarioHash';
 import { useAuth } from '@/hooks/useAuth';
@@ -282,7 +283,8 @@ export function useUnifiedAnalysis() {
     dealConfig: DealConfiguration,
     exitPlan: ExitPlan,
     capitalNeeds: CapitalRequirement,
-    historicalBalance: YearlyBalanceSheet | null
+    historicalBalance: YearlyBalanceSheet | null,
+    quarterlyItemized: QuarterlyItemizedData | null
   ): Promise<UnifiedAnalysisResult | null> => {
     setIsLoading(true);
     setError(null);
@@ -303,7 +305,8 @@ export function useUnifiedAnalysis() {
           dealConfig,
           exitPlan,
           capitalNeeds,
-          historicalBalance
+          historicalBalance,
+          quarterlyItemized
         }
       });
 

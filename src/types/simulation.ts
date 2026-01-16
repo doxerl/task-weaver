@@ -460,6 +460,47 @@ export interface YearlyBalanceSheet {
   closing_notes?: string | null;
 }
 
+// =====================================================
+// QUARTERLY ITEMIZED DATA TYPE (for AI analysis)
+// =====================================================
+
+/** Quarterly breakdown of a single item (revenue or expense) */
+export interface QuarterlyItemBreakdown {
+  category: string;
+  q1: number;
+  q2: number;
+  q3: number;
+  q4: number;
+  total: number;
+}
+
+/** Difference between scenarios for a single item */
+export interface QuarterlyItemDiff {
+  category: string;
+  diffQ1: number;
+  diffQ2: number;
+  diffQ3: number;
+  diffQ4: number;
+  totalDiff: number;
+  percentChange: number;
+}
+
+/** Complete quarterly itemized data for AI analysis */
+export interface QuarterlyItemizedData {
+  scenarioA: {
+    revenues: QuarterlyItemBreakdown[];
+    expenses: QuarterlyItemBreakdown[];
+  };
+  scenarioB: {
+    revenues: QuarterlyItemBreakdown[];
+    expenses: QuarterlyItemBreakdown[];
+  };
+  diffs: {
+    revenues: QuarterlyItemDiff[];
+    expenses: QuarterlyItemDiff[];
+  };
+}
+
 /** Default sector multiples */
 export const SECTOR_MULTIPLES: Record<string, number> = {
   'SaaS': 8,

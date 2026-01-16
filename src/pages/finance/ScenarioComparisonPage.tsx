@@ -20,7 +20,6 @@ import {
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
   Collapsible,
@@ -43,13 +42,11 @@ import {
   AlertTriangle,
   Download,
   Loader2,
-  LineChart as LineChartIcon,
   Sparkles,
   Brain,
   Clock,
   CheckCircle2,
   ArrowRight,
-  Calendar,
   Rocket,
   ArrowLeft,
   RefreshCw,
@@ -58,7 +55,7 @@ import {
   RotateCcw,
   Presentation,
 } from 'lucide-react';
-import { SimulationScenario, AnalysisHistoryItem, NextYearProjection } from '@/types/simulation';
+import { SimulationScenario, AnalysisHistoryItem, NextYearProjection, QuarterlyItemizedData } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
@@ -419,6 +416,87 @@ function ScenarioComparisonContent() {
     });
   }, [quarterlyComparison]);
 
+  // Quarterly itemized data for AI analysis
+  const quarterlyItemized = useMemo((): QuarterlyItemizedData | null => {
+    if (!scenarioA || !scenarioB) return null;
+    
+    const quarters: ('q1' | 'q2' | 'q3' | 'q4')[] = ['q1', 'q2', 'q3', 'q4'];
+    
+    // Scenario A revenues by quarter
+    const aRevenuesByQuarter = scenarioA.revenues.map(r => ({
+      category: r.category,
+      q1: r.projectedQuarterly?.q1 || r.projectedAmount / 4,
+      q2: r.projectedQuarterly?.q2 || r.projectedAmount / 4,
+      q3: r.projectedQuarterly?.q3 || r.projectedAmount / 4,
+      q4: r.projectedQuarterly?.q4 || r.projectedAmount / 4,
+      total: r.projectedAmount
+    }));
+    
+    // Scenario A expenses by quarter
+    const aExpensesByQuarter = scenarioA.expenses.map(e => ({
+      category: e.category,
+      q1: e.projectedQuarterly?.q1 || e.projectedAmount / 4,
+      q2: e.projectedQuarterly?.q2 || e.projectedAmount / 4,
+      q3: e.projectedQuarterly?.q3 || e.projectedAmount / 4,
+      q4: e.projectedQuarterly?.q4 || e.projectedAmount / 4,
+      total: e.projectedAmount
+    }));
+    
+    // Scenario B revenues by quarter
+    const bRevenuesByQuarter = scenarioB.revenues.map(r => ({
+      category: r.category,
+      q1: r.projectedQuarterly?.q1 || r.projectedAmount / 4,
+      q2: r.projectedQuarterly?.q2 || r.projectedAmount / 4,
+      q3: r.projectedQuarterly?.q3 || r.projectedAmount / 4,
+      q4: r.projectedQuarterly?.q4 || r.projectedAmount / 4,
+      total: r.projectedAmount
+    }));
+    
+    // Scenario B expenses by quarter
+    const bExpensesByQuarter = scenarioB.expenses.map(e => ({
+      category: e.category,
+      q1: e.projectedQuarterly?.q1 || e.projectedAmount / 4,
+      q2: e.projectedQuarterly?.q2 || e.projectedAmount / 4,
+      q3: e.projectedQuarterly?.q3 || e.projectedAmount / 4,
+      q4: e.projectedQuarterly?.q4 || e.projectedAmount / 4,
+      total: e.projectedAmount
+    }));
+    
+    // Calculate revenue differences between scenarios
+    const revenueDiffs = bRevenuesByQuarter.map(b => {
+      const a = aRevenuesByQuarter.find(ar => ar.category === b.category);
+      return {
+        category: b.category,
+        diffQ1: b.q1 - (a?.q1 || 0),
+        diffQ2: b.q2 - (a?.q2 || 0),
+        diffQ3: b.q3 - (a?.q3 || 0),
+        diffQ4: b.q4 - (a?.q4 || 0),
+        totalDiff: b.total - (a?.total || 0),
+        percentChange: a?.total ? ((b.total - a.total) / a.total * 100) : 100
+      };
+    });
+    
+    // Calculate expense differences between scenarios
+    const expenseDiffs = bExpensesByQuarter.map(b => {
+      const a = aExpensesByQuarter.find(ae => ae.category === b.category);
+      return {
+        category: b.category,
+        diffQ1: b.q1 - (a?.q1 || 0),
+        diffQ2: b.q2 - (a?.q2 || 0),
+        diffQ3: b.q3 - (a?.q3 || 0),
+        diffQ4: b.q4 - (a?.q4 || 0),
+        totalDiff: b.total - (a?.total || 0),
+        percentChange: a?.total ? ((b.total - a.total) / a.total * 100) : 100
+      };
+    });
+    
+    return {
+      scenarioA: { revenues: aRevenuesByQuarter, expenses: aExpensesByQuarter },
+      scenarioB: { revenues: bRevenuesByQuarter, expenses: bExpensesByQuarter },
+      diffs: { revenues: revenueDiffs, expenses: expenseDiffs }
+    };
+  }, [scenarioA, scenarioB]);
+
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
   // Load cached unified analysis when scenarios change
@@ -477,7 +555,8 @@ function ScenarioComparisonContent() {
       dealConfig,
       exitPlan,
       capitalNeeds,
-      historicalBalance
+      historicalBalance,
+      quarterlyItemized
     );
   };
 
@@ -504,6 +583,11 @@ function ScenarioComparisonContent() {
   const chartConfig: ChartConfig = {
     scenarioANet: { label: `${scenarioA?.name || 'A'} Net`, color: '#2563eb' },
     scenarioBNet: { label: `${scenarioB?.name || 'B'} Net`, color: '#16a34a' },
+  };
+
+  const cumulativeChartConfig: ChartConfig = {
+    scenarioACumulative: { label: `${scenarioA?.name || 'A'} Kümülatif`, color: '#2563eb' },
+    scenarioBCumulative: { label: `${scenarioB?.name || 'B'} Kümülatif`, color: '#16a34a' },
   };
 
   if (scenariosLoading) {
@@ -542,6 +626,7 @@ function ScenarioComparisonContent() {
       </header>
 
       <main className="container mx-auto px-4 py-6 space-y-6">
+        {/* Scenario Selection */}
         <Card>
           <CardContent className="pt-4">
             <div className="grid grid-cols-2 gap-4">
@@ -572,45 +657,38 @@ function ScenarioComparisonContent() {
             {scenarios.length < 2 ? <p>Karşılaştırma için en az 2 kayıtlı senaryo gerekli.</p> : <p>Karşılaştırmak için iki farklı senaryo seçin.</p>}
           </div>
         ) : (
-          <Tabs defaultValue="summary" className="w-full">
-            <TabsList className="grid w-full grid-cols-4">
-              <TabsTrigger value="summary">Özet</TabsTrigger>
-              <TabsTrigger value="trend"><LineChartIcon className="h-4 w-4 mr-1" />Trend</TabsTrigger>
-              <TabsTrigger value="quarterly"><Calendar className="h-4 w-4 mr-1" />Çeyreklik</TabsTrigger>
-              <TabsTrigger value="investment" className="text-amber-400"><Rocket className="h-4 w-4 mr-1" />Yatırım & AI</TabsTrigger>
-            </TabsList>
+          <div className="space-y-6">
+            {/* SECTION 1: SUMMARY CARDS */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+              {metrics.map((m) => {
+                const diff = calculateDiff(m.scenarioA, m.scenarioB);
+                return (
+                  <Card key={m.label}>
+                    <CardContent className="pt-4">
+                      <div className="text-xs text-muted-foreground mb-2">{m.label}</div>
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-sm font-mono">{formatValue(m.scenarioA, m.format)}</span>
+                        <ArrowRight className="h-3 w-3 text-muted-foreground flex-shrink-0" />
+                        <span className="text-sm font-bold font-mono">{formatValue(m.scenarioB, m.format)}</span>
+                      </div>
+                      <div className="mt-2">
+                        <DiffBadge diff={diff} format={m.format} higherIsBetter={m.higherIsBetter} />
+                      </div>
+                    </CardContent>
+                  </Card>
+                );
+              })}
+            </div>
 
-            <TabsContent value="summary" className="mt-4">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Metrik</TableHead>
-                    <TableHead className="text-right">{scenarioA?.name}</TableHead>
-                    <TableHead className="text-right">{scenarioB?.name}</TableHead>
-                    <TableHead className="text-right">Fark</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {metrics.map((m) => {
-                    const diff = calculateDiff(m.scenarioA, m.scenarioB);
-                    return (
-                      <TableRow key={m.label}>
-                        <TableCell className="font-medium">{m.label}</TableCell>
-                        <TableCell className="text-right font-mono">{formatValue(m.scenarioA, m.format)}</TableCell>
-                        <TableCell className="text-right font-mono">{formatValue(m.scenarioB, m.format)}</TableCell>
-                        <TableCell className="text-right"><DiffBadge diff={diff} format={m.format} higherIsBetter={m.higherIsBetter} /></TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-              </Table>
-            </TabsContent>
-
-            <TabsContent value="trend" className="mt-4">
+            {/* SECTION 2: CHARTS SIDE BY SIDE */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              {/* Quarterly Net Profit Bar Chart */}
               <Card ref={chartContainerRef}>
-                <CardHeader className="pb-2"><CardTitle className="text-sm">Çeyreklik Net Kâr Karşılaştırması</CardTitle></CardHeader>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Çeyreklik Net Kâr</CardTitle>
+                </CardHeader>
                 <CardContent>
-                  <ChartContainer config={chartConfig} className="h-[300px] w-full">
+                  <ChartContainer config={chartConfig} className="h-[200px] w-full">
                     <ComposedChart data={quarterlyComparison}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
@@ -623,13 +701,14 @@ function ScenarioComparisonContent() {
                   </ChartContainer>
                 </CardContent>
               </Card>
-            </TabsContent>
 
-            <TabsContent value="quarterly" className="mt-4 space-y-4">
+              {/* Cumulative Cash Flow Area Chart */}
               <Card>
-                <CardHeader className="pb-2"><CardTitle className="text-sm">Kümülatif Nakit Akışı</CardTitle></CardHeader>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm">Kümülatif Nakit Akışı</CardTitle>
+                </CardHeader>
                 <CardContent>
-                  <ChartContainer config={{ scenarioACumulative: { label: `${scenarioA?.name} Kümülatif`, color: '#2563eb' }, scenarioBCumulative: { label: `${scenarioB?.name} Kümülatif`, color: '#16a34a' } }} className="h-[250px] w-full">
+                  <ChartContainer config={cumulativeChartConfig} className="h-[200px] w-full">
                     <AreaChart data={quarterlyCumulativeData}>
                       <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
                       <XAxis dataKey="quarter" tick={{ fontSize: 12, fill: '#64748b' }} />
@@ -642,54 +721,53 @@ function ScenarioComparisonContent() {
                   </ChartContainer>
                 </CardContent>
               </Card>
-            </TabsContent>
+            </div>
 
-            <TabsContent value="investment" className="mt-4">
-              {unifiedCacheLoading ? (
-                <div className="flex items-center justify-center py-8">
-                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                  <span className="ml-2 text-muted-foreground">Önceki analiz yükleniyor...</span>
-                </div>
-              ) : (
-                <>
-                  {/* Data changed warning */}
-                  {unifiedDataChanged && unifiedCachedInfo && (
-                    <DataChangedWarning onReanalyze={handleUnifiedAnalysis} isLoading={unifiedLoading} />
-                  )}
-                  
-                  {unifiedCachedInfo && (
-                    <div className="mb-4">
-                      <CacheInfoBadge cachedInfo={unifiedCachedInfo} />
-                    </div>
-                  )}
-                  
-                  {/* Analysis history */}
-                  <AnalysisHistoryPanel 
-                    history={unifiedAnalysisHistory}
-                    isLoading={unifiedHistoryLoading}
-                    onSelectHistory={handleSelectUnifiedHistory}
-                    analysisType="scenario_comparison"
-                  />
-                  
-                  <InvestmentTab
-                    scenarioA={scenarioA}
-                    scenarioB={scenarioB}
-                    summaryA={{ totalRevenue: summaryA!.totalRevenue, totalExpenses: summaryA!.totalExpense, netProfit: summaryA!.netProfit, profitMargin: summaryA!.profitMargin }}
-                    summaryB={{ totalRevenue: summaryB!.totalRevenue, totalExpenses: summaryB!.totalExpense, netProfit: summaryB!.netProfit, profitMargin: summaryB!.profitMargin }}
-                    quarterlyA={{ q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 }}
-                    quarterlyB={{ q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 }}
-                    dealConfig={dealConfig}
-                    onDealConfigChange={updateDealConfig}
-                    unifiedAnalysis={unifiedAnalysis}
-                    isLoading={unifiedLoading}
-                    onUnifiedAnalyze={handleUnifiedAnalysis}
-                    onCreateNextYear={handleCreateNextYear}
-                    onShowPitchDeck={() => setShowPitchDeck(true)}
-                  />
-                </>
-              )}
-            </TabsContent>
-          </Tabs>
+            {/* SECTION 3: INVESTMENT & AI (formerly in tab) */}
+            {unifiedCacheLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Önceki analiz yükleniyor...</span>
+              </div>
+            ) : (
+              <>
+                {/* Data changed warning */}
+                {unifiedDataChanged && unifiedCachedInfo && (
+                  <DataChangedWarning onReanalyze={handleUnifiedAnalysis} isLoading={unifiedLoading} />
+                )}
+                
+                {unifiedCachedInfo && (
+                  <div className="mb-4">
+                    <CacheInfoBadge cachedInfo={unifiedCachedInfo} />
+                  </div>
+                )}
+                
+                {/* Analysis history */}
+                <AnalysisHistoryPanel 
+                  history={unifiedAnalysisHistory}
+                  isLoading={unifiedHistoryLoading}
+                  onSelectHistory={handleSelectUnifiedHistory}
+                  analysisType="scenario_comparison"
+                />
+                
+                <InvestmentTab
+                  scenarioA={scenarioA}
+                  scenarioB={scenarioB}
+                  summaryA={{ totalRevenue: summaryA!.totalRevenue, totalExpenses: summaryA!.totalExpense, netProfit: summaryA!.netProfit, profitMargin: summaryA!.profitMargin }}
+                  summaryB={{ totalRevenue: summaryB!.totalRevenue, totalExpenses: summaryB!.totalExpense, netProfit: summaryB!.netProfit, profitMargin: summaryB!.profitMargin }}
+                  quarterlyA={{ q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 }}
+                  quarterlyB={{ q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 }}
+                  dealConfig={dealConfig}
+                  onDealConfigChange={updateDealConfig}
+                  unifiedAnalysis={unifiedAnalysis}
+                  isLoading={unifiedLoading}
+                  onUnifiedAnalyze={handleUnifiedAnalysis}
+                  onCreateNextYear={handleCreateNextYear}
+                  onShowPitchDeck={() => setShowPitchDeck(true)}
+                />
+              </>
+            )}
+          </div>
         )}
       </main>
       
