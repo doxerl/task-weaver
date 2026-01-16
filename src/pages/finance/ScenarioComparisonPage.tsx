@@ -23,20 +23,24 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Skeleton } from '@/components/ui/skeleton';
 import { 
+  Collapsible,
+  CollapsibleContent,
+  CollapsibleTrigger,
+} from '@/components/ui/collapsible';
+import {
+  Sheet,
+  SheetContent,
+  SheetDescription,
+  SheetHeader,
+  SheetTitle,
+} from '@/components/ui/sheet';
+import { ScrollArea } from '@/components/ui/scroll-area';
+import { 
   TrendingUp, 
   TrendingDown, 
   Minus, 
   ArrowLeftRight, 
-  Trophy, 
   AlertTriangle,
-  Lightbulb,
-  BarChart3,
-  Target,
-  Shield,
-  Zap,
-  DollarSign,
-  PiggyBank,
-  TrendingUpDown,
   Download,
   Loader2,
   LineChart as LineChartIcon,
@@ -44,15 +48,16 @@ import {
   Brain,
   Clock,
   CheckCircle2,
-  XCircle,
   ArrowRight,
   Calendar,
   Rocket,
   ArrowLeft,
   RefreshCw,
-  History
+  History,
+  ChevronDown,
+  RotateCcw,
 } from 'lucide-react';
-import { SimulationScenario, AIScenarioInsight, AIRecommendation, DEFAULT_DEAL_CONFIG } from '@/types/simulation';
+import { SimulationScenario, AnalysisHistoryItem } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
@@ -155,11 +160,205 @@ const CacheInfoBadge = ({ cachedInfo }: { cachedInfo: { id: string; updatedAt: D
   );
 };
 
+// Data changed warning component
+const DataChangedWarning = ({ onReanalyze, isLoading }: { onReanalyze: () => void; isLoading: boolean }) => {
+  return (
+    <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-center gap-3 mb-4">
+      <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+      <div className="flex-1 min-w-0">
+        <p className="text-sm font-medium text-amber-400">
+          Senaryo verileri güncellendi
+        </p>
+        <p className="text-xs text-muted-foreground">
+          Son analizden bu yana veriler değişti. Güncel sonuçlar için yeniden analiz yapmanızı öneririz.
+        </p>
+      </div>
+      <Button 
+        size="sm" 
+        variant="outline" 
+        className="gap-1 border-amber-500/30 text-amber-400 hover:bg-amber-500/20 flex-shrink-0"
+        onClick={onReanalyze}
+        disabled={isLoading}
+      >
+        {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
+        Yeniden Analiz
+      </Button>
+    </div>
+  );
+};
+
+// Analysis history panel component
+const AnalysisHistoryPanel = ({ 
+  history, 
+  isLoading, 
+  onSelectHistory,
+  analysisType 
+}: { 
+  history: AnalysisHistoryItem[]; 
+  isLoading: boolean;
+  onSelectHistory: (item: AnalysisHistoryItem) => void;
+  analysisType: 'scenario_comparison' | 'investor_pitch';
+}) => {
+  const [isOpen, setIsOpen] = useState(false);
+
+  if (history.length === 0 && !isLoading) return null;
+
+  return (
+    <Collapsible open={isOpen} onOpenChange={setIsOpen} className="mb-4">
+      <CollapsibleTrigger asChild>
+        <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
+          <History className="h-4 w-4" />
+          Analiz Geçmişi ({history.length})
+          <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
+        </Button>
+      </CollapsibleTrigger>
+      <CollapsibleContent>
+        <Card className="mt-2">
+          <CardContent className="p-3 space-y-2">
+            {isLoading ? (
+              <div className="flex items-center justify-center py-4">
+                <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+              </div>
+            ) : history.length === 0 ? (
+              <p className="text-sm text-muted-foreground text-center py-4">
+                Henüz analiz geçmişi yok
+              </p>
+            ) : (
+              history.map((item, index) => (
+                <div 
+                  key={item.id}
+                  className="flex items-center justify-between p-2 rounded-lg border hover:bg-accent/50 cursor-pointer transition-colors"
+                  onClick={() => onSelectHistory(item)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className={`w-2 h-2 rounded-full ${index === 0 ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
+                    <div>
+                      <p className="text-sm font-medium">
+                        {format(item.createdAt, 'dd MMMM yyyy HH:mm', { locale: tr })}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        {analysisType === 'scenario_comparison' 
+                          ? `${item.insights?.length || 0} çıkarım, ${item.recommendations?.length || 0} öneri`
+                          : 'Yatırımcı analizi'
+                        }
+                      </p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    {index === 0 && (
+                      <Badge variant="secondary" className="text-xs">Güncel</Badge>
+                    )}
+                    <ArrowRight className="h-4 w-4 text-muted-foreground" />
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </CollapsibleContent>
+    </Collapsible>
+  );
+};
+
+// Historical analysis sheet component
+const HistoricalAnalysisSheet = ({
+  item,
+  isOpen,
+  onClose,
+  onRestore,
+  analysisType
+}: {
+  item: AnalysisHistoryItem | null;
+  isOpen: boolean;
+  onClose: () => void;
+  onRestore: (item: AnalysisHistoryItem) => void;
+  analysisType: 'scenario_comparison' | 'investor_pitch';
+}) => {
+  if (!item) return null;
+
+  return (
+    <Sheet open={isOpen} onOpenChange={onClose}>
+      <SheetContent className="w-[450px] sm:w-[540px]">
+        <SheetHeader>
+          <SheetTitle>Geçmiş Analiz</SheetTitle>
+          <SheetDescription>
+            {format(item.createdAt, 'dd MMMM yyyy HH:mm', { locale: tr })}
+          </SheetDescription>
+        </SheetHeader>
+        <ScrollArea className="h-[calc(100vh-200px)] mt-4 pr-4">
+          {analysisType === 'scenario_comparison' && item.insights && (
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium mb-2 text-sm text-muted-foreground">Çıkarımlar</h4>
+                {item.insights.map((insight, i) => (
+                  <Card key={i} className="p-3 mb-2">
+                    <p className="text-sm font-medium">{insight.title}</p>
+                    <p className="text-xs text-muted-foreground mt-1">{insight.description}</p>
+                  </Card>
+                ))}
+              </div>
+              {item.recommendations && item.recommendations.length > 0 && (
+                <div>
+                  <h4 className="font-medium mb-2 text-sm text-muted-foreground">Öneriler</h4>
+                  {item.recommendations.map((rec, i) => (
+                    <Card key={i} className="p-3 mb-2">
+                      <div className="flex items-center gap-2 mb-1">
+                        <Badge variant="outline" className="text-xs">
+                          Öncelik {rec.priority}
+                        </Badge>
+                        <p className="text-sm font-medium">{rec.title}</p>
+                      </div>
+                      <p className="text-xs text-muted-foreground">{rec.description}</p>
+                    </Card>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+          
+          {analysisType === 'investor_pitch' && item.investorAnalysis && (
+            <div className="space-y-4">
+              <Card className="p-3">
+                <h4 className="text-sm font-medium mb-2">Sermaye Hikayesi</h4>
+                <p className="text-xs text-muted-foreground">{item.investorAnalysis.capitalStory}</p>
+              </Card>
+              <Card className="p-3">
+                <h4 className="text-sm font-medium mb-2">Yatırımcı Getirisi</h4>
+                <p className="text-xs text-muted-foreground">{item.investorAnalysis.investorROI}</p>
+              </Card>
+              <Card className="p-3">
+                <h4 className="text-sm font-medium mb-2">Çıkış Senaryosu</h4>
+                <p className="text-xs text-muted-foreground">{item.investorAnalysis.exitNarrative}</p>
+              </Card>
+            </div>
+          )}
+        </ScrollArea>
+        <div className="mt-4 pt-4 border-t">
+          <Button 
+            className="w-full gap-2" 
+            onClick={() => {
+              onRestore(item);
+              onClose();
+            }}
+          >
+            <RotateCcw className="h-4 w-4" />
+            Bu Analizi Geri Yükle
+          </Button>
+        </div>
+      </SheetContent>
+    </Sheet>
+  );
+};
+
 function ScenarioComparisonContent() {
   const { scenarios, isLoading: scenariosLoading, currentScenarioId } = useScenarios();
   const [scenarioAId, setScenarioAId] = useState<string | null>(currentScenarioId);
   const [scenarioBId, setScenarioBId] = useState<string | null>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
+  
+  // Sheet state for historical analysis
+  const [selectedHistoricalAnalysis, setSelectedHistoricalAnalysis] = useState<AnalysisHistoryItem | null>(null);
+  const [historySheetType, setHistorySheetType] = useState<'scenario_comparison' | 'investor_pitch'>('scenario_comparison');
 
   const { generatePdfFromElement, isGenerating } = usePdfEngine();
   const { 
@@ -167,8 +366,14 @@ function ScenarioComparisonContent() {
     isLoading: aiLoading, 
     isCacheLoading: aiCacheLoading,
     cachedInfo: aiCachedInfo,
+    dataChanged: aiDataChanged,
+    analysisHistory: aiAnalysisHistory,
+    isHistoryLoading: aiHistoryLoading,
     analyzeScenarios, 
     loadCachedAnalysis,
+    loadAnalysisHistory: loadAIAnalysisHistory,
+    checkDataChanges: checkAIDataChanges,
+    restoreHistoricalAnalysis: restoreAIHistoricalAnalysis,
     clearAnalysis 
   } = useScenarioAIAnalysis();
   
@@ -179,8 +384,14 @@ function ScenarioComparisonContent() {
     isLoading: investorLoading, 
     isCacheLoading: investorCacheLoading,
     cachedInfo: investorCachedInfo,
+    dataChanged: investorDataChanged,
+    analysisHistory: investorAnalysisHistory,
+    isHistoryLoading: investorHistoryLoading,
     analyzeForInvestors,
     loadCachedInvestorAnalysis,
+    loadAnalysisHistory: loadInvestorAnalysisHistory,
+    checkDataChanges: checkInvestorDataChanges,
+    restoreHistoricalAnalysis: restoreInvestorHistoricalAnalysis,
     clearAnalysis: clearInvestorAnalysis
   } = useInvestorAnalysis();
 
@@ -215,25 +426,63 @@ function ScenarioComparisonContent() {
 
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
-  // Load cached analyses when scenarios change
+  // Load cached analyses and history when scenarios change
   useEffect(() => {
     if (scenarioAId && scenarioBId && scenarioAId !== scenarioBId) {
-      // Load cached AI analysis
+      // Load cached analyses
       loadCachedAnalysis(scenarioAId, scenarioBId);
-      // Load cached investor analysis
       loadCachedInvestorAnalysis(scenarioAId, scenarioBId);
+      
+      // Load history
+      loadAIAnalysisHistory(scenarioAId, scenarioBId);
+      loadInvestorAnalysisHistory(scenarioAId, scenarioBId);
     } else {
       // Clear if no valid comparison
       clearAnalysis();
       clearInvestorAnalysis();
     }
-  }, [scenarioAId, scenarioBId, loadCachedAnalysis, loadCachedInvestorAnalysis, clearAnalysis, clearInvestorAnalysis]);
+  }, [scenarioAId, scenarioBId, loadCachedAnalysis, loadCachedInvestorAnalysis, loadAIAnalysisHistory, loadInvestorAnalysisHistory, clearAnalysis, clearInvestorAnalysis]);
+
+  // Check for data changes when scenarios are loaded and we have cached info
+  useEffect(() => {
+    if (scenarioA && scenarioB && aiCachedInfo) {
+      checkAIDataChanges(scenarioA, scenarioB);
+    }
+    if (scenarioA && scenarioB && investorCachedInfo) {
+      checkInvestorDataChanges(scenarioA, scenarioB);
+    }
+  }, [scenarioA, scenarioB, aiCachedInfo, investorCachedInfo, checkAIDataChanges, checkInvestorDataChanges]);
 
   const handleAIAnalysis = async () => {
     if (!scenarioA || !scenarioB || !summaryA || !summaryB) return;
     const quarterlyA = { q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 };
     const quarterlyB = { q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 };
     await analyzeScenarios(scenarioA, scenarioB, { totalRevenue: summaryA.totalRevenue, totalExpenses: summaryA.totalExpense, netProfit: summaryA.netProfit, profitMargin: summaryA.profitMargin }, { totalRevenue: summaryB.totalRevenue, totalExpenses: summaryB.totalExpense, netProfit: summaryB.netProfit, profitMargin: summaryB.profitMargin }, quarterlyA, quarterlyB);
+  };
+
+  const handleInvestorAnalysis = async () => {
+    if (!scenarioA || !scenarioB || !summaryA || !summaryB) return;
+    const quarterlyA = { q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 };
+    const quarterlyB = { q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 };
+    await analyzeForInvestors(scenarioA, scenarioB, { totalRevenue: summaryA.totalRevenue, totalExpenses: summaryA.totalExpense, netProfit: summaryA.netProfit, profitMargin: summaryA.profitMargin }, { totalRevenue: summaryB.totalRevenue, totalExpenses: summaryB.totalExpense, netProfit: summaryB.netProfit, profitMargin: summaryB.profitMargin }, quarterlyA, quarterlyB);
+  };
+
+  const handleSelectAIHistory = (item: AnalysisHistoryItem) => {
+    setSelectedHistoricalAnalysis(item);
+    setHistorySheetType('scenario_comparison');
+  };
+
+  const handleSelectInvestorHistory = (item: AnalysisHistoryItem) => {
+    setSelectedHistoricalAnalysis(item);
+    setHistorySheetType('investor_pitch');
+  };
+
+  const handleRestoreHistory = (item: AnalysisHistoryItem) => {
+    if (historySheetType === 'scenario_comparison') {
+      restoreAIHistoricalAnalysis(item);
+    } else {
+      restoreInvestorHistoricalAnalysis(item);
+    }
   };
 
   const chartConfig: ChartConfig = {
@@ -388,11 +637,25 @@ function ScenarioComparisonContent() {
                 </div>
               ) : (
                 <>
+                  {/* Data changed warning */}
+                  {investorDataChanged && investorCachedInfo && (
+                    <DataChangedWarning onReanalyze={handleInvestorAnalysis} isLoading={investorLoading} />
+                  )}
+                  
                   {investorCachedInfo && (
                     <div className="mb-4">
                       <CacheInfoBadge cachedInfo={investorCachedInfo} />
                     </div>
                   )}
+                  
+                  {/* Analysis history */}
+                  <AnalysisHistoryPanel 
+                    history={investorAnalysisHistory}
+                    isLoading={investorHistoryLoading}
+                    onSelectHistory={handleSelectInvestorHistory}
+                    analysisType="investor_pitch"
+                  />
+                  
                   <InvestmentTab
                     scenarioA={scenarioA}
                     scenarioB={scenarioB}
@@ -404,13 +667,18 @@ function ScenarioComparisonContent() {
                     onDealConfigChange={updateDealConfig}
                     investorAnalysis={investorAnalysis}
                     isLoading={investorLoading}
-                    onAnalyze={() => analyzeForInvestors(scenarioA, scenarioB, { totalRevenue: summaryA!.totalRevenue, totalExpenses: summaryA!.totalExpense, netProfit: summaryA!.netProfit, profitMargin: summaryA!.profitMargin }, { totalRevenue: summaryB!.totalRevenue, totalExpenses: summaryB!.totalExpense, netProfit: summaryB!.netProfit, profitMargin: summaryB!.profitMargin }, { q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 }, { q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 })}
+                    onAnalyze={handleInvestorAnalysis}
                   />
                 </>
               )}
             </TabsContent>
 
             <TabsContent value="insights" className="mt-4 space-y-4">
+              {/* Data changed warning */}
+              {aiDataChanged && aiCachedInfo && (
+                <DataChangedWarning onReanalyze={handleAIAnalysis} isLoading={aiLoading} />
+              )}
+              
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-3">
                   {aiCacheLoading ? (
@@ -456,6 +724,14 @@ function ScenarioComparisonContent() {
                 </Button>
               </div>
               
+              {/* Analysis history */}
+              <AnalysisHistoryPanel 
+                history={aiAnalysisHistory}
+                isLoading={aiHistoryLoading}
+                onSelectHistory={handleSelectAIHistory}
+                analysisType="scenario_comparison"
+              />
+              
               {(aiLoading || aiCacheLoading) && (
                 <div className="space-y-3">
                   {[1, 2, 3].map((i) => (
@@ -484,6 +760,15 @@ function ScenarioComparisonContent() {
           </Tabs>
         )}
       </main>
+      
+      {/* Historical Analysis Sheet */}
+      <HistoricalAnalysisSheet
+        item={selectedHistoricalAnalysis}
+        isOpen={!!selectedHistoricalAnalysis}
+        onClose={() => setSelectedHistoricalAnalysis(null)}
+        onRestore={handleRestoreHistory}
+        analysisType={historySheetType}
+      />
     </div>
   );
 }

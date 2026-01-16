@@ -1456,7 +1456,9 @@ export type Database = {
           investor_analysis: Json | null
           quarterly_analysis: Json | null
           recommendations: Json | null
+          scenario_a_data_hash: string | null
           scenario_a_id: string | null
+          scenario_b_data_hash: string | null
           scenario_b_id: string | null
           updated_at: string | null
           user_id: string
@@ -1470,7 +1472,9 @@ export type Database = {
           investor_analysis?: Json | null
           quarterly_analysis?: Json | null
           recommendations?: Json | null
+          scenario_a_data_hash?: string | null
           scenario_a_id?: string | null
+          scenario_b_data_hash?: string | null
           scenario_b_id?: string | null
           updated_at?: string | null
           user_id: string
@@ -1484,7 +1488,9 @@ export type Database = {
           investor_analysis?: Json | null
           quarterly_analysis?: Json | null
           recommendations?: Json | null
+          scenario_a_data_hash?: string | null
           scenario_a_id?: string | null
+          scenario_b_data_hash?: string | null
           scenario_b_id?: string | null
           updated_at?: string | null
           user_id?: string
@@ -1499,6 +1505,69 @@ export type Database = {
           },
           {
             foreignKeyName: "scenario_ai_analyses_scenario_b_id_fkey"
+            columns: ["scenario_b_id"]
+            isOneToOne: false
+            referencedRelation: "simulation_scenarios"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      scenario_analysis_history: {
+        Row: {
+          analysis_type: string
+          created_at: string | null
+          deal_config: Json | null
+          id: string
+          insights: Json | null
+          investor_analysis: Json | null
+          quarterly_analysis: Json | null
+          recommendations: Json | null
+          scenario_a_data_hash: string | null
+          scenario_a_id: string | null
+          scenario_b_data_hash: string | null
+          scenario_b_id: string | null
+          user_id: string
+        }
+        Insert: {
+          analysis_type: string
+          created_at?: string | null
+          deal_config?: Json | null
+          id?: string
+          insights?: Json | null
+          investor_analysis?: Json | null
+          quarterly_analysis?: Json | null
+          recommendations?: Json | null
+          scenario_a_data_hash?: string | null
+          scenario_a_id?: string | null
+          scenario_b_data_hash?: string | null
+          scenario_b_id?: string | null
+          user_id: string
+        }
+        Update: {
+          analysis_type?: string
+          created_at?: string | null
+          deal_config?: Json | null
+          id?: string
+          insights?: Json | null
+          investor_analysis?: Json | null
+          quarterly_analysis?: Json | null
+          recommendations?: Json | null
+          scenario_a_data_hash?: string | null
+          scenario_a_id?: string | null
+          scenario_b_data_hash?: string | null
+          scenario_b_id?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scenario_analysis_history_scenario_a_id_fkey"
+            columns: ["scenario_a_id"]
+            isOneToOne: false
+            referencedRelation: "simulation_scenarios"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "scenario_analysis_history_scenario_b_id_fkey"
             columns: ["scenario_b_id"]
             isOneToOne: false
             referencedRelation: "simulation_scenarios"

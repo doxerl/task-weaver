@@ -345,6 +345,24 @@ export interface AIInvestorAnalysis {
   recommendedExit: 'series_b' | 'strategic_sale' | 'ipo' | 'hold';
 }
 
+// =====================================================
+// ANALYSIS HISTORY TYPES
+// =====================================================
+
+/** Analysis history item for tracking past analyses */
+export interface AnalysisHistoryItem {
+  id: string;
+  createdAt: Date;
+  analysisType: 'scenario_comparison' | 'investor_pitch';
+  insights?: AIScenarioInsight[];
+  recommendations?: AIRecommendation[];
+  quarterlyAnalysis?: QuarterlyAIAnalysis;
+  investorAnalysis?: AIInvestorAnalysis;
+  dealConfig?: DealConfiguration;
+  scenarioADataHash?: string;
+  scenarioBDataHash?: string;
+}
+
 /** Default sector multiples */
 export const SECTOR_MULTIPLES: Record<string, number> = {
   'SaaS': 8,
