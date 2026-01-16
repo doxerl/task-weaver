@@ -435,6 +435,31 @@ export interface AnalysisHistoryItem {
   scenarioBDataHash?: string;
 }
 
+// =====================================================
+// YEARLY BALANCE SHEET TYPE (for historical data)
+// =====================================================
+
+/** Historical balance sheet from yearly_balance_sheets table */
+export interface YearlyBalanceSheet {
+  id: string;
+  user_id: string;
+  year: number;
+  cash_on_hand: number | null;
+  bank_balance: number | null;
+  trade_receivables: number | null;
+  trade_payables: number | null;
+  total_assets: number | null;
+  total_liabilities: number | null;
+  current_profit: number | null;
+  retained_earnings: number | null;
+  paid_capital: number | null;
+  bank_loans: number | null;
+  is_locked: boolean | null;
+  // Optional fields that may exist in DB
+  total_equity?: number | null;
+  closing_notes?: string | null;
+}
+
 /** Default sector multiples */
 export const SECTOR_MULTIPLES: Record<string, number> = {
   'SaaS': 8,
