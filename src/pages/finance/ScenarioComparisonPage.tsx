@@ -65,6 +65,7 @@ import { useScenarios } from '@/hooks/finance/useScenarios';
 import { InvestmentTab } from '@/components/simulation/InvestmentTab';
 import { PitchDeckView } from '@/components/simulation/PitchDeckView';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
+import { useExchangeRates } from '@/hooks/finance/useExchangeRates';
 import {
   ChartConfig,
   ChartContainer,
@@ -389,6 +390,10 @@ function ScenarioComparisonContent() {
 
   const scenarioA = useMemo(() => scenarios.find(s => s.id === scenarioAId), [scenarios, scenarioAId]);
   const scenarioB = useMemo(() => scenarios.find(s => s.id === scenarioBId), [scenarios, scenarioBId]);
+  
+  // Exchange rates hook for TL to USD conversion (after scenarioB is defined)
+  const { yearlyAverageRate } = useExchangeRates(scenarioB?.targetYear || new Date().getFullYear());
+  
   const summaryA = useMemo(() => scenarioA ? calculateScenarioSummary(scenarioA) : null, [scenarioA]);
   const summaryB = useMemo(() => scenarioB ? calculateScenarioSummary(scenarioB) : null, [scenarioB]);
 
@@ -520,9 +525,12 @@ function ScenarioComparisonContent() {
   const handleUnifiedAnalysis = async () => {
     if (!scenarioA || !scenarioB || !summaryA || !summaryB) return;
     
-    // Fetch historical balance for target year
+    // Get average exchange rate for TL to USD conversion (fallback to 39 if not available)
+    const averageRate = yearlyAverageRate || 39;
+    
+    // Fetch historical balance for target year (converted to USD)
     const historicalBalance = scenarioB.targetYear 
-      ? await fetchHistoricalBalance(scenarioB.targetYear) 
+      ? await fetchHistoricalBalance(scenarioB.targetYear, averageRate) 
       : null;
     
     const quarterlyA = { 
@@ -556,7 +564,8 @@ function ScenarioComparisonContent() {
       exitPlan,
       capitalNeeds,
       historicalBalance,
-      quarterlyItemized
+      quarterlyItemized,
+      averageRate
     );
   };
 

@@ -230,8 +230,8 @@ export function useUnifiedAnalysis() {
     }
   }, [user?.id, saveToHistory]);
 
-  // Fetch historical balance sheet from database
-  const fetchHistoricalBalance = useCallback(async (targetYear: number): Promise<YearlyBalanceSheet | null> => {
+  // Fetch historical balance sheet from database and convert TL to USD
+  const fetchHistoricalBalance = useCallback(async (targetYear: number, averageExchangeRate: number): Promise<YearlyBalanceSheet | null> => {
     if (!user?.id) return null;
     
     const previousYear = targetYear - 1;
@@ -248,22 +248,28 @@ export function useUnifiedAnalysis() {
       return null;
     }
     
-    // Map DB result to YearlyBalanceSheet type
+    // Convert TL to USD using average exchange rate
+    const convertToUsd = (valueTL: number | null): number => {
+      if (!valueTL || averageExchangeRate <= 0) return 0;
+      return Math.round(valueTL / averageExchangeRate);
+    };
+    
+    // Map DB result to YearlyBalanceSheet type with USD conversion
     if (data) {
       const balance: YearlyBalanceSheet = {
         id: data.id,
         user_id: data.user_id,
         year: data.year,
-        cash_on_hand: data.cash_on_hand,
-        bank_balance: data.bank_balance,
-        trade_receivables: data.trade_receivables,
-        trade_payables: data.trade_payables,
-        total_assets: data.total_assets,
-        total_liabilities: data.total_liabilities,
-        current_profit: data.current_profit,
-        retained_earnings: data.retained_earnings,
-        paid_capital: data.paid_capital,
-        bank_loans: data.bank_loans,
+        cash_on_hand: convertToUsd(data.cash_on_hand),
+        bank_balance: convertToUsd(data.bank_balance),
+        trade_receivables: convertToUsd(data.trade_receivables),
+        trade_payables: convertToUsd(data.trade_payables),
+        total_assets: convertToUsd(data.total_assets),
+        total_liabilities: convertToUsd(data.total_liabilities),
+        current_profit: convertToUsd(data.current_profit),
+        retained_earnings: convertToUsd(data.retained_earnings),
+        paid_capital: convertToUsd(data.paid_capital),
+        bank_loans: convertToUsd(data.bank_loans),
         is_locked: data.is_locked
       };
       return balance;
@@ -284,7 +290,8 @@ export function useUnifiedAnalysis() {
     exitPlan: ExitPlan,
     capitalNeeds: CapitalRequirement,
     historicalBalance: YearlyBalanceSheet | null,
-    quarterlyItemized: QuarterlyItemizedData | null
+    quarterlyItemized: QuarterlyItemizedData | null,
+    exchangeRate: number
   ): Promise<UnifiedAnalysisResult | null> => {
     setIsLoading(true);
     setError(null);
@@ -306,7 +313,8 @@ export function useUnifiedAnalysis() {
           exitPlan,
           capitalNeeds,
           historicalBalance,
-          quarterlyItemized
+          quarterlyItemized,
+          exchangeRate
         }
       });
 
