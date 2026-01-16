@@ -1,5 +1,7 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { format } from 'date-fns';
+import { tr } from 'date-fns/locale';
 import {
   Select,
   SelectContent,
@@ -46,7 +48,9 @@ import {
   ArrowRight,
   Calendar,
   Rocket,
-  ArrowLeft
+  ArrowLeft,
+  RefreshCw,
+  History
 } from 'lucide-react';
 import { SimulationScenario, AIScenarioInsight, AIRecommendation, DEFAULT_DEAL_CONFIG } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
@@ -139,6 +143,18 @@ const DiffBadge = ({ diff, format, higherIsBetter }: { diff: { value: number; pe
   );
 };
 
+// Cache info badge component
+const CacheInfoBadge = ({ cachedInfo }: { cachedInfo: { id: string; updatedAt: Date } | null }) => {
+  if (!cachedInfo) return null;
+  
+  return (
+    <Badge variant="outline" className="gap-1 text-xs bg-blue-500/10 text-blue-400 border-blue-500/20">
+      <History className="h-3 w-3" />
+      Son analiz: {format(cachedInfo.updatedAt, 'dd MMM HH:mm', { locale: tr })}
+    </Badge>
+  );
+};
+
 function ScenarioComparisonContent() {
   const { scenarios, isLoading: scenariosLoading, currentScenarioId } = useScenarios();
   const [scenarioAId, setScenarioAId] = useState<string | null>(currentScenarioId);
@@ -146,8 +162,27 @@ function ScenarioComparisonContent() {
   const chartContainerRef = useRef<HTMLDivElement>(null);
 
   const { generatePdfFromElement, isGenerating } = usePdfEngine();
-  const { analysis: aiAnalysis, isLoading: aiLoading, analyzeScenarios, clearAnalysis } = useScenarioAIAnalysis();
-  const { dealConfig, updateDealConfig, investorAnalysis, isLoading: investorLoading, analyzeForInvestors } = useInvestorAnalysis();
+  const { 
+    analysis: aiAnalysis, 
+    isLoading: aiLoading, 
+    isCacheLoading: aiCacheLoading,
+    cachedInfo: aiCachedInfo,
+    analyzeScenarios, 
+    loadCachedAnalysis,
+    clearAnalysis 
+  } = useScenarioAIAnalysis();
+  
+  const { 
+    dealConfig, 
+    updateDealConfig, 
+    investorAnalysis, 
+    isLoading: investorLoading, 
+    isCacheLoading: investorCacheLoading,
+    cachedInfo: investorCachedInfo,
+    analyzeForInvestors,
+    loadCachedInvestorAnalysis,
+    clearAnalysis: clearInvestorAnalysis
+  } = useInvestorAnalysis();
 
   const scenarioA = useMemo(() => scenarios.find(s => s.id === scenarioAId), [scenarios, scenarioAId]);
   const scenarioB = useMemo(() => scenarios.find(s => s.id === scenarioBId), [scenarios, scenarioBId]);
@@ -180,7 +215,19 @@ function ScenarioComparisonContent() {
 
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
-  useEffect(() => { clearAnalysis(); }, [scenarioAId, scenarioBId, clearAnalysis]);
+  // Load cached analyses when scenarios change
+  useEffect(() => {
+    if (scenarioAId && scenarioBId && scenarioAId !== scenarioBId) {
+      // Load cached AI analysis
+      loadCachedAnalysis(scenarioAId, scenarioBId);
+      // Load cached investor analysis
+      loadCachedInvestorAnalysis(scenarioAId, scenarioBId);
+    } else {
+      // Clear if no valid comparison
+      clearAnalysis();
+      clearInvestorAnalysis();
+    }
+  }, [scenarioAId, scenarioBId, loadCachedAnalysis, loadCachedInvestorAnalysis, clearAnalysis, clearInvestorAnalysis]);
 
   const handleAIAnalysis = async () => {
     if (!scenarioA || !scenarioB || !summaryA || !summaryB) return;
@@ -334,37 +381,105 @@ function ScenarioComparisonContent() {
             </TabsContent>
 
             <TabsContent value="investment" className="mt-4">
-              <InvestmentTab
-                scenarioA={scenarioA}
-                scenarioB={scenarioB}
-                summaryA={{ totalRevenue: summaryA!.totalRevenue, totalExpenses: summaryA!.totalExpense, netProfit: summaryA!.netProfit, profitMargin: summaryA!.profitMargin }}
-                summaryB={{ totalRevenue: summaryB!.totalRevenue, totalExpenses: summaryB!.totalExpense, netProfit: summaryB!.netProfit, profitMargin: summaryB!.profitMargin }}
-                quarterlyA={{ q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 }}
-                quarterlyB={{ q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 }}
-                dealConfig={dealConfig}
-                onDealConfigChange={updateDealConfig}
-                investorAnalysis={investorAnalysis}
-                isLoading={investorLoading}
-                onAnalyze={() => analyzeForInvestors(scenarioA, scenarioB, { totalRevenue: summaryA!.totalRevenue, totalExpenses: summaryA!.totalExpense, netProfit: summaryA!.netProfit, profitMargin: summaryA!.profitMargin }, { totalRevenue: summaryB!.totalRevenue, totalExpenses: summaryB!.totalExpense, netProfit: summaryB!.netProfit, profitMargin: summaryB!.profitMargin }, { q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 }, { q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 })}
-              />
+              {investorCacheLoading ? (
+                <div className="flex items-center justify-center py-8">
+                  <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                  <span className="ml-2 text-muted-foreground">Önceki analiz yükleniyor...</span>
+                </div>
+              ) : (
+                <>
+                  {investorCachedInfo && (
+                    <div className="mb-4">
+                      <CacheInfoBadge cachedInfo={investorCachedInfo} />
+                    </div>
+                  )}
+                  <InvestmentTab
+                    scenarioA={scenarioA}
+                    scenarioB={scenarioB}
+                    summaryA={{ totalRevenue: summaryA!.totalRevenue, totalExpenses: summaryA!.totalExpense, netProfit: summaryA!.netProfit, profitMargin: summaryA!.profitMargin }}
+                    summaryB={{ totalRevenue: summaryB!.totalRevenue, totalExpenses: summaryB!.totalExpense, netProfit: summaryB!.netProfit, profitMargin: summaryB!.profitMargin }}
+                    quarterlyA={{ q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 }}
+                    quarterlyB={{ q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 }}
+                    dealConfig={dealConfig}
+                    onDealConfigChange={updateDealConfig}
+                    investorAnalysis={investorAnalysis}
+                    isLoading={investorLoading}
+                    onAnalyze={() => analyzeForInvestors(scenarioA, scenarioB, { totalRevenue: summaryA!.totalRevenue, totalExpenses: summaryA!.totalExpense, netProfit: summaryA!.netProfit, profitMargin: summaryA!.profitMargin }, { totalRevenue: summaryB!.totalRevenue, totalExpenses: summaryB!.totalExpense, netProfit: summaryB!.netProfit, profitMargin: summaryB!.profitMargin }, { q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 }, { q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 })}
+                  />
+                </>
+              )}
             </TabsContent>
 
             <TabsContent value="insights" className="mt-4 space-y-4">
               <div className="flex items-center justify-between">
-                <div className="text-sm text-muted-foreground">
-                  {aiAnalysis ? <span className="flex items-center gap-1 text-emerald-400"><CheckCircle2 className="h-4 w-4" />AI analizi tamamlandı</span> : <span>AI ile derin analiz yapın</span>}
+                <div className="flex items-center gap-3">
+                  {aiCacheLoading ? (
+                    <span className="flex items-center gap-1 text-sm text-muted-foreground">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Önceki analiz yükleniyor...
+                    </span>
+                  ) : aiAnalysis ? (
+                    <div className="flex items-center gap-2">
+                      <span className="flex items-center gap-1 text-sm text-emerald-400">
+                        <CheckCircle2 className="h-4 w-4" />
+                        AI analizi tamamlandı
+                      </span>
+                      <CacheInfoBadge cachedInfo={aiCachedInfo} />
+                    </div>
+                  ) : (
+                    <span className="text-sm text-muted-foreground">AI ile derin analiz yapın</span>
+                  )}
                 </div>
-                <Button onClick={handleAIAnalysis} disabled={aiLoading} variant={aiAnalysis ? "outline" : "default"} size="sm" className="gap-2">
-                  {aiLoading ? <><Loader2 className="h-4 w-4 animate-spin" />Analiz ediliyor...</> : <><Sparkles className="h-4 w-4" />{aiAnalysis ? 'Yeniden Analiz Et' : 'AI ile Analiz Et'}</>}
+                <Button 
+                  onClick={handleAIAnalysis} 
+                  disabled={aiLoading || aiCacheLoading} 
+                  variant={aiAnalysis ? "outline" : "default"} 
+                  size="sm" 
+                  className="gap-2"
+                >
+                  {aiLoading ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Analiz ediliyor...
+                    </>
+                  ) : aiAnalysis ? (
+                    <>
+                      <RefreshCw className="h-4 w-4" />
+                      Yeniden Analiz Et
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-4 w-4" />
+                      AI ile Analiz Et
+                    </>
+                  )}
                 </Button>
               </div>
-              {aiLoading && <div className="space-y-3">{[1, 2, 3].map((i) => <Card key={i} className="p-4"><Skeleton className="h-16 w-full" /></Card>)}</div>}
-              {!aiLoading && aiAnalysis?.insights?.map((insight, i) => (
+              
+              {(aiLoading || aiCacheLoading) && (
+                <div className="space-y-3">
+                  {[1, 2, 3].map((i) => (
+                    <Card key={i} className="p-4">
+                      <Skeleton className="h-16 w-full" />
+                    </Card>
+                  ))}
+                </div>
+              )}
+              
+              {!aiLoading && !aiCacheLoading && aiAnalysis?.insights?.map((insight, i) => (
                 <Card key={i} className="p-4">
                   <h4 className="font-medium">{insight.title}</h4>
                   <p className="text-sm text-muted-foreground mt-1">{insight.description}</p>
                 </Card>
               ))}
+              
+              {!aiLoading && !aiCacheLoading && !aiAnalysis && (
+                <div className="text-center py-8 text-muted-foreground">
+                  <Brain className="h-12 w-12 mx-auto mb-3 opacity-30" />
+                  <p>Henüz AI analizi yapılmadı</p>
+                  <p className="text-sm mt-1">Yukarıdaki butona tıklayarak analiz başlatın</p>
+                </div>
+              )}
             </TabsContent>
           </Tabs>
         )}
