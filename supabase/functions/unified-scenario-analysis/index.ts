@@ -142,7 +142,8 @@ serve(async (req) => {
       exitPlan, 
       capitalNeeds,
       historicalBalance,
-      quarterlyItemized
+      quarterlyItemized,
+      exchangeRate
     } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -154,10 +155,19 @@ serve(async (req) => {
     const MODEL_ID = "google/gemini-3-pro-preview";
 
     // Build historical balance section if available
+    // Note: Balance values are already converted to USD by the frontend
+    const currencyNote = exchangeRate ? `
+💱 PARA BİRİMİ BİLGİSİ:
+- TÜM DEĞERLER USD CİNSİNDEN NORMALİZE EDİLMİŞTİR
+- Bilanço verileri TL'den dönüştürülmüştür (Ortalama Kur: ${exchangeRate.toFixed(2)} TL/USD)
+- Senaryo verileri zaten USD cinsindedir
+- Karşılaştırmalar homojen para birimi üzerinden yapılmalıdır
+` : '';
+
     const historicalBalanceSection = historicalBalance ? `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-GEÇMİŞ YIL BİLANÇOSU (${historicalBalance.year}):
+${currencyNote}
+GEÇMİŞ YIL BİLANÇOSU (${historicalBalance.year}) - USD:
 
 💰 NAKİT POZİSYONU:
 - Kasa: $${(historicalBalance.cash_on_hand || 0).toLocaleString()}
