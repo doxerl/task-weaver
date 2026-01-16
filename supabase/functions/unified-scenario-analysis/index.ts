@@ -323,14 +323,13 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu ve çeyreklik kalem bazl
                     items: {
                       type: "object",
                       properties: {
-                        category: { type: "string", enum: ["revenue", "profit", "cash_flow", "risk", "efficiency", "opportunity"] },
-                        severity: { type: "string", enum: ["critical", "high", "medium"] },
+                        category: { type: "string", description: "One of: revenue, profit, cash_flow, risk, efficiency, opportunity" },
+                        severity: { type: "string", description: "One of: critical, high, medium" },
                         title: { type: "string" },
                         description: { type: "string" },
                         impact_analysis: { type: "string" },
                         data_points: { type: "array", items: { type: "string" } }
-                      },
-                      required: ["category", "severity", "title", "description", "impact_analysis"]
+                      }
                     }
                   },
                   recommendations: {
@@ -339,15 +338,14 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu ve çeyreklik kalem bazl
                     items: {
                       type: "object",
                       properties: {
-                        priority: { type: "number", enum: [1, 2, 3] },
+                        priority: { type: "number", description: "1, 2, or 3" },
                         title: { type: "string" },
                         description: { type: "string" },
                         action_plan: { type: "array", items: { type: "string" } },
                         expected_outcome: { type: "string" },
                         risk_mitigation: { type: "string" },
                         timeframe: { type: "string" }
-                      },
-                      required: ["priority", "title", "description", "action_plan", "expected_outcome"]
+                      }
                     }
                   },
                   quarterly_analysis: {
@@ -361,9 +359,8 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu ve çeyreklik kalem bazl
                           properties: {
                             quarter: { type: "string" },
                             reason: { type: "string" },
-                            risk_level: { type: "string", enum: ["high", "medium", "low"] }
-                          },
-                          required: ["quarter", "reason"]
+                            risk_level: { type: "string", description: "One of: high, medium, low" }
+                          }
                         }
                       },
                       seasonal_trends: { type: "array", items: { type: "string" } },
@@ -378,18 +375,16 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu ve çeyreklik kalem bazl
                           q4: { type: "string" }
                         }
                       }
-                    },
-                    required: ["overview", "critical_periods", "seasonal_trends", "growth_trajectory"]
+                    }
                   },
                   deal_analysis: {
                     type: "object",
                     properties: {
-                      deal_score: { type: "number", minimum: 1, maximum: 10 },
-                      valuation_verdict: { type: "string", enum: ["premium", "fair", "cheap"] },
+                      deal_score: { type: "number", description: "Score from 1 to 10" },
+                      valuation_verdict: { type: "string", description: "One of: premium, fair, cheap" },
                       investor_attractiveness: { type: "string" },
                       risk_factors: { type: "array", items: { type: "string" } }
-                    },
-                    required: ["deal_score", "valuation_verdict", "investor_attractiveness", "risk_factors"]
+                    }
                   },
                   pitch_deck: {
                     type: "object",
@@ -404,13 +399,11 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu ve çeyreklik kalem bazl
                             key_message: { type: "string" },
                             content_bullets: { type: "array", items: { type: "string" } },
                             speaker_notes: { type: "string" }
-                          },
-                          required: ["slide_number", "title", "key_message", "content_bullets", "speaker_notes"]
+                          }
                         }
                       },
                       executive_summary: { type: "string" }
-                    },
-                    required: ["slides", "executive_summary"]
+                    }
                   },
                   next_year_projection: {
                     type: "object",
@@ -426,8 +419,7 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu ve çeyreklik kalem bazl
                               expenses: { type: "number" },
                               cash_flow: { type: "number" },
                               key_event: { type: "string" }
-                            },
-                            required: ["revenue", "expenses", "cash_flow", "key_event"]
+                            }
                           },
                           q2: {
                             type: "object",
@@ -436,8 +428,7 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu ve çeyreklik kalem bazl
                               expenses: { type: "number" },
                               cash_flow: { type: "number" },
                               key_event: { type: "string" }
-                            },
-                            required: ["revenue", "expenses", "cash_flow", "key_event"]
+                            }
                           },
                           q3: {
                             type: "object",
@@ -446,8 +437,7 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu ve çeyreklik kalem bazl
                               expenses: { type: "number" },
                               cash_flow: { type: "number" },
                               key_event: { type: "string" }
-                            },
-                            required: ["revenue", "expenses", "cash_flow", "key_event"]
+                            }
                           },
                           q4: {
                             type: "object",
@@ -456,11 +446,9 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu ve çeyreklik kalem bazl
                               expenses: { type: "number" },
                               cash_flow: { type: "number" },
                               key_event: { type: "string" }
-                            },
-                            required: ["revenue", "expenses", "cash_flow", "key_event"]
+                            }
                           }
-                        },
-                        required: ["q1", "q2", "q3", "q4"]
+                        }
                       },
                       summary: {
                         type: "object",
@@ -469,11 +457,9 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu ve çeyreklik kalem bazl
                           total_expenses: { type: "number" },
                           net_profit: { type: "number" },
                           ending_cash: { type: "number" }
-                        },
-                        required: ["total_revenue", "total_expenses", "net_profit", "ending_cash"]
+                        }
                       }
-                    },
-                    required: ["strategy_note", "quarterly", "summary"]
+                    }
                   }
                 },
                 required: ["insights", "recommendations", "quarterly_analysis", "deal_analysis", "pitch_deck", "next_year_projection"]
