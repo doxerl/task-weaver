@@ -1430,36 +1430,82 @@ export function usePdfEngine(): UsePdfEngineReturn {
       const html2canvasModule = await import('html2canvas');
       const html2canvas = html2canvasModule.default;
       
-      // Helper: Gelişmiş grafik yakalama (SVG + Recharts optimizasyonu)
+      // Helper: Gelişmiş grafik yakalama - chartProcessing modülünü kullan
       const captureChart = async (
         element: HTMLElement | null
       ): Promise<{ imgData: string; aspectRatio: number } | null> => {
-        if (!element) return null;
+        if (!element) {
+          console.warn('[captureChart] Element null');
+          return null;
+        }
+        
         try {
-          // SVG'lerin render olmasını bekle
-          await new Promise(resolve => setTimeout(resolve, 500));
+          // 1. Element'in DOM'da olduğundan emin ol
+          if (!document.body.contains(element)) {
+            console.warn('[captureChart] Element not in DOM');
+            return null;
+          }
           
-          // Recharts SVG'lerini zorla görünür yap
+          // 2. Element'i geçici olarak görünür yap
+          const originalStyles = {
+            position: element.style.position,
+            visibility: element.style.visibility,
+            opacity: element.style.opacity,
+            zIndex: element.style.zIndex,
+          };
+          
+          element.style.visibility = 'visible';
+          element.style.opacity = '1';
+          
+          // 3. chartProcessing fonksiyonlarını kullan - Recharts SVG render bekle
+          await waitForChartsToRender(element, 800);
+          
+          // 4. Boyutları yakala
+          const rect = element.getBoundingClientRect();
+          console.log('[captureChart] Element rect:', rect.width, 'x', rect.height);
+          
+          if (rect.width <= 0 || rect.height <= 0) {
+            console.warn('[captureChart] Element has zero dimensions');
+            Object.assign(element.style, originalStyles);
+            return null;
+          }
+          
+          // 5. SVG'leri optimize et
+          optimizeSVGsForPdf(element);
+          
+          // 6. SVG'lerin opacity'sini zorla ve boyutları sabitle
           const svgs = element.querySelectorAll('svg');
           svgs.forEach(svg => {
-            if (svg.style.opacity === '0') svg.style.opacity = '1';
-            // SVG boyutlarını sabitle
-            const rect = svg.getBoundingClientRect();
+            svg.style.opacity = '1';
+            svg.style.visibility = 'visible';
+            // Boyutları sabitle
             if (rect.width > 0) {
               svg.setAttribute('width', String(rect.width));
               svg.setAttribute('height', String(rect.height));
             }
           });
           
+          // 7. Recharts tooltip ve active shape temizle
+          element.querySelectorAll('.recharts-tooltip-wrapper, .recharts-active-dot').forEach(el => {
+            (el as HTMLElement).style.display = 'none';
+          });
+          
+          // 8. html2canvas ile yakala
           const canvas = await html2canvas(element, {
-            scale: 3,  // Daha yüksek çözünürlük
+            scale: 3,
             useCORS: true,
-            logging: false,
+            logging: true,  // Debug için açık
             backgroundColor: '#ffffff',
             allowTaint: true,
-            foreignObjectRendering: true,  // SVG desteği
-            windowWidth: element.scrollWidth * 2,
-            windowHeight: element.scrollHeight * 2,
+            foreignObjectRendering: false, // SVG için false daha stabil
+            width: rect.width,
+            height: rect.height,
+            windowWidth: rect.width,
+            windowHeight: rect.height,
+            x: 0,
+            y: 0,
+            scrollX: -window.scrollX,
+            scrollY: -window.scrollY,
             onclone: (clonedDoc, clonedElement) => {
               // Clone'da SVG'leri düzelt
               const clonedSvgs = clonedElement.querySelectorAll('svg');
@@ -1467,17 +1513,26 @@ export function usePdfEngine(): UsePdfEngineReturn {
                 svg.style.opacity = '1';
                 svg.style.visibility = 'visible';
               });
-              // Recharts tooltip'leri gizle
+              // Tooltip'leri gizle
               clonedElement.querySelectorAll('.recharts-tooltip-wrapper').forEach(el => {
                 (el as HTMLElement).style.display = 'none';
               });
             }
           });
           
-          if (canvas.width === 0 || canvas.height === 0) return null;
+          // 9. Orijinal stilleri geri yükle
+          Object.assign(element.style, originalStyles);
+          
+          // 10. Canvas kontrolü
+          if (canvas.width === 0 || canvas.height === 0) {
+            console.error('[captureChart] Canvas is empty');
+            return null;
+          }
+          
+          console.log('[captureChart] Başarılı:', canvas.width, 'x', canvas.height);
           
           return {
-            imgData: canvas.toDataURL('image/png'),  // PNG daha iyi SVG kalitesi
+            imgData: canvas.toDataURL('image/png'),
             aspectRatio: canvas.width / canvas.height
           };
         } catch (e) {
@@ -1663,6 +1718,16 @@ export function usePdfEngine(): UsePdfEngineReturn {
       pdf.addPage();
       setProgress({ current: 4, total: 10, stage: 'Grafikler yakalanıyor...' });
       
+      // Debug: Grafik elementlerini kontrol et
+      console.log('[PDF] Grafik yakalama başlıyor...');
+      console.log('[PDF] quarterlyChart element:', data.chartElements?.quarterlyChart);
+      console.log('[PDF] cumulativeChart element:', data.chartElements?.cumulativeChart);
+      
+      if (data.chartElements?.quarterlyChart) {
+        console.log('[PDF] quarterlyChart in DOM:', document.body.contains(data.chartElements.quarterlyChart));
+        console.log('[PDF] quarterlyChart rect:', data.chartElements.quarterlyChart.getBoundingClientRect());
+      }
+      
       // Sayfa başlığı
       pdf.setFillColor(241, 245, 249);
       pdf.rect(0, 0, pageWidth, 18, 'F');
@@ -1674,9 +1739,11 @@ export function usePdfEngine(): UsePdfEngineReturn {
       const chartMaxHeight = 75;
       
       // Çeyreklik Bar Chart
+      let chart1Success = false;
       if (data.chartElements?.quarterlyChart) {
         const chartData = await captureChart(data.chartElements.quarterlyChart);
-        if (chartData) {
+        if (chartData && chartData.imgData) {
+          chart1Success = true;
           pdf.setFontSize(10);
           pdf.setTextColor(71, 85, 105);
           pdf.text('Çeyreklik Net Kâr Karşılaştırması', margin, chartY);
@@ -1692,10 +1759,34 @@ export function usePdfEngine(): UsePdfEngineReturn {
         }
       }
       
+      // Grafik yakalanamadıysa fallback tablo göster
+      if (!chart1Success) {
+        console.warn('[PDF] Quarterly chart capture failed, using fallback table');
+        pdf.setFontSize(10);
+        pdf.setTextColor(71, 85, 105);
+        pdf.text('Çeyreklik Net Kâr Karşılaştırması', margin, chartY);
+        
+        autoTable(pdf, {
+          head: [['Çeyrek', data.scenarioA.name, data.scenarioB.name]],
+          body: data.quarterlyData.slice(0, 4).map(q => [
+            q.quarter,
+            formatUSD(q.scenarioANet),
+            formatUSD(q.scenarioBNet)
+          ]),
+          startY: chartY + 3,
+          margin: { left: margin, right: pageWidth / 2 + 5 },
+          theme: 'striped',
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [59, 130, 246] }
+        });
+      }
+      
       // Kümülatif Area Chart
+      let chart2Success = false;
       if (data.chartElements?.cumulativeChart) {
         const chartData = await captureChart(data.chartElements.cumulativeChart);
-        if (chartData) {
+        if (chartData && chartData.imgData) {
+          chart2Success = true;
           pdf.setFontSize(10);
           pdf.setTextColor(71, 85, 105);
           pdf.text('Kümülatif Nakit Akışı', pageWidth / 2 + 5, chartY - 3);
@@ -1708,6 +1799,28 @@ export function usePdfEngine(): UsePdfEngineReturn {
           }
           pdf.addImage(chartData.imgData, 'PNG', pageWidth / 2 + 5, chartY, imgWidth, imgHeight);
         }
+      }
+      
+      // Fallback tablo
+      if (!chart2Success) {
+        console.warn('[PDF] Cumulative chart capture failed, using fallback table');
+        pdf.setFontSize(10);
+        pdf.setTextColor(71, 85, 105);
+        pdf.text('Kümülatif Nakit Akışı', pageWidth / 2 + 5, chartY - 3);
+        
+        autoTable(pdf, {
+          head: [['Çeyrek', 'Küm. A', 'Küm. B']],
+          body: data.quarterlyData.slice(0, 4).map(q => [
+            q.quarter,
+            formatUSD(q.scenarioACumulative),
+            formatUSD(q.scenarioBCumulative)
+          ]),
+          startY: chartY,
+          margin: { left: pageWidth / 2 + 5, right: margin },
+          theme: 'striped',
+          styles: { fontSize: 8, cellPadding: 2 },
+          headStyles: { fillColor: [34, 197, 94] }
+        });
       }
       
       // Alt kısım: Özet metrikleri tekrar (referans için)
