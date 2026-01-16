@@ -1,7 +1,5 @@
 import { useMemo } from 'react';
 import { useYearlyBalanceSheet } from './useYearlyBalanceSheet';
-import { useIncomeStatement } from './useIncomeStatement';
-import { useFinancialDataHub } from './useFinancialDataHub';
 
 export interface CashFlowStatement {
   // A. İşletme Faaliyetleri
@@ -43,26 +41,57 @@ export interface CashFlowStatement {
   isBalanced: boolean;
 }
 
-export function useCashFlowStatement(year: number) {
-  // Veritabanından mevcut ve önceki yıl bilançolarını oku
-  const { yearlyBalance: currentYearBalance, isLoading: currentLoading } = useYearlyBalanceSheet(year);
-  const { yearlyBalance: prevYearBalance, isLoading: prevLoading } = useYearlyBalanceSheet(year - 1);
-  
-  // Gelir tablosu (net kar için)
-  const { statement: incomeStatement, isLoading: incomeLoading } = useIncomeStatement(year);
-  
-  // Yatırım ve finansman detayları için hub
-  const hub = useFinancialDataHub(year);
+export interface CashFlowDataStatus {
+  currentYear: number;
+  prevYear: number;
+  currentYearSaved: boolean;
+  currentYearLocked: boolean;
+  prevYearSaved: boolean;
+  prevYearLocked: boolean;
+}
 
-  const isLoading = currentLoading || prevLoading || incomeLoading || hub.isLoading;
+/**
+ * Database-Only Cash Flow Hook
+ * 
+ * Bu hook SADECE yearly_balance_sheets tablosundan veri okur.
+ * Canlı hesaplama, hub veya incomeStatement kullanılmaz.
+ * 
+ * - 2024: Kilitli veri (is_locked=true)
+ * - 2025: Son kaydedilen veri (kilitlenene kadar)
+ */
+export function useCashFlowStatement(year: number) {
+  // SADECE veritabanından oku - başka kaynak yok
+  const { 
+    yearlyBalance: currentYearBalance, 
+    isLoading: currentLoading, 
+    isLocked: currentLocked 
+  } = useYearlyBalanceSheet(year);
+  
+  const { 
+    yearlyBalance: prevYearBalance, 
+    isLoading: prevLoading, 
+    isLocked: prevLocked 
+  } = useYearlyBalanceSheet(year - 1);
+  
+  const isLoading = currentLoading || prevLoading;
+
+  // Veri durumu bilgisi - UI'da göstermek için
+  const dataStatus = useMemo((): CashFlowDataStatus => ({
+    currentYear: year,
+    prevYear: year - 1,
+    currentYearSaved: !!currentYearBalance,
+    currentYearLocked: currentLocked ?? false,
+    prevYearSaved: !!prevYearBalance,
+    prevYearLocked: prevLocked ?? false,
+  }), [year, currentYearBalance, currentLocked, prevYearBalance, prevLocked]);
 
   const cashFlowStatement = useMemo((): CashFlowStatement | null => {
-    // Mevcut yıl bilanço verisi yoksa null döndür
+    // Mevcut yıl verisi yoksa null döndür
     if (isLoading || !currentYearBalance) {
       return null;
     }
 
-    // Önceki yıl değerleri (yoksa sıfır)
+    // Önceki yıl değerleri (yoksa sıfır - ilk yıl için)
     const prev = {
       cash_on_hand: prevYearBalance?.cash_on_hand ?? 0,
       bank_balance: prevYearBalance?.bank_balance ?? 0,
@@ -80,58 +109,90 @@ export function useCashFlowStatement(year: number) {
       bank_loans: prevYearBalance?.bank_loans ?? 0,
       paid_capital: prevYearBalance?.paid_capital ?? 0,
       accumulated_depreciation: prevYearBalance?.accumulated_depreciation ?? 0,
+      vehicles: prevYearBalance?.vehicles ?? 0,
+      fixtures: prevYearBalance?.fixtures ?? 0,
+      equipment: prevYearBalance?.equipment ?? 0,
     };
     
     const curr = currentYearBalance;
 
-    // A. İŞLETME FAALİYETLERİ - Veritabanı Farkları
-    const netProfit = incomeStatement?.netProfit ?? curr.current_profit ?? 0;
-    const depreciation = Math.abs(curr.accumulated_depreciation - prev.accumulated_depreciation);
+    // ═══════════════════════════════════════════════════════════════
+    // A. İŞLETME FAALİYETLERİ (Veritabanı Farkları)
+    // ═══════════════════════════════════════════════════════════════
+    
+    // Net kar - doğrudan veritabanından
+    const netProfit = curr.current_profit ?? 0;
+    
+    // Amortisman artışı
+    const depreciation = Math.abs((curr.accumulated_depreciation ?? 0) - prev.accumulated_depreciation);
 
-    // Değişimler (artış = nakit azalışı için alacaklar, artış = nakit artışı için borçlar)
-    const receivablesChange = -(curr.trade_receivables - prev.trade_receivables);
-    const payablesChange = curr.trade_payables - prev.trade_payables;
-    const personnelChange = curr.personnel_payables - prev.personnel_payables;
-    const taxPayablesChange = curr.tax_payables - prev.tax_payables;
-    const socialSecurityChange = curr.social_security_payables - prev.social_security_payables;
-    const inventoryChange = -(curr.inventory - prev.inventory);
-    const vatChange = (curr.vat_payable - prev.vat_payable) - (curr.vat_receivable - prev.vat_receivable);
+    // İşletme sermayesi değişimleri (delta formülleri)
+    // Alacak artışı = nakit azalışı (negatif etki)
+    const receivablesChange = -((curr.trade_receivables ?? 0) - prev.trade_receivables);
+    // Borç artışı = nakit artışı (pozitif etki)
+    const payablesChange = (curr.trade_payables ?? 0) - prev.trade_payables;
+    const personnelChange = (curr.personnel_payables ?? 0) - prev.personnel_payables;
+    const taxPayablesChange = (curr.tax_payables ?? 0) - prev.tax_payables;
+    const socialSecurityChange = (curr.social_security_payables ?? 0) - prev.social_security_payables;
+    // Stok artışı = nakit azalışı (negatif etki)
+    const inventoryChange = -((curr.inventory ?? 0) - prev.inventory);
+    // KDV değişimi
+    const vatChange = ((curr.vat_payable ?? 0) - prev.vat_payable) - 
+                      ((curr.vat_receivable ?? 0) - prev.vat_receivable);
 
     const operatingTotal = netProfit + depreciation + receivablesChange + payablesChange +
                           personnelChange + taxPayablesChange + socialSecurityChange +
                           inventoryChange + vatChange;
 
-    // B. YATIRIM FAALİYETLERİ - Hub'dan (işlem bazlı)
-    const vehiclePurchases = hub.investmentSummary?.vehicles ?? 0;
-    const equipmentPurchases = hub.investmentSummary?.equipment ?? 0;
-    const fixturePurchases = hub.investmentSummary?.fixtures ?? 0;
+    // ═══════════════════════════════════════════════════════════════
+    // B. YATIRIM FAALİYETLERİ (Veritabanı Farkları - HUB YOK)
+    // ═══════════════════════════════════════════════════════════════
+    
+    // Duran varlık artışları = yatırım çıkışları
+    const vehiclePurchases = Math.max(0, (curr.vehicles ?? 0) - prev.vehicles);
+    const equipmentPurchases = Math.max(0, (curr.equipment ?? 0) - prev.equipment);
+    const fixturePurchases = Math.max(0, (curr.fixtures ?? 0) - prev.fixtures);
+    
     const investingTotal = -(vehiclePurchases + equipmentPurchases + fixturePurchases);
 
-    // C. FİNANSMAN FAALİYETLERİ - Veritabanı Farkları + Hub
+    // ═══════════════════════════════════════════════════════════════
+    // C. FİNANSMAN FAALİYETLERİ (Veritabanı Farkları)
+    // ═══════════════════════════════════════════════════════════════
+    
+    // Kredi değişimleri
     const prevTotalLoans = prev.short_term_loan_debt + prev.bank_loans;
-    const currTotalLoans = curr.short_term_loan_debt + curr.bank_loans;
+    const currTotalLoans = (curr.short_term_loan_debt ?? 0) + (curr.bank_loans ?? 0);
     const loanChange = currTotalLoans - prevTotalLoans;
     
     const loanProceeds = loanChange > 0 ? loanChange : 0;
     const loanRepayments = loanChange < 0 ? Math.abs(loanChange) : 0;
     
+    // Ortak cari değişimleri
+    // Net ortak pozisyonu: Borç - Alacak
+    // Pozitif = Ortaklara borçluyuz (para koydular)
+    // Negatif = Ortaklardan alacaklıyız (para çektiler)
     const prevPartnerNet = prev.partner_payables - prev.partner_receivables;
-    const currPartnerNet = curr.partner_payables - curr.partner_receivables;
+    const currPartnerNet = (curr.partner_payables ?? 0) - (curr.partner_receivables ?? 0);
     const partnerChange = currPartnerNet - prevPartnerNet;
     
     const partnerDeposits = partnerChange > 0 ? partnerChange : 0;
     const partnerWithdrawals = partnerChange < 0 ? Math.abs(partnerChange) : 0;
     
-    const capitalIncrease = curr.paid_capital - prev.paid_capital;
-    const leasingPayments = hub.financingSummary?.leasingOut ?? 0;
+    // Sermaye artışı
+    const capitalIncrease = (curr.paid_capital ?? 0) - prev.paid_capital;
+    
+    // Leasing ödemeleri: Veritabanında ayrı alan yok, şimdilik 0
+    const leasingPayments = 0;
 
     const financingTotal = loanProceeds - loanRepayments - leasingPayments +
                           partnerDeposits - partnerWithdrawals + capitalIncrease;
 
+    // ═══════════════════════════════════════════════════════════════
     // ÖZET
+    // ═══════════════════════════════════════════════════════════════
     const netCashChange = operatingTotal + investingTotal + financingTotal;
     const openingCash = prev.cash_on_hand + prev.bank_balance;
-    const closingCash = curr.cash_on_hand + curr.bank_balance;
+    const closingCash = (curr.cash_on_hand ?? 0) + (curr.bank_balance ?? 0);
     const expectedClosingCash = openingCash + netCashChange;
     const difference = Math.round(closingCash - expectedClosingCash);
     const isBalanced = Math.abs(difference) < 1;
@@ -171,10 +232,11 @@ export function useCashFlowStatement(year: number) {
       difference,
       isBalanced,
     };
-  }, [currentYearBalance, prevYearBalance, incomeStatement, hub.investmentSummary, hub.financingSummary, isLoading]);
+  }, [currentYearBalance, prevYearBalance, isLoading]);
 
   return {
     cashFlowStatement,
     isLoading,
+    dataStatus,
   };
 }
