@@ -263,6 +263,22 @@ export function CashFlowStatementTable({ data, year }: CashFlowStatementTablePro
             </div>
           </div>
 
+          {/* Küçük yuvarlama farkı mesajı */}
+          {data.isBalanced && Math.abs(data.difference) > 0 && (
+            <div className="mt-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+              <div className="flex items-start gap-2">
+                <CheckCircle2 className="h-4 w-4 text-blue-600 mt-0.5 flex-shrink-0" />
+                <div className="text-sm">
+                  <p className="font-medium text-blue-800">Yuvarlama Farkı</p>
+                  <p className="text-blue-700 text-xs mt-1">
+                    Fark: {formatAmount(data.difference)} (ihmal edilebilir)
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Büyük denklem uyumsuzluğu */}
           {!data.isBalanced && (
             <div className="mt-4 p-3 bg-amber-50 border border-amber-200 rounded-lg">
               <div className="flex items-start gap-2">
