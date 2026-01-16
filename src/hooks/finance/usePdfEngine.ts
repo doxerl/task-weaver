@@ -1477,6 +1477,8 @@ export function usePdfEngine(): UsePdfEngineReturn {
           ['Ticari Alacaklardaki Değişim', formatAmount(cashFlowStatement.operating.receivablesChange)],
           ['Ticari Borçlardaki Değişim', formatAmount(cashFlowStatement.operating.payablesChange)],
           ['Personel Borçlarındaki Değişim', formatAmount(cashFlowStatement.operating.personnelChange)],
+          ['Ödenecek Vergi Değişimi', formatAmount(cashFlowStatement.operating.taxPayablesChange)],
+          ['Ödenecek SGK Değişimi', formatAmount(cashFlowStatement.operating.socialSecurityChange)],
           ['Stoklardaki Değişim', formatAmount(cashFlowStatement.operating.inventoryChange)],
           ['KDV Alacak/Borç Değişimi', formatAmount(cashFlowStatement.operating.vatChange)],
           ['İşletme Faaliyetlerinden Net Nakit', formatAmount(cashFlowStatement.operating.total)],

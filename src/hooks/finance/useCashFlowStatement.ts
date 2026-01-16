@@ -12,6 +12,8 @@ export interface CashFlowStatement {
     receivablesChange: number;
     payablesChange: number;
     personnelChange: number;
+    taxPayablesChange: number;        // Ödenecek Vergi Değişimi (360)
+    socialSecurityChange: number;      // Ödenecek SGK Değişimi (361)
     inventoryChange: number;
     vatChange: number;
     total: number;
@@ -59,18 +61,22 @@ export function useCashFlowStatement(year: number) {
     const prevTradeReceivables = previousYearBalance?.trade_receivables ?? 0;
     const prevTradePayables = previousYearBalance?.trade_payables ?? 0;
     const prevPersonnelPayables = previousYearBalance?.personnel_payables ?? 0;
+    const prevTaxPayables = previousYearBalance?.tax_payables ?? 0;
+    const prevSocialSecurityPayables = previousYearBalance?.social_security_payables ?? 0;
     const prevInventory = previousYearBalance?.inventory ?? 0;
     const prevVatReceivable = previousYearBalance?.vat_receivable ?? 0;
     const prevVatPayable = previousYearBalance?.vat_payable ?? 0;
     const prevCash = (previousYearBalance?.cash_on_hand ?? 0) + (previousYearBalance?.bank_balance ?? 0);
 
-    // Mevcut yıl değerleri
-    const currentTradeReceivables = hub.balanceData?.tradeReceivables ?? 0;
-    const currentTradePayables = hub.balanceData?.tradePayables ?? 0;
-    const currentPersonnelPayables = hub.balanceData?.personnelPayables ?? 0;
-    const currentInventory = hub.balanceData?.inventory ?? 0;
-    const currentVatReceivable = hub.balanceData?.vatReceivable ?? 0;
-    const currentVatPayable = hub.balanceData?.vatPayable ?? 0;
+    // Mevcut yıl değerleri - CANLI VERİ (balanceSheet'ten)
+    const currentTradeReceivables = balanceSheet?.currentAssets?.receivables ?? 0;
+    const currentTradePayables = balanceSheet?.shortTermLiabilities?.payables ?? 0;
+    const currentPersonnelPayables = balanceSheet?.shortTermLiabilities?.personnelPayables ?? 0;
+    const currentTaxPayables = balanceSheet?.shortTermLiabilities?.taxPayables ?? 0;
+    const currentSocialSecurityPayables = balanceSheet?.shortTermLiabilities?.socialSecurityPayables ?? 0;
+    const currentInventory = balanceSheet?.currentAssets?.inventory ?? 0;
+    const currentVatReceivable = balanceSheet?.currentAssets?.vatReceivable ?? 0;
+    const currentVatPayable = balanceSheet?.shortTermLiabilities?.vatPayable ?? 0;
     const currentCash = (balanceSheet?.currentAssets?.cash ?? 0) + (balanceSheet?.currentAssets?.banks ?? 0);
 
     // A. İŞLETME FAALİYETLERİ
@@ -81,11 +87,14 @@ export function useCashFlowStatement(year: number) {
     const receivablesChange = -(currentTradeReceivables - prevTradeReceivables); // Alacak artışı = nakit azalışı
     const payablesChange = currentTradePayables - prevTradePayables; // Borç artışı = nakit artışı
     const personnelChange = currentPersonnelPayables - prevPersonnelPayables;
+    const taxPayablesChange = currentTaxPayables - prevTaxPayables; // Vergi borcu artışı = nakit artışı
+    const socialSecurityChange = currentSocialSecurityPayables - prevSocialSecurityPayables; // SGK borcu artışı = nakit artışı
     const inventoryChange = -(currentInventory - prevInventory); // Stok artışı = nakit azalışı
     const vatChange = (currentVatPayable - prevVatPayable) - (currentVatReceivable - prevVatReceivable);
 
     const operatingTotal = netProfit + depreciation + receivablesChange + payablesChange + 
-                          personnelChange + inventoryChange + vatChange;
+                          personnelChange + taxPayablesChange + socialSecurityChange +
+                          inventoryChange + vatChange;
 
     // B. YATIRIM FAALİYETLERİ
     const vehiclePurchases = hub.investmentSummary?.vehicles ?? 0;
@@ -119,6 +128,8 @@ export function useCashFlowStatement(year: number) {
         receivablesChange,
         payablesChange,
         personnelChange,
+        taxPayablesChange,
+        socialSecurityChange,
         inventoryChange,
         vatChange,
         total: operatingTotal,

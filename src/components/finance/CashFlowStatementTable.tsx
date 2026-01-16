@@ -136,6 +136,8 @@ export function CashFlowStatementTable({ data, year }: CashFlowStatementTablePro
         <LineItem label="Ticari Alacaklardaki Değişim" amount={data.operating.receivablesChange} prefix={data.operating.receivablesChange >= 0 ? '+' : '-'} indent />
         <LineItem label="Ticari Borçlardaki Değişim" amount={data.operating.payablesChange} prefix={data.operating.payablesChange >= 0 ? '+' : '-'} indent />
         <LineItem label="Personel Borçlarındaki Değişim" amount={data.operating.personnelChange} prefix={data.operating.personnelChange >= 0 ? '+' : '-'} indent />
+        <LineItem label="Ödenecek Vergi Değişimi" amount={data.operating.taxPayablesChange} prefix={data.operating.taxPayablesChange >= 0 ? '+' : '-'} indent />
+        <LineItem label="Ödenecek SGK Değişimi" amount={data.operating.socialSecurityChange} prefix={data.operating.socialSecurityChange >= 0 ? '+' : '-'} indent />
         <LineItem label="Stoklardaki Değişim" amount={data.operating.inventoryChange} prefix={data.operating.inventoryChange >= 0 ? '+' : '-'} indent />
         <LineItem label="KDV Alacak/Borç Değişimi" amount={data.operating.vatChange} prefix={data.operating.vatChange >= 0 ? '+' : '-'} indent />
       </Section>
