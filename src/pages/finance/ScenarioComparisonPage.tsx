@@ -1,5 +1,5 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import {
@@ -56,15 +56,17 @@ import {
   History,
   ChevronDown,
   RotateCcw,
+  Presentation,
 } from 'lucide-react';
-import { SimulationScenario, AnalysisHistoryItem } from '@/types/simulation';
+import { SimulationScenario, AnalysisHistoryItem, NextYearProjection } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
-import { useScenarioAIAnalysis } from '@/hooks/finance/useScenarioAIAnalysis';
-import { useInvestorAnalysis } from '@/hooks/finance/useInvestorAnalysis';
+import { useUnifiedAnalysis } from '@/hooks/finance/useUnifiedAnalysis';
+import { useInvestorAnalysis, calculateCapitalNeeds, calculateExitPlan } from '@/hooks/finance/useInvestorAnalysis';
 import { useScenarios } from '@/hooks/finance/useScenarios';
 import { InvestmentTab } from '@/components/simulation/InvestmentTab';
+import { PitchDeckView } from '@/components/simulation/PitchDeckView';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import {
   ChartConfig,
@@ -351,48 +353,40 @@ const HistoricalAnalysisSheet = ({
 };
 
 function ScenarioComparisonContent() {
-  const { scenarios, isLoading: scenariosLoading, currentScenarioId } = useScenarios();
+  const navigate = useNavigate();
+  const { scenarios, isLoading: scenariosLoading, currentScenarioId, saveScenario, createNextYearFromAI } = useScenarios();
   const [scenarioAId, setScenarioAId] = useState<string | null>(currentScenarioId);
   const [scenarioBId, setScenarioBId] = useState<string | null>(null);
   const chartContainerRef = useRef<HTMLDivElement>(null);
   
-  // Sheet state for historical analysis
+  // Sheet states
   const [selectedHistoricalAnalysis, setSelectedHistoricalAnalysis] = useState<AnalysisHistoryItem | null>(null);
   const [historySheetType, setHistorySheetType] = useState<'scenario_comparison' | 'investor_pitch'>('scenario_comparison');
+  const [showPitchDeck, setShowPitchDeck] = useState(false);
 
   const { generatePdfFromElement, isGenerating } = usePdfEngine();
-  const { 
-    analysis: aiAnalysis, 
-    isLoading: aiLoading, 
-    isCacheLoading: aiCacheLoading,
-    cachedInfo: aiCachedInfo,
-    dataChanged: aiDataChanged,
-    analysisHistory: aiAnalysisHistory,
-    isHistoryLoading: aiHistoryLoading,
-    analyzeScenarios, 
-    loadCachedAnalysis,
-    loadAnalysisHistory: loadAIAnalysisHistory,
-    checkDataChanges: checkAIDataChanges,
-    restoreHistoricalAnalysis: restoreAIHistoricalAnalysis,
-    clearAnalysis 
-  } = useScenarioAIAnalysis();
   
+  // Unified Analysis Hook - TEK AI hook, tüm fonksiyonlar burada
+  const { 
+    analysis: unifiedAnalysis, 
+    isLoading: unifiedLoading, 
+    isCacheLoading: unifiedCacheLoading,
+    cachedInfo: unifiedCachedInfo,
+    dataChanged: unifiedDataChanged,
+    analysisHistory: unifiedAnalysisHistory,
+    isHistoryLoading: unifiedHistoryLoading,
+    runUnifiedAnalysis,
+    loadCachedAnalysis: loadCachedUnifiedAnalysis,
+    loadAnalysisHistory: loadUnifiedAnalysisHistory,
+    checkDataChanges: checkUnifiedDataChanges,
+    restoreHistoricalAnalysis: restoreUnifiedHistoricalAnalysis,
+    clearAnalysis: clearUnifiedAnalysis
+  } = useUnifiedAnalysis();
+  
+  // Investor Analysis Hook - sadece dealConfig için
   const { 
     dealConfig, 
-    updateDealConfig, 
-    investorAnalysis, 
-    isLoading: investorLoading, 
-    isCacheLoading: investorCacheLoading,
-    cachedInfo: investorCachedInfo,
-    dataChanged: investorDataChanged,
-    analysisHistory: investorAnalysisHistory,
-    isHistoryLoading: investorHistoryLoading,
-    analyzeForInvestors,
-    loadCachedInvestorAnalysis,
-    loadAnalysisHistory: loadInvestorAnalysisHistory,
-    checkDataChanges: checkInvestorDataChanges,
-    restoreHistoricalAnalysis: restoreInvestorHistoricalAnalysis,
-    clearAnalysis: clearInvestorAnalysis
+    updateDealConfig
   } = useInvestorAnalysis();
 
   const scenarioA = useMemo(() => scenarios.find(s => s.id === scenarioAId), [scenarios, scenarioAId]);
@@ -426,63 +420,78 @@ function ScenarioComparisonContent() {
 
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
-  // Load cached analyses and history when scenarios change
+  // Load cached unified analysis when scenarios change
   useEffect(() => {
     if (scenarioAId && scenarioBId && scenarioAId !== scenarioBId) {
-      // Load cached analyses
-      loadCachedAnalysis(scenarioAId, scenarioBId);
-      loadCachedInvestorAnalysis(scenarioAId, scenarioBId);
-      
-      // Load history
-      loadAIAnalysisHistory(scenarioAId, scenarioBId);
-      loadInvestorAnalysisHistory(scenarioAId, scenarioBId);
+      loadCachedUnifiedAnalysis(scenarioAId, scenarioBId);
+      loadUnifiedAnalysisHistory(scenarioAId, scenarioBId);
     } else {
-      // Clear if no valid comparison
-      clearAnalysis();
-      clearInvestorAnalysis();
+      clearUnifiedAnalysis();
     }
-  }, [scenarioAId, scenarioBId, loadCachedAnalysis, loadCachedInvestorAnalysis, loadAIAnalysisHistory, loadInvestorAnalysisHistory, clearAnalysis, clearInvestorAnalysis]);
+  }, [scenarioAId, scenarioBId, loadCachedUnifiedAnalysis, loadUnifiedAnalysisHistory, clearUnifiedAnalysis]);
 
-  // Check for data changes when scenarios are loaded and we have cached info
+  // Check for data changes when scenarios are loaded
   useEffect(() => {
-    if (scenarioA && scenarioB && aiCachedInfo) {
-      checkAIDataChanges(scenarioA, scenarioB);
+    if (scenarioA && scenarioB && unifiedCachedInfo) {
+      checkUnifiedDataChanges(scenarioA, scenarioB);
     }
-    if (scenarioA && scenarioB && investorCachedInfo) {
-      checkInvestorDataChanges(scenarioA, scenarioB);
-    }
-  }, [scenarioA, scenarioB, aiCachedInfo, investorCachedInfo, checkAIDataChanges, checkInvestorDataChanges]);
+  }, [scenarioA, scenarioB, unifiedCachedInfo, checkUnifiedDataChanges]);
 
-  const handleAIAnalysis = async () => {
+  // Unified AI Analysis Handler - TEK BUTON, TÜM GÜÇ
+  const handleUnifiedAnalysis = async () => {
     if (!scenarioA || !scenarioB || !summaryA || !summaryB) return;
-    const quarterlyA = { q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 };
-    const quarterlyB = { q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 };
-    await analyzeScenarios(scenarioA, scenarioB, { totalRevenue: summaryA.totalRevenue, totalExpenses: summaryA.totalExpense, netProfit: summaryA.netProfit, profitMargin: summaryA.profitMargin }, { totalRevenue: summaryB.totalRevenue, totalExpenses: summaryB.totalExpense, netProfit: summaryB.netProfit, profitMargin: summaryB.profitMargin }, quarterlyA, quarterlyB);
+    
+    const quarterlyA = { 
+      q1: quarterlyComparison[0]?.scenarioANet || 0, 
+      q2: quarterlyComparison[1]?.scenarioANet || 0, 
+      q3: quarterlyComparison[2]?.scenarioANet || 0, 
+      q4: quarterlyComparison[3]?.scenarioANet || 0 
+    };
+    const quarterlyB = { 
+      q1: quarterlyComparison[0]?.scenarioBNet || 0, 
+      q2: quarterlyComparison[1]?.scenarioBNet || 0, 
+      q3: quarterlyComparison[2]?.scenarioBNet || 0, 
+      q4: quarterlyComparison[3]?.scenarioBNet || 0 
+    };
+    
+    // Calculate capital needs and exit plan
+    const capitalNeeds = calculateCapitalNeeds(quarterlyB);
+    const growthRate = summaryA.totalRevenue > 0 
+      ? (summaryB.totalRevenue - summaryA.totalRevenue) / summaryA.totalRevenue 
+      : 0.15;
+    const exitPlan = calculateExitPlan(dealConfig, summaryB.totalRevenue, summaryB.totalExpense, growthRate);
+    
+    await runUnifiedAnalysis(
+      scenarioA,
+      scenarioB,
+      { totalRevenue: summaryA.totalRevenue, totalExpenses: summaryA.totalExpense, netProfit: summaryA.netProfit, profitMargin: summaryA.profitMargin },
+      { totalRevenue: summaryB.totalRevenue, totalExpenses: summaryB.totalExpense, netProfit: summaryB.netProfit, profitMargin: summaryB.profitMargin },
+      quarterlyA,
+      quarterlyB,
+      dealConfig,
+      exitPlan,
+      capitalNeeds
+    );
   };
 
-  const handleInvestorAnalysis = async () => {
-    if (!scenarioA || !scenarioB || !summaryA || !summaryB) return;
-    const quarterlyA = { q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 };
-    const quarterlyB = { q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 };
-    await analyzeForInvestors(scenarioA, scenarioB, { totalRevenue: summaryA.totalRevenue, totalExpenses: summaryA.totalExpense, netProfit: summaryA.netProfit, profitMargin: summaryA.profitMargin }, { totalRevenue: summaryB.totalRevenue, totalExpenses: summaryB.totalExpense, netProfit: summaryB.netProfit, profitMargin: summaryB.profitMargin }, quarterlyA, quarterlyB);
+  // Create next year scenario from AI projection
+  const handleCreateNextYear = async () => {
+    if (!unifiedAnalysis?.next_year_projection || !scenarioB) return;
+    
+    const newScenario = await createNextYearFromAI(scenarioB, unifiedAnalysis.next_year_projection);
+    if (newScenario) {
+      toast.success(`${newScenario.targetYear} yılı senaryosu oluşturuldu!`);
+      navigate(`/finance/simulation?scenario=${newScenario.id}`);
+    }
   };
 
-  const handleSelectAIHistory = (item: AnalysisHistoryItem) => {
+  const handleSelectUnifiedHistory = (item: AnalysisHistoryItem) => {
     setSelectedHistoricalAnalysis(item);
     setHistorySheetType('scenario_comparison');
   };
 
-  const handleSelectInvestorHistory = (item: AnalysisHistoryItem) => {
-    setSelectedHistoricalAnalysis(item);
-    setHistorySheetType('investor_pitch');
-  };
-
   const handleRestoreHistory = (item: AnalysisHistoryItem) => {
-    if (historySheetType === 'scenario_comparison') {
-      restoreAIHistoricalAnalysis(item);
-    } else {
-      restoreInvestorHistoricalAnalysis(item);
-    }
+    restoreUnifiedHistoricalAnalysis(item);
   };
 
   const chartConfig: ChartConfig = {
@@ -557,12 +566,11 @@ function ScenarioComparisonContent() {
           </div>
         ) : (
           <Tabs defaultValue="summary" className="w-full">
-            <TabsList className="grid w-full grid-cols-5">
+            <TabsList className="grid w-full grid-cols-4">
               <TabsTrigger value="summary">Özet</TabsTrigger>
               <TabsTrigger value="trend"><LineChartIcon className="h-4 w-4 mr-1" />Trend</TabsTrigger>
               <TabsTrigger value="quarterly"><Calendar className="h-4 w-4 mr-1" />Çeyreklik</TabsTrigger>
-              <TabsTrigger value="investment" className="text-amber-400"><Rocket className="h-4 w-4 mr-1" />Yatırım</TabsTrigger>
-              <TabsTrigger value="insights"><Sparkles className="h-4 w-4 mr-1" />AI Analiz</TabsTrigger>
+              <TabsTrigger value="investment" className="text-amber-400"><Rocket className="h-4 w-4 mr-1" />Yatırım & AI</TabsTrigger>
             </TabsList>
 
             <TabsContent value="summary" className="mt-4">
@@ -630,7 +638,7 @@ function ScenarioComparisonContent() {
             </TabsContent>
 
             <TabsContent value="investment" className="mt-4">
-              {investorCacheLoading ? (
+              {unifiedCacheLoading ? (
                 <div className="flex items-center justify-center py-8">
                   <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
                   <span className="ml-2 text-muted-foreground">Önceki analiz yükleniyor...</span>
@@ -638,22 +646,22 @@ function ScenarioComparisonContent() {
               ) : (
                 <>
                   {/* Data changed warning */}
-                  {investorDataChanged && investorCachedInfo && (
-                    <DataChangedWarning onReanalyze={handleInvestorAnalysis} isLoading={investorLoading} />
+                  {unifiedDataChanged && unifiedCachedInfo && (
+                    <DataChangedWarning onReanalyze={handleUnifiedAnalysis} isLoading={unifiedLoading} />
                   )}
                   
-                  {investorCachedInfo && (
+                  {unifiedCachedInfo && (
                     <div className="mb-4">
-                      <CacheInfoBadge cachedInfo={investorCachedInfo} />
+                      <CacheInfoBadge cachedInfo={unifiedCachedInfo} />
                     </div>
                   )}
                   
                   {/* Analysis history */}
                   <AnalysisHistoryPanel 
-                    history={investorAnalysisHistory}
-                    isLoading={investorHistoryLoading}
-                    onSelectHistory={handleSelectInvestorHistory}
-                    analysisType="investor_pitch"
+                    history={unifiedAnalysisHistory}
+                    isLoading={unifiedHistoryLoading}
+                    onSelectHistory={handleSelectUnifiedHistory}
+                    analysisType="scenario_comparison"
                   />
                   
                   <InvestmentTab
@@ -665,96 +673,13 @@ function ScenarioComparisonContent() {
                     quarterlyB={{ q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 }}
                     dealConfig={dealConfig}
                     onDealConfigChange={updateDealConfig}
-                    investorAnalysis={investorAnalysis}
-                    isLoading={investorLoading}
-                    onAnalyze={handleInvestorAnalysis}
+                    unifiedAnalysis={unifiedAnalysis}
+                    isLoading={unifiedLoading}
+                    onUnifiedAnalyze={handleUnifiedAnalysis}
+                    onCreateNextYear={handleCreateNextYear}
+                    onShowPitchDeck={() => setShowPitchDeck(true)}
                   />
                 </>
-              )}
-            </TabsContent>
-
-            <TabsContent value="insights" className="mt-4 space-y-4">
-              {/* Data changed warning */}
-              {aiDataChanged && aiCachedInfo && (
-                <DataChangedWarning onReanalyze={handleAIAnalysis} isLoading={aiLoading} />
-              )}
-              
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  {aiCacheLoading ? (
-                    <span className="flex items-center gap-1 text-sm text-muted-foreground">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Önceki analiz yükleniyor...
-                    </span>
-                  ) : aiAnalysis ? (
-                    <div className="flex items-center gap-2">
-                      <span className="flex items-center gap-1 text-sm text-emerald-400">
-                        <CheckCircle2 className="h-4 w-4" />
-                        AI analizi tamamlandı
-                      </span>
-                      <CacheInfoBadge cachedInfo={aiCachedInfo} />
-                    </div>
-                  ) : (
-                    <span className="text-sm text-muted-foreground">AI ile derin analiz yapın</span>
-                  )}
-                </div>
-                <Button 
-                  onClick={handleAIAnalysis} 
-                  disabled={aiLoading || aiCacheLoading} 
-                  variant={aiAnalysis ? "outline" : "default"} 
-                  size="sm" 
-                  className="gap-2"
-                >
-                  {aiLoading ? (
-                    <>
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      Analiz ediliyor...
-                    </>
-                  ) : aiAnalysis ? (
-                    <>
-                      <RefreshCw className="h-4 w-4" />
-                      Yeniden Analiz Et
-                    </>
-                  ) : (
-                    <>
-                      <Sparkles className="h-4 w-4" />
-                      AI ile Analiz Et
-                    </>
-                  )}
-                </Button>
-              </div>
-              
-              {/* Analysis history */}
-              <AnalysisHistoryPanel 
-                history={aiAnalysisHistory}
-                isLoading={aiHistoryLoading}
-                onSelectHistory={handleSelectAIHistory}
-                analysisType="scenario_comparison"
-              />
-              
-              {(aiLoading || aiCacheLoading) && (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <Card key={i} className="p-4">
-                      <Skeleton className="h-16 w-full" />
-                    </Card>
-                  ))}
-                </div>
-              )}
-              
-              {!aiLoading && !aiCacheLoading && aiAnalysis?.insights?.map((insight, i) => (
-                <Card key={i} className="p-4">
-                  <h4 className="font-medium">{insight.title}</h4>
-                  <p className="text-sm text-muted-foreground mt-1">{insight.description}</p>
-                </Card>
-              ))}
-              
-              {!aiLoading && !aiCacheLoading && !aiAnalysis && (
-                <div className="text-center py-8 text-muted-foreground">
-                  <Brain className="h-12 w-12 mx-auto mb-3 opacity-30" />
-                  <p>Henüz AI analizi yapılmadı</p>
-                  <p className="text-sm mt-1">Yukarıdaki butona tıklayarak analiz başlatın</p>
-                </div>
               )}
             </TabsContent>
           </Tabs>
@@ -769,6 +694,26 @@ function ScenarioComparisonContent() {
         onRestore={handleRestoreHistory}
         analysisType={historySheetType}
       />
+      
+      {/* Pitch Deck Sheet */}
+      <Sheet open={showPitchDeck} onOpenChange={setShowPitchDeck}>
+        <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
+          <SheetHeader>
+            <SheetTitle className="flex items-center gap-2">
+              <Presentation className="h-5 w-5 text-purple-400" />
+              Yatırımcı Pitch Deck
+            </SheetTitle>
+            <SheetDescription>
+              AI tarafından oluşturulan 5 slaytlık yatırımcı sunumu
+            </SheetDescription>
+          </SheetHeader>
+          {unifiedAnalysis?.pitch_deck && (
+            <div className="mt-4">
+              <PitchDeckView pitchDeck={unifiedAnalysis.pitch_deck} />
+            </div>
+          )}
+        </SheetContent>
+      </Sheet>
     </div>
   );
 }
