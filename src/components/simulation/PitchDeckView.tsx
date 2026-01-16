@@ -46,13 +46,13 @@ const slideColors: Record<number, string> = {
   5: 'from-amber-500/20 to-yellow-500/20 border-amber-500/30'
 };
 
-// PDF renk şeması (CSS gradient için)
-const slidePdfColors: Record<number, { primary: string; secondary: string }> = {
-  1: { primary: '#3b82f6', secondary: '#6366f1' },   // Blue to Indigo
-  2: { primary: '#ef4444', secondary: '#f97316' },   // Red to Orange
-  3: { primary: '#22c55e', secondary: '#10b981' },   // Green to Emerald
-  4: { primary: '#a855f7', secondary: '#ec4899' },   // Purple to Pink
-  5: { primary: '#f59e0b', secondary: '#eab308' }    // Amber to Yellow
+// Google-style minimal color palette - accent colors only
+const slidePdfColors: Record<number, { accent: string; accentLight: string }> = {
+  1: { accent: '#4285F4', accentLight: '#E8F0FE' },  // Google Blue - Problem
+  2: { accent: '#EA4335', accentLight: '#FCE8E6' },  // Google Red - Solution
+  3: { accent: '#34A853', accentLight: '#E6F4EA' },  // Google Green - Market
+  4: { accent: '#9334E6', accentLight: '#F3E8FD' },  // Purple - Business Model
+  5: { accent: '#FBBC04', accentLight: '#FEF7E0' }   // Google Yellow - Ask
 };
 
 const slideIconLabels: Record<number, string> = {
@@ -142,7 +142,7 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
         return lines;
       };
       
-      // Render each slide
+      // Render each slide - Google-style minimal design
       for (let i = 0; i < slides.length; i++) {
         const slideData = slides[i];
         const slideNumber = slideData.slide_number;
@@ -151,128 +151,142 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
         
         if (i > 0) pdf.addPage();
         
-        // Background (solid color - gradient not supported in jsPDF)
-        const bgColor = hexToRgb(colors.primary);
-        pdf.setFillColor(bgColor.r, bgColor.g, bgColor.b);
+        // White background
+        pdf.setFillColor(255, 255, 255);
         pdf.rect(0, 0, pageWidth, pageHeight, 'F');
         
-        // Slide number badge
-        pdf.setFillColor(255, 255, 255, 0.2);
-        pdf.roundedRect(margin, margin, 50, 10, 2, 2, 'F');
-        pdf.setTextColor(255, 255, 255);
+        // Left accent stripe (Google style)
+        const accentColor = hexToRgb(colors.accent);
+        pdf.setFillColor(accentColor.r, accentColor.g, accentColor.b);
+        pdf.rect(0, 0, 6, pageHeight, 'F');
+        
+        // Slide number - subtle gray
+        pdf.setTextColor(158, 158, 158);
         pdf.setFontSize(10);
         pdf.setFont('Helvetica', 'normal');
-        pdf.text(`Slide ${slideNumber} / ${slides.length}`, margin + 5, margin + 7);
+        pdf.text(`${slideNumber} / ${slides.length}`, pageWidth - margin - 15, margin);
         
-        // Icon placeholder
-        pdf.setFillColor(255, 255, 255, 0.2);
-        pdf.roundedRect(margin, margin + 15, 15, 15, 3, 3, 'F');
-        pdf.setFontSize(12);
-        pdf.text(iconLabel, margin + 5, margin + 25);
-        
-        // Title
-        pdf.setFontSize(26);
-        pdf.setFont('Helvetica', 'bold');
-        pdf.setTextColor(255, 255, 255);
-        const titleText = turkishToAscii(slideData.title);
-        pdf.text(titleText, margin + 20, margin + 27);
-        
-        // Key message box
-        let currentY = margin + 40;
-        pdf.setFillColor(255, 255, 255, 0.15);
-        pdf.roundedRect(margin, currentY, contentWidth, 20, 3, 3, 'F');
-        
+        // Icon with accent background
+        const accentLightColor = hexToRgb(colors.accentLight);
+        pdf.setFillColor(accentLightColor.r, accentLightColor.g, accentLightColor.b);
+        pdf.circle(margin + 10, margin + 18, 10, 'F');
         pdf.setFontSize(14);
+        pdf.setTextColor(accentColor.r, accentColor.g, accentColor.b);
+        pdf.text(iconLabel, margin + 6.5, margin + 21);
+        
+        // Title - dark gray
+        pdf.setFontSize(28);
         pdf.setFont('Helvetica', 'bold');
-        const keyMessageLines = wrapText(turkishToAscii(slideData.key_message), contentWidth - 10, 14);
+        pdf.setTextColor(33, 33, 33);
+        const titleText = turkishToAscii(slideData.title);
+        pdf.text(titleText, margin + 28, margin + 23);
+        
+        // Key message in light accent box
+        let currentY = margin + 38;
+        pdf.setFillColor(accentLightColor.r, accentLightColor.g, accentLightColor.b);
+        const keyMessageLines = wrapText(turkishToAscii(slideData.key_message), contentWidth - 20, 13);
+        const keyBoxHeight = 12 + (keyMessageLines.length - 1) * 6;
+        pdf.roundedRect(margin, currentY, contentWidth, keyBoxHeight, 3, 3, 'F');
+        
+        pdf.setFontSize(13);
+        pdf.setFont('Helvetica', 'bold');
+        pdf.setTextColor(66, 66, 66);
         keyMessageLines.forEach((line, idx) => {
-          pdf.text(line, margin + 5, currentY + 8 + (idx * 6));
+          pdf.text(line, margin + 10, currentY + 8 + (idx * 6));
         });
         
-        currentY += 25 + (keyMessageLines.length - 1) * 6;
+        currentY += keyBoxHeight + 12;
         
-        // Bullet points
+        // Bullet points - clean list
         pdf.setFont('Helvetica', 'normal');
         pdf.setFontSize(12);
         
         slideData.content_bullets.forEach((bullet, idx) => {
-          // Bullet background
-          pdf.setFillColor(255, 255, 255, 0.1);
-          const bulletLines = wrapText(turkishToAscii(bullet), contentWidth - 25, 12);
-          const boxHeight = 10 + (bulletLines.length - 1) * 5;
-          pdf.roundedRect(margin, currentY, contentWidth, boxHeight, 2, 2, 'F');
+          const bulletLines = wrapText(turkishToAscii(bullet), contentWidth - 20, 12);
           
-          // Number circle
-          pdf.setFillColor(255, 255, 255, 0.25);
-          pdf.circle(margin + 6, currentY + 5, 4, 'F');
+          // Accent colored number circle
+          pdf.setFillColor(accentColor.r, accentColor.g, accentColor.b);
+          pdf.circle(margin + 5, currentY + 2, 4, 'F');
+          pdf.setTextColor(255, 255, 255);
           pdf.setFontSize(10);
           pdf.setFont('Helvetica', 'bold');
-          pdf.text(`${idx + 1}`, margin + 4.5, currentY + 6.5);
+          pdf.text(`${idx + 1}`, margin + 3.2, currentY + 4);
           
-          // Bullet text
+          // Bullet text - dark gray
+          pdf.setTextColor(66, 66, 66);
           pdf.setFont('Helvetica', 'normal');
           pdf.setFontSize(12);
           bulletLines.forEach((line, lineIdx) => {
-            pdf.text(line, margin + 15, currentY + 6 + (lineIdx * 5));
+            pdf.text(line, margin + 14, currentY + 4 + (lineIdx * 6));
           });
           
-          currentY += boxHeight + 4;
+          currentY += 8 + (bulletLines.length - 1) * 6 + 6;
         });
         
-        // Speaker notes
+        // Speaker notes - bottom section with gray divider
         if (slideData.speaker_notes) {
-          const notesY = pageHeight - 30;
-          pdf.setDrawColor(255, 255, 255, 0.3);
-          pdf.line(margin, notesY - 5, pageWidth - margin, notesY - 5);
+          const notesY = pageHeight - 28;
+          
+          // Light gray divider line
+          pdf.setDrawColor(224, 224, 224);
+          pdf.setLineWidth(0.3);
+          pdf.line(margin, notesY - 8, pageWidth - margin, notesY - 8);
           
           pdf.setFontSize(9);
           pdf.setFont('Helvetica', 'italic');
-          pdf.setTextColor(255, 255, 255, 0.8);
+          pdf.setTextColor(117, 117, 117);
           pdf.text('Konusmaci Notlari:', margin, notesY);
           
           pdf.setFontSize(10);
+          pdf.setFont('Helvetica', 'normal');
           const notesLines = wrapText(turkishToAscii(slideData.speaker_notes), contentWidth, 10);
-          notesLines.slice(0, 3).forEach((line, idx) => {
+          notesLines.slice(0, 2).forEach((line, idx) => {
             pdf.text(line, margin, notesY + 5 + (idx * 4));
           });
         }
       }
       
-      // Executive Summary page
+      // Executive Summary page - Google style (white background)
       if (pitchDeck.executive_summary) {
         pdf.addPage();
         
-        // Dark background
-        pdf.setFillColor(30, 41, 59);
+        // White background
+        pdf.setFillColor(255, 255, 255);
         pdf.rect(0, 0, pageWidth, pageHeight, 'F');
         
+        // Left accent stripe (Google Blue)
+        pdf.setFillColor(66, 133, 244);
+        pdf.rect(0, 0, 6, pageHeight, 'F');
+        
         // Header
-        pdf.setTextColor(255, 255, 255);
+        pdf.setTextColor(33, 33, 33);
         pdf.setFontSize(28);
         pdf.setFont('Helvetica', 'bold');
         pdf.text('Executive Summary', margin, margin + 15);
         
         pdf.setFontSize(12);
         pdf.setFont('Helvetica', 'normal');
-        pdf.setTextColor(180, 180, 180);
+        pdf.setTextColor(117, 117, 117);
         pdf.text('Yatirimciya gonderilecek e-posta ozeti', margin, margin + 25);
         
-        // Summary content box
-        pdf.setFillColor(40, 50, 70);
-        pdf.roundedRect(margin, margin + 35, contentWidth, pageHeight - margin - 55, 5, 5, 'F');
+        // Light gray divider
+        pdf.setDrawColor(224, 224, 224);
+        pdf.setLineWidth(0.5);
+        pdf.line(margin, margin + 32, pageWidth - margin, margin + 32);
         
-        pdf.setTextColor(255, 255, 255);
+        // Summary content - clean text on white
+        pdf.setTextColor(66, 66, 66);
         pdf.setFontSize(11);
-        const summaryLines = wrapText(turkishToAscii(pitchDeck.executive_summary), contentWidth - 20, 11);
+        const summaryLines = wrapText(turkishToAscii(pitchDeck.executive_summary), contentWidth, 11);
         summaryLines.forEach((line, idx) => {
-          if (margin + 45 + (idx * 6) < pageHeight - 30) {
-            pdf.text(line, margin + 10, margin + 45 + (idx * 6));
+          if (margin + 45 + (idx * 6) < pageHeight - 25) {
+            pdf.text(line, margin, margin + 45 + (idx * 6));
           }
         });
         
         // Footer
         pdf.setFontSize(9);
-        pdf.setTextColor(120, 120, 120);
+        pdf.setTextColor(158, 158, 158);
         const dateText = `Olusturulma Tarihi: ${new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
         pdf.text(turkishToAscii(dateText), pageWidth / 2, pageHeight - 10, { align: 'center' });
       }
