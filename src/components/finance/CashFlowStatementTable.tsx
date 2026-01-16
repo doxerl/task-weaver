@@ -2,11 +2,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
 import { TrendingUp, TrendingDown, Building2, Landmark, Users, AlertTriangle, CheckCircle2 } from 'lucide-react';
-import { formatFullTRY } from '@/lib/formatters';
+import { useCurrency } from '@/contexts/CurrencyContext';
 import type { CashFlowStatement } from '@/hooks/finance/useCashFlowStatement';
-
-// Format currency for TRY
-const formatCurrency = (value: number) => formatFullTRY(value);
 
 interface CashFlowStatementTableProps {
   data: CashFlowStatement;
@@ -20,9 +17,10 @@ interface LineItemProps {
   isTotal?: boolean;
   prefix?: '+' | '-' | '';
   indent?: boolean;
+  formatCurrency: (value: number) => string;
 }
 
-function LineItem({ label, amount, isSubtotal, isTotal, prefix = '', indent }: LineItemProps) {
+function LineItem({ label, amount, isSubtotal, isTotal, prefix = '', indent, formatCurrency }: LineItemProps) {
   const isPositive = amount >= 0;
   const displayAmount = Math.abs(amount);
   
@@ -64,9 +62,10 @@ interface SectionProps {
   icon: React.ReactNode;
   total: number;
   children: React.ReactNode;
+  formatCurrency: (value: number) => string;
 }
 
-function Section({ title, icon, total, children }: SectionProps) {
+function Section({ title, icon, total, children, formatCurrency }: SectionProps) {
   const isPositive = total >= 0;
   
   return (
@@ -99,6 +98,8 @@ function Section({ title, icon, total, children }: SectionProps) {
 }
 
 export function CashFlowStatementTable({ data, year }: CashFlowStatementTableProps) {
+  const { formatAmount } = useCurrency();
+  
   return (
     <div className="space-y-6">
       {/* Başlık */}
@@ -116,7 +117,7 @@ export function CashFlowStatementTable({ data, year }: CashFlowStatementTablePro
           ) : (
             <>
               <AlertTriangle className="h-3 w-3" />
-              Fark: {formatCurrency(data.difference)}
+              Fark: {formatAmount(data.difference)}
             </>
           )}
         </Badge>
@@ -127,19 +128,20 @@ export function CashFlowStatementTable({ data, year }: CashFlowStatementTablePro
         title="A. İŞLETME FAALİYETLERİNDEN NAKİT AKIŞLARI"
         icon={<Building2 className="h-4 w-4" />}
         total={data.operating.total}
+        formatCurrency={formatAmount}
       >
-        <LineItem label="Dönem Net Kârı" amount={data.operating.netProfit} />
+        <LineItem label="Dönem Net Kârı" amount={data.operating.netProfit} formatCurrency={formatAmount} />
         <div className="text-xs text-muted-foreground px-3 py-1 bg-muted/20 rounded">
           Nakit Dışı Kalemler ve İşletme Sermayesi Düzeltmeleri:
         </div>
-        <LineItem label="Amortisman ve İtfa Payları" amount={data.operating.depreciation} prefix="+" indent />
-        <LineItem label="Ticari Alacaklardaki Değişim" amount={data.operating.receivablesChange} prefix={data.operating.receivablesChange >= 0 ? '+' : '-'} indent />
-        <LineItem label="Ticari Borçlardaki Değişim" amount={data.operating.payablesChange} prefix={data.operating.payablesChange >= 0 ? '+' : '-'} indent />
-        <LineItem label="Personel Borçlarındaki Değişim" amount={data.operating.personnelChange} prefix={data.operating.personnelChange >= 0 ? '+' : '-'} indent />
-        <LineItem label="Ödenecek Vergi Değişimi" amount={data.operating.taxPayablesChange} prefix={data.operating.taxPayablesChange >= 0 ? '+' : '-'} indent />
-        <LineItem label="Ödenecek SGK Değişimi" amount={data.operating.socialSecurityChange} prefix={data.operating.socialSecurityChange >= 0 ? '+' : '-'} indent />
-        <LineItem label="Stoklardaki Değişim" amount={data.operating.inventoryChange} prefix={data.operating.inventoryChange >= 0 ? '+' : '-'} indent />
-        <LineItem label="KDV Alacak/Borç Değişimi" amount={data.operating.vatChange} prefix={data.operating.vatChange >= 0 ? '+' : '-'} indent />
+        <LineItem label="Amortisman ve İtfa Payları" amount={data.operating.depreciation} prefix="+" indent formatCurrency={formatAmount} />
+        <LineItem label="Ticari Alacaklardaki Değişim" amount={data.operating.receivablesChange} prefix={data.operating.receivablesChange >= 0 ? '+' : '-'} indent formatCurrency={formatAmount} />
+        <LineItem label="Ticari Borçlardaki Değişim" amount={data.operating.payablesChange} prefix={data.operating.payablesChange >= 0 ? '+' : '-'} indent formatCurrency={formatAmount} />
+        <LineItem label="Personel Borçlarındaki Değişim" amount={data.operating.personnelChange} prefix={data.operating.personnelChange >= 0 ? '+' : '-'} indent formatCurrency={formatAmount} />
+        <LineItem label="Ödenecek Vergi Değişimi" amount={data.operating.taxPayablesChange} prefix={data.operating.taxPayablesChange >= 0 ? '+' : '-'} indent formatCurrency={formatAmount} />
+        <LineItem label="Ödenecek SGK Değişimi" amount={data.operating.socialSecurityChange} prefix={data.operating.socialSecurityChange >= 0 ? '+' : '-'} indent formatCurrency={formatAmount} />
+        <LineItem label="Stoklardaki Değişim" amount={data.operating.inventoryChange} prefix={data.operating.inventoryChange >= 0 ? '+' : '-'} indent formatCurrency={formatAmount} />
+        <LineItem label="KDV Alacak/Borç Değişimi" amount={data.operating.vatChange} prefix={data.operating.vatChange >= 0 ? '+' : '-'} indent formatCurrency={formatAmount} />
       </Section>
 
       {/* B. Yatırım Faaliyetleri */}
@@ -147,15 +149,16 @@ export function CashFlowStatementTable({ data, year }: CashFlowStatementTablePro
         title="B. YATIRIM FAALİYETLERİNDEN NAKİT AKIŞLARI"
         icon={<TrendingUp className="h-4 w-4" />}
         total={data.investing.total}
+        formatCurrency={formatAmount}
       >
         {data.investing.vehiclePurchases > 0 && (
-          <LineItem label="Taşıt Alımları" amount={-data.investing.vehiclePurchases} prefix="-" />
+          <LineItem label="Taşıt Alımları" amount={-data.investing.vehiclePurchases} prefix="-" formatCurrency={formatAmount} />
         )}
         {data.investing.equipmentPurchases > 0 && (
-          <LineItem label="Ekipman Alımları" amount={-data.investing.equipmentPurchases} prefix="-" />
+          <LineItem label="Ekipman Alımları" amount={-data.investing.equipmentPurchases} prefix="-" formatCurrency={formatAmount} />
         )}
         {data.investing.fixturePurchases > 0 && (
-          <LineItem label="Demirbaş Alımları" amount={-data.investing.fixturePurchases} prefix="-" />
+          <LineItem label="Demirbaş Alımları" amount={-data.investing.fixturePurchases} prefix="-" formatCurrency={formatAmount} />
         )}
         {data.investing.vehiclePurchases === 0 && data.investing.equipmentPurchases === 0 && data.investing.fixturePurchases === 0 && (
           <div className="text-sm text-muted-foreground px-3 py-2 italic">
@@ -169,15 +172,16 @@ export function CashFlowStatementTable({ data, year }: CashFlowStatementTablePro
         title="C. FİNANSMAN FAALİYETLERİNDEN NAKİT AKIŞLARI"
         icon={<Landmark className="h-4 w-4" />}
         total={data.financing.total}
+        formatCurrency={formatAmount}
       >
         {data.financing.loanProceeds > 0 && (
-          <LineItem label="Kredi Kullanımı" amount={data.financing.loanProceeds} prefix="+" />
+          <LineItem label="Kredi Kullanımı" amount={data.financing.loanProceeds} prefix="+" formatCurrency={formatAmount} />
         )}
         {data.financing.loanRepayments > 0 && (
-          <LineItem label="Kredi Geri Ödemeleri" amount={-data.financing.loanRepayments} prefix="-" />
+          <LineItem label="Kredi Geri Ödemeleri" amount={-data.financing.loanRepayments} prefix="-" formatCurrency={formatAmount} />
         )}
         {data.financing.leasingPayments > 0 && (
-          <LineItem label="Leasing Ödemeleri" amount={-data.financing.leasingPayments} prefix="-" />
+          <LineItem label="Leasing Ödemeleri" amount={-data.financing.leasingPayments} prefix="-" formatCurrency={formatAmount} />
         )}
         <Separator className="my-1" />
         <div className="flex items-center gap-2 px-3 py-1">
@@ -185,13 +189,13 @@ export function CashFlowStatementTable({ data, year }: CashFlowStatementTablePro
           <span className="text-xs font-medium text-muted-foreground">Ortak İşlemleri</span>
         </div>
         {data.financing.partnerDeposits > 0 && (
-          <LineItem label="Ortaktan Gelen" amount={data.financing.partnerDeposits} prefix="+" indent />
+          <LineItem label="Ortaktan Gelen" amount={data.financing.partnerDeposits} prefix="+" indent formatCurrency={formatAmount} />
         )}
         {data.financing.partnerWithdrawals > 0 && (
-          <LineItem label="Ortağa Ödeme" amount={-data.financing.partnerWithdrawals} prefix="-" indent />
+          <LineItem label="Ortağa Ödeme" amount={-data.financing.partnerWithdrawals} prefix="-" indent formatCurrency={formatAmount} />
         )}
         {data.financing.capitalIncrease > 0 && (
-          <LineItem label="Sermaye Artırımı" amount={data.financing.capitalIncrease} prefix="+" />
+          <LineItem label="Sermaye Artırımı" amount={data.financing.capitalIncrease} prefix="+" formatCurrency={formatAmount} />
         )}
       </Section>
 
@@ -202,19 +206,19 @@ export function CashFlowStatementTable({ data, year }: CashFlowStatementTablePro
             <div>
               <p className="text-xs text-muted-foreground mb-1">İşletme</p>
               <p className={`font-bold ${data.operating.total >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {formatCurrency(data.operating.total)}
+                {formatAmount(data.operating.total)}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Yatırım</p>
               <p className={`font-bold ${data.investing.total >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {formatCurrency(data.investing.total)}
+                {formatAmount(data.investing.total)}
               </p>
             </div>
             <div>
               <p className="text-xs text-muted-foreground mb-1">Finansman</p>
               <p className={`font-bold ${data.financing.total >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {formatCurrency(data.financing.total)}
+                {formatAmount(data.financing.total)}
               </p>
             </div>
           </div>
@@ -225,18 +229,18 @@ export function CashFlowStatementTable({ data, year }: CashFlowStatementTablePro
             <div className="flex justify-between items-center">
               <span className="text-sm font-medium">Nakitteki Net Değişim</span>
               <span className={`font-bold text-lg ${data.netCashChange >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {formatCurrency(data.netCashChange)}
+                {formatAmount(data.netCashChange)}
               </span>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-muted-foreground">Dönem Başı Nakit</span>
-              <span className="tabular-nums">{formatCurrency(data.openingCash)}</span>
+              <span className="tabular-nums">{formatAmount(data.openingCash)}</span>
             </div>
             <Separator className="my-1" />
             <div className="flex justify-between items-center">
               <span className="font-bold">DÖNEM SONU NAKİT</span>
               <span className={`font-bold text-xl ${data.closingCash >= 0 ? 'text-emerald-600' : 'text-rose-600'}`}>
-                {formatCurrency(data.closingCash)}
+                {formatAmount(data.closingCash)}
               </span>
             </div>
           </div>
@@ -248,8 +252,8 @@ export function CashFlowStatementTable({ data, year }: CashFlowStatementTablePro
                 <div className="text-sm">
                   <p className="font-medium text-amber-800">Denklem Uyumsuzluğu</p>
                   <p className="text-amber-700 text-xs mt-1">
-                    Beklenen: {formatCurrency(data.expectedClosingCash)} | 
-                    Fark: {formatCurrency(data.difference)}
+                    Beklenen: {formatAmount(data.expectedClosingCash)} | 
+                    Fark: {formatAmount(data.difference)}
                   </p>
                   <p className="text-amber-600 text-xs mt-1">
                     Bu fark, kategorize edilmemiş işlemler veya önceki yıl verilerindeki eksikliklerden kaynaklanabilir.
