@@ -6,6 +6,7 @@
 
 import { useState, useCallback, RefObject } from 'react';
 import jsPDF from 'jspdf';
+import autoTable from 'jspdf-autotable';
 import { PDF_CONFIG, type PdfProgress, type PdfGenerateOptions } from '@/lib/pdf/config/pdf';
 import {
   collectStylesFromOriginal,
@@ -100,6 +101,102 @@ export interface ScenarioComparisonPdfData {
   }>;
 }
 
+// ============================================
+// PROFESYONEL SUNUM PDF TİPLERİ (YATAY A4)
+// ============================================
+
+export interface ScenarioPresentationPdfData {
+  // Senaryo Bilgileri
+  scenarioA: {
+    id: string;
+    name: string;
+    targetYear: number;
+    summary: { revenue: number; expense: number; profit: number; margin: number };
+  };
+  scenarioB: {
+    id: string;
+    name: string;
+    targetYear: number;
+    summary: { revenue: number; expense: number; profit: number; margin: number };
+  };
+  
+  // Metrikler
+  metrics: Array<{
+    label: string;
+    scenarioA: number;
+    scenarioB: number;
+    format: 'currency' | 'percent' | 'number';
+    diffPercent: number;
+    isPositive: boolean;
+  }>;
+  
+  // Çeyreklik veriler
+  quarterlyData: Array<{
+    quarter: string;
+    scenarioANet: number;
+    scenarioBNet: number;
+    scenarioACumulative: number;
+    scenarioBCumulative: number;
+  }>;
+  
+  // Yatırım analizi
+  capitalAnalysis?: {
+    scenarioANeed: number;
+    scenarioASelfSustaining: boolean;
+    scenarioBNeed: number;
+    scenarioBSelfSustaining: boolean;
+    burnRate: number;
+    runway: number;
+    criticalQuarter: string;
+    opportunityCost: number;
+  };
+  
+  // Deal konfigürasyonu
+  dealConfig?: {
+    investmentAmount: number;
+    equityPercentage: number;
+    sectorMultiple: number;
+  };
+  
+  // Exit plan
+  exitPlan?: {
+    postMoneyValuation: number;
+    exitValue: number;
+    investorReturn: number;
+    founderRetention: number;
+  };
+  
+  // AI Analiz
+  insights?: Array<{
+    category: string;
+    severity: string;
+    title: string;
+    description: string;
+  }>;
+  recommendations?: Array<{
+    title: string;
+    description: string;
+    risk: string;
+    priority: number;
+  }>;
+  
+  // Pitch Deck (opsiyonel)
+  pitchDeck?: {
+    executiveSummary: string;
+    slides: Array<{
+      slideNumber: number;
+      title: string;
+      bullets: string[];
+    }>;
+  };
+  
+  // Grafik elementleri (capture için)
+  chartElements?: {
+    quarterlyChart: HTMLElement | null;
+    cumulativeChart: HTMLElement | null;
+  };
+}
+
 export interface UsePdfEngineReturn {
   // ============================================
   // DATA-DRIVEN PDF FONKSİYONLARI (ÖNERILEN)
@@ -164,6 +261,8 @@ export interface UsePdfEngineReturn {
   ) => Promise<boolean>;
   
   generateScenarioComparisonPdfData: (data: ScenarioComparisonPdfData) => Promise<boolean>;
+  
+  generateScenarioPresentationPdf: (data: ScenarioPresentationPdfData) => Promise<boolean>;
   
   generateCashFlowPdfData: (
     cashFlowStatement: CashFlowStatement,
@@ -1301,9 +1400,577 @@ export function usePdfEngine(): UsePdfEngineReturn {
   }, []);
 
   /**
-   * Dashboard PDF - Her grafiği ayrı sayfaya koyarak bölünmeyi önle
-   * Grafikler ortadan kesilmez, her biri tam sayfa olarak eklenir
+   * Senaryo Karşılaştırma SUNUM PDF - Yatay A4 PowerPoint Kalitesinde
+   * Profesyonel slide tasarımı, grafik yakalama, akıllı sayfa bölme
    */
+  const generateScenarioPresentationPdf = useCallback(async (
+    data: ScenarioPresentationPdfData
+  ): Promise<boolean> => {
+    setIsGenerating(true);
+    setProgress({ current: 1, total: 10, stage: 'Sunum hazırlanıyor...' });
+    
+    const formatUSD = (n: number) => `$${Math.abs(n).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}${n < 0 ? ' (-)' : ''}`;
+    const formatPercent = (n: number) => `%${n.toFixed(1)}`;
+    
+    try {
+      // YATAY FORMAT - Landscape A4
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'mm',
+        format: 'a4',
+      });
+      
+      const pageWidth = 297;
+      const pageHeight = 210;
+      const margin = 12;
+      const contentWidth = pageWidth - margin * 2;
+      const contentHeight = pageHeight - margin * 2;
+      
+      // html2canvas import
+      const html2canvasModule = await import('html2canvas');
+      const html2canvas = html2canvasModule.default;
+      
+      // Helper: Grafik yakalama
+      const captureChart = async (
+        element: HTMLElement | null
+      ): Promise<{ imgData: string; aspectRatio: number } | null> => {
+        if (!element) return null;
+        try {
+          const canvas = await html2canvas(element, {
+            scale: 2,
+            useCORS: true,
+            logging: false,
+            backgroundColor: '#ffffff',
+          });
+          if (canvas.width === 0 || canvas.height === 0) return null;
+          return {
+            imgData: canvas.toDataURL('image/jpeg', 0.9),
+            aspectRatio: canvas.width / canvas.height
+          };
+        } catch {
+          return null;
+        }
+      };
+      
+      // ===== SAYFA 1: KAPAK =====
+      setProgress({ current: 2, total: 10, stage: 'Kapak sayfası...' });
+      
+      // Gradient arka plan efekti
+      pdf.setFillColor(30, 58, 138); // Blue-900
+      pdf.rect(0, 0, pageWidth, pageHeight * 0.55, 'F');
+      pdf.setFillColor(255, 255, 255);
+      pdf.rect(0, pageHeight * 0.55, pageWidth, pageHeight * 0.45, 'F');
+      
+      // Dekoratif çizgi
+      pdf.setDrawColor(59, 130, 246);
+      pdf.setLineWidth(1);
+      pdf.line(margin, pageHeight * 0.55, pageWidth - margin, pageHeight * 0.55);
+      
+      // Başlık
+      pdf.setFontSize(32);
+      pdf.setTextColor(255, 255, 255);
+      pdf.text('Senaryo Karşılaştırma Raporu', pageWidth / 2, pageHeight / 3, { align: 'center' });
+      
+      // Alt başlık
+      pdf.setFontSize(18);
+      pdf.setTextColor(219, 234, 254); // Blue-100
+      pdf.text(`${data.scenarioA.name} vs ${data.scenarioB.name}`, pageWidth / 2, pageHeight / 3 + 15, { align: 'center' });
+      
+      // Yıl bilgisi
+      pdf.setFontSize(14);
+      pdf.text(`Hedef Yıl: ${data.scenarioB.targetYear}`, pageWidth / 2, pageHeight / 3 + 28, { align: 'center' });
+      
+      // Tarih (alt kısımda)
+      pdf.setFontSize(11);
+      pdf.setTextColor(100, 116, 139);
+      pdf.text(new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' }), pageWidth / 2, pageHeight - 25, { align: 'center' });
+      pdf.setFontSize(9);
+      pdf.setTextColor(148, 163, 184);
+      pdf.text('AI Destekli Finansal Analiz Raporu', pageWidth / 2, pageHeight - 18, { align: 'center' });
+      
+      // ===== SAYFA 2: ÖZET DASHBOARD =====
+      pdf.addPage();
+      setProgress({ current: 3, total: 10, stage: 'Özet dashboard...' });
+      
+      // Sayfa başlığı
+      pdf.setFillColor(241, 245, 249); // Slate-100
+      pdf.rect(0, 0, pageWidth, 18, 'F');
+      pdf.setFontSize(14);
+      pdf.setTextColor(30, 41, 59);
+      pdf.text('Finansal Özet Karşılaştırması', margin, 12);
+      
+      // 4 Özet Kartı
+      const cardWidth = (contentWidth - 15) / 4;
+      const cardHeight = 45;
+      const cardY = 28;
+      
+      data.metrics.forEach((metric, i) => {
+        const cardX = margin + (cardWidth + 5) * i;
+        
+        // Kart arka planı
+        const bgColor = metric.isPositive 
+          ? [220, 252, 231] // Green-100
+          : [254, 226, 226]; // Red-100
+        pdf.setFillColor(bgColor[0], bgColor[1], bgColor[2]);
+        pdf.roundedRect(cardX, cardY, cardWidth, cardHeight, 3, 3, 'F');
+        
+        // Metrik adı
+        pdf.setFontSize(9);
+        pdf.setTextColor(100, 116, 139);
+        pdf.text(metric.label, cardX + cardWidth / 2, cardY + 10, { align: 'center' });
+        
+        // Senaryo A değeri (mavi)
+        pdf.setFontSize(10);
+        pdf.setTextColor(37, 99, 235);
+        const aValue = metric.format === 'currency' ? formatUSD(metric.scenarioA) : 
+                       metric.format === 'percent' ? formatPercent(metric.scenarioA) : metric.scenarioA.toFixed(0);
+        pdf.text(aValue, cardX + 8, cardY + 22);
+        pdf.setFontSize(7);
+        pdf.text(data.scenarioA.name.substring(0, 12), cardX + 8, cardY + 27);
+        
+        // Ok
+        pdf.setFontSize(10);
+        pdf.setTextColor(148, 163, 184);
+        pdf.text('→', cardX + cardWidth / 2, cardY + 22, { align: 'center' });
+        
+        // Senaryo B değeri (yeşil)
+        pdf.setFontSize(11);
+        pdf.setTextColor(22, 163, 74);
+        const bValue = metric.format === 'currency' ? formatUSD(metric.scenarioB) : 
+                       metric.format === 'percent' ? formatPercent(metric.scenarioB) : metric.scenarioB.toFixed(0);
+        pdf.text(bValue, cardX + cardWidth - 8, cardY + 22, { align: 'right' });
+        pdf.setFontSize(7);
+        pdf.text(data.scenarioB.name.substring(0, 12), cardX + cardWidth - 8, cardY + 27, { align: 'right' });
+        
+        // Fark badge
+        const diffColor = metric.isPositive ? [22, 163, 74] : [220, 38, 38];
+        pdf.setTextColor(diffColor[0], diffColor[1], diffColor[2]);
+        pdf.setFontSize(10);
+        const diffSign = metric.diffPercent >= 0 ? '+' : '';
+        pdf.text(`${diffSign}${metric.diffPercent.toFixed(1)}%`, cardX + cardWidth / 2, cardY + 38, { align: 'center' });
+      });
+      
+      // Çeyreklik Trend Tablosu
+      let tableY = cardY + cardHeight + 15;
+      
+      pdf.setFontSize(11);
+      pdf.setTextColor(30, 41, 59);
+      pdf.text('Çeyreklik Net Kâr Trendi', margin, tableY);
+      tableY += 5;
+      
+      autoTable(pdf, {
+        head: [['Çeyrek', data.scenarioA.name, data.scenarioB.name, 'Fark', 'Kümülatif A', 'Kümülatif B']],
+        body: data.quarterlyData.map(q => {
+          const diff = q.scenarioBNet - q.scenarioANet;
+          const diffPercent = q.scenarioANet !== 0 ? ((diff / Math.abs(q.scenarioANet)) * 100) : 0;
+          return [
+            q.quarter,
+            formatUSD(q.scenarioANet),
+            formatUSD(q.scenarioBNet),
+            `${diffPercent >= 0 ? '+' : ''}${diffPercent.toFixed(1)}%`,
+            formatUSD(q.scenarioACumulative),
+            formatUSD(q.scenarioBCumulative)
+          ];
+        }),
+        startY: tableY,
+        margin: { left: margin, right: margin },
+        theme: 'grid',
+        styles: { fontSize: 9, cellPadding: 3, font: 'helvetica' },
+        headStyles: { fillColor: [59, 130, 246], textColor: [255, 255, 255], fontStyle: 'bold', halign: 'center' },
+        columnStyles: {
+          0: { cellWidth: 25, halign: 'center' },
+          1: { halign: 'right' },
+          2: { halign: 'right' },
+          3: { halign: 'center' },
+          4: { halign: 'right' },
+          5: { halign: 'right' }
+        },
+        alternateRowStyles: { fillColor: [248, 250, 252] }
+      });
+      
+      // ===== SAYFA 3: GRAFİKLER =====
+      pdf.addPage();
+      setProgress({ current: 4, total: 10, stage: 'Grafikler yakalanıyor...' });
+      
+      // Sayfa başlığı
+      pdf.setFillColor(241, 245, 249);
+      pdf.rect(0, 0, pageWidth, 18, 'F');
+      pdf.setFontSize(14);
+      pdf.setTextColor(30, 41, 59);
+      pdf.text('Görsel Analiz', margin, 12);
+      
+      let chartY = 25;
+      const chartMaxHeight = 75;
+      
+      // Çeyreklik Bar Chart
+      if (data.chartElements?.quarterlyChart) {
+        const chartData = await captureChart(data.chartElements.quarterlyChart);
+        if (chartData) {
+          pdf.setFontSize(10);
+          pdf.setTextColor(71, 85, 105);
+          pdf.text('Çeyreklik Net Kâr Karşılaştırması', margin, chartY);
+          chartY += 3;
+          
+          let imgWidth = contentWidth * 0.48;
+          let imgHeight = imgWidth / chartData.aspectRatio;
+          if (imgHeight > chartMaxHeight) {
+            imgHeight = chartMaxHeight;
+            imgWidth = imgHeight * chartData.aspectRatio;
+          }
+          pdf.addImage(chartData.imgData, 'JPEG', margin, chartY, imgWidth, imgHeight);
+        }
+      }
+      
+      // Kümülatif Area Chart
+      if (data.chartElements?.cumulativeChart) {
+        const chartData = await captureChart(data.chartElements.cumulativeChart);
+        if (chartData) {
+          pdf.setFontSize(10);
+          pdf.setTextColor(71, 85, 105);
+          pdf.text('Kümülatif Nakit Akışı', pageWidth / 2 + 5, chartY - 3);
+          
+          let imgWidth = contentWidth * 0.48;
+          let imgHeight = imgWidth / chartData.aspectRatio;
+          if (imgHeight > chartMaxHeight) {
+            imgHeight = chartMaxHeight;
+            imgWidth = imgHeight * chartData.aspectRatio;
+          }
+          pdf.addImage(chartData.imgData, 'JPEG', pageWidth / 2 + 5, chartY, imgWidth, imgHeight);
+        }
+      }
+      
+      // Alt kısım: Özet metrikleri tekrar (referans için)
+      const summaryY = 115;
+      pdf.setFillColor(248, 250, 252);
+      pdf.roundedRect(margin, summaryY, contentWidth, 35, 3, 3, 'F');
+      
+      pdf.setFontSize(10);
+      pdf.setTextColor(30, 41, 59);
+      pdf.text('Yıllık Özet', margin + 5, summaryY + 8);
+      
+      // 3 Kolonlu özet
+      const colWidth = contentWidth / 3;
+      
+      // Senaryo A
+      pdf.setFillColor(219, 234, 254);
+      pdf.roundedRect(margin + 5, summaryY + 12, colWidth - 15, 18, 2, 2, 'F');
+      pdf.setFontSize(9);
+      pdf.setTextColor(37, 99, 235);
+      pdf.text(data.scenarioA.name, margin + 10, summaryY + 19);
+      pdf.setFontSize(11);
+      pdf.text(`Net: ${formatUSD(data.scenarioA.summary.profit)}`, margin + 10, summaryY + 26);
+      
+      // Senaryo B
+      pdf.setFillColor(220, 252, 231);
+      pdf.roundedRect(margin + colWidth, summaryY + 12, colWidth - 15, 18, 2, 2, 'F');
+      pdf.setFontSize(9);
+      pdf.setTextColor(22, 163, 74);
+      pdf.text(data.scenarioB.name, margin + colWidth + 5, summaryY + 19);
+      pdf.setFontSize(11);
+      pdf.text(`Net: ${formatUSD(data.scenarioB.summary.profit)}`, margin + colWidth + 5, summaryY + 26);
+      
+      // Fark
+      const totalDiff = data.scenarioB.summary.profit - data.scenarioA.summary.profit;
+      const isPosDiff = totalDiff >= 0;
+      pdf.setFillColor(isPosDiff ? 220 : 254, isPosDiff ? 252 : 226, isPosDiff ? 231 : 226);
+      pdf.roundedRect(margin + colWidth * 2, summaryY + 12, colWidth - 15, 18, 2, 2, 'F');
+      pdf.setFontSize(9);
+      pdf.setTextColor(71, 85, 105);
+      pdf.text('Fark', margin + colWidth * 2 + 5, summaryY + 19);
+      pdf.setFontSize(11);
+      pdf.setTextColor(isPosDiff ? 22 : 220, isPosDiff ? 163 : 38, isPosDiff ? 74 : 38);
+      pdf.text(`${isPosDiff ? '+' : ''}${formatUSD(totalDiff)}`, margin + colWidth * 2 + 5, summaryY + 26);
+      
+      // ===== SAYFA 4: SERMAYE ANALİZİ =====
+      if (data.capitalAnalysis || data.dealConfig) {
+        pdf.addPage();
+        setProgress({ current: 5, total: 10, stage: 'Sermaye analizi...' });
+        
+        // Sayfa başlığı
+        pdf.setFillColor(241, 245, 249);
+        pdf.rect(0, 0, pageWidth, 18, 'F');
+        pdf.setFontSize(14);
+        pdf.setTextColor(30, 41, 59);
+        pdf.text('Sermaye İhtiyacı & Yatırım Analizi', margin, 12);
+        
+        let capY = 28;
+        
+        if (data.capitalAnalysis) {
+          // Sol panel: Sermaye durumu
+          pdf.setFillColor(254, 243, 199); // Amber-100
+          pdf.roundedRect(margin, capY, contentWidth * 0.48, 60, 3, 3, 'F');
+          
+          pdf.setFontSize(11);
+          pdf.setTextColor(146, 64, 14);
+          pdf.text('Sermaye İhtiyacı', margin + 8, capY + 12);
+          
+          pdf.setFontSize(9);
+          pdf.setTextColor(71, 85, 105);
+          let infoY = capY + 22;
+          
+          if (!data.capitalAnalysis.scenarioBSelfSustaining) {
+            pdf.text(`• Sermaye İhtiyacı: ${formatUSD(data.capitalAnalysis.scenarioBNeed)}`, margin + 8, infoY);
+            infoY += 7;
+            pdf.text(`• Aylık Yakma Hızı: ${formatUSD(data.capitalAnalysis.burnRate)}`, margin + 8, infoY);
+            infoY += 7;
+            pdf.text(`• Runway: ${data.capitalAnalysis.runway.toFixed(1)} ay`, margin + 8, infoY);
+            infoY += 7;
+            pdf.text(`• Kritik Çeyrek: ${data.capitalAnalysis.criticalQuarter}`, margin + 8, infoY);
+          } else {
+            pdf.setTextColor(22, 163, 74);
+            pdf.text('✓ Kendini finanse edebilir', margin + 8, infoY);
+            infoY += 7;
+            pdf.setTextColor(71, 85, 105);
+            pdf.text(`• Fırsat Maliyeti: ${formatUSD(data.capitalAnalysis.opportunityCost)}`, margin + 8, infoY);
+          }
+        }
+        
+        if (data.dealConfig) {
+          // Sağ panel: Deal yapısı
+          const dealX = pageWidth / 2 + 5;
+          pdf.setFillColor(237, 233, 254); // Violet-100
+          pdf.roundedRect(dealX, capY, contentWidth * 0.48, 60, 3, 3, 'F');
+          
+          pdf.setFontSize(11);
+          pdf.setTextColor(91, 33, 182);
+          pdf.text('Yatırım Yapısı', dealX + 8, capY + 12);
+          
+          pdf.setFontSize(9);
+          pdf.setTextColor(71, 85, 105);
+          let dealY = capY + 22;
+          pdf.text(`• Yatırım Tutarı: ${formatUSD(data.dealConfig.investmentAmount)}`, dealX + 8, dealY);
+          dealY += 7;
+          pdf.text(`• Hisse Oranı: %${data.dealConfig.equityPercentage.toFixed(1)}`, dealX + 8, dealY);
+          dealY += 7;
+          pdf.text(`• Sektör Çarpanı: ${data.dealConfig.sectorMultiple.toFixed(1)}x`, dealX + 8, dealY);
+          
+          if (data.exitPlan) {
+            dealY += 10;
+            pdf.setTextColor(91, 33, 182);
+            pdf.text('Exit Projeksiyon:', dealX + 8, dealY);
+            dealY += 7;
+            pdf.setTextColor(71, 85, 105);
+            pdf.text(`• Post-Money: ${formatUSD(data.exitPlan.postMoneyValuation)}`, dealX + 8, dealY);
+            dealY += 7;
+            pdf.text(`• Exit Değeri: ${formatUSD(data.exitPlan.exitValue)}`, dealX + 8, dealY);
+          }
+        }
+      }
+      
+      // ===== SAYFA 5-6: AI INSIGHTS =====
+      if (data.insights && data.insights.length > 0) {
+        pdf.addPage();
+        setProgress({ current: 6, total: 10, stage: 'AI çıkarımları...' });
+        
+        // Sayfa başlığı
+        pdf.setFillColor(241, 245, 249);
+        pdf.rect(0, 0, pageWidth, 18, 'F');
+        pdf.setFontSize(14);
+        pdf.setTextColor(30, 41, 59);
+        pdf.text('AI Analiz Çıkarımları', margin, 12);
+        
+        // Insights tablosu
+        const severityColors: Record<string, [number, number, number]> = {
+          'critical': [220, 38, 38],
+          'high': [234, 88, 12],
+          'medium': [234, 179, 8],
+          'low': [34, 197, 94],
+          'info': [59, 130, 246]
+        };
+        
+        const insightRows = data.insights.slice(0, 8).map(insight => [
+          insight.category || '-',
+          insight.title,
+          insight.description.length > 100 ? insight.description.substring(0, 97) + '...' : insight.description,
+          insight.severity || 'medium'
+        ]);
+        
+        autoTable(pdf, {
+          head: [['Kategori', 'Başlık', 'Açıklama', 'Seviye']],
+          body: insightRows,
+          startY: 25,
+          margin: { left: margin, right: margin },
+          theme: 'striped',
+          styles: { fontSize: 8, cellPadding: 3, font: 'helvetica', overflow: 'linebreak' },
+          headStyles: { fillColor: [168, 85, 247], textColor: [255, 255, 255], fontStyle: 'bold' },
+          columnStyles: {
+            0: { cellWidth: 35 },
+            1: { cellWidth: 55 },
+            2: { cellWidth: 140 },
+            3: { cellWidth: 25, halign: 'center' }
+          },
+          didParseCell: (hookData) => {
+            if (hookData.section === 'body' && hookData.column.index === 3) {
+              const severity = String(hookData.cell.raw).toLowerCase();
+              const color = severityColors[severity] || [100, 100, 100];
+              hookData.cell.styles.textColor = color;
+              hookData.cell.styles.fontStyle = 'bold';
+            }
+          }
+        });
+      }
+      
+      // ===== SAYFA 7: RECOMMENDATIONS =====
+      if (data.recommendations && data.recommendations.length > 0) {
+        pdf.addPage();
+        setProgress({ current: 7, total: 10, stage: 'Stratejik öneriler...' });
+        
+        // Sayfa başlığı
+        pdf.setFillColor(241, 245, 249);
+        pdf.rect(0, 0, pageWidth, 18, 'F');
+        pdf.setFontSize(14);
+        pdf.setTextColor(30, 41, 59);
+        pdf.text('Stratejik Öneriler', margin, 12);
+        
+        const riskColors: Record<string, [number, number, number]> = {
+          'low': [34, 197, 94],
+          'medium': [234, 179, 8],
+          'high': [220, 38, 38]
+        };
+        
+        const recRows = data.recommendations.slice(0, 6).map(rec => [
+          `#${rec.priority}`,
+          rec.title,
+          rec.description.length > 120 ? rec.description.substring(0, 117) + '...' : rec.description,
+          rec.risk || 'medium'
+        ]);
+        
+        autoTable(pdf, {
+          head: [['Öncelik', 'Öneri', 'Açıklama', 'Risk']],
+          body: recRows,
+          startY: 25,
+          margin: { left: margin, right: margin },
+          theme: 'striped',
+          styles: { fontSize: 8, cellPadding: 4, font: 'helvetica', overflow: 'linebreak' },
+          headStyles: { fillColor: [34, 197, 94], textColor: [255, 255, 255], fontStyle: 'bold' },
+          columnStyles: {
+            0: { cellWidth: 20, halign: 'center', fontStyle: 'bold' },
+            1: { cellWidth: 50 },
+            2: { cellWidth: 160 },
+            3: { cellWidth: 25, halign: 'center' }
+          },
+          didParseCell: (hookData) => {
+            if (hookData.section === 'body' && hookData.column.index === 3) {
+              const risk = String(hookData.cell.raw).toLowerCase();
+              const color = riskColors[risk] || [100, 100, 100];
+              hookData.cell.styles.textColor = color;
+              hookData.cell.styles.fontStyle = 'bold';
+            }
+          }
+        });
+      }
+      
+      // ===== SAYFA 8: PITCH DECK ÖZET =====
+      if (data.pitchDeck) {
+        pdf.addPage();
+        setProgress({ current: 8, total: 10, stage: 'Pitch deck özeti...' });
+        
+        // Sayfa başlığı
+        pdf.setFillColor(241, 245, 249);
+        pdf.rect(0, 0, pageWidth, 18, 'F');
+        pdf.setFontSize(14);
+        pdf.setTextColor(30, 41, 59);
+        pdf.text('Yatırımcı Pitch Deck Özeti', margin, 12);
+        
+        // Executive Summary
+        pdf.setFillColor(254, 243, 199);
+        pdf.roundedRect(margin, 25, contentWidth, 25, 3, 3, 'F');
+        pdf.setFontSize(10);
+        pdf.setTextColor(146, 64, 14);
+        pdf.text('Executive Summary', margin + 5, 33);
+        pdf.setFontSize(8);
+        pdf.setTextColor(71, 85, 105);
+        const summaryLines = pdf.splitTextToSize(data.pitchDeck.executiveSummary, contentWidth - 10);
+        pdf.text(summaryLines.slice(0, 2), margin + 5, 40);
+        
+        // Slide'lar kompakt görünümde
+        let slideY = 58;
+        const slideWidth = (contentWidth - 10) / 2;
+        const slideHeight = 55;
+        
+        data.pitchDeck.slides.slice(0, 4).forEach((slide, i) => {
+          const col = i % 2;
+          const row = Math.floor(i / 2);
+          const x = margin + col * (slideWidth + 10);
+          const y = slideY + row * (slideHeight + 8);
+          
+          // Slide kartı
+          pdf.setFillColor(255, 255, 255);
+          pdf.setDrawColor(226, 232, 240);
+          pdf.roundedRect(x, y, slideWidth, slideHeight, 2, 2, 'FD');
+          
+          // Slide numarası
+          pdf.setFillColor(59, 130, 246);
+          pdf.circle(x + 8, y + 8, 5, 'F');
+          pdf.setFontSize(9);
+          pdf.setTextColor(255, 255, 255);
+          pdf.text(String(slide.slideNumber), x + 8, y + 10, { align: 'center' });
+          
+          // Slide başlığı
+          pdf.setFontSize(10);
+          pdf.setTextColor(30, 41, 59);
+          pdf.text(slide.title.substring(0, 35), x + 18, y + 10);
+          
+          // Bullet points
+          pdf.setFontSize(7);
+          pdf.setTextColor(71, 85, 105);
+          slide.bullets.slice(0, 4).forEach((bullet, bi) => {
+            const bulletText = bullet.length > 60 ? bullet.substring(0, 57) + '...' : bullet;
+            pdf.text(`• ${bulletText}`, x + 8, y + 20 + bi * 8);
+          });
+        });
+      }
+      
+      // ===== SON SAYFA: FOOTER =====
+      pdf.addPage();
+      setProgress({ current: 9, total: 10, stage: 'Sonuçlandırılıyor...' });
+      
+      // Dekoratif kapanış
+      pdf.setFillColor(248, 250, 252);
+      pdf.rect(0, 0, pageWidth, pageHeight, 'F');
+      
+      // Merkez içerik
+      pdf.setFontSize(18);
+      pdf.setTextColor(30, 41, 59);
+      pdf.text('Rapor Sonu', pageWidth / 2, pageHeight / 2 - 20, { align: 'center' });
+      
+      // Özet bilgi
+      pdf.setFontSize(11);
+      pdf.setTextColor(71, 85, 105);
+      pdf.text(`Karşılaştırılan Senaryolar: ${data.scenarioA.name} ↔ ${data.scenarioB.name}`, pageWidth / 2, pageHeight / 2, { align: 'center' });
+      pdf.text(`Hedef Yıl: ${data.scenarioB.targetYear}`, pageWidth / 2, pageHeight / 2 + 10, { align: 'center' });
+      
+      // AI disclaimer
+      pdf.setFontSize(8);
+      pdf.setTextColor(148, 163, 184);
+      pdf.text('Bu rapor AI destekli finansal analiz araçları kullanılarak otomatik olarak oluşturulmuştur.', pageWidth / 2, pageHeight - 30, { align: 'center' });
+      pdf.text('Yatırım kararlarınız için profesyonel danışmanlık almanızı öneririz.', pageWidth / 2, pageHeight - 24, { align: 'center' });
+      
+      // Sayfa numaraları
+      const totalPages = pdf.getNumberOfPages();
+      for (let i = 1; i <= totalPages; i++) {
+        pdf.setPage(i);
+        pdf.setFontSize(8);
+        pdf.setTextColor(148, 163, 184);
+        pdf.text(`${i} / ${totalPages}`, pageWidth - margin, pageHeight - 5, { align: 'right' });
+      }
+      
+      // İndir
+      setProgress({ current: 10, total: 10, stage: 'PDF indiriliyor...' });
+      const filename = `Senaryo_Sunum_${data.scenarioA.name.replace(/\s+/g, '_')}_vs_${data.scenarioB.name.replace(/\s+/g, '_')}.pdf`;
+      pdf.save(filename);
+      
+      return true;
+    } catch (error) {
+      console.error('[PDF] Scenario presentation generation error:', error);
+      return false;
+    } finally {
+      setIsGenerating(false);
+      setProgress({ current: 0, total: 0, stage: '' });
+    }
+  }, []);
+
+
   const generateDashboardPdfSmart = useCallback(async (
     elements: {
       trendChart?: HTMLElement | null;
@@ -1592,6 +2259,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
     generateDetailedIncomePdfData,
     generateSimulationPdfData,
     generateScenarioComparisonPdfData,
+    generateScenarioPresentationPdf,
     generateCashFlowPdfData,
     createPdfBuilder,
     
