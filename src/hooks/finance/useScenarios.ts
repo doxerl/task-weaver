@@ -225,7 +225,7 @@ export function useScenarios() {
     return null;
   }, [saveScenario]);
 
-  // Create next year simulation from AI projection
+  // Create next year simulation from AI projection with globalization vision
   const createNextYearFromAI = useCallback(async (
     currentScenario: SimulationScenario,
     aiProjection: NextYearProjection
@@ -235,12 +235,22 @@ export function useScenarios() {
     const nextTargetYear = currentScenario.targetYear + 1;
 
     // AI projeksiyonundan gelir ve gider dağılımı
-    const totalAIRevenue = aiProjection.summary.total_revenue;
-    const totalAIExpenses = aiProjection.summary.total_expenses;
+    let totalAIRevenue = aiProjection.summary.total_revenue;
+    let totalAIExpenses = aiProjection.summary.total_expenses;
     
     // Mevcut senaryodaki oranları kullanarak gelir ve giderleri dağıt
     const currentTotalRevenue = currentScenario.revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
     const currentTotalExpenses = currentScenario.expenses.reduce((sum, e) => sum + e.projectedAmount, 0);
+
+    // FALLBACK: Eğer AI $0 döndürürse, globalleşme odaklı büyüme varsay
+    if (totalAIRevenue <= 0) {
+      console.warn('[createNextYearFromAI] AI revenue is $0, applying 60% global growth fallback');
+      totalAIRevenue = Math.round(currentTotalRevenue * 1.6);
+    }
+    if (totalAIExpenses <= 0) {
+      console.warn('[createNextYearFromAI] AI expenses is $0, applying 35% growth fallback (operating leverage)');
+      totalAIExpenses = Math.round(currentTotalExpenses * 1.35);
+    }
 
     const newRevenues = currentScenario.revenues.map(r => {
       const ratio = currentTotalRevenue > 0 ? r.projectedAmount / currentTotalRevenue : 1 / currentScenario.revenues.length;
@@ -268,15 +278,24 @@ export function useScenarios() {
       };
     });
 
+    // Build enhanced notes with investor hook data
+    const investorHookNote = aiProjection.investor_hook 
+      ? `\n\n🚀 Yatırımcı Vizyonu:\n• Büyüme: ${aiProjection.investor_hook.revenue_growth_yoy}\n• Marj İyileşmesi: ${aiProjection.investor_hook.margin_improvement}\n• Değerleme Hedefi: ${aiProjection.investor_hook.valuation_multiple_target}\n• Rekabet Avantajı: ${aiProjection.investor_hook.competitive_moat}`
+      : '';
+    
+    const virtualBalanceNote = aiProjection.virtual_opening_balance
+      ? `\n\n💼 Sanal Bilanço Açılışı:\n• Açılış Nakiti: $${aiProjection.virtual_opening_balance.opening_cash.toLocaleString()}\n• Savaş Fonu Durumu: ${aiProjection.virtual_opening_balance.war_chest_status}\n• Gayrimaddi Büyüme: ${aiProjection.virtual_opening_balance.intangible_growth}`
+      : '';
+
     const newScenario: Omit<SimulationScenario, 'id' | 'createdAt' | 'updatedAt'> = {
-      name: `${nextTargetYear} AI Projeksiyon`,
+      name: `${nextTargetYear} Global Vizyon`,
       baseYear: nextBaseYear,
       targetYear: nextTargetYear,
       revenues: newRevenues,
       expenses: newExpenses,
       investments: [],
       assumedExchangeRate: currentScenario.assumedExchangeRate,
-      notes: `🤖 AI tarafından oluşturuldu (Gemini Pro 3)\n\n📊 Strateji: ${aiProjection.strategy_note}\n\n💰 Toplam Gelir: $${totalAIRevenue.toLocaleString()}\n💸 Toplam Gider: $${totalAIExpenses.toLocaleString()}\n📈 Net Kâr: $${aiProjection.summary.net_profit.toLocaleString()}`,
+      notes: `🤖 AI tarafından oluşturuldu (Gemini Pro 3) - Globalleşme Odaklı\n\n📊 Strateji: ${aiProjection.strategy_note}\n\n💰 Toplam Gelir: $${totalAIRevenue.toLocaleString()}\n💸 Toplam Gider: $${totalAIExpenses.toLocaleString()}\n📈 Net Kâr: $${aiProjection.summary.net_profit.toLocaleString()}${investorHookNote}${virtualBalanceNote}`,
     };
 
     const savedId = await saveScenario(newScenario);
