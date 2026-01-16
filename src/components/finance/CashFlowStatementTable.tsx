@@ -153,6 +153,7 @@ export function CashFlowStatementTable({ data, year }: CashFlowStatementTablePro
         total={data.investing.total}
         formatCurrency={formatAmount}
       >
+        {/* Alımlar */}
         {data.investing.vehiclePurchases > 0 && (
           <LineItem label="Taşıt Alımları" amount={-data.investing.vehiclePurchases} prefix="-" formatCurrency={formatAmount} />
         )}
@@ -162,7 +163,19 @@ export function CashFlowStatementTable({ data, year }: CashFlowStatementTablePro
         {data.investing.fixturePurchases > 0 && (
           <LineItem label="Demirbaş Alımları" amount={-data.investing.fixturePurchases} prefix="-" formatCurrency={formatAmount} />
         )}
-        {data.investing.vehiclePurchases === 0 && data.investing.equipmentPurchases === 0 && data.investing.fixturePurchases === 0 && (
+        {/* Satışlar */}
+        {data.investing.vehicleSales > 0 && (
+          <LineItem label="Taşıt Satışları" amount={data.investing.vehicleSales} prefix="+" formatCurrency={formatAmount} />
+        )}
+        {data.investing.equipmentSales > 0 && (
+          <LineItem label="Ekipman Satışları" amount={data.investing.equipmentSales} prefix="+" formatCurrency={formatAmount} />
+        )}
+        {data.investing.fixtureSales > 0 && (
+          <LineItem label="Demirbaş Satışları" amount={data.investing.fixtureSales} prefix="+" formatCurrency={formatAmount} />
+        )}
+        {/* Boş mesaj */}
+        {data.investing.vehiclePurchases === 0 && data.investing.equipmentPurchases === 0 && data.investing.fixturePurchases === 0 &&
+         data.investing.vehicleSales === 0 && data.investing.equipmentSales === 0 && data.investing.fixtureSales === 0 && (
           <div className="text-sm text-muted-foreground px-3 py-2 italic">
             Bu dönemde yatırım hareketi bulunmamaktadır.
           </div>
@@ -198,6 +211,9 @@ export function CashFlowStatementTable({ data, year }: CashFlowStatementTablePro
         )}
         {data.financing.capitalIncrease > 0 && (
           <LineItem label="Sermaye Artırımı" amount={data.financing.capitalIncrease} prefix="+" formatCurrency={formatAmount} />
+        )}
+        {data.financing.unpaidCapitalPayment > 0 && (
+          <LineItem label="Ödenmeyen Sermaye Tahsilatı" amount={data.financing.unpaidCapitalPayment} prefix="+" formatCurrency={formatAmount} />
         )}
       </Section>
 
