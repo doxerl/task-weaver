@@ -41,3 +41,6 @@ verify_jwt = false
 
 [functions.analyze-investor-pitch]
 verify_jwt = false
+
+[functions.unified-scenario-analysis]
+verify_jwt = false
