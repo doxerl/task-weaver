@@ -12,6 +12,8 @@ export interface CashFlowStatement {
     taxPayablesChange: number;
     socialSecurityChange: number;
     inventoryChange: number;
+    vatPayableChange: number;
+    vatReceivableChange: number;
     vatChange: number;
     total: number;
   };
@@ -136,9 +138,10 @@ export function useCashFlowStatement(year: number) {
     const socialSecurityChange = (curr.social_security_payables ?? 0) - prev.social_security_payables;
     // Stok artışı = nakit azalışı (negatif etki)
     const inventoryChange = -((curr.inventory ?? 0) - prev.inventory);
-    // KDV değişimi
-    const vatChange = ((curr.vat_payable ?? 0) - prev.vat_payable) - 
-                      ((curr.vat_receivable ?? 0) - prev.vat_receivable);
+    // KDV değişimi - detaylı takip
+    const vatPayableChange = (curr.vat_payable ?? 0) - prev.vat_payable;
+    const vatReceivableChange = (curr.vat_receivable ?? 0) - prev.vat_receivable;
+    const vatChange = vatPayableChange - vatReceivableChange;
 
     const operatingTotal = netProfit + depreciation + receivablesChange + payablesChange +
                           personnelChange + taxPayablesChange + socialSecurityChange +
@@ -207,6 +210,8 @@ export function useCashFlowStatement(year: number) {
         taxPayablesChange,
         socialSecurityChange,
         inventoryChange,
+        vatPayableChange,
+        vatReceivableChange,
         vatChange,
         total: operatingTotal,
       },

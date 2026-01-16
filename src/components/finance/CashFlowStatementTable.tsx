@@ -141,7 +141,9 @@ export function CashFlowStatementTable({ data, year }: CashFlowStatementTablePro
         <LineItem label="Ödenecek Vergi Değişimi" amount={data.operating.taxPayablesChange} prefix={data.operating.taxPayablesChange >= 0 ? '+' : '-'} indent formatCurrency={formatAmount} />
         <LineItem label="Ödenecek SGK Değişimi" amount={data.operating.socialSecurityChange} prefix={data.operating.socialSecurityChange >= 0 ? '+' : '-'} indent formatCurrency={formatAmount} />
         <LineItem label="Stoklardaki Değişim" amount={data.operating.inventoryChange} prefix={data.operating.inventoryChange >= 0 ? '+' : '-'} indent formatCurrency={formatAmount} />
-        <LineItem label="KDV Alacak/Borç Değişimi" amount={data.operating.vatChange} prefix={data.operating.vatChange >= 0 ? '+' : '-'} indent formatCurrency={formatAmount} />
+        <LineItem label="KDV Alacak Değişimi" amount={-data.operating.vatReceivableChange} prefix={data.operating.vatReceivableChange <= 0 ? '+' : '-'} indent formatCurrency={formatAmount} />
+        <LineItem label="KDV Borç Değişimi" amount={data.operating.vatPayableChange} prefix={data.operating.vatPayableChange >= 0 ? '+' : '-'} indent formatCurrency={formatAmount} />
+        <LineItem label="Net KDV Değişimi" amount={data.operating.vatChange} prefix={data.operating.vatChange >= 0 ? '+' : '-'} indent isSubtotal formatCurrency={formatAmount} />
       </Section>
 
       {/* B. Yatırım Faaliyetleri */}
