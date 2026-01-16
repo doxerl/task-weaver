@@ -376,6 +376,7 @@ function ScenarioComparisonContent() {
     analysisHistory: unifiedAnalysisHistory,
     isHistoryLoading: unifiedHistoryLoading,
     runUnifiedAnalysis,
+    fetchHistoricalBalance,
     loadCachedAnalysis: loadCachedUnifiedAnalysis,
     loadAnalysisHistory: loadUnifiedAnalysisHistory,
     checkDataChanges: checkUnifiedDataChanges,
@@ -441,6 +442,11 @@ function ScenarioComparisonContent() {
   const handleUnifiedAnalysis = async () => {
     if (!scenarioA || !scenarioB || !summaryA || !summaryB) return;
     
+    // Fetch historical balance for target year
+    const historicalBalance = scenarioB.targetYear 
+      ? await fetchHistoricalBalance(scenarioB.targetYear) 
+      : null;
+    
     const quarterlyA = { 
       q1: quarterlyComparison[0]?.scenarioANet || 0, 
       q2: quarterlyComparison[1]?.scenarioANet || 0, 
@@ -470,7 +476,8 @@ function ScenarioComparisonContent() {
       quarterlyB,
       dealConfig,
       exitPlan,
-      capitalNeeds
+      capitalNeeds,
+      historicalBalance
     );
   };
 

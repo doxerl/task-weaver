@@ -5,16 +5,38 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
 };
 
-const UNIFIED_MASTER_PROMPT = `Sen, Silikon Vadisi'nin en başarılı Venture Capital Ortağı, aynı zamanda Fortune 500 şirketlerine danışmanlık yapan bir CFO ve **Master Storyteller**sın.
+const UNIFIED_MASTER_PROMPT = `Sen, Fortune 500 CFO'su ve Silikon Vadisi VC Ortağı yeteneklerine sahip "Omni-Scient (Her Şeyi Bilen) Finansal Zeka"sın.
 
-🎯 TEK GÖREV: Sana verilen TÜM finansal verileri analiz edip, hem OPERASYONEL İÇGÖRÜLER hem de YATIRIMCI SUNUMU hazırla.
+🎯 TEK GÖREV: Sana verilen TÜM finansal verileri (Geçmiş Bilanço + Mevcut Senaryolar + Yatırım Anlaşması) analiz edip, hem OPERASYONEL İÇGÖRÜLER hem de YATIRIMCI SUNUMU hazırla.
 
 📥 SANA VERİLEN VERİ PAKETİ:
-1. SENARYO VERİLERİ: A (Muhafazakar) vs B (Büyüme) tam karşılaştırması
-2. ÇEYREKSEL PERFORMANS: Q1-Q4 nakit akış detayları
-3. DEAL CONFIG: Kullanıcının belirlediği yatırım tutarı, hisse oranı, sektör çarpanı
-4. HESAPLANMIŞ ÇIKIŞ PLANI: Post-Money Değerleme, MOIC (3Y/5Y), Break-Even Year
-5. DEATH VALLEY ANALİZİ: Kritik çeyrek, aylık burn rate, runway
+1. GEÇMİŞ YIL BİLANÇOSU: Nakit, Alacaklar, Borçlar, Özkaynak (şirketin nereden geldiğini gösterir)
+2. SENARYO VERİLERİ: A (Muhafazakar) vs B (Büyüme) tam karşılaştırması + kalem bazlı gelir/gider detayları
+3. ÇEYREKSEL PERFORMANS: Q1-Q4 nakit akış detayları
+4. DEAL CONFIG: Kullanıcının belirlediği yatırım tutarı, hisse oranı, sektör çarpanı
+5. HESAPLANMIŞ ÇIKIŞ PLANI: Post-Money Değerleme, MOIC (3Y/5Y), Break-Even Year
+6. DEATH VALLEY ANALİZİ: Kritik çeyrek, aylık burn rate, runway
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🕵️‍♂️ DERİN ANALİZ KATMANLARI (OMNI-SCIENT CFO GÖREVLERİ):
+
+1. **FİNANSAL ADLİ TIP (FORENSICS) - Bilançodan Hikaye Oku:**
+   - Alacak Kalitesi: Ticari Alacaklar / Toplam Varlıklar oranı riskli mi? (%30+ = Kırmızı Bayrak)
+   - Borçluluk: Banka Kredileri / Toplam Varlıklar oranı ne durumda?
+   - Nakit Pozisyonu: Kasa + Banka yeterli runway sağlıyor mu?
+   - Özkaynak: Geçmiş Yıllar Kârı negatifse "Kurtarma Modu" uyarısı ver
+   - Büyüme Tutarlılığı: Geçmiş yıl kârıyla bu yılki projeksiyon uyumlu mu?
+
+2. **BÜYÜME MOTORU ANALİZİ (REVENUE ENGINE):**
+   - Her gelir kalemini analiz et - hangisi "Yıldız" (hızlı büyüyen)?
+   - Hangi gelir kalemi "Yük" (kaynak tüketiyor ama büyümüyor)?
+   - Yatırımın tam olarak hangi kalemi beslemesi gerektiğini söyle
+
+3. **BURN EFFICIENCY ANALİZİ:**
+   - Gider detaylarına bak - Pazarlama harcamasının ciroya dönüşümü makul mü?
+   - Operating Leverage hesapla: (ΔRevenue / ΔExpense)
+   - Burn Multiple hesapla: Net Burn / Net New ARR
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -26,9 +48,9 @@ Bu bölümde şu çıktıları üret:
 - Çeyreklik analiz (kritik dönemler, mevsimsel trendler, büyüme eğilimi)
 
 Kurallar:
-1. Operating Leverage hesapla: (ΔRevenue / ΔExpense)
+1. Geçmiş yıl bilançosunu mutlaka kullan - büyüme hedeflerini bilanço ile karşılaştır
 2. "Ölüm Vadisi" noktasını tespit et
-3. Burn Multiple hesapla: Net Burn / Net New ARR
+3. Kalem bazlı gelir/gider analizi yap
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -38,7 +60,7 @@ Bu bölümde şu çıktıları üret:
 - deal_score: 1-10 arası puan
 - valuation_verdict: "premium" / "fair" / "cheap"
 - investor_attractiveness: Yatırımcı gözüyle 2 cümlelik yorum
-- risk_factors: Yatırımcı için ana 3-5 risk
+- risk_factors: Yatırımcı için ana 3-5 risk (bilanço bazlı riskleri dahil et)
 
 Değerleme Kontrol Formülü:
 - Post-Money / Revenue = Implied Multiple
@@ -92,13 +114,15 @@ Yatırımcıya gönderilecek intro e-postası için özet (max 150 kelime):
 
 🚫 YAPMA:
 - Rakamsız genel cümleler kurma
-- Hesaplanmış değerleri görmezden gelme (MOIC, Runway zaten verildi)
+- Bilançoyu görmezden gelme - bu en kritik veri kaynağı
+- Geçmiş performansla uyumsuz projeksiyon hedeflerini kabul etme
 - Tek bir bölümü atlama - HEPSİ zorunlu
 
 ✅ YAP:
 - Her rakamı context'le sun ("$500K yatırım, 18 aylık runway sağlar")
 - Finansal analiz insight'larını pitch slaytlarına entegre et
-- Risk faktörlerini çözümle birlikte sun
+- Bilanço verilerinden spesifik risk faktörleri çıkar
+- "Geçen yıl X kâr edildiyse, bu yıl Y büyüme hedefi gerçekçi/değil" tarzı analiz yap
 
 DİL: Profesyonel Türkçe, VC terminolojisine hakim.`;
 
@@ -116,7 +140,8 @@ serve(async (req) => {
       quarterly, 
       dealConfig, 
       exitPlan, 
-      capitalNeeds 
+      capitalNeeds,
+      historicalBalance 
     } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -127,9 +152,50 @@ serve(async (req) => {
     // Use the most powerful model for deep reasoning
     const MODEL_ID = "google/gemini-3-pro-preview";
 
+    // Build historical balance section if available
+    const historicalBalanceSection = historicalBalance ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+GEÇMİŞ YIL BİLANÇOSU (${historicalBalance.year}):
+
+💰 NAKİT POZİSYONU:
+- Kasa: $${(historicalBalance.cash_on_hand || 0).toLocaleString()}
+- Banka: $${(historicalBalance.bank_balance || 0).toLocaleString()}
+- Toplam Likit Varlık: $${((historicalBalance.cash_on_hand || 0) + (historicalBalance.bank_balance || 0)).toLocaleString()}
+
+📊 ALACAK/BORÇ DURUMU:
+- Ticari Alacaklar: $${(historicalBalance.trade_receivables || 0).toLocaleString()}
+- Ticari Borçlar: $${(historicalBalance.trade_payables || 0).toLocaleString()}
+- Net Çalışma Sermayesi: $${((historicalBalance.trade_receivables || 0) - (historicalBalance.trade_payables || 0)).toLocaleString()}
+
+🏢 VARLIK/YÜKÜMLÜLÜK:
+- Toplam Varlıklar: $${(historicalBalance.total_assets || 0).toLocaleString()}
+- Toplam Yükümlülükler: $${(historicalBalance.total_liabilities || 0).toLocaleString()}
+- Toplam Özkaynak: $${(historicalBalance.total_equity || 0).toLocaleString()}
+
+📈 KAR/SERMAYE:
+- Dönem Net Kârı: $${(historicalBalance.current_profit || 0).toLocaleString()}
+- Geçmiş Yıllar Kârı: $${(historicalBalance.retained_earnings || 0).toLocaleString()}
+- Ödenmiş Sermaye: $${(historicalBalance.paid_capital || 0).toLocaleString()}
+- Banka Kredileri: $${(historicalBalance.bank_loans || 0).toLocaleString()}
+
+🔍 BU VERİYİ ŞÖYLE KULLAN:
+1. Alacak/Toplam Varlık oranı ${((historicalBalance.trade_receivables || 0) / (historicalBalance.total_assets || 1) * 100).toFixed(1)}% - %30'dan yüksekse tahsilat sorunu var
+2. Banka Kredisi/Varlık oranı ${((historicalBalance.bank_loans || 0) / (historicalBalance.total_assets || 1) * 100).toFixed(1)}% - borçluluk riski analiz et
+3. Geçmiş Yıllar Kârı ${(historicalBalance.retained_earnings || 0) < 0 ? 'NEGATİF - Kurtarma Modu' : 'POZİTİF - Sağlıklı'}
+4. Bu yılki büyüme hedeflerini geçmiş yıl performansıyla karşılaştır
+` : `
+
+⚠️ GEÇMİŞ YIL BİLANÇOSU MEVCUT DEĞİL
+Analizi sadece senaryo verileriyle yap, ancak bilanço verisi olmadan tam risk analizi yapılamayacağını belirt.
+`;
+
     const userPrompt = `
+${historicalBalanceSection}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 SENARYO VERİLERİ:
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 SENARYO A (${scenarioA.name}):
 - Hedef Yıl: ${scenarioA.targetYear}
@@ -147,7 +213,7 @@ SENARYO B (${scenarioB.name}):
 - Kâr Marjı: %${metrics.scenarioB.profitMargin.toFixed(1)}
 - Çeyreklik Net: Q1: $${quarterly.b.q1.toLocaleString()}, Q2: $${quarterly.b.q2.toLocaleString()}, Q3: $${quarterly.b.q3.toLocaleString()}, Q4: $${quarterly.b.q4.toLocaleString()}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 DEAL CONFIG (Kullanıcı Girişi):
 - Talep Edilen Yatırım: $${dealConfig.investmentAmount.toLocaleString()}
@@ -155,7 +221,7 @@ DEAL CONFIG (Kullanıcı Girişi):
 - Sektör Çarpanı: ${dealConfig.sectorMultiple}x
 - Güvenlik Marjı: %${dealConfig.safetyMargin}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 HESAPLANMIŞ EXIT PLANI:
 - Post-Money Değerleme: $${exitPlan.postMoneyValuation.toLocaleString()}
@@ -165,7 +231,7 @@ HESAPLANMIŞ EXIT PLANI:
 - MOIC (5 Yıl): ${exitPlan.moic5Year.toFixed(2)}x
 - Break-Even Yılı: ${exitPlan.breakEvenYear || 'Belirsiz'}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 DEATH VALLEY ANALİZİ:
 - Kritik Çeyrek: ${capitalNeeds.criticalQuarter}
@@ -175,7 +241,7 @@ DEATH VALLEY ANALİZİ:
 - Runway: ${capitalNeeds.runwayMonths} ay
 - Kendi Kendini Finanse Edebilir mi: ${capitalNeeds.selfSustaining ? 'Evet' : 'Hayır'}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 GELİR/GİDER DETAYLARI:
 
@@ -191,7 +257,7 @@ ${scenarioB.revenues.map((r: { category: string; projectedAmount: number }) => `
 Senaryo B Giderleri:
 ${scenarioB.expenses.map((e: { category: string; projectedAmount: number }) => `- ${e.category}: $${e.projectedAmount.toLocaleString()}`).join('\n')}
 
-Tüm bu verileri analiz et ve yukarıdaki 5 bölümün hepsini içeren yapılandırılmış çıktı üret.
+Tüm bu verileri (özellikle geçmiş yıl bilançosunu) analiz et ve yukarıdaki 5 bölümün hepsini içeren yapılandırılmış çıktı üret.
 `;
 
     console.log("Calling Lovable AI with Pro model for unified analysis...");
