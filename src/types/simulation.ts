@@ -366,9 +366,25 @@ export interface NextYearQuarterlyData {
   key_event: string;
 }
 
-/** Next Year Projection from AI */
+/** Virtual Opening Balance for Next Year */
+export interface VirtualOpeningBalance {
+  opening_cash: number;
+  war_chest_status: 'Hazır' | 'Yakın' | 'Uzak';
+  intangible_growth: string;
+}
+
+/** Investor Hook Data */
+export interface InvestorHook {
+  revenue_growth_yoy: string;
+  margin_improvement: string;
+  valuation_multiple_target: string;
+  competitive_moat: string;
+}
+
+/** Next Year Projection from AI - ENHANCED with Globalization Vision */
 export interface NextYearProjection {
   strategy_note: string;
+  virtual_opening_balance?: VirtualOpeningBalance;
   quarterly: {
     q1: NextYearQuarterlyData;
     q2: NextYearQuarterlyData;
@@ -381,6 +397,7 @@ export interface NextYearProjection {
     net_profit: number;
     ending_cash: number;
   };
+  investor_hook?: InvestorHook;
 }
 
 /** Deal Analysis from AI */

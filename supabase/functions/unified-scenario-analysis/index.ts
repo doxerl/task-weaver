@@ -87,18 +87,49 @@ Slayt Sırası:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📈 BÖLÜM 4: GELECEK YIL PROJEKSİYONU (J-Curve Simülasyonu)
+📈 BÖLÜM 4: GELECEK YIL PROJEKSİYONU - "SCALE & GLOBALIZE"
 
-Yatırım alındıktan sonraki yılın çeyreklik verilerini üret:
-- J-Curve Etkisi: Q1-Q2'de giderler artar (yatırım harcanır), gelir yavaş
-- Büyüme İvmesi: Q3-Q4'te büyüme hızlanır, gelirler patlar
-- Nakit Kontrolü: Yatırımla birlikte kasa asla eksiye düşmemeli
+🎯 MİSYON: Yatırımcı bu simülasyonu gördüğünde "Seri A yatırımını hemen yapmalıyım" demeli.
 
-Her çeyrek için:
-- revenue: Tahmini gelir
-- expenses: Tahmini gider
-- cash_flow: Net nakit akışı
-- key_event: O çeyrekteki kritik olay
+📊 SANAL BİLANÇO AÇILIŞI (virtual_opening_balance):
+Senaryo B'nin yıl sonu nakit durumu + potansiyel yatırım ile gelecek yıl açılış bilançosu oluştur:
+- opening_cash: Mevcut yıl kapanış nakiti + talep edilen yatırım tutarı (ASLA 0 DEĞİL)
+- war_chest_status: "Hazır" (yeterli) / "Yakın" (az kaldı) / "Uzak" (ciddi sermaye lazım)
+- intangible_growth: Marka değeri, IP, network etkisi notları (örn: "Platform network etkisi 3x güçlendi")
+
+🚀 GLOBALLEŞME TEMELLERİ:
+Her çeyrek için globalleşme odaklı key_event üret:
+- Q1: "ABD/AB pazarına ilk adım" veya "Global partner görüşmeleri başlatıldı"
+- Q2: "Pilot pazar lansmanı" veya "İlk döviz bazlı gelir kaydedildi"
+- Q3: "Gelir çeşitlendirmesi tamamlandı" veya "International revenue %X'e ulaştı"
+- Q4: "Seri A turuna hazırlık" veya "Strategic partnership kapanışı"
+
+💰 YATIRIMCI KANCASI (investor_hook):
+Projeksiyonda şunları MUTLAKA hesapla ve göster:
+- revenue_growth_yoy: Yıllık büyüme yüzdesi (örn: "%65 YoY Büyüme")
+- margin_improvement: Marj iyileşmesi (örn: "+8pp EBIT Marjı")
+- valuation_multiple_target: Değerleme hedefi (örn: "4x Revenue Multiple")
+- competitive_moat: Rekabet avantajı (örn: "AI-powered pricing engine creates 40% cost advantage")
+
+📧 STRATEGY_NOTE FORMAT:
+2-3 cümle ile yatırımcıyı heyecanlandır:
+"[Yıl]'de [şirket] [hedef pazara] açılarak [metrik]'i [X]x artıracak. 
+Bu büyüme, [competitive moat] sayesinde sürdürülebilir olacak ve 
+[exit senaryo]'ya zemin hazırlayacak."
+
+⚠️ KRİTİK KURALLAR - ASLA İHLAL ETME:
+1. summary.total_revenue ASLA $0 olmamalı - mevcut yılın EN AZ %40 üstünde olmalı
+2. summary.total_expenses de artmalı ama gelirden YAVAŞ (Operating Leverage göster)
+3. Her çeyrekte revenue > 0 olmalı - ilerleme göster
+4. Cash flow Q1-Q2'de negatif olabilir ama Q3-Q4'te POZİTİFE dönmeli
+5. summary.net_profit pozitif veya break-even'e çok yakın olmalı
+6. opening_cash = mevcut yıl net kârı + talep edilen yatırım (yaklaşık)
+
+ÇEYREKLER İÇİN:
+- revenue: Tahmini çeyreklik gelir (yılın toplamından orantılı dağıt)
+- expenses: Tahmini çeyreklik gider
+- cash_flow: Net nakit akışı (revenue - expenses)
+- key_event: O çeyrekteki globalleşme odaklı kritik olay
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -417,56 +448,89 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu ve çeyreklik kalem bazl
                   },
                   next_year_projection: {
                     type: "object",
+                    description: "CRITICAL: All numeric fields MUST be > 0. Revenue should be at least 40% higher than current year.",
                     properties: {
-                      strategy_note: { type: "string" },
+                      strategy_note: { 
+                        type: "string",
+                        description: "2-3 sentence investor-exciting vision statement about globalization and scale"
+                      },
+                      virtual_opening_balance: {
+                        type: "object",
+                        description: "Virtual balance sheet opening for next year",
+                        properties: {
+                          opening_cash: { 
+                            type: "number",
+                            description: "Current year ending cash + requested investment. MUST be > 0"
+                          },
+                          war_chest_status: { 
+                            type: "string",
+                            description: "One of: Hazır, Yakın, Uzak"
+                          },
+                          intangible_growth: { 
+                            type: "string",
+                            description: "Notes on brand value, IP, network effect growth"
+                          }
+                        }
+                      },
                       quarterly: {
                         type: "object",
                         properties: {
                           q1: {
                             type: "object",
                             properties: {
-                              revenue: { type: "number" },
+                              revenue: { type: "number", description: "MUST be > 0" },
                               expenses: { type: "number" },
                               cash_flow: { type: "number" },
-                              key_event: { type: "string" }
+                              key_event: { type: "string", description: "Global expansion focused event" }
                             }
                           },
                           q2: {
                             type: "object",
                             properties: {
-                              revenue: { type: "number" },
+                              revenue: { type: "number", description: "MUST be > 0" },
                               expenses: { type: "number" },
                               cash_flow: { type: "number" },
-                              key_event: { type: "string" }
+                              key_event: { type: "string", description: "Global expansion focused event" }
                             }
                           },
                           q3: {
                             type: "object",
                             properties: {
-                              revenue: { type: "number" },
+                              revenue: { type: "number", description: "MUST be > 0, should show growth momentum" },
                               expenses: { type: "number" },
                               cash_flow: { type: "number" },
-                              key_event: { type: "string" }
+                              key_event: { type: "string", description: "Revenue diversification event" }
                             }
                           },
                           q4: {
                             type: "object",
                             properties: {
-                              revenue: { type: "number" },
+                              revenue: { type: "number", description: "MUST be > 0, highest of the year" },
                               expenses: { type: "number" },
-                              cash_flow: { type: "number" },
-                              key_event: { type: "string" }
+                              cash_flow: { type: "number", description: "Should be positive" },
+                              key_event: { type: "string", description: "Series A preparation or partnership" }
                             }
                           }
                         }
                       },
                       summary: {
                         type: "object",
+                        description: "CRITICAL: total_revenue MUST be at least 40% higher than scenario B current revenue. NEVER zero!",
                         properties: {
-                          total_revenue: { type: "number" },
-                          total_expenses: { type: "number" },
-                          net_profit: { type: "number" },
-                          ending_cash: { type: "number" }
+                          total_revenue: { type: "number", description: "MUST be > 0 and at least 40% higher than current year" },
+                          total_expenses: { type: "number", description: "Should grow slower than revenue (operating leverage)" },
+                          net_profit: { type: "number", description: "Should be positive or near break-even" },
+                          ending_cash: { type: "number", description: "opening_cash + net_profit + investment" }
+                        }
+                      },
+                      investor_hook: {
+                        type: "object",
+                        description: "Key metrics to excite investors about the Series A opportunity",
+                        properties: {
+                          revenue_growth_yoy: { type: "string", description: "e.g. '%65 YoY Büyüme'" },
+                          margin_improvement: { type: "string", description: "e.g. '+8pp EBIT Marjı'" },
+                          valuation_multiple_target: { type: "string", description: "e.g. '4x Revenue Multiple'" },
+                          competitive_moat: { type: "string", description: "What makes this company defensible" }
                         }
                       }
                     }
