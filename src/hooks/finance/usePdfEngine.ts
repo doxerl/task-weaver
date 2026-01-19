@@ -249,6 +249,12 @@ export interface UsePdfEngineReturn {
         baseAmount: number;
         projectedAmount: number;
         changePercent: number;
+        quarterly?: {
+          q1: number;
+          q2: number;
+          q3: number;
+          q4: number;
+        };
       }>;
       expenses: Array<{
         id: string;
@@ -256,8 +262,15 @@ export interface UsePdfEngineReturn {
         baseAmount: number;
         projectedAmount: number;
         changePercent: number;
+        quarterly?: {
+          q1: number;
+          q2: number;
+          q3: number;
+          q4: number;
+        };
       }>;
       exchangeRate: number;
+      chartsElement?: HTMLElement | null;
     }
   ) => Promise<boolean>;
   
@@ -1095,6 +1108,12 @@ export function usePdfEngine(): UsePdfEngineReturn {
         baseAmount: number;
         projectedAmount: number;
         changePercent: number;
+        quarterly?: {
+          q1: number;
+          q2: number;
+          q3: number;
+          q4: number;
+        };
       }>;
       expenses: Array<{
         id: string;
@@ -1102,18 +1121,37 @@ export function usePdfEngine(): UsePdfEngineReturn {
         baseAmount: number;
         projectedAmount: number;
         changePercent: number;
+        quarterly?: {
+          q1: number;
+          q2: number;
+          q3: number;
+          q4: number;
+        };
       }>;
       exchangeRate: number;
+      chartsElement?: HTMLElement | null;
     }
   ): Promise<boolean> => {
     setIsGenerating(true);
-    setProgress({ current: 1, total: 4, stage: 'Simülasyon hazırlanıyor...' });
+    const hasCharts = !!data.chartsElement;
+    const totalSteps = hasCharts ? 6 : 5;
+    setProgress({ current: 1, total: totalSteps, stage: 'Simülasyon hazırlanıyor...' });
     
     const formatUSD = (n: number) => `$${n.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`;
+    const formatK = (n: number) => {
+      if (n >= 1000) return `${(n / 1000).toFixed(0)}K`;
+      return n.toFixed(0);
+    };
     const formatPercent = (n: number) => `${n >= 0 ? '+' : ''}${n.toFixed(1)}%`;
     
+    // Çeyreklik veri olup olmadığını kontrol et
+    const hasQuarterly = data.revenues.some(r => r.quarterly) || data.expenses.some(e => e.quarterly);
+    
     try {
-      const builder = createPortraitBuilder({ margin: 10 });
+      // Çeyreklik veri varsa landscape, yoksa portrait
+      const builder = hasQuarterly 
+        ? createLandscapeBuilder({ margin: 10 })
+        : createPortraitBuilder({ margin: 10 });
       
       // Kapak sayfası
       builder.addCover(
@@ -1122,7 +1160,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
         new Date().toLocaleDateString('tr-TR')
       );
       
-      setProgress({ current: 2, total: 4, stage: 'Özet oluşturuluyor...' });
+      setProgress({ current: 2, total: totalSteps, stage: 'Özet oluşturuluyor...' });
       
       // Özet tablosu
       builder.addTable({
@@ -1142,55 +1180,133 @@ export function usePdfEngine(): UsePdfEngineReturn {
       
       builder.addSpacer(5);
       
-      setProgress({ current: 3, total: 4, stage: 'Gelir tablosu oluşturuluyor...' });
+      setProgress({ current: 3, total: totalSteps, stage: 'Gelir tablosu oluşturuluyor...' });
       
-      // Gelir projeksiyonları tablosu
-      builder.addTable({
-        title: 'Gelir Projeksiyonları',
-        headers: ['Kalem', `${data.baseYear}`, `${data.targetYear}`, 'Değişim'],
-        rows: data.revenues.map(r => [
-          r.name,
-          formatUSD(r.baseAmount),
-          formatUSD(r.projectedAmount),
-          formatPercent(r.changePercent)
-        ]),
-        options: {
-          showHead: 'everyPage',
-          headerColor: [34, 197, 94], // Yeşil
-          fontSize: 9,
-          columnStyles: {
-            0: { cellWidth: 80 },
-            1: { halign: 'right' },
-            2: { halign: 'right' },
-            3: { halign: 'right' },
+      // Gelir projeksiyonları tablosu (çeyreklik verilerle)
+      if (hasQuarterly) {
+        builder.addTable({
+          title: 'Gelir Projeksiyonları (Çeyreklik)',
+          headers: ['Kalem', `${data.baseYear}`, 'Q1', 'Q2', 'Q3', 'Q4', `${data.targetYear}`, 'Δ%'],
+          rows: data.revenues.map(r => [
+            r.name,
+            formatK(r.baseAmount),
+            r.quarterly ? formatK(r.quarterly.q1) : '-',
+            r.quarterly ? formatK(r.quarterly.q2) : '-',
+            r.quarterly ? formatK(r.quarterly.q3) : '-',
+            r.quarterly ? formatK(r.quarterly.q4) : '-',
+            formatK(r.projectedAmount),
+            formatPercent(r.changePercent)
+          ]),
+          options: {
+            showHead: 'everyPage',
+            headerColor: [34, 197, 94], // Yeşil
+            fontSize: 8,
+            columnStyles: {
+              0: { cellWidth: 60 },
+              1: { halign: 'right', cellWidth: 28 },
+              2: { halign: 'right', cellWidth: 28 },
+              3: { halign: 'right', cellWidth: 28 },
+              4: { halign: 'right', cellWidth: 28 },
+              5: { halign: 'right', cellWidth: 28 },
+              6: { halign: 'right', cellWidth: 30 },
+              7: { halign: 'right', cellWidth: 25 },
+            }
           }
-        }
-      });
+        });
+      } else {
+        builder.addTable({
+          title: 'Gelir Projeksiyonları',
+          headers: ['Kalem', `${data.baseYear}`, `${data.targetYear}`, 'Değişim'],
+          rows: data.revenues.map(r => [
+            r.name,
+            formatUSD(r.baseAmount),
+            formatUSD(r.projectedAmount),
+            formatPercent(r.changePercent)
+          ]),
+          options: {
+            showHead: 'everyPage',
+            headerColor: [34, 197, 94],
+            fontSize: 9,
+            columnStyles: {
+              0: { cellWidth: 80 },
+              1: { halign: 'right' },
+              2: { halign: 'right' },
+              3: { halign: 'right' },
+            }
+          }
+        });
+      }
       
       builder.addSpacer(5);
       
-      // Gider projeksiyonları tablosu
-      builder.addTable({
-        title: 'Gider Projeksiyonları',
-        headers: ['Kalem', `${data.baseYear}`, `${data.targetYear}`, 'Değişim'],
-        rows: data.expenses.map(e => [
-          e.name,
-          formatUSD(e.baseAmount),
-          formatUSD(e.projectedAmount),
-          formatPercent(e.changePercent)
-        ]),
-        options: {
-          showHead: 'everyPage',
-          headerColor: [239, 68, 68], // Kırmızı
-          fontSize: 9,
-          columnStyles: {
-            0: { cellWidth: 80 },
-            1: { halign: 'right' },
-            2: { halign: 'right' },
-            3: { halign: 'right' },
+      setProgress({ current: 4, total: totalSteps, stage: 'Gider tablosu oluşturuluyor...' });
+      
+      // Gider projeksiyonları tablosu (çeyreklik verilerle)
+      if (hasQuarterly) {
+        builder.addTable({
+          title: 'Gider Projeksiyonları (Çeyreklik)',
+          headers: ['Kalem', `${data.baseYear}`, 'Q1', 'Q2', 'Q3', 'Q4', `${data.targetYear}`, 'Δ%'],
+          rows: data.expenses.map(e => [
+            e.name,
+            formatK(e.baseAmount),
+            e.quarterly ? formatK(e.quarterly.q1) : '-',
+            e.quarterly ? formatK(e.quarterly.q2) : '-',
+            e.quarterly ? formatK(e.quarterly.q3) : '-',
+            e.quarterly ? formatK(e.quarterly.q4) : '-',
+            formatK(e.projectedAmount),
+            formatPercent(e.changePercent)
+          ]),
+          options: {
+            showHead: 'everyPage',
+            headerColor: [239, 68, 68], // Kırmızı
+            fontSize: 8,
+            columnStyles: {
+              0: { cellWidth: 60 },
+              1: { halign: 'right', cellWidth: 28 },
+              2: { halign: 'right', cellWidth: 28 },
+              3: { halign: 'right', cellWidth: 28 },
+              4: { halign: 'right', cellWidth: 28 },
+              5: { halign: 'right', cellWidth: 28 },
+              6: { halign: 'right', cellWidth: 30 },
+              7: { halign: 'right', cellWidth: 25 },
+            }
           }
-        }
-      });
+        });
+      } else {
+        builder.addTable({
+          title: 'Gider Projeksiyonları',
+          headers: ['Kalem', `${data.baseYear}`, `${data.targetYear}`, 'Değişim'],
+          rows: data.expenses.map(e => [
+            e.name,
+            formatUSD(e.baseAmount),
+            formatUSD(e.projectedAmount),
+            formatPercent(e.changePercent)
+          ]),
+          options: {
+            showHead: 'everyPage',
+            headerColor: [239, 68, 68],
+            fontSize: 9,
+            columnStyles: {
+              0: { cellWidth: 80 },
+              1: { halign: 'right' },
+              2: { halign: 'right' },
+              3: { halign: 'right' },
+            }
+          }
+        });
+      }
+      
+      // Grafik varsa ekle
+      if (data.chartsElement) {
+        setProgress({ current: 5, total: totalSteps, stage: 'Grafikler yakalanıyor...' });
+        builder.addPageBreak();
+        builder.addText('Projeksiyon Grafikleri', 'title', 'center');
+        builder.addSpacer(5);
+        builder.addChart({
+          element: data.chartsElement,
+          options: { fitToPage: true, maxHeight: 180 }
+        });
+      }
       
       // Footer bilgisi
       builder.addSpacer(10);
@@ -1200,7 +1316,7 @@ export function usePdfEngine(): UsePdfEngineReturn {
         'right'
       );
       
-      setProgress({ current: 4, total: 4, stage: 'PDF oluşturuluyor...' });
+      setProgress({ current: totalSteps, total: totalSteps, stage: 'PDF oluşturuluyor...' });
       
       const filename = `Simulasyon_${data.scenarioName.replace(/\s+/g, '_')}_${data.targetYear}.pdf`;
       const result = await builder.build(filename);
