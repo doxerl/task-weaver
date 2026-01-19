@@ -74,19 +74,26 @@ const SCENARIO_RULES = `
    - Büyüme hedeflerinin tuttuğu senaryo
    - "Hedef Senaryo" olarak referans al
    - Yatırımcıya gösterilecek ana senaryo
+   - YATIRIM ALIRSAK gerçekleşecek senaryo
 
 2. **SENARYO B = NEGATİF SENARYO (Her zaman):**
    - Net kârı daha düşük olan senaryo
    - Kötümser varsayımlar, düşük gelir
    - "Risk Senaryosu" olarak referans al
    - Downside risk değerlendirmesi için
+   - YATIRIM ALAMAZSAK gerçekleşecek senaryo
 
 3. **ANALİZ ODAĞI:**
-   - Pozitif Senaryo (A) gerçekleşirse ne olur? → Ana hikaye
-   - Negatif Senaryo (B) gerçekleşirse ne olur? → Risk analizi
-   - Fark ne kadar? Risk ne kadar büyük? → Gap analizi
+   - Pozitif Senaryo (A) gerçekleşirse ne olur? → Ana hikaye (Yatırım alırsak)
+   - Negatif Senaryo (B) gerçekleşirse ne olur? → Risk analizi (Yatırım alamazsak)
+   - Fark ne kadar? Risk ne kadar büyük? → Gap analizi = FIRSAT MALİYETİ / ZARAR
 
-4. **GELECEK YIL PROJEKSİYON KURALI:**
+4. **YATIRIM SENARYO KARŞILAŞTIRMASI (YENİ - KRİTİK):**
+   - YATIRIM ALIRSAK (A): Hedef büyüme gerçekleşir, exit plan işler, sonraki yıllar yatırıma göre şekillenir
+   - YATIRIM ALAMAZSAK (B): Organik (düşük) büyüme, exit plan geçersiz, FIRSAT MALİYETİ = ZARAR
+   - Her analizde bu karşılaştırmayı NET olarak yap!
+
+5. **GELECEK YIL PROJEKSİYON KURALI:**
    - Simülasyon Yılı +1 projeksiyonu HER ZAMAN Pozitif Senaryo (A) baz alınarak yapılır
    - Çünkü yatırımcı en iyi durumu görmek ister
    - Negatif senaryo sadece "downside risk" olarak sunulur
@@ -212,17 +219,17 @@ Bu bölümde şu çıktıları üret:
 
 SLAYT YAPISI (ZORUNLU İÇERİK):
 
-1️⃣ PROBLEM & FIRSAT (Neden Şimdi?)
+1️⃣ PROBLEM & FIRSAT (Neden Şimdi?) - YATIRIM ALAMAZSAK NE OLUR?
 - Mevcut iş modelinin sınırlamaları (veriden)
 - Büyüme darboğazı nerede? (gelir konsantrasyonundan)
-- Pazar fırsatı ne? (senaryo farklarından)
-Key Message: "Mevcut yapıyla $X gelire ulaştık, ama $Y hedefi için yatırım gerekiyor"
+- ⚠️ YATIRIM ALAMAZSAK: $X gelir kaybı, %Y düşük büyüme (Negatif Senaryodan)
+Key Message: "Yatırım alamazsak $X gelir kaybı ve organik büyüme %Y ile sınırlı kalacak"
 
-2️⃣ ÇÖZÜM: [ODAK PROJE İSMİ]
+2️⃣ ÇÖZÜM: [ODAK PROJE İSMİ] - YATIRIM ALIRSAK NE OLUR?
 - Odak projenin değer önerisi (kullanıcı planından)
 - Mevcut vs hedef gelir karşılaştırması ($X → $Y)
-- Diğer gelir kalemleri nasıl etkilenecek?
-Key Message: "[Proje Adı] ile geliri $X'den $Y'ye çıkarıyoruz"
+- ✅ YATIRIM ALIRSAK: Hedef büyüme %Z ile gerçekleşir (Pozitif Senaryodan)
+Key Message: "[Proje Adı] ile yatırım alırsak geliri $X'den $Y'ye çıkarıyoruz"
 
 3️⃣ YATIRIM KULLANIMI (Use of Funds)
 - $X Toplam yatırım nasıl dağılacak:
@@ -232,18 +239,19 @@ Key Message: "[Proje Adı] ile geliri $X'den $Y'ye çıkarıyoruz"
   * Operasyon: %D ($X.xxx)
 Key Message: "$X yatırımın %Y'si [en büyük kalem]'e ayrılıyor"
 
-4️⃣ GETİRİ HESABI (The Math)
+4️⃣ GETİRİ HESABI (The Math) - YATIRIMLI vs YATIRIMSIZ KARŞILAŞTIRMA
 - Post-money değerleme: $X (sektör çarpanı: Yx)
 - 3 yıl MOIC: Xx | 5 yıl MOIC: Xx
-- Break-even: Y. çeyrek
-- Runway: X ay
-Key Message: "3 yılda Xx getiri, 5 yılda Xx getiri"
+- ⚠️ YATIRIM ALAMAZSAK: 5Y değerleme sadece $X (organik büyüme ile)
+- ✅ YATIRIM ALIRSAK: 5Y değerleme $Y (fark: +$Z)
+Key Message: "Yatırım alırsak 5 yılda $X değerleme farkı yaratıyoruz"
 
-5️⃣ ÇIKIŞ SENARYOSU (Exit)
-- Yatırımcı 3. yılda: $X
-- Yatırımcı 5. yılda: $X
-- Büyüme varsayımı: %X yıllık
-Key Message: "$X yatırım, 5 yılda $Y'ye dönüşüyor"
+5️⃣ ÇIKIŞ SENARYOSU (Exit) - SONRAKİ YILLAR YATIRIMA GÖRE ŞEKİLLENECEK
+- Yatırımcı 3. yılda: $X | Yatırımcı 5. yılda: $Y
+- Büyüme varsayımı: Year 1-2 %X (agresif), Year 3-5 %Y (normalize)
+- ⚠️ Yatırım alamazsak sonraki yıllar organik büyüme (%Z) ile sınırlı
+- ✅ Yatırım alırsak sonraki yıllar yatırım planına göre şekillenir
+Key Message: "$X yatırım, 5 yılda $Y'ye dönüşüyor - aksi halde sadece $Z"
 
 🚫 YASAK:
 - Genel ifadeler ("ölçeklenebilir model", "dijital dönüşüm", "pazar lideri" gibi)

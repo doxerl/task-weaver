@@ -10,7 +10,8 @@ import {
   DEFAULT_DEAL_CONFIG,
   AnalysisHistoryItem,
   GrowthConfiguration,
-  SECTOR_NORMALIZED_GROWTH
+  SECTOR_NORMALIZED_GROWTH,
+  InvestmentScenarioComparison
 } from '@/types/simulation';
 import { toast } from 'sonner';
 import { generateScenarioHash, checkDataChanged } from '@/lib/scenarioHash';
@@ -162,6 +163,143 @@ export const calculateExitPlan = (
     },
     growthConfig,
     allYears: projections.allYears
+  };
+};
+
+// =====================================================
+// INVESTMENT SCENARIO COMPARISON (Yatırım Al vs Alama)
+// =====================================================
+
+interface ScenarioInputs {
+  totalRevenue: number;
+  totalExpenses: number;
+  netProfit: number;
+  profitMargin: number;
+  baseRevenue: number; // For organic growth calculation
+}
+
+/**
+ * Calculates the investment scenario comparison:
+ * - What happens if we get investment (Positive Scenario A)
+ * - What happens if we don't get investment (Negative Scenario B)
+ * - Opportunity cost and future impact
+ */
+export const calculateInvestmentScenarioComparison = (
+  scenarioA: ScenarioInputs, // Positive - Yatırım alırsak
+  scenarioB: ScenarioInputs, // Negative - Yatırım alamazsak
+  exitPlan: ExitPlan,
+  sectorMultiple: number
+): InvestmentScenarioComparison => {
+  const { year1 } = getProjectionYears();
+  
+  // Growth rates
+  const growthRateA = scenarioA.baseRevenue > 0 
+    ? (scenarioA.totalRevenue - scenarioA.baseRevenue) / scenarioA.baseRevenue 
+    : 0;
+  const growthRateB = scenarioB.baseRevenue > 0 
+    ? (scenarioB.totalRevenue - scenarioB.baseRevenue) / scenarioB.baseRevenue 
+    : 0;
+  
+  // Organic growth rate (for withoutInvestment projections)
+  const organicGrowthRate = Math.max(growthRateB, 0.05); // Minimum %5 organic growth
+  
+  // Gelir ve kâr kayıpları
+  const revenueLoss = scenarioA.totalRevenue - scenarioB.totalRevenue;
+  const profitLoss = scenarioA.netProfit - scenarioB.netProfit;
+  const growthRateDiff = growthRateA - growthRateB;
+  
+  // Yüzdesel kayıp
+  const percentageLoss = scenarioA.totalRevenue > 0 
+    ? (revenueLoss / scenarioA.totalRevenue) * 100 
+    : 0;
+  
+  // Risk seviyesi
+  const lossRatio = revenueLoss / Math.max(scenarioA.totalRevenue, 1);
+  const riskLevel = lossRatio > 0.5 ? 'critical' as const : 
+                    lossRatio > 0.3 ? 'high' as const : 
+                    lossRatio > 0.15 ? 'medium' as const : 'low' as const;
+  
+  // 5 yıllık projeksiyon - Yatırımlı (exitPlan'dan)
+  const year1WithInvestment = scenarioA.totalRevenue * sectorMultiple;
+  const year3WithInvestment = exitPlan.year3Projection?.companyValuation || year1WithInvestment * 2.5;
+  const year5WithInvestment = exitPlan.year5Projection?.companyValuation || year1WithInvestment * 5;
+  
+  // 5 yıllık projeksiyon - Yatırımsız (organik büyüme ile)
+  const year1WithoutInvestment = scenarioB.totalRevenue * sectorMultiple;
+  let revenueWithout = scenarioB.totalRevenue;
+  const yearlyProjections: Array<{
+    year: number;
+    yearLabel: string;
+    withInvestment: number;
+    withoutInvestment: number;
+    difference: number;
+  }> = [];
+  
+  // Year 0 (current scenario year)
+  yearlyProjections.push({
+    year: 0,
+    yearLabel: `${year1} (Senaryo)`,
+    withInvestment: year1WithInvestment,
+    withoutInvestment: year1WithoutInvestment,
+    difference: year1WithInvestment - year1WithoutInvestment
+  });
+  
+  // Years 1-5
+  for (let i = 1; i <= 5; i++) {
+    revenueWithout = revenueWithout * (1 + organicGrowthRate);
+    const valuationWithout = revenueWithout * sectorMultiple;
+    const valuationWith = exitPlan.allYears?.[i-1]?.companyValuation || year1WithInvestment * (1 + i * 0.5);
+    
+    yearlyProjections.push({
+      year: i,
+      yearLabel: `${year1 + i}`,
+      withInvestment: valuationWith,
+      withoutInvestment: valuationWithout,
+      difference: valuationWith - valuationWithout
+    });
+  }
+  
+  const year3WithoutInvestment = yearlyProjections[3]?.withoutInvestment || scenarioB.totalRevenue * Math.pow(1 + organicGrowthRate, 3) * sectorMultiple;
+  const year5WithoutInvestment = yearlyProjections[5]?.withoutInvestment || scenarioB.totalRevenue * Math.pow(1 + organicGrowthRate, 5) * sectorMultiple;
+  
+  // Değerleme kaybı (5Y)
+  const valuationLoss = year5WithInvestment - year5WithoutInvestment;
+  
+  return {
+    withInvestment: {
+      totalRevenue: scenarioA.totalRevenue,
+      totalExpenses: scenarioA.totalExpenses,
+      netProfit: scenarioA.netProfit,
+      profitMargin: scenarioA.profitMargin,
+      exitValuation: year5WithInvestment,
+      moic5Year: exitPlan.moic5Year || 0,
+      growthRate: growthRateA,
+    },
+    withoutInvestment: {
+      totalRevenue: scenarioB.totalRevenue,
+      totalExpenses: scenarioB.totalExpenses,
+      netProfit: scenarioB.netProfit,
+      profitMargin: scenarioB.profitMargin,
+      organicGrowthRate,
+    },
+    opportunityCost: {
+      revenueLoss,
+      profitLoss,
+      valuationLoss,
+      growthRateDiff,
+      percentageLoss,
+      riskLevel,
+    },
+    futureImpact: {
+      year1WithInvestment,
+      year1WithoutInvestment,
+      year3WithInvestment,
+      year3WithoutInvestment,
+      year5WithInvestment,
+      year5WithoutInvestment,
+      cumulativeDifference: valuationLoss,
+      yearlyProjections,
+    },
   };
 };
 
