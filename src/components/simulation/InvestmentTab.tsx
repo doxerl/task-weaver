@@ -43,6 +43,8 @@ import { calculateInternalGrowthRate } from '@/utils/yearCalculations';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { InvestmentScenarioCard } from './InvestmentScenarioCard';
 import { FutureImpactChart } from './FutureImpactChart';
+import { AIInvestmentTimingCard } from './AIInvestmentTimingCard';
+import { QuarterlyCapitalTable } from './QuarterlyCapitalTable';
 
 interface InvestmentTabProps {
   scenarioA: SimulationScenario;
@@ -51,6 +53,11 @@ interface InvestmentTabProps {
   summaryB: { totalRevenue: number; totalExpenses: number; netProfit: number; profitMargin: number };
   quarterlyA: { q1: number; q2: number; q3: number; q4: number };
   quarterlyB: { q1: number; q2: number; q3: number; q4: number };
+  // New: Detailed revenue/expense for quarterly table
+  quarterlyRevenueA?: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyExpenseA?: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyRevenueB?: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyExpenseB?: { q1: number; q2: number; q3: number; q4: number };
   dealConfig: DealConfiguration;
   onDealConfigChange: (updates: Partial<DealConfiguration>) => void;
 }
@@ -62,6 +69,10 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
   summaryB,
   quarterlyA,
   quarterlyB,
+  quarterlyRevenueA,
+  quarterlyExpenseA,
+  quarterlyRevenueB,
+  quarterlyExpenseB,
   dealConfig,
   onDealConfigChange,
 }) => {
@@ -82,26 +93,26 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
     return calculateExitPlan(dealConfig, summaryA.totalRevenue, summaryA.totalExpenses, growthRate);
   }, [dealConfig, summaryA.totalRevenue, summaryA.totalExpenses, growthRate]);
 
-  // Calculate runway data for chart
+  // Calculate runway data for chart - CORRECTED LOGIC
+  // Yatırımlı = Pozitif Senaryo (A) + Yatırım ile başla
+  // Yatırımsız = Negatif Senaryo (B) + 0 ile başla
   const runwayData = useMemo(() => {
     const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
-    const flowsA = [quarterlyA.q1, quarterlyA.q2, quarterlyA.q3, quarterlyA.q4];
-    const flowsB = [quarterlyB.q1, quarterlyB.q2, quarterlyB.q3, quarterlyB.q4];
+    const flowsA = [quarterlyA.q1, quarterlyA.q2, quarterlyA.q3, quarterlyA.q4]; // Pozitif (yatırımlı)
+    const flowsB = [quarterlyB.q1, quarterlyB.q2, quarterlyB.q3, quarterlyB.q4]; // Negatif (yatırımsız)
     
-    let cumulativeA = 0;
-    let cumulativeB = 0;
-    let cumulativeBWithInvestment = dealConfig.investmentAmount;
+    let cumulativeWithInvestment = dealConfig.investmentAmount; // Yatırımla başla
+    let cumulativeWithoutInvestment = 0; // Öz sermaye ile başla
     
     return quarters.map((q, i) => {
-      cumulativeA += flowsA[i];
-      cumulativeB += flowsB[i];
-      cumulativeBWithInvestment += flowsB[i];
+      cumulativeWithInvestment += flowsA[i]; // Pozitif senaryo akışları
+      cumulativeWithoutInvestment += flowsB[i]; // Negatif senaryo akışları
       
       return {
         quarter: q,
-        scenarioA: cumulativeA,
-        scenarioB: cumulativeB,
-        scenarioBWithInvestment: cumulativeBWithInvestment,
+        withInvestment: cumulativeWithInvestment,
+        withoutInvestment: cumulativeWithoutInvestment,
+        difference: cumulativeWithInvestment - cumulativeWithoutInvestment, // Fırsat maliyeti
       };
     });
   }, [quarterlyA, quarterlyB, dealConfig.investmentAmount]);
@@ -142,10 +153,11 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
     );
   }, [summaryA, summaryB, exitPlan, dealConfig.sectorMultiple, scenarioA.revenues, scenarioB.revenues]);
 
+  // Updated chart config - corrected labels
   const chartConfig: ChartConfig = {
-    scenarioA: { label: scenarioA.name, color: '#6b7280' },
-    scenarioB: { label: `${scenarioB.name} (Yatırımsız)`, color: '#ef4444' },
-    scenarioBWithInvestment: { label: `${scenarioB.name} (Yatırımlı)`, color: '#22c55e' },
+    withInvestment: { label: 'Yatırımlı (Pozitif Senaryo)', color: '#22c55e' },
+    withoutInvestment: { label: 'Yatırımsız (Negatif Senaryo)', color: '#ef4444' },
+    difference: { label: 'Fırsat Maliyeti', color: '#3b82f6' },
   };
 
   return (
@@ -261,6 +273,27 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
             </div>
           </CardContent>
         </Card>
+      )}
+
+      {/* AI Investment Timing Card - Optimal yatırım zamanlaması */}
+      <AIInvestmentTimingCard
+        quarterlyA={quarterlyA}
+        quarterlyB={quarterlyB}
+        capitalNeedB={capitalNeedB}
+        investmentAmount={dealConfig.investmentAmount}
+      />
+
+      {/* Quarterly Capital Table - Detaylı çeyreklik analiz */}
+      {quarterlyRevenueA && quarterlyExpenseA && quarterlyRevenueB && quarterlyExpenseB && (
+        <QuarterlyCapitalTable
+          quarterlyRevenueA={quarterlyRevenueA}
+          quarterlyExpenseA={quarterlyExpenseA}
+          quarterlyRevenueB={quarterlyRevenueB}
+          quarterlyExpenseB={quarterlyExpenseB}
+          investmentAmount={dealConfig.investmentAmount}
+          scenarioAName={scenarioA.name}
+          scenarioBName={scenarioB.name}
+        />
       )}
 
       {/* Investment Scenario Comparison - Yatırım Al vs Alama */}
@@ -406,9 +439,8 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
               <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="5 5" />
-              <Line type="monotone" dataKey="scenarioA" stroke="#6b7280" strokeWidth={2} dot={{ fill: '#6b7280' }} name={scenarioA.name} />
-              <Line type="monotone" dataKey="scenarioB" stroke="#ef4444" strokeWidth={2} dot={{ fill: '#ef4444' }} name={`${scenarioB.name} (Yatırımsız)`} />
-              <Line type="monotone" dataKey="scenarioBWithInvestment" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e' }} name={`${scenarioB.name} (Yatırımlı)`} />
+              <Line type="monotone" dataKey="withInvestment" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e' }} name="Yatırımlı (Pozitif Senaryo)" />
+              <Line type="monotone" dataKey="withoutInvestment" stroke="#ef4444" strokeWidth={2} dot={{ fill: '#ef4444' }} name="Yatırımsız (Negatif Senaryo)" />
             </LineChart>
           </ChartContainer>
         </CardContent>
