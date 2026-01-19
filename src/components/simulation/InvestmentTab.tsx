@@ -281,6 +281,7 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
         quarterlyB={quarterlyB}
         capitalNeedB={capitalNeedB}
         investmentAmount={dealConfig.investmentAmount}
+        targetYear={scenarioB.targetYear}
       />
 
       {/* Quarterly Capital Table - Detaylı çeyreklik analiz */}
@@ -291,16 +292,16 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
           quarterlyRevenueB={quarterlyRevenueB}
           quarterlyExpenseB={quarterlyExpenseB}
           investmentAmount={dealConfig.investmentAmount}
-          scenarioAName={scenarioA.name}
-          scenarioBName={scenarioB.name}
+          scenarioAName={`${scenarioA.targetYear} ${scenarioA.name}`}
+          scenarioBName={`${scenarioB.targetYear} ${scenarioB.name}`}
         />
       )}
 
       {/* Investment Scenario Comparison - Yatırım Al vs Alama */}
       <InvestmentScenarioCard 
         comparison={scenarioComparison}
-        scenarioAName={scenarioA.name}
-        scenarioBName={scenarioB.name}
+        scenarioAName={`${scenarioA.targetYear} ${scenarioA.name}`}
+        scenarioBName={`${scenarioB.targetYear} ${scenarioB.name}`}
       />
 
       {/* 5 Year Future Impact Chart */}
@@ -310,7 +311,7 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
       <div className="grid grid-cols-3 gap-4">
         <Card className={capitalNeedA.selfSustaining ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'}>
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-muted-foreground">{scenarioA.name}</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground">{scenarioA.targetYear} {scenarioA.name}</CardTitle>
           </CardHeader>
           <CardContent>
             {capitalNeedA.selfSustaining ? (
@@ -361,7 +362,7 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
 
         <Card className="border-red-500/30 bg-red-500/5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-muted-foreground">{scenarioB.name} İhtiyacı</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground">{scenarioB.targetYear} {scenarioB.name} İhtiyacı</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-400">
