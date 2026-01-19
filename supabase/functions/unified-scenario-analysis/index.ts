@@ -406,9 +406,8 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Use the most powerful model for deep reasoning
-    const MODEL_ID = "google/gemini-3-pro-preview";
-
+    // Use a reliable model for tool calling - gemini-2.5-flash is more stable for structured output
+    const MODEL_ID = "google/gemini-2.5-flash";
     // Calculate year references based on scenario data
     const currentYear = new Date().getFullYear();
     const baseYear = scenarioA.baseYear || currentYear - 1;    // 2025 - Last completed year
