@@ -10,7 +10,8 @@ import {
   AnalysisHistoryItem,
   QuarterlyAmounts,
   YearlyBalanceSheet,
-  QuarterlyItemizedData
+  QuarterlyItemizedData,
+  FocusProjectInfo
 } from '@/types/simulation';
 import { generateScenarioHash } from '@/lib/scenarioHash';
 import { useAuth } from '@/hooks/useAuth';
@@ -311,7 +312,8 @@ export function useUnifiedAnalysis() {
     capitalNeeds: CapitalRequirement,
     historicalBalance: YearlyBalanceSheet | null,
     quarterlyItemized: QuarterlyItemizedData | null,
-    exchangeRate: number
+    exchangeRate: number,
+    focusProjectInfo?: FocusProjectInfo
   ): Promise<UnifiedAnalysisResult | null> => {
     setIsLoading(true);
     setError(null);
@@ -334,7 +336,8 @@ export function useUnifiedAnalysis() {
           capitalNeeds,
           historicalBalance,
           quarterlyItemized,
-          exchangeRate
+          exchangeRate,
+          focusProjectInfo
         }
       });
 

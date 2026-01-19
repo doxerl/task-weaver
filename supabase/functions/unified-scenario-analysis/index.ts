@@ -200,20 +200,61 @@ Bu bölümde şu çıktıları üret:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🎤 BÖLÜM 3: PITCH DECK SLAYTLARI
+🎤 BÖLÜM 3: PITCH DECK SLAYTLARI (VERİYE DAYALI, SPESİFİK)
+
+⚠️ KRİTİK: HER SLAYT SPESİFİK RAKAMLAR VE PROJE İSİMLERİ İÇERMELİ!
 
 5 slayt üret, her slayt için:
-- title: Çarpıcı başlık (max 8 kelime)
-- key_message: Ana mesaj (tek cümle)
-- content_bullets: 3-4 madde (kısa, net, RAKAMLARI VERİDEN AL)
-- speaker_notes: Konuşma metni (2-3 cümle)
+- title: Çarpıcı başlık (max 8 kelime) - ODAK PROJE İSMİ DAHİL
+- key_message: Ana mesaj (tek cümle) - RAKAM DAHİL ($X, %Y formatında)
+- content_bullets: 3-4 madde - HER MADDE $ veya % FORMATINDA RAKAM İÇERMELİ
+- speaker_notes: Konuşma metni (3-4 cümle) - detaylı açıklama
 
-Slayt Sırası:
-1. THE HOOK: Neden yatırım?
-2. DEATH VALLEY: Yatırım almazsak ne olur?
-3. USE OF FUNDS: Yatırım nereye gidecek?
-4. THE MATH: Getiri hesabı
-5. THE EXIT: Çıkış senaryosu
+SLAYT YAPISI (ZORUNLU İÇERİK):
+
+1️⃣ PROBLEM & FIRSAT (Neden Şimdi?)
+- Mevcut iş modelinin sınırlamaları (veriden)
+- Büyüme darboğazı nerede? (gelir konsantrasyonundan)
+- Pazar fırsatı ne? (senaryo farklarından)
+Key Message: "Mevcut yapıyla $X gelire ulaştık, ama $Y hedefi için yatırım gerekiyor"
+
+2️⃣ ÇÖZÜM: [ODAK PROJE İSMİ]
+- Odak projenin değer önerisi (kullanıcı planından)
+- Mevcut vs hedef gelir karşılaştırması ($X → $Y)
+- Diğer gelir kalemleri nasıl etkilenecek?
+Key Message: "[Proje Adı] ile geliri $X'den $Y'ye çıkarıyoruz"
+
+3️⃣ YATIRIM KULLANIMI (Use of Funds)
+- $X Toplam yatırım nasıl dağılacak:
+  * Ürün Geliştirme: %A ($X.xxx)
+  * Pazarlama: %B ($X.xxx)
+  * Personel: %C ($X.xxx)
+  * Operasyon: %D ($X.xxx)
+Key Message: "$X yatırımın %Y'si [en büyük kalem]'e ayrılıyor"
+
+4️⃣ GETİRİ HESABI (The Math)
+- Post-money değerleme: $X (sektör çarpanı: Yx)
+- 3 yıl MOIC: Xx | 5 yıl MOIC: Xx
+- Break-even: Y. çeyrek
+- Runway: X ay
+Key Message: "3 yılda Xx getiri, 5 yılda Xx getiri"
+
+5️⃣ ÇIKIŞ SENARYOSU (Exit)
+- Yatırımcı 3. yılda: $X
+- Yatırımcı 5. yılda: $X
+- Büyüme varsayımı: %X yıllık
+Key Message: "$X yatırım, 5 yılda $Y'ye dönüşüyor"
+
+🚫 YASAK:
+- Genel ifadeler ("ölçeklenebilir model", "dijital dönüşüm", "pazar lideri" gibi)
+- Rakam olmayan maddeler
+- Varsayımsal pazar büyüklükleri ($X milyar TAM/SAM/SOM gibi)
+
+✅ ZORUNLU:
+- Her bullet'ta $ veya % formatında rakam
+- Odak proje ismi başlıklarda (varsa)
+- Yatırım dağılımı spesifik tutarlarla
+- Speaker notes'ta detaylı açıklama
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -280,7 +321,8 @@ serve(async (req) => {
       capitalNeeds,
       historicalBalance,
       quarterlyItemized,
-      exchangeRate
+      exchangeRate,
+      focusProjectInfo
     } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -438,7 +480,49 @@ ${quarterlyItemized.diffs.expenses.map((d: any) =>
 5. Büyüme senaryosu hangi kalemde en agresif?
 ` : ''}
 
-Tüm bu verileri (özellikle geçmiş yıl bilançosunu ve çeyreklik kalem bazlı verileri) analiz et ve yukarıdaki 5 bölümün hepsini içeren yapılandırılmış çıktı üret.
+${focusProjectInfo ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🎯 ODAK PROJE(LER) BİLGİSİ (KULLANICI SEÇİMİ):
+
+${focusProjectInfo.projects.map((p: any, i: number) => `
+📌 Proje ${i + 1}: ${p.projectName}
+- Mevcut Gelir: $${(p.currentRevenue || 0).toLocaleString()}
+- Hedef Gelir: $${(p.projectedRevenue || 0).toLocaleString()}
+- Büyüme: %${p.currentRevenue > 0 ? (((p.projectedRevenue / p.currentRevenue) - 1) * 100).toFixed(1) : '∞'}
+`).join('\n')}
+
+💰 TOPLAM:
+- Toplam Mevcut: $${(focusProjectInfo.combinedCurrentRevenue || 0).toLocaleString()}
+- Toplam Hedef: $${(focusProjectInfo.combinedProjectedRevenue || 0).toLocaleString()}
+- Büyüme Oranı: %${focusProjectInfo.combinedCurrentRevenue > 0 ? (((focusProjectInfo.combinedProjectedRevenue / focusProjectInfo.combinedCurrentRevenue) - 1) * 100).toFixed(1) : '∞'}
+
+📈 BÜYÜME PLANI (Kullanıcı Girişi):
+${focusProjectInfo.growthPlan || 'Belirtilmedi - AI en mantıklı büyüme stratejisini önersin'}
+
+💵 YATIRIM DAĞILIMI (Kullanıcı Tercihi):
+- Ürün Geliştirme: %${focusProjectInfo.investmentAllocation?.product || 40} ($${Math.round(dealConfig.investmentAmount * (focusProjectInfo.investmentAllocation?.product || 40) / 100).toLocaleString()})
+- Pazarlama: %${focusProjectInfo.investmentAllocation?.marketing || 30} ($${Math.round(dealConfig.investmentAmount * (focusProjectInfo.investmentAllocation?.marketing || 30) / 100).toLocaleString()})
+- Personel: %${focusProjectInfo.investmentAllocation?.hiring || 20} ($${Math.round(dealConfig.investmentAmount * (focusProjectInfo.investmentAllocation?.hiring || 20) / 100).toLocaleString()})
+- Operasyon: %${focusProjectInfo.investmentAllocation?.operations || 10} ($${Math.round(dealConfig.investmentAmount * (focusProjectInfo.investmentAllocation?.operations || 10) / 100).toLocaleString()})
+
+🔍 ANALİZ TALİMATI:
+1. Pitch deck'te bu proje(leri) ana büyüme motoru olarak sun
+2. Yatırım dağılımına göre "Use of Funds" slaytını oluştur (spesifik $ tutarları ile)
+3. Büyüme planını speaker notes'a dahil et
+4. Her slaytın key_message'ında proje ismi ve $ rakamı olsun
+5. Executive summary'de odak proje(leri) vurgula
+` : `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+⚠️ ODAK PROJE BELİRTİLMEDİ
+Kullanıcı odak proje seçmedi. Analiz yaparken:
+1. En yüksek büyüme potansiyeli olan gelir kalemini otomatik seç
+2. Senaryo A vs B arasındaki en büyük farkı yaratan kalemi belirle
+3. Bu kalemi ana büyüme hikayesi olarak kullan
+`}
+
+Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı verileri ve ODAK PROJE bilgisini) analiz et ve yukarıdaki 5 bölümün hepsini içeren yapılandırılmış çıktı üret.
 `;
 
     console.log("Calling Lovable AI with Pro model for unified analysis...");
