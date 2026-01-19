@@ -47,12 +47,15 @@ import {
   ExitPlan,
   UnifiedAnalysisResult,
   SECTOR_MULTIPLES,
-  GrowthConfiguration
+  GrowthConfiguration,
+  InvestmentScenarioComparison
 } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
-import { calculateCapitalNeeds, calculateExitPlan, projectFutureRevenue } from '@/hooks/finance/useInvestorAnalysis';
+import { calculateCapitalNeeds, calculateExitPlan, projectFutureRevenue, calculateInvestmentScenarioComparison } from '@/hooks/finance/useInvestorAnalysis';
 import { calculateInternalGrowthRate, getProjectionYears } from '@/utils/yearCalculations';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { InvestmentScenarioCard } from './InvestmentScenarioCard';
+import { FutureImpactChart } from './FutureImpactChart';
 
 interface InvestmentTabProps {
   scenarioA: SimulationScenario;
@@ -138,6 +141,31 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
     return summaryA.totalRevenue / capitalNeedA.requiredInvestment;
   }, [summaryA.totalRevenue, capitalNeedA.requiredInvestment]);
 
+  // Investment Scenario Comparison - Yatırım Al vs Alama
+  const scenarioComparison = useMemo<InvestmentScenarioComparison>(() => {
+    const baseRevenueA = scenarioA.revenues?.reduce((sum, r) => sum + (r.baseAmount || 0), 0) || 0;
+    const baseRevenueB = scenarioB.revenues?.reduce((sum, r) => sum + (r.baseAmount || 0), 0) || 0;
+    
+    return calculateInvestmentScenarioComparison(
+      {
+        totalRevenue: summaryA.totalRevenue,
+        totalExpenses: summaryA.totalExpenses,
+        netProfit: summaryA.netProfit,
+        profitMargin: summaryA.profitMargin,
+        baseRevenue: baseRevenueA,
+      },
+      {
+        totalRevenue: summaryB.totalRevenue,
+        totalExpenses: summaryB.totalExpenses,
+        netProfit: summaryB.netProfit,
+        profitMargin: summaryB.profitMargin,
+        baseRevenue: baseRevenueB,
+      },
+      exitPlan,
+      dealConfig.sectorMultiple
+    );
+  }, [summaryA, summaryB, exitPlan, dealConfig.sectorMultiple, scenarioA.revenues, scenarioB.revenues]);
+
   const chartConfig: ChartConfig = {
     scenarioA: { label: scenarioA.name, color: '#6b7280' },
     scenarioB: { label: `${scenarioB.name} (Yatırımsız)`, color: '#ef4444' },
@@ -211,6 +239,16 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* Investment Scenario Comparison - Yatırım Al vs Alama */}
+      <InvestmentScenarioCard 
+        comparison={scenarioComparison}
+        scenarioAName={scenarioA.name}
+        scenarioBName={scenarioB.name}
+      />
+
+      {/* 5 Year Future Impact Chart */}
+      <FutureImpactChart comparison={scenarioComparison} />
 
       {/* Capital Needs Comparison */}
       <div className="grid grid-cols-3 gap-4">

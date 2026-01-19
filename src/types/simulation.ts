@@ -314,6 +314,61 @@ export interface GrowthConfiguration {
   rawUserGrowthRate: number;      // Orijinal kullanıcı hedefi (cap öncesi)
 }
 
+// =====================================================
+// INVESTMENT SCENARIO COMPARISON TYPES (Yatırım Al vs Alama)
+// =====================================================
+
+/** Investment scenario comparison result - Yatırım alırsak vs alamazsak */
+export interface InvestmentScenarioComparison {
+  /** Pozitif senaryo (yatırım alırsak) - Senaryo A */
+  withInvestment: {
+    totalRevenue: number;
+    totalExpenses: number;
+    netProfit: number;
+    profitMargin: number;
+    exitValuation: number;
+    moic5Year: number;
+    growthRate: number;
+  };
+  
+  /** Negatif senaryo (yatırım alamazsak) - Senaryo B */
+  withoutInvestment: {
+    totalRevenue: number;
+    totalExpenses: number;
+    netProfit: number;
+    profitMargin: number;
+    organicGrowthRate: number;
+  };
+  
+  /** Fırsat maliyeti / zarar - Yatırım alamazsak kayıplar */
+  opportunityCost: {
+    revenueLoss: number;           // Gelir kaybı
+    profitLoss: number;            // Kâr kaybı
+    valuationLoss: number;         // Değerleme kaybı (5Y)
+    growthRateDiff: number;        // Büyüme oranı farkı
+    percentageLoss: number;        // Yüzdesel kayıp
+    riskLevel: 'low' | 'medium' | 'high' | 'critical';
+  };
+  
+  /** Gelecek yıllar etkisi - 5 yıllık projeksiyon farkı */
+  futureImpact: {
+    year1WithInvestment: number;
+    year1WithoutInvestment: number;
+    year3WithInvestment: number;
+    year3WithoutInvestment: number;
+    year5WithInvestment: number;
+    year5WithoutInvestment: number;
+    cumulativeDifference: number;  // Toplam değerleme farkı
+    yearlyProjections: Array<{
+      year: number;
+      yearLabel: string;
+      withInvestment: number;
+      withoutInvestment: number;
+      difference: number;
+    }>;
+  };
+}
+
 /** Sector-based normalized growth rates */
 export const SECTOR_NORMALIZED_GROWTH: Record<string, number> = {
   'saas': 0.30,      // %30
