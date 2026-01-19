@@ -44,3 +44,6 @@ verify_jwt = false
 
 [functions.unified-scenario-analysis]
 verify_jwt = false
+
+[functions.analyze-growth-scenario]
+verify_jwt = false
