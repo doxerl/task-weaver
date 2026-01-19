@@ -154,6 +154,7 @@ function GrowthSimulationContent() {
           changePercent: r.baseAmount > 0 
             ? ((r.projectedAmount - r.baseAmount) / r.baseAmount) * 100 
             : 0,
+          quarterly: r.projectedQuarterly,
         })),
         expenses: expenses.map(e => ({
           id: e.id,
@@ -163,8 +164,10 @@ function GrowthSimulationContent() {
           changePercent: e.baseAmount > 0 
             ? ((e.projectedAmount - e.baseAmount) / e.baseAmount) * 100 
             : 0,
+          quarterly: e.projectedQuarterly,
         })),
         exchangeRate: assumedExchangeRate,
+        chartsElement: chartsContainerRef.current,
       };
       
       const success = await generateSimulationPdfData(pdfData);
