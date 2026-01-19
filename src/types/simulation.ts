@@ -660,3 +660,77 @@ export interface ProfessionalAnalysisData {
   sensitivityAnalysis: EnhancedSensitivityAnalysis | null;
   breakEvenAnalysis: BreakEvenResult | null;
 }
+
+// =====================================================
+// FOCUS PROJECT & EDITABLE PROJECTION TYPES
+// =====================================================
+
+/** Investment allocation breakdown */
+export interface InvestmentAllocation {
+  product: number;      // Product development %
+  marketing: number;    // Marketing %
+  hiring: number;       // Personnel %
+  operations: number;   // Operational expenses %
+}
+
+/** Focus project info for AI analysis */
+export interface FocusProjectInfo {
+  projectName: string;
+  currentRevenue: number;
+  projectedRevenue: number;
+  description?: string;
+  growthPlan: string;
+  investmentAllocation: InvestmentAllocation;
+}
+
+/** Editable projection item for next year */
+export interface EditableProjectionItem {
+  category: string;
+  q1: number;
+  q2: number;
+  q3: number;
+  q4: number;
+  total: number;
+  aiGenerated: boolean;
+  userEdited: boolean;
+}
+
+/** Editable projection state */
+export interface EditableProjection {
+  revenues: EditableProjectionItem[];
+  expenses: EditableProjectionItem[];
+  aiOriginal: boolean;
+  lastEditedAt?: Date;
+}
+
+/** Quarterly itemized projection from AI */
+export interface QuarterlyItemizedProjection {
+  revenues: Record<string, number>;
+  expenses: Record<string, number>;
+  total_revenue: number;
+  total_expense: number;
+  net_cash_flow: number;
+  key_milestone: string;
+}
+
+/** Focus project analysis from AI */
+export interface FocusProjectAnalysis {
+  project_name: string;
+  current_revenue: number;
+  projected_revenue: number;
+  growth_percentage: number;
+  key_actions: string[];
+  investment_usage: Record<string, string>;
+  risks?: string[];
+}
+
+/** Enhanced next year projection with itemized data */
+export interface EnhancedNextYearProjection extends NextYearProjection {
+  quarterly_itemized?: {
+    q1: QuarterlyItemizedProjection;
+    q2: QuarterlyItemizedProjection;
+    q3: QuarterlyItemizedProjection;
+    q4: QuarterlyItemizedProjection;
+  };
+  focus_project_analysis?: FocusProjectAnalysis;
+}
