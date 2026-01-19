@@ -404,6 +404,8 @@ function GrowthSimulationContent() {
               onUpdate={updateRevenue}
               onRemove={removeRevenue}
               type="revenue"
+              baseYear={targetYear - 1}
+              targetYear={targetYear}
             />
           </div>
 
@@ -419,6 +421,8 @@ function GrowthSimulationContent() {
               onUpdate={updateExpense}
               onRemove={removeExpense}
               type="expense"
+              baseYear={targetYear - 1}
+              targetYear={targetYear}
             />
           </div>
         </div>
