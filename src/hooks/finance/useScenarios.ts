@@ -274,13 +274,49 @@ export function useScenarios() {
       totalAIExpenses = Math.round(currentTotalExpenses * 1.35);
     }
 
+    // AI quarterly verisinden çeyreklik oranları hesapla
+    const aiQuarterly = aiProjection.quarterly;
+    const aiQuarterlyRevenueTotal = aiQuarterly.q1.revenue + aiQuarterly.q2.revenue + aiQuarterly.q3.revenue + aiQuarterly.q4.revenue;
+    const aiQuarterlyExpenseTotal = aiQuarterly.q1.expenses + aiQuarterly.q2.expenses + aiQuarterly.q3.expenses + aiQuarterly.q4.expenses;
+
+    // Gelir için çeyreklik oranlar
+    const revenueQuarterlyRatios = aiQuarterlyRevenueTotal > 0 ? {
+      q1: aiQuarterly.q1.revenue / aiQuarterlyRevenueTotal,
+      q2: aiQuarterly.q2.revenue / aiQuarterlyRevenueTotal,
+      q3: aiQuarterly.q3.revenue / aiQuarterlyRevenueTotal,
+      q4: aiQuarterly.q4.revenue / aiQuarterlyRevenueTotal,
+    } : { q1: 0.25, q2: 0.25, q3: 0.25, q4: 0.25 };
+
+    // Gider için çeyreklik oranlar
+    const expenseQuarterlyRatios = aiQuarterlyExpenseTotal > 0 ? {
+      q1: aiQuarterly.q1.expenses / aiQuarterlyExpenseTotal,
+      q2: aiQuarterly.q2.expenses / aiQuarterlyExpenseTotal,
+      q3: aiQuarterly.q3.expenses / aiQuarterlyExpenseTotal,
+      q4: aiQuarterly.q4.expenses / aiQuarterlyExpenseTotal,
+    } : { q1: 0.25, q2: 0.25, q3: 0.25, q4: 0.25 };
+
     const newRevenues = currentScenario.revenues.map(r => {
       const ratio = currentTotalRevenue > 0 ? r.projectedAmount / currentTotalRevenue : 1 / currentScenario.revenues.length;
+      const itemProjectedAmount = Math.round(totalAIRevenue * ratio);
+      
+      // Çeyreklik dağılım: AI oranlarını kullan
+      const projectedQuarterly = {
+        q1: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q1),
+        q2: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q2),
+        q3: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q3),
+        q4: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q4),
+      };
+      
+      // Yuvarlama farklarını Q4'e ekle
+      const quarterlySum = projectedQuarterly.q1 + projectedQuarterly.q2 + projectedQuarterly.q3 + projectedQuarterly.q4;
+      projectedQuarterly.q4 += itemProjectedAmount - quarterlySum;
+
       return {
         id: generateId(),
         category: r.category,
         baseAmount: r.projectedAmount,
-        projectedAmount: Math.round(totalAIRevenue * ratio),
+        projectedAmount: itemProjectedAmount,
+        projectedQuarterly,
         description: r.description,
         isNew: false,
         startMonth: r.startMonth,
@@ -289,11 +325,26 @@ export function useScenarios() {
 
     const newExpenses = currentScenario.expenses.map(e => {
       const ratio = currentTotalExpenses > 0 ? e.projectedAmount / currentTotalExpenses : 1 / currentScenario.expenses.length;
+      const itemProjectedAmount = Math.round(totalAIExpenses * ratio);
+      
+      // Çeyreklik dağılım: AI oranlarını kullan
+      const projectedQuarterly = {
+        q1: Math.round(itemProjectedAmount * expenseQuarterlyRatios.q1),
+        q2: Math.round(itemProjectedAmount * expenseQuarterlyRatios.q2),
+        q3: Math.round(itemProjectedAmount * expenseQuarterlyRatios.q3),
+        q4: Math.round(itemProjectedAmount * expenseQuarterlyRatios.q4),
+      };
+      
+      // Yuvarlama farklarını Q4'e ekle
+      const quarterlySum = projectedQuarterly.q1 + projectedQuarterly.q2 + projectedQuarterly.q3 + projectedQuarterly.q4;
+      projectedQuarterly.q4 += itemProjectedAmount - quarterlySum;
+
       return {
         id: generateId(),
         category: e.category,
         baseAmount: e.projectedAmount,
-        projectedAmount: Math.round(totalAIExpenses * ratio),
+        projectedAmount: itemProjectedAmount,
+        projectedQuarterly,
         description: e.description,
         isNew: false,
         startMonth: e.startMonth,
