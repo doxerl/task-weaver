@@ -86,7 +86,7 @@ export const InvestmentScenarioCard: React.FC<InvestmentScenarioCardProps> = ({
               <div className="flex justify-between items-center">
                 <span className="text-xs text-muted-foreground">Kâr Marjı:</span>
                 <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                  %{(withInvestment.profitMargin * 100).toFixed(1)}
+                  %{withInvestment.profitMargin.toFixed(1)}
                 </span>
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-emerald-500/20">
@@ -131,7 +131,7 @@ export const InvestmentScenarioCard: React.FC<InvestmentScenarioCardProps> = ({
               <div className="flex justify-between items-center">
                 <span className="text-xs text-muted-foreground">Kâr Marjı:</span>
                 <span className="font-mono font-bold text-red-600 dark:text-red-400">
-                  %{(withoutInvestment.profitMargin * 100).toFixed(1)}
+                  %{withoutInvestment.profitMargin.toFixed(1)}
                 </span>
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-red-500/20">
