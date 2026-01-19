@@ -1,28 +1,18 @@
-import React, { useMemo, useState } from 'react';
+import React, { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
   DollarSign,
   TrendingUp,
   AlertTriangle,
-  Target,
   PiggyBank,
-  Loader2,
-  Brain,
   Rocket,
-  Building2,
   CheckCircle2,
-  ArrowRight,
-  Percent,
-  RefreshCw,
-  Presentation,
-  Sparkles,
+  Target,
 } from 'lucide-react';
 import {
   ChartConfig,
@@ -43,16 +33,12 @@ import {
 import { 
   SimulationScenario, 
   DealConfiguration, 
-  CapitalRequirement,
-  ExitPlan,
-  UnifiedAnalysisResult,
   SECTOR_MULTIPLES,
-  GrowthConfiguration,
   InvestmentScenarioComparison
 } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
-import { calculateCapitalNeeds, calculateExitPlan, projectFutureRevenue, calculateInvestmentScenarioComparison } from '@/hooks/finance/useInvestorAnalysis';
-import { calculateInternalGrowthRate, getProjectionYears } from '@/utils/yearCalculations';
+import { calculateCapitalNeeds, calculateExitPlan, calculateInvestmentScenarioComparison } from '@/hooks/finance/useInvestorAnalysis';
+import { calculateInternalGrowthRate } from '@/utils/yearCalculations';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { InvestmentScenarioCard } from './InvestmentScenarioCard';
 import { FutureImpactChart } from './FutureImpactChart';
@@ -66,12 +52,6 @@ interface InvestmentTabProps {
   quarterlyB: { q1: number; q2: number; q3: number; q4: number };
   dealConfig: DealConfiguration;
   onDealConfigChange: (updates: Partial<DealConfiguration>) => void;
-  // Unified Analysis Props
-  unifiedAnalysis: UnifiedAnalysisResult | null;
-  isLoading: boolean;
-  onUnifiedAnalyze: () => void;
-  onCreateNextYear: () => void;
-  onShowPitchDeck: () => void;
 }
 
 export const InvestmentTab: React.FC<InvestmentTabProps> = ({
@@ -83,11 +63,6 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
   quarterlyB,
   dealConfig,
   onDealConfigChange,
-  unifiedAnalysis,
-  isLoading,
-  onUnifiedAnalyze,
-  onCreateNextYear,
-  onShowPitchDeck,
 }) => {
   // Calculate capital needs for both scenarios
   const capitalNeedA = useMemo(() => calculateCapitalNeeds(quarterlyA), [quarterlyA]);
@@ -535,196 +510,6 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
         </Card>
       )}
 
-      {/* AI Analysis Button & Results */}
-      <Card className="bg-gradient-to-r from-purple-500/5 to-blue-500/5 border-purple-500/20">
-        <CardHeader className="pb-2">
-          <div className="flex items-center justify-between">
-            <CardTitle className="text-sm flex items-center gap-2">
-              <Brain className="h-4 w-4 text-purple-400" />
-              🧠 Kapsamlı AI Analizi (Gemini Pro 3)
-            </CardTitle>
-            <Button 
-              onClick={onUnifiedAnalyze} 
-              disabled={isLoading}
-              size="sm"
-              className={unifiedAnalysis 
-                ? "bg-muted hover:bg-muted/80 text-foreground" 
-                : "bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
-              }
-            >
-              {isLoading ? (
-                <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Gemini Pro ile Analiz Ediliyor...
-                </>
-              ) : unifiedAnalysis ? (
-                <>
-                  <RefreshCw className="h-4 w-4 mr-2" />
-                  Yeniden Analiz Et
-                </>
-              ) : (
-                <>
-                  <Sparkles className="h-4 w-4 mr-2" />
-                  Yatırımcı Sunumu Oluştur
-                </>
-              )}
-            </Button>
-          </div>
-        </CardHeader>
-        <CardContent>
-          {isLoading ? (
-            <div className="space-y-3">
-              <Skeleton className="h-20 w-full" />
-              <Skeleton className="h-16 w-full" />
-              <Skeleton className="h-24 w-full" />
-            </div>
-          ) : unifiedAnalysis ? (
-            <div className="space-y-4">
-              {/* Deal Score & Verdict */}
-              <div className="p-4 rounded-lg bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20">
-                <div className="flex items-center justify-between mb-2">
-                  <h4 className="text-sm font-semibold flex items-center gap-2">
-                    <Target className="h-4 w-4 text-purple-400" />
-                    Deal Değerlendirmesi
-                  </h4>
-                  <div className="flex items-center gap-2">
-                    <Badge className={`text-lg px-3 py-1 ${
-                      unifiedAnalysis.deal_analysis.deal_score >= 7 ? 'bg-emerald-600' :
-                      unifiedAnalysis.deal_analysis.deal_score >= 5 ? 'bg-amber-600' : 'bg-red-600'
-                    }`}>
-                      {unifiedAnalysis.deal_analysis.deal_score}/10
-                    </Badge>
-                    <Badge variant="outline" className={`${
-                      unifiedAnalysis.deal_analysis.valuation_verdict === 'cheap' ? 'border-emerald-500 text-emerald-400' :
-                      unifiedAnalysis.deal_analysis.valuation_verdict === 'premium' ? 'border-red-500 text-red-400' :
-                      'border-amber-500 text-amber-400'
-                    }`}>
-                      {unifiedAnalysis.deal_analysis.valuation_verdict === 'cheap' ? '💎 Ucuz' :
-                       unifiedAnalysis.deal_analysis.valuation_verdict === 'premium' ? '💰 Pahalı' : '⚖️ Adil'}
-                    </Badge>
-                  </div>
-                </div>
-                <p className="text-sm text-muted-foreground">{unifiedAnalysis.deal_analysis.investor_attractiveness}</p>
-              </div>
-
-              {/* Insights */}
-              <div className="space-y-2">
-                <h4 className="text-xs font-semibold text-muted-foreground">Finansal İçgörüler</h4>
-                {unifiedAnalysis.insights.slice(0, 3).map((insight, i) => (
-                  <div key={i} className="p-3 rounded-lg bg-muted/50">
-                    <h5 className="text-sm font-medium">{insight.title}</h5>
-                    <p className="text-xs text-muted-foreground mt-1">{insight.description}</p>
-                  </div>
-                ))}
-              </div>
-
-              {/* Recommendations */}
-              {unifiedAnalysis.recommendations.length > 0 && (
-                <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                  <h4 className="text-xs font-semibold flex items-center gap-1 mb-2 text-emerald-400">
-                    <CheckCircle2 className="h-3 w-3" />
-                    Öneriler
-                  </h4>
-                  <ul className="text-xs text-emerald-300 space-y-1">
-                    {unifiedAnalysis.recommendations.slice(0, 3).map((rec, i) => (
-                      <li key={i} className="flex items-start gap-1">
-                        <ArrowRight className="h-3 w-3 mt-0.5 shrink-0" />
-                        {rec.title}: {rec.description}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Risk Factors */}
-              {unifiedAnalysis.deal_analysis.risk_factors.length > 0 && (
-                <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                  <h4 className="text-xs font-semibold flex items-center gap-1 mb-2 text-amber-400">
-                    <AlertTriangle className="h-3 w-3" />
-                    Risk Faktörleri
-                  </h4>
-                  <ul className="text-xs text-amber-300 space-y-1">
-                    {unifiedAnalysis.deal_analysis.risk_factors.map((risk, i) => (
-                      <li key={i} className="flex items-start gap-1">
-                        <ArrowRight className="h-3 w-3 mt-0.5 shrink-0" />
-                        {risk}
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              )}
-
-              {/* Action Buttons */}
-              <div className="grid grid-cols-2 gap-3 pt-2">
-                {/* Pitch Deck Button */}
-                <Card className="border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10 transition-colors cursor-pointer" onClick={onShowPitchDeck}>
-                  <CardContent className="p-4 flex items-center gap-3">
-                    <Presentation className="h-8 w-8 text-purple-400" />
-                    <div>
-                      <h4 className="font-medium text-sm">Pitch Deck</h4>
-                      <p className="text-xs text-muted-foreground">5 slaytlık yatırımcı sunumu</p>
-                    </div>
-                  </CardContent>
-                </Card>
-
-                {/* Next Year Button */}
-                {unifiedAnalysis.next_year_projection && (
-                  <Card className="border-emerald-500/30 bg-emerald-500/5 hover:bg-emerald-500/10 transition-colors cursor-pointer" onClick={onCreateNextYear}>
-                    <CardContent className="p-4 flex items-center gap-3">
-                      <Rocket className="h-8 w-8 text-emerald-400" />
-                      <div>
-                        <h4 className="font-medium text-sm">{scenarioB.targetYear + 1}'e Geç</h4>
-                        <p className="text-xs text-muted-foreground">AI projeksiyonuyla yeni yıl</p>
-                      </div>
-                    </CardContent>
-                  </Card>
-                )}
-              </div>
-
-              {/* Next Year Projection Summary */}
-              {unifiedAnalysis.next_year_projection && (
-                <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
-                  <h4 className="text-xs font-semibold flex items-center gap-1 mb-1 text-blue-400">
-                    <TrendingUp className="h-3 w-3" />
-                    {scenarioB.targetYear + 1} Yılı AI Projeksiyonu
-                  </h4>
-                  <p className="text-sm text-blue-300">{unifiedAnalysis.next_year_projection.strategy_note}</p>
-                  <div className="grid grid-cols-3 gap-2 mt-2 text-center">
-                    <div>
-                      <div className="text-sm font-bold text-blue-400">
-                        {formatCompactUSD(unifiedAnalysis.next_year_projection.summary.total_revenue)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Gelir</div>
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-blue-400">
-                        {formatCompactUSD(unifiedAnalysis.next_year_projection.summary.total_expenses)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Gider</div>
-                    </div>
-                    <div>
-                      <div className="text-sm font-bold text-emerald-400">
-                        {formatCompactUSD(unifiedAnalysis.next_year_projection.summary.net_profit)}
-                      </div>
-                      <div className="text-xs text-muted-foreground">Net Kâr</div>
-                    </div>
-                  </div>
-                </div>
-              )}
-            </div>
-          ) : (
-            <div className="text-center py-6">
-              <Brain className="h-12 w-12 mx-auto mb-3 text-purple-400/30" />
-              <p className="text-sm text-muted-foreground">
-                Yukarıdaki yatırım ayarlarını yapın ve <strong>Yatırımcı Sunumu Oluştur</strong> butonuna tıklayın.
-              </p>
-              <p className="text-xs text-muted-foreground mt-2">
-                🤖 Gemini Pro 3 ile derin analiz, pitch deck ve gelecek yıl projeksiyonu oluşturulacak.
-              </p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 };

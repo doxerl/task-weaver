@@ -85,6 +85,8 @@ import { SensitivityTable } from '@/components/simulation/SensitivityTable';
 import { FinancialRatiosPanel } from '@/components/simulation/FinancialRatiosPanel';
 import { ItemTrendCards } from '@/components/simulation/ItemTrendCards';
 import { ScenarioComparisonCards } from '@/components/simulation/ScenarioComparisonCards';
+import { AIAnalysisSummaryCard } from '@/components/simulation/AIAnalysisSummaryCard';
+import { AIAnalysisDetails } from '@/components/simulation/AIAnalysisDetails';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { useExchangeRates } from '@/hooks/finance/useExchangeRates';
 import { getProjectionYears, calculateInternalGrowthRate } from '@/utils/yearCalculations';
@@ -1228,6 +1230,31 @@ function ScenarioComparisonContent() {
           </div>
         ) : (
           <div className="space-y-6">
+            {/* AI ANALYSIS SUMMARY - EN ÜSTTE */}
+            {unifiedCacheLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">Önceki analiz yükleniyor...</span>
+              </div>
+            ) : (
+              <>
+                {/* Data changed warning */}
+                {unifiedDataChanged && unifiedCachedInfo && (
+                  <DataChangedWarning onReanalyze={handleUnifiedAnalysis} isLoading={unifiedLoading} />
+                )}
+                
+                <AIAnalysisSummaryCard
+                  unifiedAnalysis={unifiedAnalysis}
+                  isLoading={unifiedLoading}
+                  onAnalyze={handleUnifiedAnalysis}
+                  onShowPitchDeck={() => setShowPitchDeck(true)}
+                  onCreateNextYear={handleCreateNextYear}
+                  targetYear={scenarioB?.targetYear}
+                  cachedAt={unifiedCachedInfo?.updatedAt || null}
+                />
+              </>
+            )}
+
             {/* SECTION 1: SUMMARY CARDS */}
             <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
               {metrics.map((m) => {
@@ -1346,48 +1373,31 @@ function ScenarioComparisonContent() {
               </div>
             )}
 
-            {/* SECTION 3: INVESTMENT & AI (formerly in tab) */}
-            {unifiedCacheLoading ? (
-              <div className="flex items-center justify-center py-8">
-                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <span className="ml-2 text-muted-foreground">Önceki analiz yükleniyor...</span>
-              </div>
-            ) : (
-              <>
-                {/* Data changed warning */}
-                {unifiedDataChanged && unifiedCachedInfo && (
-                  <DataChangedWarning onReanalyze={handleUnifiedAnalysis} isLoading={unifiedLoading} />
-                )}
-                
-                {unifiedCachedInfo && (
-                  <div className="mb-4">
-                    <CacheInfoBadge cachedInfo={unifiedCachedInfo} />
-                  </div>
-                )}
-                
-                {/* Analysis history */}
-                <AnalysisHistoryPanel 
-                  history={unifiedAnalysisHistory}
-                  isLoading={unifiedHistoryLoading}
-                  onSelectHistory={handleSelectUnifiedHistory}
-                  analysisType="scenario_comparison"
-                />
-                
-                <InvestmentTab
-                  scenarioA={scenarioA}
-                  scenarioB={scenarioB}
-                  summaryA={{ totalRevenue: summaryA!.totalRevenue, totalExpenses: summaryA!.totalExpense, netProfit: summaryA!.netProfit, profitMargin: summaryA!.profitMargin }}
-                  summaryB={{ totalRevenue: summaryB!.totalRevenue, totalExpenses: summaryB!.totalExpense, netProfit: summaryB!.netProfit, profitMargin: summaryB!.profitMargin }}
-                  quarterlyA={{ q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 }}
-                  quarterlyB={{ q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 }}
-                  dealConfig={dealConfig}
-                  onDealConfigChange={updateDealConfig}
-                  unifiedAnalysis={unifiedAnalysis}
-                  isLoading={unifiedLoading}
-                  onUnifiedAnalyze={handleUnifiedAnalysis}
-                  onCreateNextYear={handleCreateNextYear}
-                  onShowPitchDeck={() => setShowPitchDeck(true)}
-                />
+            {/* SECTION 3: INVESTMENT TAB + AI DETAILS */}
+            {/* Analysis history */}
+            <AnalysisHistoryPanel 
+              history={unifiedAnalysisHistory}
+              isLoading={unifiedHistoryLoading}
+              onSelectHistory={handleSelectUnifiedHistory}
+              analysisType="scenario_comparison"
+            />
+            
+            <InvestmentTab
+              scenarioA={scenarioA}
+              scenarioB={scenarioB}
+              summaryA={{ totalRevenue: summaryA!.totalRevenue, totalExpenses: summaryA!.totalExpense, netProfit: summaryA!.netProfit, profitMargin: summaryA!.profitMargin }}
+              summaryB={{ totalRevenue: summaryB!.totalRevenue, totalExpenses: summaryB!.totalExpense, netProfit: summaryB!.netProfit, profitMargin: summaryB!.profitMargin }}
+              quarterlyA={{ q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 }}
+              quarterlyB={{ q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 }}
+              dealConfig={dealConfig}
+              onDealConfigChange={updateDealConfig}
+            />
+            
+            {/* AI Analysis Details - Collapsible */}
+            <AIAnalysisDetails
+              unifiedAnalysis={unifiedAnalysis}
+              targetYear={scenarioB?.targetYear}
+            />
                 
                 {/* Focus Project Selector - Yatırım Odak Projesi (çoklu seçim) */}
                 {scenarioA && (
@@ -1548,8 +1558,6 @@ function ScenarioComparisonContent() {
                     </CardContent>
                   </Card>
                 )}
-              </>
-            )}
           </div>
         )}
       </main>
