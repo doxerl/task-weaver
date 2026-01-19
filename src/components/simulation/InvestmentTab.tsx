@@ -50,6 +50,7 @@ import {
 } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
 import { calculateCapitalNeeds, calculateExitPlan, projectFutureRevenue } from '@/hooks/finance/useInvestorAnalysis';
+import { calculateInternalGrowthRate, getProjectionYears } from '@/utils/yearCalculations';
 
 interface InvestmentTabProps {
   scenarioA: SimulationScenario;
@@ -87,17 +88,18 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
   const capitalNeedA = useMemo(() => calculateCapitalNeeds(quarterlyA), [quarterlyA]);
   const capitalNeedB = useMemo(() => calculateCapitalNeeds(quarterlyB), [quarterlyB]);
 
-  // Calculate growth rate
+  // Calculate growth rate - POZİTİF senaryonun iç büyümesi (base → projected)
   const growthRate = useMemo(() => {
-    return summaryA.totalRevenue > 0 
-      ? (summaryB.totalRevenue - summaryA.totalRevenue) / summaryA.totalRevenue 
-      : 0.3;
-  }, [summaryA.totalRevenue, summaryB.totalRevenue]);
+    const baseRevenue = scenarioA.revenues?.reduce(
+      (sum, r) => sum + (r.baseAmount || 0), 0
+    ) || 0;
+    return calculateInternalGrowthRate(baseRevenue, summaryA.totalRevenue, 0.10);
+  }, [scenarioA.revenues, summaryA.totalRevenue]);
 
-  // Calculate exit plan
+  // Calculate exit plan - POZİTİF SENARYO (A) verileriyle
   const exitPlan = useMemo(() => {
-    return calculateExitPlan(dealConfig, summaryB.totalRevenue, summaryB.totalExpenses, growthRate);
-  }, [dealConfig, summaryB.totalRevenue, summaryB.totalExpenses, growthRate]);
+    return calculateExitPlan(dealConfig, summaryA.totalRevenue, summaryA.totalExpenses, growthRate);
+  }, [dealConfig, summaryA.totalRevenue, summaryA.totalExpenses, growthRate]);
 
   // Calculate runway data for chart
   const runwayData = useMemo(() => {
@@ -123,16 +125,16 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
     });
   }, [quarterlyA, quarterlyB, dealConfig.investmentAmount]);
 
-  // Opportunity cost calculation
+  // Opportunity cost calculation - Pozitif vs Negatif fark
   const opportunityCost = useMemo(() => {
-    return summaryB.totalRevenue - summaryA.totalRevenue;
+    return summaryA.totalRevenue - summaryB.totalRevenue;
   }, [summaryA.totalRevenue, summaryB.totalRevenue]);
 
-  // Capital efficiency calculation
+  // Capital efficiency calculation - POZİTİF senaryo bazlı
   const capitalEfficiency = useMemo(() => {
-    if (capitalNeedB.requiredInvestment <= 0) return Infinity;
-    return summaryB.totalRevenue / capitalNeedB.requiredInvestment;
-  }, [summaryB.totalRevenue, capitalNeedB.requiredInvestment]);
+    if (capitalNeedA.requiredInvestment <= 0) return Infinity;
+    return summaryA.totalRevenue / capitalNeedA.requiredInvestment;
+  }, [summaryA.totalRevenue, capitalNeedA.requiredInvestment]);
 
   const chartConfig: ChartConfig = {
     scenarioA: { label: scenarioA.name, color: '#6b7280' },
