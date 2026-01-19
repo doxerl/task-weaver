@@ -1817,6 +1817,258 @@ function ScenarioComparisonContent() {
             </div>
           </div>
 
+          {/* SAYFA 3.5: PROFESYONEl ANALİZ METRİKLERİ */}
+          {financialRatios && sensitivityAnalysis && (
+            <div className="page-break-after" style={{ 
+              width: '1200px', 
+              height: '848px', 
+              padding: '40px',
+              boxSizing: 'border-box',
+              background: 'white'
+            }}>
+              <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '3px solid #3b82f6', paddingBottom: '12px', color: '#1e3a8a' }}>
+                Profesyonel Analiz Metrikleri
+              </h2>
+              
+              {/* Finansal Oranlar Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '32px' }}>
+                {/* Likidite */}
+                <div style={{ padding: '20px', background: '#f0f9ff', borderRadius: '12px', border: '1px solid #bae6fd' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#0369a1', marginBottom: '16px' }}>Likidite Oranları</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>Cari Oran</span>
+                      <span style={{ fontSize: '14px', fontWeight: '600' }}>{financialRatios.liquidity.currentRatio.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>Asit-Test Oranı</span>
+                      <span style={{ fontSize: '14px', fontWeight: '600' }}>{financialRatios.liquidity.quickRatio.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>Nakit Oranı</span>
+                      <span style={{ fontSize: '14px', fontWeight: '600' }}>{financialRatios.liquidity.cashRatio.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid #bae6fd', paddingTop: '8px', marginTop: '4px' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>İşletme Sermayesi</span>
+                      <span style={{ fontSize: '14px', fontWeight: '600' }}>{formatCompactUSD(financialRatios.liquidity.workingCapital)}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Kaldıraç */}
+                <div style={{ padding: '20px', background: '#fef3c7', borderRadius: '12px', border: '1px solid #fcd34d' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#92400e', marginBottom: '16px' }}>Kaldıraç Oranları</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>Borç/Özkaynak</span>
+                      <span style={{ fontSize: '14px', fontWeight: '600' }}>{financialRatios.leverage.debtToEquity.toFixed(2)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>Borç/Varlık</span>
+                      <span style={{ fontSize: '14px', fontWeight: '600' }}>%{(financialRatios.leverage.debtToAssets * 100).toFixed(0)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>Alacak/Varlık</span>
+                      <span style={{ fontSize: '14px', fontWeight: '600' }}>%{(financialRatios.leverage.receivablesRatio * 100).toFixed(0)}</span>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Karlılık */}
+                <div style={{ padding: '20px', background: '#f0fdf4', borderRadius: '12px', border: '1px solid #86efac' }}>
+                  <h3 style={{ fontSize: '14px', fontWeight: '600', color: '#166534', marginBottom: '16px' }}>Karlılık Oranları</h3>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>ROA</span>
+                      <span style={{ fontSize: '14px', fontWeight: '600' }}>%{financialRatios.profitability.returnOnAssets.toFixed(1)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>ROE</span>
+                      <span style={{ fontSize: '14px', fontWeight: '600' }}>%{financialRatios.profitability.returnOnEquity.toFixed(1)}</span>
+                    </div>
+                    <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                      <span style={{ fontSize: '12px', color: '#64748b' }}>Net Marj</span>
+                      <span style={{ fontSize: '14px', fontWeight: '600' }}>%{financialRatios.profitability.netMargin.toFixed(1)}</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Duyarlılık Analizi Tablosu */}
+              <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>Gelir Duyarlılık Analizi</h3>
+              <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '12px' }}>
+                <thead>
+                  <tr style={{ background: '#f1f5f9' }}>
+                    <th style={{ padding: '12px', textAlign: 'left', borderBottom: '2px solid #e2e8f0', fontWeight: '600' }}>Değişim</th>
+                    <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e2e8f0', fontWeight: '600' }}>Gelir</th>
+                    <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e2e8f0', fontWeight: '600' }}>Kâr</th>
+                    <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e2e8f0', fontWeight: '600' }}>Marj</th>
+                    <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e2e8f0', fontWeight: '600' }}>MOIC</th>
+                    <th style={{ padding: '12px', textAlign: 'right', borderBottom: '2px solid #e2e8f0', fontWeight: '600' }}>Runway</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {sensitivityAnalysis.revenueImpact.map((row, i) => (
+                    <tr key={i} style={{ background: row.change === 0 ? '#fef3c7' : 'white' }}>
+                      <td style={{ padding: '10px', borderBottom: '1px solid #e2e8f0', fontWeight: row.change === 0 ? '600' : '400' }}>
+                        {row.change >= 0 ? '+' : ''}{row.change}%
+                      </td>
+                      <td style={{ padding: '10px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>
+                        {formatCompactUSD(row.revenue)}
+                      </td>
+                      <td style={{ padding: '10px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', color: row.profit >= 0 ? '#16a34a' : '#dc2626', fontWeight: '500' }}>
+                        {formatCompactUSD(row.profit)}
+                      </td>
+                      <td style={{ padding: '10px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>
+                        %{row.margin.toFixed(1)}
+                      </td>
+                      <td style={{ padding: '10px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>
+                        {row.moic.toFixed(1)}x
+                      </td>
+                      <td style={{ padding: '10px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>
+                        {row.runway < 999 ? `${row.runway} ay` : '∞'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+
+          {/* SAYFA 3.75: GELİR/GİDER KALEMLERİ KARŞILAŞTIRMASI */}
+          {quarterlyItemized && scenarioA && scenarioB && (
+            <div className="page-break-after" style={{ 
+              width: '1200px', 
+              height: '848px', 
+              padding: '40px',
+              boxSizing: 'border-box',
+              background: 'white'
+            }}>
+              <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '3px solid #3b82f6', paddingBottom: '12px', color: '#1e3a8a' }}>
+                Gelir & Gider Kalemleri Karşılaştırması
+              </h2>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+                {/* Gelir Kalemleri Tablosu */}
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px', color: '#166534', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ background: '#16a34a', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>GELİR</span>
+                    Top 5 Gelir Kalemi
+                  </h3>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                    <thead>
+                      <tr style={{ background: '#f0fdf4' }}>
+                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #86efac', fontWeight: '600' }}>Kalem</th>
+                        <th style={{ padding: '10px', textAlign: 'right', borderBottom: '2px solid #86efac', fontWeight: '600' }}>{scenarioA?.name || 'Senaryo A'}</th>
+                        <th style={{ padding: '10px', textAlign: 'right', borderBottom: '2px solid #86efac', fontWeight: '600' }}>{scenarioB?.name || 'Senaryo B'}</th>
+                        <th style={{ padding: '10px', textAlign: 'right', borderBottom: '2px solid #86efac', fontWeight: '600' }}>Fark</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {quarterlyItemized.scenarioA.revenues.slice(0, 5).map((r, i) => {
+                        const bItem = quarterlyItemized.scenarioB.revenues.find(br => br.category === r.category);
+                        const diff = bItem ? ((bItem.total - r.total) / Math.max(r.total, 1)) * 100 : 0;
+                        return (
+                          <tr key={i}>
+                            <td style={{ padding: '8px', borderBottom: '1px solid #e2e8f0', fontWeight: '500' }}>{r.category}</td>
+                            <td style={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>{formatCompactUSD(r.total)}</td>
+                            <td style={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>{formatCompactUSD(bItem?.total || 0)}</td>
+                            <td style={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', color: diff >= 0 ? '#16a34a' : '#dc2626', fontWeight: '500' }}>
+                              {diff >= 0 ? '+' : ''}{diff.toFixed(0)}%
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  
+                  {/* Gelir Özeti */}
+                  <div style={{ marginTop: '16px', padding: '12px', background: '#f0fdf4', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                      <span style={{ fontWeight: '600', color: '#166534' }}>Toplam Gelir</span>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ color: '#2563eb' }}>{formatCompactUSD(summaryA?.totalRevenue || 0)}</span>
+                        <span style={{ margin: '0 8px', color: '#9ca3af' }}>→</span>
+                        <span style={{ color: '#16a34a' }}>{formatCompactUSD(summaryB?.totalRevenue || 0)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+                
+                {/* Gider Kalemleri Tablosu */}
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ background: '#dc2626', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>GİDER</span>
+                    Top 5 Gider Kalemi
+                  </h3>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                    <thead>
+                      <tr style={{ background: '#fef2f2' }}>
+                        <th style={{ padding: '10px', textAlign: 'left', borderBottom: '2px solid #fecaca', fontWeight: '600' }}>Kalem</th>
+                        <th style={{ padding: '10px', textAlign: 'right', borderBottom: '2px solid #fecaca', fontWeight: '600' }}>{scenarioA?.name || 'Senaryo A'}</th>
+                        <th style={{ padding: '10px', textAlign: 'right', borderBottom: '2px solid #fecaca', fontWeight: '600' }}>{scenarioB?.name || 'Senaryo B'}</th>
+                        <th style={{ padding: '10px', textAlign: 'right', borderBottom: '2px solid #fecaca', fontWeight: '600' }}>Fark</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {quarterlyItemized.scenarioA.expenses.slice(0, 5).map((e, i) => {
+                        const bItem = quarterlyItemized.scenarioB.expenses.find(be => be.category === e.category);
+                        const diff = bItem ? ((bItem.total - e.total) / Math.max(e.total, 1)) * 100 : 0;
+                        return (
+                          <tr key={i}>
+                            <td style={{ padding: '8px', borderBottom: '1px solid #e2e8f0', fontWeight: '500' }}>{e.category}</td>
+                            <td style={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>{formatCompactUSD(e.total)}</td>
+                            <td style={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>{formatCompactUSD(bItem?.total || 0)}</td>
+                            <td style={{ padding: '8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', color: diff <= 0 ? '#16a34a' : '#dc2626', fontWeight: '500' }}>
+                              {diff >= 0 ? '+' : ''}{diff.toFixed(0)}%
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                  
+                  {/* Gider Özeti */}
+                  <div style={{ marginTop: '16px', padding: '12px', background: '#fef2f2', borderRadius: '8px' }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
+                      <span style={{ fontWeight: '600', color: '#dc2626' }}>Toplam Gider</span>
+                      <div style={{ textAlign: 'right' }}>
+                        <span style={{ color: '#2563eb' }}>{formatCompactUSD(summaryA?.totalExpense || 0)}</span>
+                        <span style={{ margin: '0 8px', color: '#9ca3af' }}>→</span>
+                        <span style={{ color: '#16a34a' }}>{formatCompactUSD(summaryB?.totalExpense || 0)}</span>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              {/* Net Kâr Karşılaştırma Özeti */}
+              <div style={{ marginTop: '32px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
+                <div style={{ padding: '20px', background: '#2563eb', borderRadius: '12px', color: 'white' }}>
+                  <p style={{ fontSize: '12px', opacity: 0.9 }}>{scenarioA?.name || 'Senaryo A'} Net Kâr</p>
+                  <p style={{ fontSize: '28px', fontWeight: 'bold' }}>{formatCompactUSD(summaryA?.netProfit || 0)}</p>
+                  <p style={{ fontSize: '12px', opacity: 0.8 }}>Marj: %{summaryA?.profitMargin.toFixed(1)}</p>
+                </div>
+                <div style={{ padding: '20px', background: '#16a34a', borderRadius: '12px', color: 'white' }}>
+                  <p style={{ fontSize: '12px', opacity: 0.9 }}>{scenarioB?.name || 'Senaryo B'} Net Kâr</p>
+                  <p style={{ fontSize: '28px', fontWeight: 'bold' }}>{formatCompactUSD(summaryB?.netProfit || 0)}</p>
+                  <p style={{ fontSize: '12px', opacity: 0.8 }}>Marj: %{summaryB?.profitMargin.toFixed(1)}</p>
+                </div>
+                <div style={{ padding: '20px', background: summaryB && summaryA && summaryB.netProfit > summaryA.netProfit ? '#f0fdf4' : '#fef2f2', borderRadius: '12px', border: `2px solid ${summaryB && summaryA && summaryB.netProfit > summaryA.netProfit ? '#86efac' : '#fecaca'}` }}>
+                  <p style={{ fontSize: '12px', color: '#6b7280' }}>Fark (B - A)</p>
+                  <p style={{ fontSize: '28px', fontWeight: 'bold', color: summaryB && summaryA && summaryB.netProfit > summaryA.netProfit ? '#16a34a' : '#dc2626' }}>
+                    {summaryB && summaryA ? (summaryB.netProfit - summaryA.netProfit >= 0 ? '+' : '') + formatCompactUSD(summaryB.netProfit - summaryA.netProfit) : '-'}
+                  </p>
+                  <p style={{ fontSize: '12px', color: '#6b7280' }}>
+                    {summaryB && summaryA && summaryA.netProfit !== 0 
+                      ? `${((summaryB.netProfit - summaryA.netProfit) / Math.abs(summaryA.netProfit) * 100).toFixed(0)}% değişim`
+                      : '-'}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* SAYFA 4: YATIRIMCI METRİKLERİ */}
           {unifiedAnalysis && (
             <div className="page-break-after" style={{ 
@@ -2084,6 +2336,246 @@ function ScenarioComparisonContent() {
             </div>
           )}
 
+          {/* SAYFA 5.5: DÜZENLENEBİLİR PROJEKSİYON */}
+          {editableRevenueProjection.length > 0 && scenarioA && (
+            <div className="page-break-after" style={{ 
+              width: '1200px', 
+              height: '848px', 
+              padding: '40px',
+              boxSizing: 'border-box',
+              background: 'white'
+            }}>
+              <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '3px solid #3b82f6', paddingBottom: '12px', color: '#1e3a8a' }}>
+                {scenarioA?.targetYear ? scenarioA.targetYear + 1 : 'Gelecek Yıl'} Projeksiyonu (Düzenlenmiş)
+              </h2>
+              
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
+                {/* Gelir Projeksiyonu Tablosu */}
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px', color: '#166534', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ background: '#16a34a', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>GELİR</span>
+                    Gelir Projeksiyonu
+                  </h3>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+                    <thead>
+                      <tr style={{ background: '#f0fdf4' }}>
+                        <th style={{ padding: '8px', textAlign: 'left', borderBottom: '2px solid #86efac', fontWeight: '600' }}>Kalem</th>
+                        <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #86efac', fontWeight: '600' }}>Q1</th>
+                        <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #86efac', fontWeight: '600' }}>Q2</th>
+                        <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #86efac', fontWeight: '600' }}>Q3</th>
+                        <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #86efac', fontWeight: '600' }}>Q4</th>
+                        <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #86efac', fontWeight: '600' }}>Toplam</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {editableRevenueProjection.slice(0, 6).map((item, i) => (
+                        <tr key={i} style={{ background: item.userEdited ? '#fef3c7' : 'white' }}>
+                          <td style={{ padding: '6px 8px', borderBottom: '1px solid #e2e8f0', fontWeight: '500' }}>
+                            {item.category} {item.userEdited ? '✏️' : ''}
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>{formatCompactUSD(item.q1)}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>{formatCompactUSD(item.q2)}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>{formatCompactUSD(item.q3)}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>{formatCompactUSD(item.q4)}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', fontWeight: '600' }}>{formatCompactUSD(item.q1 + item.q2 + item.q3 + item.q4)}</td>
+                        </tr>
+                      ))}
+                      <tr style={{ background: '#f0fdf4', fontWeight: 'bold' }}>
+                        <td style={{ padding: '8px', borderTop: '2px solid #86efac' }}>TOPLAM</td>
+                        <td style={{ padding: '8px', textAlign: 'right', borderTop: '2px solid #86efac' }}>{formatCompactUSD(editableRevenueProjection.reduce((s, i) => s + i.q1, 0))}</td>
+                        <td style={{ padding: '8px', textAlign: 'right', borderTop: '2px solid #86efac' }}>{formatCompactUSD(editableRevenueProjection.reduce((s, i) => s + i.q2, 0))}</td>
+                        <td style={{ padding: '8px', textAlign: 'right', borderTop: '2px solid #86efac' }}>{formatCompactUSD(editableRevenueProjection.reduce((s, i) => s + i.q3, 0))}</td>
+                        <td style={{ padding: '8px', textAlign: 'right', borderTop: '2px solid #86efac' }}>{formatCompactUSD(editableRevenueProjection.reduce((s, i) => s + i.q4, 0))}</td>
+                        <td style={{ padding: '8px', textAlign: 'right', borderTop: '2px solid #86efac', color: '#166534' }}>
+                          {formatCompactUSD(editableRevenueProjection.reduce((s, i) => s + i.q1 + i.q2 + i.q3 + i.q4, 0))}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+                
+                {/* Gider Projeksiyonu Tablosu */}
+                <div>
+                  <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px', color: '#dc2626', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <span style={{ background: '#dc2626', color: 'white', padding: '4px 8px', borderRadius: '4px', fontSize: '12px' }}>GİDER</span>
+                    Gider Projeksiyonu
+                  </h3>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '10px' }}>
+                    <thead>
+                      <tr style={{ background: '#fef2f2' }}>
+                        <th style={{ padding: '8px', textAlign: 'left', borderBottom: '2px solid #fecaca', fontWeight: '600' }}>Kalem</th>
+                        <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #fecaca', fontWeight: '600' }}>Q1</th>
+                        <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #fecaca', fontWeight: '600' }}>Q2</th>
+                        <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #fecaca', fontWeight: '600' }}>Q3</th>
+                        <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #fecaca', fontWeight: '600' }}>Q4</th>
+                        <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #fecaca', fontWeight: '600' }}>Toplam</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {editableExpenseProjection.slice(0, 6).map((item, i) => (
+                        <tr key={i} style={{ background: item.userEdited ? '#fef3c7' : 'white' }}>
+                          <td style={{ padding: '6px 8px', borderBottom: '1px solid #e2e8f0', fontWeight: '500' }}>
+                            {item.category} {item.userEdited ? '✏️' : ''}
+                          </td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>{formatCompactUSD(item.q1)}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>{formatCompactUSD(item.q2)}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>{formatCompactUSD(item.q3)}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0' }}>{formatCompactUSD(item.q4)}</td>
+                          <td style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', fontWeight: '600' }}>{formatCompactUSD(item.q1 + item.q2 + item.q3 + item.q4)}</td>
+                        </tr>
+                      ))}
+                      <tr style={{ background: '#fef2f2', fontWeight: 'bold' }}>
+                        <td style={{ padding: '8px', borderTop: '2px solid #fecaca' }}>TOPLAM</td>
+                        <td style={{ padding: '8px', textAlign: 'right', borderTop: '2px solid #fecaca' }}>{formatCompactUSD(editableExpenseProjection.reduce((s, i) => s + i.q1, 0))}</td>
+                        <td style={{ padding: '8px', textAlign: 'right', borderTop: '2px solid #fecaca' }}>{formatCompactUSD(editableExpenseProjection.reduce((s, i) => s + i.q2, 0))}</td>
+                        <td style={{ padding: '8px', textAlign: 'right', borderTop: '2px solid #fecaca' }}>{formatCompactUSD(editableExpenseProjection.reduce((s, i) => s + i.q3, 0))}</td>
+                        <td style={{ padding: '8px', textAlign: 'right', borderTop: '2px solid #fecaca' }}>{formatCompactUSD(editableExpenseProjection.reduce((s, i) => s + i.q4, 0))}</td>
+                        <td style={{ padding: '8px', textAlign: 'right', borderTop: '2px solid #fecaca', color: '#dc2626' }}>
+                          {formatCompactUSD(editableExpenseProjection.reduce((s, i) => s + i.q1 + i.q2 + i.q3 + i.q4, 0))}
+                        </td>
+                      </tr>
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+              
+              {/* Projeksiyon Özeti */}
+              <div style={{ marginTop: '32px', display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+                <div style={{ padding: '20px', background: '#f0fdf4', borderRadius: '12px', border: '1px solid #86efac' }}>
+                  <p style={{ fontSize: '12px', color: '#166534', marginBottom: '8px' }}>Toplam Gelir</p>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#166534' }}>
+                    {formatCompactUSD(editableRevenueProjection.reduce((s, i) => s + i.q1 + i.q2 + i.q3 + i.q4, 0))}
+                  </p>
+                </div>
+                <div style={{ padding: '20px', background: '#fef2f2', borderRadius: '12px', border: '1px solid #fecaca' }}>
+                  <p style={{ fontSize: '12px', color: '#dc2626', marginBottom: '8px' }}>Toplam Gider</p>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#dc2626' }}>
+                    {formatCompactUSD(editableExpenseProjection.reduce((s, i) => s + i.q1 + i.q2 + i.q3 + i.q4, 0))}
+                  </p>
+                </div>
+                <div style={{ padding: '20px', background: '#eff6ff', borderRadius: '12px', border: '1px solid #bfdbfe' }}>
+                  <p style={{ fontSize: '12px', color: '#1e3a8a', marginBottom: '8px' }}>Tahmini Net Kâr</p>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e3a8a' }}>
+                    {formatCompactUSD(
+                      editableRevenueProjection.reduce((s, i) => s + i.q1 + i.q2 + i.q3 + i.q4, 0) -
+                      editableExpenseProjection.reduce((s, i) => s + i.q1 + i.q2 + i.q3 + i.q4, 0)
+                    )}
+                  </p>
+                </div>
+                <div style={{ padding: '20px', background: '#fef3c7', borderRadius: '12px', border: '1px solid #fcd34d' }}>
+                  <p style={{ fontSize: '12px', color: '#92400e', marginBottom: '8px' }}>Düzenlenen Kalem</p>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#92400e' }}>
+                    {editableRevenueProjection.filter(i => i.userEdited).length + editableExpenseProjection.filter(i => i.userEdited).length}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* SAYFA 5.75: ODAK PROJE ANALİZİ */}
+          {focusProjects.length > 0 && scenarioA && (
+            <div className="page-break-after" style={{ 
+              width: '1200px', 
+              height: '848px', 
+              padding: '40px',
+              boxSizing: 'border-box',
+              background: 'white'
+            }}>
+              <h2 style={{ fontSize: '28px', fontWeight: 'bold', marginBottom: '24px', borderBottom: '3px solid #3b82f6', paddingBottom: '12px', color: '#1e3a8a' }}>
+                Yatırım Odak Projesi Analizi
+              </h2>
+              
+              {/* Seçili Projeler */}
+              <div style={{ display: 'grid', gridTemplateColumns: focusProjects.length > 1 ? '1fr 1fr' : '1fr', gap: '24px', marginBottom: '32px' }}>
+                {focusProjects.map(projectName => {
+                  const revenueItem = scenarioA?.revenues.find(r => r.category === projectName);
+                  const growthRate = revenueItem && revenueItem.baseAmount > 0 
+                    ? ((revenueItem.projectedAmount - revenueItem.baseAmount) / revenueItem.baseAmount * 100) 
+                    : 0;
+                  return (
+                    <div key={projectName} style={{ 
+                      padding: '24px', 
+                      background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)', 
+                      borderRadius: '16px',
+                      border: '2px solid #3b82f6'
+                    }}>
+                      <h3 style={{ fontSize: '20px', fontWeight: 'bold', color: '#1e3a8a', marginBottom: '16px' }}>
+                        🎯 {projectName}
+                      </h3>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
+                        <div>
+                          <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Mevcut Gelir ({scenarioA?.baseYear})</p>
+                          <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#374151' }}>{formatCompactUSD(revenueItem?.baseAmount || 0)}</p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Hedef Gelir ({scenarioA?.targetYear})</p>
+                          <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#16a34a' }}>{formatCompactUSD(revenueItem?.projectedAmount || 0)}</p>
+                        </div>
+                        <div>
+                          <p style={{ fontSize: '12px', color: '#6b7280', marginBottom: '4px' }}>Büyüme Oranı</p>
+                          <p style={{ fontSize: '20px', fontWeight: 'bold', color: growthRate >= 0 ? '#16a34a' : '#dc2626' }}>
+                            {growthRate >= 0 ? '+' : ''}{growthRate.toFixed(0)}%
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+              
+              {/* Yatırım Dağılımı */}
+              <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>Yatırım Dağılımı</h3>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '16px', marginBottom: '32px' }}>
+                <div style={{ padding: '20px', background: '#f0f9ff', borderRadius: '12px', border: '1px solid #bae6fd', textAlign: 'center' }}>
+                  <p style={{ fontSize: '12px', color: '#0369a1', marginBottom: '8px' }}>Ürün Geliştirme</p>
+                  <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#0369a1' }}>%{investmentAllocation.product}</p>
+                  <p style={{ fontSize: '12px', color: '#64748b' }}>${Math.round(dealConfig.investmentAmount * investmentAllocation.product / 100).toLocaleString()}</p>
+                </div>
+                <div style={{ padding: '20px', background: '#fef3c7', borderRadius: '12px', border: '1px solid #fcd34d', textAlign: 'center' }}>
+                  <p style={{ fontSize: '12px', color: '#92400e', marginBottom: '8px' }}>Pazarlama</p>
+                  <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#92400e' }}>%{investmentAllocation.marketing}</p>
+                  <p style={{ fontSize: '12px', color: '#64748b' }}>${Math.round(dealConfig.investmentAmount * investmentAllocation.marketing / 100).toLocaleString()}</p>
+                </div>
+                <div style={{ padding: '20px', background: '#f0fdf4', borderRadius: '12px', border: '1px solid #86efac', textAlign: 'center' }}>
+                  <p style={{ fontSize: '12px', color: '#166534', marginBottom: '8px' }}>İşe Alım</p>
+                  <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#166534' }}>%{investmentAllocation.hiring}</p>
+                  <p style={{ fontSize: '12px', color: '#64748b' }}>${Math.round(dealConfig.investmentAmount * investmentAllocation.hiring / 100).toLocaleString()}</p>
+                </div>
+                <div style={{ padding: '20px', background: '#f5f3ff', borderRadius: '12px', border: '1px solid #c4b5fd', textAlign: 'center' }}>
+                  <p style={{ fontSize: '12px', color: '#6d28d9', marginBottom: '8px' }}>Operasyonlar</p>
+                  <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#6d28d9' }}>%{investmentAllocation.operations}</p>
+                  <p style={{ fontSize: '12px', color: '#64748b' }}>${Math.round(dealConfig.investmentAmount * investmentAllocation.operations / 100).toLocaleString()}</p>
+                </div>
+              </div>
+              
+              {/* Büyüme Planı */}
+              {focusProjectPlan && (
+                <div style={{ padding: '24px', background: '#f8fafc', borderRadius: '16px', border: '1px solid #e2e8f0' }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>Büyüme Planı</h3>
+                  <p style={{ fontSize: '14px', color: '#4b5563', lineHeight: '1.6', whiteSpace: 'pre-wrap' }}>{focusProjectPlan}</p>
+                </div>
+              )}
+              
+              {/* Özet Banner */}
+              <div style={{ marginTop: '24px', padding: '16px 24px', background: 'linear-gradient(135deg, #1e3a8a 0%, #3b82f6 100%)', borderRadius: '12px', color: 'white', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <p style={{ fontSize: '12px', opacity: 0.9 }}>Toplam Yatırım</p>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold' }}>${dealConfig.investmentAmount.toLocaleString()}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: '12px', opacity: 0.9 }}>Odak Proje Sayısı</p>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{focusProjects.length}</p>
+                </div>
+                <div>
+                  <p style={{ fontSize: '12px', opacity: 0.9 }}>Toplam Dağılım</p>
+                  <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
+                    %{investmentAllocation.product + investmentAllocation.marketing + investmentAllocation.hiring + investmentAllocation.operations}
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* SAYFA 6: AI INSIGHTS */}
           {unifiedAnalysis?.insights && unifiedAnalysis.insights.length > 0 && (
             <div className="page-break-after" style={{ 
@@ -2171,35 +2663,35 @@ function ScenarioComparisonContent() {
                 </div>
               )}
               
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                {unifiedAnalysis.pitch_deck.slides.slice(0, 4).map((slide, i) => (
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
+                {unifiedAnalysis.pitch_deck.slides.slice(0, 5).map((slide, i) => (
                   <div key={i} style={{ 
                     background: 'linear-gradient(to bottom right, #f8fafc, white)', 
-                    padding: '20px', 
-                    borderRadius: '16px', 
+                    padding: '16px', 
+                    borderRadius: '12px', 
                     border: '1px solid #e5e7eb',
                     boxShadow: '0 2px 4px rgba(0,0,0,0.05)'
                   }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '12px' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '10px' }}>
                       <span style={{ 
                         background: 'linear-gradient(135deg, #3b82f6 0%, #1e3a8a 100%)', 
                         color: 'white', 
-                        width: '32px', 
-                        height: '32px', 
+                        width: '28px', 
+                        height: '28px', 
                         borderRadius: '50%', 
                         display: 'flex', 
                         alignItems: 'center', 
                         justifyContent: 'center', 
-                        fontSize: '14px', 
+                        fontSize: '12px', 
                         fontWeight: 'bold' 
                       }}>
                         {slide.slide_number}
                       </span>
-                      <h3 style={{ fontWeight: '600', fontSize: '16px', color: '#1e3a8a' }}>{slide.title}</h3>
+                      <h3 style={{ fontWeight: '600', fontSize: '14px', color: '#1e3a8a' }}>{slide.title}</h3>
                     </div>
-                    <ul style={{ paddingLeft: '20px', margin: 0 }}>
-                      {slide.content_bullets?.slice(0, 3).map((bullet, j) => (
-                        <li key={j} style={{ fontSize: '13px', color: '#4b5563', marginBottom: '6px', lineHeight: '1.4' }}>
+                    <ul style={{ paddingLeft: '16px', margin: 0 }}>
+                      {slide.content_bullets?.slice(0, 4).map((bullet, j) => (
+                        <li key={j} style={{ fontSize: '11px', color: '#4b5563', marginBottom: '4px', lineHeight: '1.4' }}>
                           {bullet}
                         </li>
                       ))}
