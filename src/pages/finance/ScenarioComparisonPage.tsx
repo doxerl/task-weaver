@@ -55,7 +55,17 @@ import {
   RotateCcw,
   Presentation,
 } from 'lucide-react';
-import { SimulationScenario, AnalysisHistoryItem, NextYearProjection, QuarterlyItemizedData } from '@/types/simulation';
+import { 
+  SimulationScenario, 
+  AnalysisHistoryItem, 
+  NextYearProjection, 
+  QuarterlyItemizedData,
+  FinancialRatios,
+  TrendAnalysisResult,
+  EnhancedSensitivityAnalysis,
+  BreakEvenResult,
+  ProfessionalAnalysisData
+} from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
@@ -64,6 +74,9 @@ import { useInvestorAnalysis, calculateCapitalNeeds, calculateExitPlan } from '@
 import { useScenarios } from '@/hooks/finance/useScenarios';
 import { InvestmentTab } from '@/components/simulation/InvestmentTab';
 import { PitchDeckView } from '@/components/simulation/PitchDeckView';
+import { SensitivityTable } from '@/components/simulation/SensitivityTable';
+import { FinancialRatiosPanel } from '@/components/simulation/FinancialRatiosPanel';
+import { ItemTrendCards } from '@/components/simulation/ItemTrendCards';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { useExchangeRates } from '@/hooks/finance/useExchangeRates';
 import {
@@ -543,6 +556,176 @@ function ScenarioComparisonContent() {
     };
   }, [scenarioA, scenarioB]);
 
+  // =====================================================
+  // PROFESSIONAL ANALYSIS CALCULATIONS
+  // =====================================================
+
+  // Financial Ratios (from historical balance sheet)
+  const [historicalBalance, setHistoricalBalance] = useState<any>(null);
+  
+  // Fetch historical balance when scenario changes
+  useEffect(() => {
+    const loadBalance = async () => {
+      if (scenarioB?.targetYear && yearlyAverageRate) {
+        const balance = await fetchHistoricalBalance(scenarioB.targetYear, yearlyAverageRate);
+        setHistoricalBalance(balance);
+      }
+    };
+    loadBalance();
+  }, [scenarioB?.targetYear, yearlyAverageRate, fetchHistoricalBalance]);
+
+  // Calculate Financial Ratios
+  const financialRatios = useMemo((): FinancialRatios | null => {
+    if (!historicalBalance || !summaryB) return null;
+    
+    const cash = (historicalBalance.cash_on_hand || 0) + (historicalBalance.bank_balance || 0);
+    const currentAssets = cash + (historicalBalance.trade_receivables || 0);
+    const shortTermDebt = (historicalBalance.trade_payables || 0) + ((historicalBalance.bank_loans || 0) * 0.3);
+    const equity = (historicalBalance.total_assets || 0) - (historicalBalance.total_liabilities || 0);
+    
+    return {
+      liquidity: {
+        currentRatio: shortTermDebt > 0 ? currentAssets / shortTermDebt : 0,
+        quickRatio: shortTermDebt > 0 ? (cash + (historicalBalance.trade_receivables || 0)) / shortTermDebt : 0,
+        cashRatio: shortTermDebt > 0 ? cash / shortTermDebt : 0,
+        workingCapital: currentAssets - shortTermDebt
+      },
+      leverage: {
+        debtToEquity: equity > 0 ? (historicalBalance.bank_loans || 0) / equity : 0,
+        debtToAssets: (historicalBalance.total_assets || 0) > 0 ? (historicalBalance.bank_loans || 0) / (historicalBalance.total_assets || 1) : 0,
+        receivablesRatio: (historicalBalance.total_assets || 0) > 0 ? (historicalBalance.trade_receivables || 0) / (historicalBalance.total_assets || 1) : 0
+      },
+      profitability: {
+        returnOnAssets: (historicalBalance.total_assets || 0) > 0 ? ((historicalBalance.current_profit || 0) / (historicalBalance.total_assets || 1)) * 100 : 0,
+        returnOnEquity: equity > 0 ? ((historicalBalance.current_profit || 0) / equity) * 100 : 0,
+        netMargin: summaryB.totalRevenue > 0 ? (summaryB.netProfit / summaryB.totalRevenue) * 100 : 0
+      }
+    };
+  }, [historicalBalance, summaryB]);
+
+  // Item Trend Analysis
+  const itemTrendAnalysis = useMemo((): TrendAnalysisResult | null => {
+    if (!quarterlyItemized || !summaryB) return null;
+    
+    const analyzeItem = (item: { q1: number; q2: number; q3: number; q4: number; total: number }) => {
+      const quarters = [item.q1, item.q2, item.q3, item.q4];
+      const avg = item.total / 4;
+      const variance = quarters.reduce((sum, q) => sum + Math.pow(q - avg, 2), 0) / 4;
+      const stdDev = Math.sqrt(variance);
+      const volatility = avg > 0 ? (stdDev / avg) * 100 : 0;
+      const overallGrowth = item.q1 > 0 ? ((item.q4 - item.q1) / item.q1) * 100 : 0;
+      const seasonalityIndex = item.q1 > 0 ? item.q4 / item.q1 : 1;
+      const concentrationRisk = item.total > 0 ? (Math.max(...quarters) / item.total) * 100 : 0;
+      
+      return {
+        trend: (overallGrowth > 10 ? 'increasing' : overallGrowth < -10 ? 'decreasing' : 'stable') as 'increasing' | 'decreasing' | 'stable',
+        volatility,
+        volatilityLevel: (volatility > 50 ? 'high' : volatility > 20 ? 'medium' : 'low') as 'high' | 'medium' | 'low',
+        seasonalityIndex,
+        overallGrowth,
+        concentrationRisk
+      };
+    };
+    
+    return {
+      revenues: quarterlyItemized.scenarioB.revenues.map(r => ({
+        category: r.category,
+        ...analyzeItem(r),
+        shareOfTotal: summaryB.totalRevenue > 0 ? (r.total / summaryB.totalRevenue) * 100 : 0
+      })),
+      expenses: quarterlyItemized.scenarioB.expenses.map(e => ({
+        category: e.category,
+        ...analyzeItem(e),
+        shareOfTotal: summaryB.totalExpense > 0 ? (e.total / summaryB.totalExpense) * 100 : 0
+      }))
+    };
+  }, [quarterlyItemized, summaryB]);
+
+  // Sensitivity Analysis
+  const sensitivityAnalysis = useMemo((): EnhancedSensitivityAnalysis | null => {
+    if (!summaryB || !dealConfig) return null;
+    
+    const scenarios = [-20, -10, 0, 10, 20];
+    const capitalNeeds = calculateCapitalNeeds({
+      q1: quarterlyComparison[0]?.scenarioBNet || 0,
+      q2: quarterlyComparison[1]?.scenarioBNet || 0,
+      q3: quarterlyComparison[2]?.scenarioBNet || 0,
+      q4: quarterlyComparison[3]?.scenarioBNet || 0
+    });
+    
+    return {
+      revenueImpact: scenarios.map(change => {
+        const newRevenue = summaryB.totalRevenue * (1 + change/100);
+        const newProfit = newRevenue - summaryB.totalExpense;
+        const newMargin = newRevenue > 0 ? (newProfit / newRevenue) * 100 : 0;
+        const newValuation = newRevenue * dealConfig.sectorMultiple;
+        const newMOIC = dealConfig.investmentAmount > 0 
+          ? (newValuation * (dealConfig.equityPercentage/100)) / dealConfig.investmentAmount 
+          : 0;
+        const newRunway = newProfit > 0 
+          ? 999 
+          : Math.abs(capitalNeeds.minCumulativeCash + dealConfig.investmentAmount) / Math.max(Math.abs(newProfit/12), 1);
+        
+        return { 
+          change, 
+          revenue: newRevenue, 
+          profit: newProfit, 
+          margin: newMargin, 
+          valuation: newValuation, 
+          moic: newMOIC, 
+          runway: Math.round(Math.min(newRunway, 999))
+        };
+      }),
+      expenseImpact: scenarios.map(change => {
+        const newExpense = summaryB.totalExpense * (1 + change/100);
+        const newProfit = summaryB.totalRevenue - newExpense;
+        const newMargin = summaryB.totalRevenue > 0 ? (newProfit / summaryB.totalRevenue) * 100 : 0;
+        
+        return { change, expense: newExpense, profit: newProfit, margin: newMargin };
+      })
+    };
+  }, [summaryB, dealConfig, quarterlyComparison]);
+
+  // Break-Even Analysis
+  const breakEvenAnalysis = useMemo((): BreakEvenResult | null => {
+    if (!scenarioB || !quarterlyComparison || !summaryB) return null;
+    
+    let cumulativeRevenue = 0;
+    let cumulativeExpense = 0;
+    const months: { month: string; cumRevenue: number; cumExpense: number; isBreakEven: boolean }[] = [];
+    
+    quarterlyComparison.forEach((q, qIndex) => {
+      for (let m = 0; m < 3; m++) {
+        cumulativeRevenue += q.scenarioBRevenue / 3;
+        cumulativeExpense += q.scenarioBExpense / 3;
+        months.push({
+          month: `${scenarioB.targetYear}-${String((qIndex * 3) + m + 1).padStart(2, '0')}`,
+          cumRevenue: cumulativeRevenue,
+          cumExpense: cumulativeExpense,
+          isBreakEven: cumulativeRevenue >= cumulativeExpense
+        });
+      }
+    });
+    
+    const breakEvenIdx = months.findIndex(m => m.isBreakEven);
+    const breakEvenMonth = breakEvenIdx >= 0 ? months[breakEvenIdx].month : 'Yıl içinde ulaşılamadı';
+    
+    return {
+      months,
+      breakEvenMonth,
+      monthsToBreakEven: breakEvenIdx >= 0 ? breakEvenIdx + 1 : 13,
+      requiredMonthlyRevenue: summaryB.totalExpense / 12
+    };
+  }, [scenarioB, quarterlyComparison, summaryB]);
+
+  // Bundle professional analysis data
+  const professionalAnalysisData = useMemo((): ProfessionalAnalysisData => ({
+    financialRatios,
+    itemTrendAnalysis,
+    sensitivityAnalysis,
+    breakEvenAnalysis
+  }), [financialRatios, itemTrendAnalysis, sensitivityAnalysis, breakEvenAnalysis]);
+
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
   // Load cached unified analysis when scenarios change
@@ -823,6 +1006,30 @@ function ScenarioComparisonContent() {
                 </CardContent>
               </Card>
             </div>
+
+            {/* SECTION 2.5: PROFESSIONAL ANALYSIS PANELS */}
+            {(financialRatios || sensitivityAnalysis || itemTrendAnalysis) && (
+              <div className="space-y-4">
+                <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
+                  <Brain className="h-4 w-4" />
+                  Profesyonel Analiz Metrikleri
+                </h3>
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                  {financialRatios && (
+                    <FinancialRatiosPanel ratios={financialRatios} />
+                  )}
+                  {sensitivityAnalysis && (
+                    <SensitivityTable analysis={sensitivityAnalysis} baseProfit={summaryB?.netProfit || 0} />
+                  )}
+                </div>
+                {itemTrendAnalysis && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <ItemTrendCards analysis={itemTrendAnalysis} type="revenues" />
+                    <ItemTrendCards analysis={itemTrendAnalysis} type="expenses" />
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* SECTION 3: INVESTMENT & AI (formerly in tab) */}
             {unifiedCacheLoading ? (

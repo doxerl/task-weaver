@@ -535,3 +535,128 @@ export const DEFAULT_DEAL_CONFIG: DealConfiguration = {
   sectorMultiple: 8,
   safetyMargin: 20,
 };
+
+// =====================================================
+// PROFESSIONAL ANALYSIS TYPES (New)
+// =====================================================
+
+/** Sector benchmarks for financial ratio comparison */
+export const SECTOR_BENCHMARKS_DATA = {
+  'B2B Services': {
+    currentRatio: { good: 1.8, average: 1.3, poor: 1.0 },
+    quickRatio: { good: 1.5, average: 1.0, poor: 0.7 },
+    netMargin: { good: 18, average: 12, poor: 5 },
+    debtToEquity: { good: 0.5, average: 1.0, poor: 2.0 },
+    receivablesDays: { good: 30, average: 45, poor: 60 },
+    returnOnEquity: { good: 20, average: 15, poor: 8 }
+  }
+};
+
+/** Financial ratios calculated from balance sheet */
+export interface FinancialRatios {
+  liquidity: {
+    currentRatio: number;
+    quickRatio: number;
+    cashRatio: number;
+    workingCapital: number;
+  };
+  leverage: {
+    debtToEquity: number;
+    debtToAssets: number;
+    receivablesRatio: number;
+  };
+  profitability: {
+    returnOnAssets: number;
+    returnOnEquity: number;
+    netMargin: number;
+  };
+}
+
+/** Item trend analysis for revenues/expenses */
+export interface ItemTrendAnalysis {
+  category: string;
+  trend: 'increasing' | 'decreasing' | 'stable';
+  volatility: number;
+  volatilityLevel: 'high' | 'medium' | 'low';
+  seasonalityIndex: number;
+  overallGrowth: number;
+  concentrationRisk: number;
+  shareOfTotal: number;
+}
+
+/** Complete trend analysis for all items */
+export interface TrendAnalysisResult {
+  revenues: ItemTrendAnalysis[];
+  expenses: ItemTrendAnalysis[];
+}
+
+/** Sensitivity analysis scenario */
+export interface SensitivityImpact {
+  change: number;
+  revenue: number;
+  profit: number;
+  margin: number;
+  valuation: number;
+  moic: number;
+  runway: number;
+}
+
+/** Complete sensitivity analysis */
+export interface EnhancedSensitivityAnalysis {
+  revenueImpact: SensitivityImpact[];
+  expenseImpact: {
+    change: number;
+    expense: number;
+    profit: number;
+    margin: number;
+  }[];
+}
+
+/** Break-even analysis result */
+export interface BreakEvenResult {
+  months: {
+    month: string;
+    cumRevenue: number;
+    cumExpense: number;
+    isBreakEven: boolean;
+  }[];
+  breakEvenMonth: string;
+  monthsToBreakEven: number;
+  requiredMonthlyRevenue: number;
+}
+
+/** Enhanced insight with confidence score */
+export interface EnhancedInsight extends AIScenarioInsight {
+  confidence_score?: number;
+  assumptions?: string[];
+  supporting_data?: {
+    metric: string;
+    value: number;
+    benchmark?: number;
+  }[];
+}
+
+/** Enhanced recommendation with confidence */
+export interface EnhancedRecommendation extends AIRecommendation {
+  confidence_score?: number;
+  risks?: string[];
+  alternatives?: string[];
+}
+
+/** Risk matrix item */
+export interface RiskMatrixItem {
+  risk: string;
+  category: 'financial' | 'operational' | 'market' | 'regulatory';
+  probability: 1 | 2 | 3 | 4 | 5;
+  impact: 1 | 2 | 3 | 4 | 5;
+  riskScore: number;
+  mitigation: string;
+}
+
+/** Professional analysis data bundle sent to AI */
+export interface ProfessionalAnalysisData {
+  financialRatios: FinancialRatios | null;
+  itemTrendAnalysis: TrendAnalysisResult | null;
+  sensitivityAnalysis: EnhancedSensitivityAnalysis | null;
+  breakEvenAnalysis: BreakEvenResult | null;
+}
