@@ -1456,8 +1456,11 @@ export type Database = {
           deal_config: Json | null
           deal_config_snapshot: Json | null
           deal_score: number | null
+          focus_project_plan: string | null
+          focus_projects: string[] | null
           id: string
           insights: Json | null
+          investment_allocation: Json | null
           investor_analysis: Json | null
           next_year_projection: Json | null
           pitch_deck: Json | null
@@ -1477,8 +1480,11 @@ export type Database = {
           deal_config?: Json | null
           deal_config_snapshot?: Json | null
           deal_score?: number | null
+          focus_project_plan?: string | null
+          focus_projects?: string[] | null
           id?: string
           insights?: Json | null
+          investment_allocation?: Json | null
           investor_analysis?: Json | null
           next_year_projection?: Json | null
           pitch_deck?: Json | null
@@ -1498,8 +1504,11 @@ export type Database = {
           deal_config?: Json | null
           deal_config_snapshot?: Json | null
           deal_score?: number | null
+          focus_project_plan?: string | null
+          focus_projects?: string[] | null
           id?: string
           insights?: Json | null
+          investment_allocation?: Json | null
           investor_analysis?: Json | null
           next_year_projection?: Json | null
           pitch_deck?: Json | null

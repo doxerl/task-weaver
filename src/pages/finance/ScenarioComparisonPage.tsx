@@ -784,6 +784,22 @@ function ScenarioComparisonContent() {
     }
   }, [scenarioAId, scenarioBId, loadCachedUnifiedAnalysis, loadUnifiedAnalysisHistory, clearUnifiedAnalysis]);
 
+  // Sync focus project settings from cached analysis
+  useEffect(() => {
+    if (unifiedCachedInfo) {
+      // Load focus project settings from cache
+      if (unifiedCachedInfo.focusProjects && unifiedCachedInfo.focusProjects.length > 0) {
+        setFocusProjects(unifiedCachedInfo.focusProjects);
+      }
+      if (unifiedCachedInfo.focusProjectPlan) {
+        setFocusProjectPlan(unifiedCachedInfo.focusProjectPlan);
+      }
+      if (unifiedCachedInfo.investmentAllocation) {
+        setInvestmentAllocation(unifiedCachedInfo.investmentAllocation);
+      }
+    }
+  }, [unifiedCachedInfo]);
+
   // Check for data changes when scenarios are loaded
   useEffect(() => {
     if (scenarioA && scenarioB && unifiedCachedInfo) {

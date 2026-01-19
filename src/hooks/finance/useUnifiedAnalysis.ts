@@ -26,6 +26,15 @@ interface ScenarioSummary {
 interface CachedAnalysisInfo {
   id: string;
   updatedAt: Date;
+  // Focus project settings from cache
+  focusProjects?: string[];
+  focusProjectPlan?: string;
+  investmentAllocation?: {
+    product: number;
+    marketing: number;
+    hiring: number;
+    operations: number;
+  };
 }
 
 export function useUnifiedAnalysis() {
@@ -97,7 +106,16 @@ export function useUnifiedAnalysis() {
         setAnalysis(result);
         setCachedInfo({
           id: data.id,
-          updatedAt: new Date(data.updated_at || data.created_at || new Date())
+          updatedAt: new Date(data.updated_at || data.created_at || new Date()),
+          // Focus project settings from cache
+          focusProjects: (data as any).focus_projects || [],
+          focusProjectPlan: (data as any).focus_project_plan || '',
+          investmentAllocation: (data as any).investment_allocation || {
+            product: 40,
+            marketing: 30,
+            hiring: 20,
+            operations: 10
+          }
         });
         // Hash'leri kaydet - veri değişikliği kontrolü için
         setSavedHashes({
@@ -238,34 +256,47 @@ export function useUnifiedAnalysis() {
     result: UnifiedAnalysisResult,
     scenarioA: SimulationScenario,
     scenarioB: SimulationScenario,
-    dealConfig: DealConfiguration
+    dealConfig: DealConfiguration,
+    focusProjectInfo?: FocusProjectInfo
   ): Promise<void> => {
     if (!user?.id || !scenarioA.id || !scenarioB.id) return;
 
     try {
+      // Cast to any because focus_projects, focus_project_plan, investment_allocation are new columns
+      const upsertData: any = {
+        user_id: user.id,
+        scenario_a_id: scenarioA.id,
+        scenario_b_id: scenarioB.id,
+        analysis_type: 'unified',
+        insights: result.insights as any,
+        recommendations: result.recommendations as any,
+        quarterly_analysis: result.quarterly_analysis as any,
+        deal_score: Math.round(result.deal_analysis.deal_score),
+        valuation_verdict: result.deal_analysis.valuation_verdict,
+        investor_analysis: {
+          investor_attractiveness: result.deal_analysis.investor_attractiveness,
+          risk_factors: result.deal_analysis.risk_factors
+        } as any,
+        pitch_deck: result.pitch_deck as any,
+        next_year_projection: result.next_year_projection as any,
+        deal_config_snapshot: dealConfig as any,
+        scenario_a_data_hash: generateScenarioHash(scenarioA),
+        scenario_b_data_hash: generateScenarioHash(scenarioB),
+        // Focus project settings (new columns)
+        focus_projects: focusProjectInfo?.projects?.map(p => p.projectName) || [],
+        focus_project_plan: focusProjectInfo?.growthPlan || '',
+        investment_allocation: focusProjectInfo?.investmentAllocation || {
+          product: 40,
+          marketing: 30,
+          hiring: 20,
+          operations: 10
+        },
+        updated_at: new Date().toISOString()
+      };
+
       const { data, error: upsertError } = await supabase
         .from('scenario_ai_analyses')
-        .upsert({
-          user_id: user.id,
-          scenario_a_id: scenarioA.id,
-          scenario_b_id: scenarioB.id,
-          analysis_type: 'unified',
-          insights: result.insights as any,
-          recommendations: result.recommendations as any,
-          quarterly_analysis: result.quarterly_analysis as any,
-          deal_score: Math.round(result.deal_analysis.deal_score),
-          valuation_verdict: result.deal_analysis.valuation_verdict,
-          investor_analysis: {
-            investor_attractiveness: result.deal_analysis.investor_attractiveness,
-            risk_factors: result.deal_analysis.risk_factors
-          } as any,
-          pitch_deck: result.pitch_deck as any,
-          next_year_projection: result.next_year_projection as any,
-          deal_config_snapshot: dealConfig as any,
-          scenario_a_data_hash: generateScenarioHash(scenarioA),
-          scenario_b_data_hash: generateScenarioHash(scenarioB),
-          updated_at: new Date().toISOString()
-        }, {
+        .upsert(upsertData, {
           onConflict: 'user_id,scenario_a_id,scenario_b_id,analysis_type'
         })
         .select()
@@ -395,8 +426,8 @@ export function useUnifiedAnalysis() {
       const result = data as UnifiedAnalysisResult;
       setAnalysis(result);
       
-      // Save to database
-      await saveAnalysis(result, scenarioA, scenarioB, dealConfig);
+      // Save to database with focus project info
+      await saveAnalysis(result, scenarioA, scenarioB, dealConfig, focusProjectInfo);
       
       toast.success('Kapsamlı AI analizi tamamlandı!');
       return result;
