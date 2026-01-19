@@ -246,8 +246,14 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
 
   // Calculate summary
   const summary: SimulationSummary = useMemo(() => {
-    const baseRevenue = baseData?.totalRevenue || 0;
-    const baseExpense = baseData?.totalExpense || 0;
+    // Senaryo yüklendiyse, senaryonun baseAmount'larını kullan
+    // Aksi takdirde gerçek finansal verilere fallback yap
+    const baseRevenue = isInitialized && revenues.length > 0
+      ? revenues.reduce((sum, r) => sum + r.baseAmount, 0)
+      : (baseData?.totalRevenue || 0);
+    const baseExpense = isInitialized && expenses.length > 0
+      ? expenses.reduce((sum, e) => sum + e.baseAmount, 0)
+      : (baseData?.totalExpense || 0);
     const baseProfit = baseRevenue - baseExpense;
 
     const totalProjectedRevenue = revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
@@ -285,7 +291,7 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
         netCapitalNeed: Math.max(0, totalInvestment - projectedProfit),
       },
     };
-  }, [baseData, revenues, expenses, investments]);
+  }, [baseData, revenues, expenses, investments, isInitialized]);
 
   // Revenue operations
   const updateRevenue = useCallback((id: string, updates: Partial<ProjectionItem>) => {

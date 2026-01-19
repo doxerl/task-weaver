@@ -32,8 +32,8 @@ export function SummaryCards({ summary, exchangeRate, baseYear, targetYear }: Su
   
   const cards = [
     {
-      title: `${displayBaseYear} Gerçek`,
-      subtitle: 'Referans Yıl',
+      title: `${displayBaseYear} Baz Senaryo`,
+      subtitle: 'Mevcut Durum',
       items: [
         { label: 'Gelir', value: formatCompactUSD(summary.base.totalRevenue) },
         { label: 'Gider', value: formatCompactUSD(summary.base.totalExpense) },
