@@ -194,37 +194,55 @@ export function useScenarios() {
 
   // Create next year simulation from current scenario
   const createNextYearSimulation = useCallback(async (currentScenario: SimulationScenario): Promise<SimulationScenario | null> => {
-    // Calculate growth rate from current scenario
-    const baseRevenue = currentScenario.revenues.reduce((sum, r) => sum + r.baseAmount, 0);
-    const projectedRevenue = currentScenario.revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
-    const growthRate = baseRevenue > 0 ? (projectedRevenue - baseRevenue) / baseRevenue : 0.15;
-
     const generateId = () => Math.random().toString(36).substr(2, 9);
     const nextBaseYear = currentScenario.targetYear;
     const nextTargetYear = currentScenario.targetYear + 1;
 
-    // Create new revenues: projected becomes base, apply linear growth
-    const newRevenues = currentScenario.revenues.map(r => ({
+    // Önceki yılın pozitif senaryosunu bul (tüm kalemleri miras almak için)
+    const previousYearPositive = scenarios.find(
+      s => s.targetYear === currentScenario.targetYear && s.scenarioType === 'positive'
+    );
+    
+    // Referans senaryo: Pozitif varsa onu, yoksa mevcut senaryoyu kullan
+    const referenceScenario = previousYearPositive || currentScenario;
+    
+    console.log('[createNextYearSimulation] Reference scenario:', referenceScenario.name, 
+      'with', referenceScenario.revenues.length, 'revenue items');
+
+    // Büyüme oranını referans senaryodan hesapla
+    const baseRevenue = referenceScenario.revenues.reduce((sum, r) => sum + r.baseAmount, 0);
+    const projectedRevenue = referenceScenario.revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
+    const growthRate = baseRevenue > 0 ? (projectedRevenue - baseRevenue) / baseRevenue : 0.15;
+
+    // Referans senaryonun TÜM kalemlerini miras al
+    // projectedAmount → yeni baseAmount olarak kullan
+    const newRevenues = referenceScenario.revenues.map(r => ({
       id: generateId(),
       category: r.category,
-      baseAmount: r.projectedAmount,
+      baseAmount: r.projectedAmount, // Önceki yılın tahmini = yeni yılın bazı
+      baseQuarterly: r.projectedQuarterly || { q1: 0, q2: 0, q3: 0, q4: 0 },
       projectedAmount: Math.round(r.projectedAmount * (1 + growthRate)),
       description: r.description,
       isNew: false,
       startMonth: r.startMonth,
     }));
 
-    // Create new expenses: projected becomes base, apply slower growth (70% of revenue growth)
+    // Giderler için aynı mantık (daha yavaş büyüme: gelir büyümesinin %70'i)
     const expenseGrowthRate = growthRate * 0.7;
-    const newExpenses = currentScenario.expenses.map(e => ({
+    const newExpenses = referenceScenario.expenses.map(e => ({
       id: generateId(),
       category: e.category,
-      baseAmount: e.projectedAmount,
+      baseAmount: e.projectedAmount, // Önceki yılın tahmini = yeni yılın bazı
+      baseQuarterly: e.projectedQuarterly || { q1: 0, q2: 0, q3: 0, q4: 0 },
       projectedAmount: Math.round(e.projectedAmount * (1 + expenseGrowthRate)),
       description: e.description,
       isNew: false,
       startMonth: e.startMonth,
     }));
+
+    const inheritedItemsNote = previousYearPositive 
+      ? `${previousYearPositive.name} senaryosundan ${newRevenues.length} gelir ve ${newExpenses.length} gider kalemi miras alındı.`
+      : '';
 
     const newScenario: Omit<SimulationScenario, 'id' | 'createdAt' | 'updatedAt'> = {
       name: `${nextTargetYear} Büyüme Planı`,
@@ -233,19 +251,20 @@ export function useScenarios() {
       revenues: newRevenues,
       expenses: newExpenses,
       investments: [], // Reset investments for new year
-      assumedExchangeRate: currentScenario.assumedExchangeRate,
-      notes: `${currentScenario.name} senaryosundan oluşturuldu. Lineer büyüme oranı: ${(growthRate * 100).toFixed(1)}%`,
+      assumedExchangeRate: referenceScenario.assumedExchangeRate,
+      notes: `${inheritedItemsNote}\nLineer büyüme oranı: ${(growthRate * 100).toFixed(1)}%`,
     };
 
     const savedId = await saveScenario(newScenario);
     if (savedId) {
+      toast.success(`${newRevenues.length} gelir ve ${newExpenses.length} gider kalemi miras alındı`);
       return {
         ...newScenario,
         id: savedId,
       };
     }
     return null;
-  }, [saveScenario]);
+  }, [saveScenario, scenarios]);
 
   // Create next year simulation from AI projection with globalization vision
   const createNextYearFromAI = useCallback(async (
@@ -256,13 +275,25 @@ export function useScenarios() {
     const nextBaseYear = currentScenario.targetYear;
     const nextTargetYear = currentScenario.targetYear + 1;
 
+    // Önceki yılın pozitif senaryosunu bul (tüm kalemleri miras almak için)
+    const previousYearPositive = scenarios.find(
+      s => s.targetYear === currentScenario.targetYear && s.scenarioType === 'positive'
+    );
+    
+    // Referans senaryo: Pozitif varsa onu, yoksa mevcut senaryoyu kullan
+    const referenceScenario = previousYearPositive || currentScenario;
+    
+    console.log('[createNextYearFromAI] Reference scenario:', referenceScenario.name, 
+      'with', referenceScenario.revenues.length, 'revenue items,',
+      referenceScenario.expenses.length, 'expense items');
+
     // AI projeksiyonundan gelir ve gider dağılımı
     let totalAIRevenue = aiProjection.summary.total_revenue;
     let totalAIExpenses = aiProjection.summary.total_expenses;
     
-    // Mevcut senaryodaki oranları kullanarak gelir ve giderleri dağıt
-    const currentTotalRevenue = currentScenario.revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
-    const currentTotalExpenses = currentScenario.expenses.reduce((sum, e) => sum + e.projectedAmount, 0);
+    // Referans senaryodaki toplamları kullan
+    const currentTotalRevenue = referenceScenario.revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
+    const currentTotalExpenses = referenceScenario.expenses.reduce((sum, e) => sum + e.projectedAmount, 0);
 
     // FALLBACK: Eğer AI $0 döndürürse, globalleşme odaklı büyüme varsay
     if (totalAIRevenue <= 0) {
@@ -295,8 +326,9 @@ export function useScenarios() {
       q4: aiQuarterly.q4.expenses / aiQuarterlyExpenseTotal,
     } : { q1: 0.25, q2: 0.25, q3: 0.25, q4: 0.25 };
 
-    const newRevenues = currentScenario.revenues.map(r => {
-      const ratio = currentTotalRevenue > 0 ? r.projectedAmount / currentTotalRevenue : 1 / currentScenario.revenues.length;
+    // Referans senaryonun TÜM gelir kalemlerini miras al
+    const newRevenues = referenceScenario.revenues.map(r => {
+      const ratio = currentTotalRevenue > 0 ? r.projectedAmount / currentTotalRevenue : 1 / referenceScenario.revenues.length;
       const itemProjectedAmount = Math.round(totalAIRevenue * ratio);
       
       // Çeyreklik dağılım: AI oranlarını kullan
@@ -314,7 +346,9 @@ export function useScenarios() {
       return {
         id: generateId(),
         category: r.category,
+        // Önceki yılın projectedAmount değeri = yeni yılın baseAmount değeri
         baseAmount: r.projectedAmount,
+        baseQuarterly: r.projectedQuarterly || { q1: 0, q2: 0, q3: 0, q4: 0 },
         projectedAmount: itemProjectedAmount,
         projectedQuarterly,
         description: r.description,
@@ -323,8 +357,9 @@ export function useScenarios() {
       };
     });
 
-    const newExpenses = currentScenario.expenses.map(e => {
-      const ratio = currentTotalExpenses > 0 ? e.projectedAmount / currentTotalExpenses : 1 / currentScenario.expenses.length;
+    // Referans senaryonun TÜM gider kalemlerini miras al
+    const newExpenses = referenceScenario.expenses.map(e => {
+      const ratio = currentTotalExpenses > 0 ? e.projectedAmount / currentTotalExpenses : 1 / referenceScenario.expenses.length;
       const itemProjectedAmount = Math.round(totalAIExpenses * ratio);
       
       // Çeyreklik dağılım: AI oranlarını kullan
@@ -342,7 +377,9 @@ export function useScenarios() {
       return {
         id: generateId(),
         category: e.category,
+        // Önceki yılın projectedAmount değeri = yeni yılın baseAmount değeri
         baseAmount: e.projectedAmount,
+        baseQuarterly: e.projectedQuarterly || { q1: 0, q2: 0, q3: 0, q4: 0 },
         projectedAmount: itemProjectedAmount,
         projectedQuarterly,
         description: e.description,
@@ -352,6 +389,10 @@ export function useScenarios() {
     });
 
     // Build enhanced notes with investor hook data
+    const inheritedItemsNote = previousYearPositive 
+      ? `📦 ${previousYearPositive.name} senaryosundan ${newRevenues.length} gelir ve ${newExpenses.length} gider kalemi miras alındı.\n\n`
+      : '';
+
     const investorHookNote = aiProjection.investor_hook 
       ? `\n\n🚀 Yatırımcı Vizyonu:\n• Büyüme: ${aiProjection.investor_hook.revenue_growth_yoy}\n• Marj İyileşmesi: ${aiProjection.investor_hook.margin_improvement}\n• Değerleme Hedefi: ${aiProjection.investor_hook.valuation_multiple_target}\n• Rekabet Avantajı: ${aiProjection.investor_hook.competitive_moat}`
       : '';
@@ -367,19 +408,20 @@ export function useScenarios() {
       revenues: newRevenues,
       expenses: newExpenses,
       investments: [],
-      assumedExchangeRate: currentScenario.assumedExchangeRate,
-      notes: `🤖 AI tarafından oluşturuldu (Gemini Pro 3) - Globalleşme Odaklı\n\n📊 Strateji: ${aiProjection.strategy_note}\n\n💰 Toplam Gelir: $${totalAIRevenue.toLocaleString()}\n💸 Toplam Gider: $${totalAIExpenses.toLocaleString()}\n📈 Net Kâr: $${aiProjection.summary.net_profit.toLocaleString()}${investorHookNote}${virtualBalanceNote}`,
+      assumedExchangeRate: referenceScenario.assumedExchangeRate,
+      notes: `🤖 AI tarafından oluşturuldu (Gemini Pro 3) - Globalleşme Odaklı\n\n${inheritedItemsNote}📊 Strateji: ${aiProjection.strategy_note}\n\n💰 Toplam Gelir: $${totalAIRevenue.toLocaleString()}\n💸 Toplam Gider: $${totalAIExpenses.toLocaleString()}\n📈 Net Kâr: $${aiProjection.summary.net_profit.toLocaleString()}${investorHookNote}${virtualBalanceNote}`,
     };
 
     const savedId = await saveScenario(newScenario);
     if (savedId) {
+      toast.success(`${newRevenues.length} gelir ve ${newExpenses.length} gider kalemi miras alındı`);
       return {
         ...newScenario,
         id: savedId,
       };
     }
     return null;
-  }, [saveScenario]);
+  }, [saveScenario, scenarios]);
 
   // Load scenarios on mount
   useEffect(() => {
