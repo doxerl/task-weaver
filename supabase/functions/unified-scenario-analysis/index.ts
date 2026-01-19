@@ -71,19 +71,116 @@ const ANTI_HALLUCINATION_RULES = `
 // =====================================================
 // SENARYO KURALLARI
 // =====================================================
-const SCENARIO_RULES = `
+// =====================================================
+// SENARYO KURALLARI - DİNAMİK
+// =====================================================
+type ScenarioRelationType = 'positive_vs_negative' | 'successor_projection' | 'year_over_year';
+
+interface ScenarioRelationship {
+  type: ScenarioRelationType;
+  baseScenario: 'A' | 'B';
+  projectionYear: number;
+  description: string;
+}
+
+function detectScenarioRelationship(scenarioA: any, scenarioB: any): ScenarioRelationship {
+  const targetYearA = scenarioA.targetYear || new Date().getFullYear();
+  const targetYearB = scenarioB.targetYear || new Date().getFullYear();
+  
+  // Same year = traditional positive vs negative comparison
+  if (targetYearA === targetYearB) {
+    return {
+      type: 'positive_vs_negative',
+      baseScenario: 'A',
+      projectionYear: targetYearA + 1,
+      description: 'Aynı yıl için pozitif ve negatif senaryo karşılaştırması'
+    };
+  }
+  
+  // A is later than B = A is the successor/future projection of B's success
+  if (targetYearA > targetYearB) {
+    return {
+      type: 'successor_projection',
+      baseScenario: 'B', // B is the base (current year target), A is future projection
+      projectionYear: targetYearA + 1,
+      description: `${scenarioB.name} (${targetYearB}) başarılı olursa ${scenarioA.name} (${targetYearA}) projeksiyonu`
+    };
+  }
+  
+  // A is earlier than B (unusual but handle it)
+  return {
+    type: 'year_over_year',
+    baseScenario: 'A',
+    projectionYear: targetYearB + 1,
+    description: 'Yıllar arası karşılaştırma'
+  };
+}
+
+function generateDynamicScenarioRules(relationship: ScenarioRelationship, scenarioA: any, scenarioB: any): string {
+  if (relationship.type === 'successor_projection') {
+    return `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📊 SENARYO KURALLARI (KESİN - DEĞİŞMEZ):
+📊 SENARYO İLİŞKİSİ: ARDIŞIK YIL PROJEKSİYONU (BAŞARI HİKAYESİ)
 
-1. **SENARYO A = POZİTİF SENARYO (Her zaman):**
+⚠️ KRİTİK: Bu bir "pozitif vs negatif" karşılaştırması DEĞİL!
+Bu, "${scenarioB.name}" (${scenarioB.targetYear}) BAŞARILI olursa 
+"${scenarioA.name}" (${scenarioA.targetYear}) nasıl görünür analizi.
+
+🎯 HER İKİ SENARYO DA POZİTİF! Risk karşılaştırması YAPMA!
+
+1. **${scenarioB.name} (${scenarioB.targetYear}) = BAZ SENARYO (YATIRIM YILI):**
+   - Bu yılın yatırım hedefi
+   - Yatırımla gerçekleşecek büyüme
+   - TÜM exit plan ve MOIC hesaplamaları BUNA DAYALI
+   - Pitch deck'in "traction" bölümü bu yılın verileri
+   
+2. **${scenarioA.name} (${scenarioA.targetYear}) = GELECEK PROJEKSİYON (BÜYÜME YILI):**
+   - Baz senaryo başarılı olursa sonraki yıl
+   - Büyümenin devamı ve hızlanması
+   - ⚠️ NEGATİF SENARYO DEĞİL - POZİTİF GELİŞME!
+   - Global genişleme ve ölçekleme yılı
+
+3. **ANALİZ ODAĞI:**
+   - ${scenarioB.targetYear} hedeflerimize ulaşırsak...
+   - ${scenarioA.targetYear}'de nereye varabiliriz?
+   - Büyüme momentum analizi
+   - İKİ SENARYO DA OLUMLU - Fırsat analizi yap, risk karşılaştırması DEĞİL!
+   - "Opportunity cost" analizi YAPMA - bu zaten başarı hikayesi
+
+4. **PITCH DECK ODAĞI:**
+   - ${scenarioB.targetYear} (yatırım yılı) verileri = "Traction" ve "Business Model" slaytları
+   - ${scenarioA.targetYear} (büyüme yılı) verileri = "Growth Plan" ve "Financial Projection" slaytları
+   - Hikaye: "Bu yıl $X yaparsak, gelecek yıl $Y olur"
+   
+5. **EXIT PLAN VE MOIC:**
+   - Baz yıl = ${scenarioB.targetYear} (${scenarioB.name})
+   - MOIC hesaplamaları ${scenarioB.name} üzerinden
+   - ${scenarioA.name} sadece "upside potansiyeli" olarak göster
+
+6. **KULLANMA (BU SENARYO TİPİ İÇİN):**
+   ❌ "Negatif senaryo" ifadesi
+   ❌ "Risk senaryosu" ifadesi  
+   ❌ "Yatırım alamazsak" ifadesi
+   ❌ "Fırsat maliyeti" hesabı
+   ❌ A vs B "kayıp" karşılaştırması
+`;
+  }
+  
+  // Default: Same year positive vs negative comparison
+  return `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 SENARYO KURALLARI (POZİTİF VS NEGATİF KARŞILAŞTIRMA):
+
+1. **SENARYO A = POZİTİF SENARYO (${scenarioA.name}):**
    - Net kârı daha yüksek olan senaryo
    - Büyüme hedeflerinin tuttuğu senaryo
    - "Hedef Senaryo" olarak referans al
    - Yatırımcıya gösterilecek ana senaryo
    - YATIRIM ALIRSAK gerçekleşecek senaryo
 
-2. **SENARYO B = NEGATİF SENARYO (Her zaman):**
+2. **SENARYO B = NEGATİF SENARYO (${scenarioB.name}):**
    - Net kârı daha düşük olan senaryo
    - Kötümser varsayımlar, düşük gelir
    - "Risk Senaryosu" olarak referans al
@@ -95,17 +192,16 @@ const SCENARIO_RULES = `
    - Negatif Senaryo (B) gerçekleşirse ne olur? → Risk analizi (Yatırım alamazsak)
    - Fark ne kadar? Risk ne kadar büyük? → Gap analizi = FIRSAT MALİYETİ / ZARAR
 
-4. **YATIRIM SENARYO KARŞILAŞTIRMASI (YENİ - KRİTİK):**
-   - YATIRIM ALIRSAK (A): Hedef büyüme gerçekleşir, exit plan işler, sonraki yıllar yatırıma göre şekillenir
-   - YATIRIM ALAMAZSAK (B): Organik (düşük) büyüme, exit plan geçersiz, FIRSAT MALİYETİ = ZARAR
+4. **YATIRIM SENARYO KARŞILAŞTIRMASI:**
+   - YATIRIM ALIRSAK (A): Hedef büyüme gerçekleşir, exit plan işler
+   - YATIRIM ALAMAZSAK (B): Organik (düşük) büyüme, FIRSAT MALİYETİ = ZARAR
    - Her analizde bu karşılaştırmayı NET olarak yap!
 
 5. **GELECEK YIL PROJEKSİYON KURALI:**
-   - Simülasyon Yılı +1 projeksiyonu HER ZAMAN Pozitif Senaryo (A) baz alınarak yapılır
-   - Çünkü yatırımcı en iyi durumu görmek ister
-   - Negatif senaryo sadece "downside risk" olarak sunulur
+   - Simülasyon Yılı +1 projeksiyonu Pozitif Senaryo (A) baz alınarak yapılır
    - Projeksiyon = Senaryo A'nın %40-100 büyümesi
 `;
+}
 
 // =====================================================
 // ODAK PROJE KURALLARI
@@ -138,11 +234,12 @@ Kullanıcı bir "odak proje" belirttiyse, analizi bu projeye odakla:
    - Senaryo A vs B arasındaki en büyük farkı yaratan kalemi belirle
 `;
 
-const UNIFIED_MASTER_PROMPT = `Sen, Fortune 500 CFO'su ve Silikon Vadisi VC Ortağı yeteneklerine sahip "Omni-Scient (Her Şeyi Bilen) Finansal Zeka"sın.
+// Note: SCENARIO_RULES is now dynamic - will be injected at runtime via generateDynamicScenarioRules()
+const getUnifiedMasterPrompt = (dynamicScenarioRules: string) => `Sen, Fortune 500 CFO'su ve Silikon Vadisi VC Ortağı yeteneklerine sahip "Omni-Scient (Her Şeyi Bilen) Finansal Zeka"sın.
 
 ${ANTI_HALLUCINATION_RULES}
 
-${SCENARIO_RULES}
+${dynamicScenarioRules}
 
 ${FOCUS_PROJECT_RULES}
 
@@ -406,21 +503,72 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Use a reliable model for tool calling - gemini-2.5-flash is more stable for structured output
-    const MODEL_ID = "google/gemini-2.5-flash";
+    // Use the most powerful model for deep reasoning - now with fixed scenario logic
+    const MODEL_ID = "google/gemini-3-pro-preview";
+    
+    // Detect scenario relationship type
+    const scenarioRelationship = detectScenarioRelationship(scenarioA, scenarioB);
+    console.log("Detected scenario relationship:", scenarioRelationship);
+    
+    // Generate dynamic scenario rules based on relationship
+    const dynamicScenarioRules = generateDynamicScenarioRules(scenarioRelationship, scenarioA, scenarioB);
+    
     // Calculate year references based on scenario data
     const currentYear = new Date().getFullYear();
     const baseYear = scenarioA.baseYear || currentYear - 1;    // 2025 - Last completed year
+    
+    // For successor_projection, use scenarioB as the base for calculations
+    const exitPlanBaseYear = scenarioRelationship.type === 'successor_projection' 
+      ? scenarioB.targetYear 
+      : scenarioA.targetYear;
+    
     const scenarioYear = scenarioA.targetYear || currentYear;  // 2026 - Scenario target year
-    const year2 = scenarioYear + 1;  // 2027
-    const year3 = scenarioYear + 3;  // 2029 (3-year MOIC)
-    const year5 = scenarioYear + 5;  // 2031 (5-year MOIC)
+    const scenarioBYear = scenarioB.targetYear || currentYear;
+    const year2 = scenarioRelationship.projectionYear;  // Dynamic based on relationship
+    const year3 = exitPlanBaseYear + 3;  // 3-year MOIC based on correct base
+    const year5 = exitPlanBaseYear + 5;  // 5-year MOIC based on correct base
 
-    // Build year context section for AI
-    const yearContextSection = `
+    // Build year context section for AI - DYNAMIC based on scenario relationship
+    const yearContextSection = scenarioRelationship.type === 'successor_projection' ? `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📅 YIL YAPISI VE SENARYO ROLLERİ (KRİTİK)
+📅 YIL YAPISI VE SENARYO ROLLERİ (ARDIŞIK YIL PROJEKSİYONU)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 SENARYO TİPİ: 📈 ARDIŞIK YIL PROJEKSİYONU
+⚠️ HER İKİ SENARYO DA POZİTİF! Negatif karşılaştırma YAPMA!
+
+🗓️ ZAMAN ÇİZELGESİ:
+┌────────────────┬──────────────────────────────────────────┐
+│ ${baseYear} (Base)    │ Tamamlanan yıl - Gerçek finansallar     │
+│ ${scenarioBYear} (Baz Yıl)  │ "${scenarioB.name}" - Yatırım hedefi     │
+│ ${scenarioYear} (Gelecek)  │ "${scenarioA.name}" - Başarı projeksiyonu│
+│ ${year3} (3.Yıl)   │ MOIC 3Y hesaplama noktası (${scenarioBYear} bazlı) │
+│ ${year5} (5.Yıl)   │ MOIC 5Y hesaplama noktası (${scenarioBYear} bazlı) │
+└────────────────┴──────────────────────────────────────────┘
+
+🎯 SENARYO ROLLERI:
+- "${scenarioB.name}" (${scenarioBYear}) = BAZ SENARYO
+  - Yatırım alınan yıl
+  - Exit Plan, MOIC hesaplamaları BUNA DAYALI
+  - Pitch deck'in "Traction" ve "Business Model" bölümü
+
+- "${scenarioA.name}" (${scenarioYear}) = GELECEK PROJEKSİYON
+  - Baz senaryo başarılı olursa ulaşılacak hedef
+  - ⚠️ NEGATİF DEĞİL - POZİTİF BÜYÜME HİKAYESİ!
+  - Pitch deck'in "Growth Plan" bölümü
+
+⚠️ KRİTİK TALİMATLAR:
+1. Exit plan ve MOIC hesaplamaları ${scenarioBYear} (${scenarioB.name}) verilerine dayalı
+2. İki senaryo arasında "kayıp" veya "fırsat maliyeti" analizi YAPMA
+3. Her iki senaryoyu da POZİTİF büyüme hikayesi olarak sun
+4. Pitch deck'te: "${scenarioBYear}'de $X, ${scenarioYear}'de $Y'ye ulaşıyoruz" formatı
+5. Gelecek yıl projeksiyonu = ${year2}
+` : `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📅 YIL YAPISI VE SENARYO ROLLERİ (POZİTİF VS NEGATİF)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🔍 SENARYO TİPİ: ⚖️ POZİTİF VS NEGATİF KARŞILAŞTIRMA
 
 🗓️ ZAMAN ÇİZELGESİ:
 ┌────────────────┬──────────────────────────────────────────┐
@@ -679,7 +827,7 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
       body: JSON.stringify({
         model: MODEL_ID,
         messages: [
-          { role: "system", content: UNIFIED_MASTER_PROMPT },
+          { role: "system", content: getUnifiedMasterPrompt(dynamicScenarioRules) },
           { role: "user", content: userPrompt }
         ],
         tools: [
