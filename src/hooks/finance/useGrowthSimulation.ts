@@ -9,6 +9,8 @@ import {
 import { useFinancialDataHub } from './useFinancialDataHub';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { usePayrollAccruals } from './usePayrollAccruals';
+import { useIncomeStatement } from './useIncomeStatement';
+import { useExchangeRates } from './useExchangeRates';
 import { getCompletedYear, getScenarioYear } from '@/utils/yearCalculations';
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
@@ -91,6 +93,11 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
   const { yearlyAverageRate } = useCurrency();
   const { summary: payrollSummary } = usePayrollAccruals(baseYear);
   
+  // Gerçek baz yıl verilerini veritabanından çek (targetYear - 1)
+  const actualBaseYear = targetYear - 1;
+  const baseYearStatement = useIncomeStatement(actualBaseYear);
+  const baseYearExchangeRates = useExchangeRates(actualBaseYear);
+  
   const [scenarioName, setScenarioName] = useState('Varsayılan Senaryo');
   const [revenues, setRevenues] = useState<ProjectionItem[]>([]);
   const [expenses, setExpenses] = useState<ProjectionItem[]>([]);
@@ -103,6 +110,30 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
   const [baseScenarioRevenues, setBaseScenarioRevenues] = useState<ProjectionItem[]>([]);
   const [baseScenarioExpenses, setBaseScenarioExpenses] = useState<ProjectionItem[]>([]);
   const [hasBaseScenario, setHasBaseScenario] = useState(false);
+  
+  // Veritabanından gerçek baz yıl toplamları (TRY)
+  const realBaseData = useMemo(() => {
+    if (baseYearStatement.isLoading || !baseYearStatement.statement) {
+      return null;
+    }
+    
+    const stmt = baseYearStatement.statement;
+    const totalExpenseTRY = (stmt.costOfSales || 0) + (stmt.operatingExpenses?.total || 0);
+    const totalRevenueTRY = stmt.netSales || 0;
+    
+    // Baz yılın ortalama kurunu al
+    const baseYearRate = baseYearExchangeRates.yearlyAverageRate;
+    
+    if (!baseYearRate || baseYearRate <= 0) {
+      return null;
+    }
+    
+    return {
+      totalExpenseUSD: Math.round(totalExpenseTRY / baseYearRate),
+      totalRevenueUSD: Math.round(totalRevenueTRY / baseYearRate),
+      exchangeRate: baseYearRate,
+    };
+  }, [baseYearStatement.isLoading, baseYearStatement.statement, baseYearExchangeRates.yearlyAverageRate]);
 
   // Calculate base data from hub when available
   const baseData = useMemo(() => {
@@ -251,16 +282,28 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
 
   // Calculate summary
   const summary: SimulationSummary = useMemo(() => {
-    // Baz yıl değerleri:
-    // 1. Eğer baseScenario yüklendiyse (önceki yılın pozitif senaryosu), onun projectedAmount değerlerini kullan
-    // 2. Yoksa, mevcut senaryonun baseAmount değerlerini kullan (geriye dönük uyumluluk)
-    const baseRevenue = hasBaseScenario && baseScenarioRevenues.length > 0
-      ? baseScenarioRevenues.reduce((sum, r) => sum + r.projectedAmount, 0)
-      : revenues.reduce((sum, r) => sum + r.baseAmount, 0);
+    // Baz yıl değerleri - öncelik sırası:
+    // 1. Gerçek veritabanı verileri (realBaseData) - Reports sayfasıyla tutarlı
+    // 2. Yüklenen baz senaryo (baseScenario) - 2027+ senaryolar için
+    // 3. Mevcut senaryo baseAmount'ları (fallback)
     
-    const baseExpense = hasBaseScenario && baseScenarioExpenses.length > 0
-      ? baseScenarioExpenses.reduce((sum, e) => sum + e.projectedAmount, 0)
-      : expenses.reduce((sum, e) => sum + e.baseAmount, 0);
+    let baseRevenue: number;
+    let baseExpense: number;
+    
+    if (realBaseData) {
+      // Gerçek veritabanı verileri - Reports sayfasıyla tutarlı!
+      baseRevenue = realBaseData.totalRevenueUSD;
+      baseExpense = realBaseData.totalExpenseUSD;
+      console.log(`[useGrowthSimulation] Baz yıl ${actualBaseYear} gerçek veriler: Gelir=$${baseRevenue.toLocaleString()}, Gider=$${baseExpense.toLocaleString()} (Kur: ${realBaseData.exchangeRate})`);
+    } else if (hasBaseScenario && baseScenarioRevenues.length > 0) {
+      // Yüklenen baz senaryo (önceki yılın pozitif senaryosu)
+      baseRevenue = baseScenarioRevenues.reduce((sum, r) => sum + r.projectedAmount, 0);
+      baseExpense = baseScenarioExpenses.reduce((sum, e) => sum + e.projectedAmount, 0);
+    } else {
+      // Fallback: mevcut senaryo baseAmount'ları
+      baseRevenue = revenues.reduce((sum, r) => sum + r.baseAmount, 0);
+      baseExpense = expenses.reduce((sum, e) => sum + e.baseAmount, 0);
+    }
     
     const baseProfit = baseRevenue - baseExpense;
 
@@ -299,7 +342,7 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
         netCapitalNeed: Math.max(0, totalInvestment - projectedProfit),
       },
     };
-  }, [baseData, revenues, expenses, investments, isInitialized, hasBaseScenario, baseScenarioRevenues, baseScenarioExpenses]);
+  }, [realBaseData, actualBaseYear, revenues, expenses, investments, hasBaseScenario, baseScenarioRevenues, baseScenarioExpenses]);
 
   // Revenue operations
   const updateRevenue = useCallback((id: string, updates: Partial<ProjectionItem>) => {
