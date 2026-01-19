@@ -397,7 +397,8 @@ serve(async (req) => {
       historicalBalance,
       quarterlyItemized,
       exchangeRate,
-      focusProjectInfo
+      focusProjectInfo,
+      previousEditedProjections
     } = await req.json();
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -640,6 +641,30 @@ Kullanıcı odak proje seçmedi. Analiz yaparken:
 2. Senaryo A vs B arasındaki en büyük farkı yaratan kalemi belirle
 3. Bu kalemi ana büyüme hikayesi olarak kullan
 `}
+
+${previousEditedProjections ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📝 KULLANICI DÜZENLEMELERİ (Önceki Analiz Sonrası):
+
+Kullanıcı AI tarafından önerilen projeksiyon tablolarında değişiklik yaptı.
+Bu değişiklikleri dikkate alarak analizi güncelle.
+
+Düzenlenmiş Gelir Projeksiyonu (Sonraki Yıl):
+${(previousEditedProjections.revenue || []).filter((i: any) => i.userEdited).map((r: any) => 
+  `${r.category}: Q1=$${Math.round(r.q1).toLocaleString()}, Q2=$${Math.round(r.q2).toLocaleString()}, Q3=$${Math.round(r.q3).toLocaleString()}, Q4=$${Math.round(r.q4).toLocaleString()} | Toplam=$${Math.round(r.total || (r.q1+r.q2+r.q3+r.q4)).toLocaleString()} [KULLANICI DÜZENLEDİ]`
+).join('\n') || 'Gelir düzenlemesi yok'}
+
+Düzenlenmiş Gider Projeksiyonu (Sonraki Yıl):
+${(previousEditedProjections.expense || []).filter((i: any) => i.userEdited).map((e: any) => 
+  `${e.category}: Q1=$${Math.round(e.q1).toLocaleString()}, Q2=$${Math.round(e.q2).toLocaleString()}, Q3=$${Math.round(e.q3).toLocaleString()}, Q4=$${Math.round(e.q4).toLocaleString()} | Toplam=$${Math.round(e.total || (e.q1+e.q2+e.q3+e.q4)).toLocaleString()} [KULLANICI DÜZENLEDİ]`
+).join('\n') || 'Gider düzenlemesi yok'}
+
+🔍 ANALİZ TALİMATI:
+1. Kullanıcının yaptığı değişiklikleri doğrula ve mantıklı olup olmadığını değerlendir
+2. Değişiklikler toplam rakamları etkileyecekse, bunu insights ve pitch deck'e yansıt
+3. Kullanıcının değişiklikleri agresif/konservatif mi belirt
+` : ''}
 
 Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı verileri ve ODAK PROJE bilgisini) analiz et ve yukarıdaki 5 bölümün hepsini içeren yapılandırılmış çıktı üret.
 `;
