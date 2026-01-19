@@ -66,7 +66,7 @@ export function ItemTrendCards({ analysis, type }: ItemTrendCardsProps) {
       </CardHeader>
       <CardContent>
         <div className="grid gap-2">
-          {items.map((item, idx) => (
+          {items.slice(0, 5).map((item, idx) => (
             <div 
               key={idx} 
               className="flex items-center justify-between p-3 bg-muted/30 rounded-lg border border-border/50"
