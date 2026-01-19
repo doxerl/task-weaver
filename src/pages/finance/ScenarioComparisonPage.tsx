@@ -1259,6 +1259,23 @@ function ScenarioComparisonContent() {
                   <Brain className="h-4 w-4" />
                   Profesyonel Analiz Metrikleri
                 </h3>
+                {/* 1. Cross-Scenario Comparison - Gelir/Gider Kalemleri Karşılaştırması */}
+                {quarterlyItemized && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <ScenarioComparisonCards quarterlyItemized={quarterlyItemized} type="revenues" />
+                    <ScenarioComparisonCards quarterlyItemized={quarterlyItemized} type="expenses" />
+                  </div>
+                )}
+                
+                {/* 2. Single Scenario Trend Analysis */}
+                {itemTrendAnalysis && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <ItemTrendCards analysis={itemTrendAnalysis} type="revenues" />
+                    <ItemTrendCards analysis={itemTrendAnalysis} type="expenses" />
+                  </div>
+                )}
+
+                {/* 3. Financial Ratios + Sensitivity Analysis */}
                 <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                   {financialRatios && (
                     <FinancialRatiosPanel ratios={financialRatios} />
@@ -1267,21 +1284,6 @@ function ScenarioComparisonContent() {
                     <SensitivityTable analysis={sensitivityAnalysis} baseProfit={summaryB?.netProfit || 0} />
                   )}
                 </div>
-                {/* Cross-Scenario Comparison - Pozitif vs Negatif senaryo karşılaştırması */}
-                {quarterlyItemized && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <ScenarioComparisonCards quarterlyItemized={quarterlyItemized} type="revenues" />
-                    <ScenarioComparisonCards quarterlyItemized={quarterlyItemized} type="expenses" />
-                  </div>
-                )}
-                
-                {/* Single Scenario Trend Analysis */}
-                {itemTrendAnalysis && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <ItemTrendCards analysis={itemTrendAnalysis} type="revenues" />
-                    <ItemTrendCards analysis={itemTrendAnalysis} type="expenses" />
-                  </div>
-                )}
               </div>
             )}
 
