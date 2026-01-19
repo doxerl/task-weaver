@@ -27,6 +27,12 @@ import {
   CollapsibleTrigger,
 } from '@/components/ui/collapsible';
 import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from '@/components/ui/accordion';
+import {
   Sheet,
   SheetContent,
   SheetDescription,
@@ -55,6 +61,8 @@ import {
   RotateCcw,
   Presentation,
   Edit2,
+  Activity,
+  Calculator,
 } from 'lucide-react';
 import { 
   SimulationScenario, 
@@ -1360,38 +1368,84 @@ function ScenarioComparisonContent() {
               </Card>
             </div>
 
-            {/* SECTION 2.5: PROFESSIONAL ANALYSIS PANELS */}
-            {(financialRatios || sensitivityAnalysis || itemTrendAnalysis) && (
+            {/* SECTION 2.5: PROFESSIONAL ANALYSIS PANELS - ACCORDION */}
+            {(financialRatios || sensitivityAnalysis || itemTrendAnalysis || quarterlyItemized) && (
               <div className="space-y-4">
                 <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <Brain className="h-4 w-4" />
                   Profesyonel Analiz Metrikleri
                 </h3>
-                {/* 1. Cross-Scenario Comparison - Gelir/Gider Kalemleri Karşılaştırması */}
-                {quarterlyItemized && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <ScenarioComparisonCards quarterlyItemized={quarterlyItemized} type="revenues" />
-                    <ScenarioComparisonCards quarterlyItemized={quarterlyItemized} type="expenses" />
-                  </div>
-                )}
                 
-                {/* 2. Single Scenario Trend Analysis */}
-                {itemTrendAnalysis && (
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    <ItemTrendCards analysis={itemTrendAnalysis} type="revenues" />
-                    <ItemTrendCards analysis={itemTrendAnalysis} type="expenses" />
-                  </div>
-                )}
-
-                {/* 3. Financial Ratios + Sensitivity Analysis */}
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                <Accordion type="multiple" defaultValue={['financial-ratios']} className="space-y-2">
+                  {/* Senaryo Karşılaştırması */}
+                  {quarterlyItemized && (
+                    <AccordionItem value="scenario-comparison" className="border rounded-lg bg-card">
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                        <div className="flex items-center gap-2">
+                          <ArrowLeftRight className="h-4 w-4 text-blue-400" />
+                          <span>Senaryo Karşılaştırması</span>
+                          <Badge variant="secondary" className="ml-2">
+                            {(quarterlyItemized.scenarioA?.revenues?.length || 0) + (quarterlyItemized.scenarioA?.expenses?.length || 0)} kalem
+                          </Badge>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <ScenarioComparisonCards quarterlyItemized={quarterlyItemized} type="revenues" />
+                          <ScenarioComparisonCards quarterlyItemized={quarterlyItemized} type="expenses" />
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  )}
+                  
+                  {/* Trend Analizi */}
+                  {itemTrendAnalysis && (
+                    <AccordionItem value="trend-analysis" className="border rounded-lg bg-card">
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                        <div className="flex items-center gap-2">
+                          <Activity className="h-4 w-4 text-purple-400" />
+                          <span>Trend Analizi</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4">
+                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                          <ItemTrendCards analysis={itemTrendAnalysis} type="revenues" />
+                          <ItemTrendCards analysis={itemTrendAnalysis} type="expenses" />
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  )}
+                  
+                  {/* Finansal Oranlar - Varsayılan açık */}
                   {financialRatios && (
-                    <FinancialRatiosPanel ratios={financialRatios} />
+                    <AccordionItem value="financial-ratios" className="border rounded-lg bg-card">
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                        <div className="flex items-center gap-2">
+                          <Calculator className="h-4 w-4 text-emerald-400" />
+                          <span>Finansal Oranlar</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4">
+                        <FinancialRatiosPanel ratios={financialRatios} />
+                      </AccordionContent>
+                    </AccordionItem>
                   )}
+                  
+                  {/* Duyarlılık Analizi */}
                   {sensitivityAnalysis && (
-                    <SensitivityTable analysis={sensitivityAnalysis} baseProfit={summaryB?.netProfit || 0} />
+                    <AccordionItem value="sensitivity" className="border rounded-lg bg-card">
+                      <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                        <div className="flex items-center gap-2">
+                          <AlertTriangle className="h-4 w-4 text-amber-400" />
+                          <span>Duyarlılık Analizi</span>
+                        </div>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-4 pb-4">
+                        <SensitivityTable analysis={sensitivityAnalysis} baseProfit={summaryB?.netProfit || 0} />
+                      </AccordionContent>
+                    </AccordionItem>
                   )}
-                </div>
+                </Accordion>
               </div>
             )}
 
