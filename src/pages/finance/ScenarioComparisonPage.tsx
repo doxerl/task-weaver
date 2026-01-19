@@ -87,6 +87,7 @@ import { ItemTrendCards } from '@/components/simulation/ItemTrendCards';
 import { ScenarioComparisonCards } from '@/components/simulation/ScenarioComparisonCards';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { useExchangeRates } from '@/hooks/finance/useExchangeRates';
+import { getProjectionYears, calculateInternalGrowthRate } from '@/utils/yearCalculations';
 import {
   ChartConfig,
   ChartContainer,
@@ -940,14 +941,19 @@ function ScenarioComparisonContent() {
   const handleUnifiedAnalysis = async () => {
     if (!scenarioA || !scenarioB || !summaryA || !summaryB) return;
     
+    // Get year context for projections
+    const years = getProjectionYears();
+    
     // Get average exchange rate for TL to USD conversion (fallback to 39 if not available)
     const averageRate = yearlyAverageRate || 39;
     
-    // Fetch historical balance for target year (converted to USD)
-    const historicalBalance = scenarioB.targetYear 
-      ? await fetchHistoricalBalance(scenarioB.targetYear, averageRate) 
+    // Fetch historical balance for base year (converted to USD)
+    // Base year = completed year = scenarioA.baseYear (e.g., 2025)
+    const historicalBalance = scenarioA.baseYear 
+      ? await fetchHistoricalBalance(scenarioA.baseYear, averageRate) 
       : null;
     
+    // Quarterly data from POSITIVE scenario (A) for capital needs
     const quarterlyA = { 
       q1: quarterlyComparison[0]?.scenarioANet || 0, 
       q2: quarterlyComparison[1]?.scenarioANet || 0, 
@@ -961,23 +967,31 @@ function ScenarioComparisonContent() {
       q4: quarterlyComparison[3]?.scenarioBNet || 0 
     };
     
-    // Calculate capital needs and exit plan
-    const capitalNeeds = calculateCapitalNeeds(quarterlyB);
-    const growthRate = summaryA.totalRevenue > 0 
-      ? (summaryB.totalRevenue - summaryA.totalRevenue) / summaryA.totalRevenue 
-      : 0.15;
-    const exitPlan = calculateExitPlan(dealConfig, summaryB.totalRevenue, summaryB.totalExpense, growthRate);
+    // Calculate capital needs from POSITIVE SCENARIO (A) - this is the investment target
+    const capitalNeeds = calculateCapitalNeeds(quarterlyA);
+    
+    // Calculate growth rate from POSITIVE SCENARIO (A) internal growth (base → projected)
+    const baseRevenue = scenarioA.revenues.reduce((sum, r) => sum + (r.baseAmount || 0), 0);
+    const projectedRevenue = summaryA.totalRevenue;
+    const growthRate = calculateInternalGrowthRate(baseRevenue, projectedRevenue, 0.10);
+    
+    // Exit Plan uses POSITIVE SCENARIO (A) data - this is what investors see
+    const exitPlan = calculateExitPlan(
+      dealConfig, 
+      summaryA.totalRevenue,   // Positive scenario revenue
+      summaryA.totalExpense,   // Positive scenario expenses
+      growthRate
+    );
     
     // Prepare focus project info if projects are selected
     let focusProjectInfo: FocusProjectInfo | undefined;
     if (focusProjects.length > 0 && scenarioA?.revenues) {
       const projects = focusProjects.map(projectName => {
         const revenueItemA = scenarioA.revenues.find(r => r.category === projectName);
-        const revenueItemB = scenarioB.revenues.find(r => r.category === projectName);
         return {
           projectName,
-          currentRevenue: revenueItemA?.projectedAmount || revenueItemA?.baseAmount || 0,
-          projectedRevenue: revenueItemB?.projectedAmount || 0
+          currentRevenue: revenueItemA?.baseAmount || 0,        // Base year value (2025)
+          projectedRevenue: revenueItemA?.projectedAmount || 0  // Positive scenario target (2026)
         };
       });
       
@@ -989,7 +1003,16 @@ function ScenarioComparisonContent() {
         combinedCurrentRevenue,
         combinedProjectedRevenue,
         growthPlan: focusProjectPlan,
-        investmentAllocation: investmentAllocation as InvestmentAllocation
+        investmentAllocation: investmentAllocation as InvestmentAllocation,
+        yearContext: {
+          baseYear: years.baseYear,          // 2025
+          scenarioYear: years.year1,         // 2026
+          projectionYears: {
+            year2: years.year2,              // 2027
+            year3: years.year3,              // 2029
+            year5: years.year5               // 2031
+          }
+        }
       };
     }
     

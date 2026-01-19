@@ -58,13 +58,14 @@ export interface InvestmentItem {
 export interface SimulationScenario {
   id: string;
   name: string;
-  baseYear: number;             // e.g., 2025
-  targetYear: number;           // e.g., 2026
+  baseYear: number;             // e.g., 2025 (last completed year)
+  targetYear: number;           // e.g., 2026 (scenario year)
   revenues: ProjectionItem[];
   expenses: ProjectionItem[];
   investments: InvestmentItem[];
   assumedExchangeRate: number;  // TL/USD for display
   notes: string;
+  scenarioType?: 'positive' | 'negative';  // Scenario role: positive = investment, negative = risk
   createdAt?: string;
   updatedAt?: string;
 }
@@ -307,7 +308,8 @@ export interface CapitalRequirement {
 
 /** Multi-Year Financial Projection */
 export interface MultiYearProjection {
-  year: number;
+  year: number;                  // Relative year (1, 2, 3, 4, 5)
+  actualYear: number;            // Actual calendar year (2027, 2028, 2029, 2030, 2031)
   revenue: number;
   expenses: number;
   netProfit: number;
@@ -327,6 +329,11 @@ export interface ExitPlan {
   breakEvenYear: number | null;  // Başa baş yılı
   potentialAcquirers: string[];  // Potansiyel alıcılar (AI tarafından)
   exitStrategy: 'series_b' | 'strategic_sale' | 'ipo' | 'hold' | 'unknown';
+  yearLabels?: {                 // Actual year references for display
+    scenarioYear: number;        // 2026
+    moic3Year: number;           // 2029
+    moic5Year: number;           // 2031
+  };
 }
 
 /** AI Investor Analysis Result */
@@ -688,6 +695,15 @@ export interface FocusProjectInfo {
   description?: string;
   growthPlan: string;
   investmentAllocation: InvestmentAllocation;
+  yearContext?: {                // Year context for projections
+    baseYear: number;            // 2025 - Last completed year
+    scenarioYear: number;        // 2026 - Scenario target year
+    projectionYears: {
+      year2: number;             // 2027
+      year3: number;             // 2029 (3-year MOIC)
+      year5: number;             // 2031 (5-year MOIC)
+    };
+  };
 }
 
 /** Editable projection item for next year */
