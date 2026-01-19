@@ -14,6 +14,8 @@ interface ProjectionTableProps {
   onUpdate: (id: string, updates: Partial<ProjectionItem>) => void;
   onRemove: (id: string) => void;
   type: 'revenue' | 'expense';
+  baseYear?: number;
+  targetYear?: number;
 }
 
 function formatUSD(value: number): string {
@@ -46,8 +48,12 @@ function fromKValue(kValue: string): number {
   return Math.round(parsed * 1000);
 }
 
-export function ProjectionTable({ title, items, onUpdate, onRemove, type }: ProjectionTableProps) {
+export function ProjectionTable({ title, items, onUpdate, onRemove, type, baseYear, targetYear }: ProjectionTableProps) {
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
+  
+  // Dinamik yıl etiketleri
+  const displayTargetYear = targetYear || new Date().getFullYear();
+  const displayBaseYear = baseYear || displayTargetYear - 1;
 
   const toggleRow = (id: string) => {
     setExpandedRows(prev => {
@@ -110,12 +116,12 @@ export function ProjectionTable({ title, items, onUpdate, onRemove, type }: Proj
             <TableRow className="bg-muted/50">
               <TableHead className="w-8"></TableHead>
               <TableHead>Kalem</TableHead>
-              <TableHead className="text-right w-24">2025</TableHead>
+              <TableHead className="text-right w-24">{displayBaseYear}</TableHead>
               <TableHead className="text-right w-24 text-xs">Q1 (K)</TableHead>
               <TableHead className="text-right w-24 text-xs">Q2 (K)</TableHead>
               <TableHead className="text-right w-24 text-xs">Q3 (K)</TableHead>
               <TableHead className="text-right w-24 text-xs">Q4 (K)</TableHead>
-              <TableHead className="text-right w-28">2026 Toplam</TableHead>
+              <TableHead className="text-right w-28">{displayTargetYear} Toplam</TableHead>
               <TableHead className="text-right w-20">Δ%</TableHead>
               <TableHead className="w-10"></TableHead>
             </TableRow>
