@@ -12,9 +12,19 @@ import {
   Presentation,
   Rocket,
   Clock,
+  AlertTriangle,
+  TrendingUp,
+  TrendingDown,
 } from 'lucide-react';
-import { UnifiedAnalysisResult } from '@/types/simulation';
+import { UnifiedAnalysisResult, SimulationScenario, EnhancedExecutiveSummary } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
+
+interface ScenarioSummary {
+  totalRevenue: number;
+  totalExpense: number;
+  netProfit: number;
+  profitMargin: number;
+}
 
 interface AIAnalysisSummaryCardProps {
   unifiedAnalysis: UnifiedAnalysisResult | null;
@@ -24,6 +34,11 @@ interface AIAnalysisSummaryCardProps {
   onCreateNextYear: () => void;
   targetYear?: number;
   cachedAt?: Date | null;
+  // NEW: Scenario data for comparison display
+  scenarioA?: SimulationScenario;
+  scenarioB?: SimulationScenario;
+  summaryA?: ScenarioSummary;
+  summaryB?: ScenarioSummary;
 }
 
 export const AIAnalysisSummaryCard: React.FC<AIAnalysisSummaryCardProps> = ({
@@ -34,7 +49,35 @@ export const AIAnalysisSummaryCard: React.FC<AIAnalysisSummaryCardProps> = ({
   onCreateNextYear,
   targetYear,
   cachedAt,
+  scenarioA,
+  scenarioB,
+  summaryA,
+  summaryB,
 }) => {
+  // Get top revenue items from scenario A
+  const topRevenues = React.useMemo(() => {
+    if (!scenarioA?.revenues) return [];
+    return [...scenarioA.revenues]
+      .sort((a, b) => b.projectedAmount - a.projectedAmount)
+      .slice(0, 4);
+  }, [scenarioA]);
+
+  // Calculate investment impact (difference between A and B)
+  const investmentImpact = React.useMemo(() => {
+    if (!summaryA || !summaryB) return null;
+    const revenueGap = summaryA.totalRevenue - summaryB.totalRevenue;
+    const profitGap = summaryA.netProfit - summaryB.netProfit;
+    const percentGap = summaryB.totalRevenue > 0 
+      ? ((revenueGap / summaryB.totalRevenue) * 100) 
+      : 0;
+    return { revenueGap, profitGap, percentGap };
+  }, [summaryA, summaryB]);
+
+  // Check if executive_summary is enhanced (object) or legacy (string)
+  const isEnhancedSummary = (summary: string | EnhancedExecutiveSummary | undefined): summary is EnhancedExecutiveSummary => {
+    return typeof summary === 'object' && summary !== null && 'short_pitch' in summary;
+  };
+
   return (
     <Card className="bg-gradient-to-r from-purple-500/5 to-blue-500/5 border-purple-500/20">
       <CardHeader className="pb-2">
@@ -93,6 +136,59 @@ export const AIAnalysisSummaryCard: React.FC<AIAnalysisSummaryCardProps> = ({
           </div>
         ) : unifiedAnalysis ? (
           <div className="space-y-4">
+            {/* Top Revenue Items - Before deal score */}
+            {topRevenues.length > 0 && (
+              <div className="text-xs text-muted-foreground border-b border-purple-500/10 pb-2">
+                📊 <span className="font-medium">Gelir Kalemleri:</span>{' '}
+                {topRevenues.map((r, i) => (
+                  <span key={r.id}>
+                    {r.category} ({formatCompactUSD(r.projectedAmount)})
+                    {i < topRevenues.length - 1 ? ', ' : ''}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {/* Scenario Comparison - A vs B */}
+            {scenarioA && scenarioB && summaryA && summaryB && (
+              <div className="grid grid-cols-2 gap-2 text-xs">
+                <div className="bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/20">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
+                    <span className="font-medium text-emerald-400 truncate">{scenarioA.name}</span>
+                  </div>
+                  <div className="text-foreground font-semibold">{formatCompactUSD(summaryA.totalRevenue)}</div>
+                  <div className="text-muted-foreground">
+                    Kâr: {formatCompactUSD(summaryA.netProfit)}
+                  </div>
+                </div>
+                <div className="bg-red-500/10 p-2.5 rounded-lg border border-red-500/20">
+                  <div className="flex items-center gap-1.5 mb-1">
+                    <TrendingDown className="h-3.5 w-3.5 text-red-400" />
+                    <span className="font-medium text-red-400 truncate">{scenarioB.name}</span>
+                  </div>
+                  <div className="text-foreground font-semibold">{formatCompactUSD(summaryB.totalRevenue)}</div>
+                  <div className="text-muted-foreground">
+                    Kâr: {formatCompactUSD(summaryB.netProfit)}
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Investment Impact Alert */}
+            {investmentImpact && investmentImpact.revenueGap > 0 && (
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 text-xs flex items-start gap-2">
+                <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
+                <div>
+                  <span className="font-medium text-amber-400">Yatırım Alamazsak:</span>{' '}
+                  <span className="text-foreground">
+                    {formatCompactUSD(investmentImpact.revenueGap)} daha az gelir 
+                    ({investmentImpact.percentGap.toFixed(0)}% kayıp)
+                  </span>
+                </div>
+              </div>
+            )}
+
             {/* Deal Score & Verdict - Compact Summary */}
             <div className="p-4 rounded-lg bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20">
               <div className="flex items-center justify-between mb-3">
@@ -118,11 +214,27 @@ export const AIAnalysisSummaryCard: React.FC<AIAnalysisSummaryCardProps> = ({
                 </div>
               </div>
               
-              {/* Executive Summary */}
+              {/* Enhanced Executive Summary */}
               {unifiedAnalysis.pitch_deck?.executive_summary && (
-                <p className="text-sm text-muted-foreground border-t border-purple-500/20 pt-3">
-                  {unifiedAnalysis.pitch_deck.executive_summary}
-                </p>
+                <div className="text-sm text-muted-foreground border-t border-purple-500/20 pt-3 space-y-2">
+                  {isEnhancedSummary(unifiedAnalysis.pitch_deck.executive_summary) ? (
+                    <>
+                      <p>{unifiedAnalysis.pitch_deck.executive_summary.short_pitch}</p>
+                      {unifiedAnalysis.pitch_deck.executive_summary.scenario_comparison && (
+                        <p className="text-xs border-t border-purple-500/10 pt-2 mt-2">
+                          📊 {unifiedAnalysis.pitch_deck.executive_summary.scenario_comparison}
+                        </p>
+                      )}
+                      {unifiedAnalysis.pitch_deck.executive_summary.investment_impact && (
+                        <p className="text-xs text-amber-400/80">
+                          ⚠️ {unifiedAnalysis.pitch_deck.executive_summary.investment_impact}
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <p>{unifiedAnalysis.pitch_deck.executive_summary}</p>
+                  )}
+                </div>
               )}
               
               {/* Next Year Summary */}

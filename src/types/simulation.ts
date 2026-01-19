@@ -484,6 +484,14 @@ export interface NextYearProjection {
   investor_hook?: InvestorHook;
 }
 
+/** Enhanced Executive Summary (structured) */
+export interface EnhancedExecutiveSummary {
+  short_pitch: string;
+  revenue_items: string;
+  scenario_comparison: string;
+  investment_impact: string;
+}
+
 /** Deal Analysis from AI */
 export interface DealAnalysis {
   deal_score: number;
@@ -495,8 +503,15 @@ export interface DealAnalysis {
 /** Pitch Deck from AI */
 export interface PitchDeck {
   slides: PitchSlide[];
-  executive_summary: string;
+  executive_summary: string | EnhancedExecutiveSummary;
 }
+
+/** Helper function to get executive summary as string */
+export const getExecutiveSummaryText = (summary: string | EnhancedExecutiveSummary | undefined): string => {
+  if (!summary) return '';
+  if (typeof summary === 'string') return summary;
+  return summary.short_pitch || '';
+};
 
 /** Complete Unified Analysis Result */
 export interface UnifiedAnalysisResult {
