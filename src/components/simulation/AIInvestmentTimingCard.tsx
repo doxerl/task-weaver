@@ -172,7 +172,7 @@ export const AIInvestmentTimingCard: React.FC<AIInvestmentTimingCardProps> = ({
           AI Optimal Yatırım Zamanlaması
         </CardTitle>
         <CardDescription className="text-xs">
-          Negatif senaryo nakit açıklarına göre optimal yatırım zamanı
+          {targetYear || ''} Negatif senaryo nakit açıklarına göre optimal yatırım zamanı
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">

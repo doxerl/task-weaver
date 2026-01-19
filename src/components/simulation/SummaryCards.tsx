@@ -7,6 +7,8 @@ import { formatCompactUSD, formatCompactTRY } from '@/lib/formatters';
 interface SummaryCardsProps {
   summary: SimulationSummary;
   exchangeRate: number;
+  baseYear?: number;
+  targetYear?: number;
 }
 
 function GrowthIndicator({ value }: { value: number }) {
@@ -24,10 +26,13 @@ function GrowthIndicator({ value }: { value: number }) {
   );
 }
 
-export function SummaryCards({ summary, exchangeRate }: SummaryCardsProps) {
+export function SummaryCards({ summary, exchangeRate, baseYear, targetYear }: SummaryCardsProps) {
+  const displayBaseYear = baseYear || new Date().getFullYear();
+  const displayTargetYear = targetYear || displayBaseYear + 1;
+  
   const cards = [
     {
-      title: '2025 Gerçek',
+      title: `${displayBaseYear} Gerçek`,
       subtitle: 'Referans Yıl',
       items: [
         { label: 'Gelir', value: formatCompactUSD(summary.base.totalRevenue) },
@@ -38,7 +43,7 @@ export function SummaryCards({ summary, exchangeRate }: SummaryCardsProps) {
       variant: 'muted' as const,
     },
     {
-      title: '2026 Projeksiyon',
+      title: `${displayTargetYear} Projeksiyon`,
       subtitle: 'Hedef Yıl',
       items: [
         { 
