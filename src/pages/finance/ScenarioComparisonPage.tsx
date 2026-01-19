@@ -423,9 +423,18 @@ function ScenarioComparisonContent() {
   const [historySheetType, setHistorySheetType] = useState<'scenario_comparison' | 'investor_pitch'>('scenario_comparison');
   const [showPitchDeck, setShowPitchDeck] = useState(false);
   
-  // Focus Project State - yatırım odak projesi
-  const [focusProject, setFocusProject] = useState<string>('');
+  // Focus Project State - yatırım odak projesi (çoklu seçim destekli)
+  const [focusProjects, setFocusProjects] = useState<string[]>([]);
   const [focusProjectPlan, setFocusProjectPlan] = useState<string>('');
+  
+  // Handler for multi-select focus projects (max 2)
+  const handleFocusProjectsChange = useCallback((projects: string[]) => {
+    if (projects.length > 2) {
+      toast.warning('En fazla 2 proje seçebilirsiniz');
+      return;
+    }
+    setFocusProjects(projects);
+  }, []);
   const [investmentAllocation, setInvestmentAllocation] = useState({
     product: 40,
     marketing: 30,
@@ -1330,14 +1339,14 @@ function ScenarioComparisonContent() {
                   onShowPitchDeck={() => setShowPitchDeck(true)}
                 />
                 
-                {/* Focus Project Selector - Yatırım Odak Projesi */}
+                {/* Focus Project Selector - Yatırım Odak Projesi (çoklu seçim) */}
                 {scenarioA && (
                   <FocusProjectSelector
                     revenues={scenarioA.revenues}
-                    focusProject={focusProject}
+                    focusProjects={focusProjects}
                     focusProjectPlan={focusProjectPlan}
                     investmentAllocation={investmentAllocation}
-                    onFocusProjectChange={setFocusProject}
+                    onFocusProjectsChange={handleFocusProjectsChange}
                     onFocusProjectPlanChange={setFocusProjectPlan}
                     onInvestmentAllocationChange={setInvestmentAllocation}
                   />

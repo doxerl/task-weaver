@@ -1,33 +1,42 @@
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Label } from '@/components/ui/label';
-import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Target, TrendingUp, DollarSign, Users, Megaphone, Settings } from 'lucide-react';
-import { ProjectionItem, FocusProjectInfo, InvestmentAllocation } from '@/types/simulation';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Badge } from '@/components/ui/badge';
+import { Target, TrendingUp, DollarSign, Users, Megaphone, Settings, AlertCircle } from 'lucide-react';
+import { ProjectionItem, InvestmentAllocation } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
 
 interface FocusProjectSelectorProps {
   revenues: ProjectionItem[];
-  focusProject: string;
+  focusProjects: string[];
   focusProjectPlan: string;
   investmentAllocation: InvestmentAllocation;
-  onFocusProjectChange: (project: string) => void;
+  onFocusProjectsChange: (projects: string[]) => void;
   onFocusProjectPlanChange: (plan: string) => void;
   onInvestmentAllocationChange: (allocation: InvestmentAllocation) => void;
 }
 
 export const FocusProjectSelector = ({
   revenues,
-  focusProject,
+  focusProjects,
   focusProjectPlan,
   investmentAllocation,
-  onFocusProjectChange,
+  onFocusProjectsChange,
   onFocusProjectPlanChange,
   onInvestmentAllocationChange
 }: FocusProjectSelectorProps) => {
-  const selectedRevenue = revenues.find(r => r.category === focusProject);
+  const selectedRevenues = revenues.filter(r => focusProjects.includes(r.category));
+  
+  // Combined totals for selected projects
+  const combinedCurrentRevenue = selectedRevenues.reduce((sum, r) => sum + r.baseAmount, 0);
+  const combinedProjectedRevenue = selectedRevenues.reduce((sum, r) => sum + r.projectedAmount, 0);
+  const growthPercent = combinedCurrentRevenue > 0 
+    ? ((combinedProjectedRevenue - combinedCurrentRevenue) / combinedCurrentRevenue) * 100 
+    : 0;
+  
   const totalAllocation = 
     investmentAllocation.product + 
     investmentAllocation.marketing + 
@@ -39,6 +48,14 @@ export const FocusProjectSelector = ({
       ...investmentAllocation,
       [field]: value
     });
+  };
+  
+  const handleProjectToggle = (category: string, checked: boolean) => {
+    if (checked) {
+      onFocusProjectsChange([...focusProjects, category]);
+    } else {
+      onFocusProjectsChange(focusProjects.filter(p => p !== category));
+    }
   };
   
   const allocationItems = [
@@ -53,48 +70,103 @@ export const FocusProjectSelector = ({
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Target className="h-4 w-4 text-primary" />
-          Yatırım Odak Projesi
+          Yatırım Odak Projeleri
+          {focusProjects.length > 0 && (
+            <Badge variant="secondary" className="ml-2">
+              {focusProjects.length} proje seçili
+            </Badge>
+          )}
         </CardTitle>
         <CardDescription className="text-xs">
-          Yatırımın hangi proje/ürün için kullanılacağını belirtin. AI analizi bu projeye odaklanacak.
+          Yatırımın hangi projeler için kullanılacağını belirtin (max 2 proje). AI analizi seçili projelere odaklanacak.
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
-        {/* Project Selection */}
+        {/* Project Selection - Checkbox List */}
         <div className="space-y-2">
-          <Label className="text-xs">Ana Yatırım Projesi</Label>
-          <Select value={focusProject} onValueChange={onFocusProjectChange}>
-            <SelectTrigger>
-              <SelectValue placeholder="Proje seçin..." />
-            </SelectTrigger>
-            <SelectContent>
-              {revenues.map(r => (
-                <SelectItem key={r.category} value={r.category}>
-                  <div className="flex items-center justify-between w-full gap-4">
-                    <span>{r.category}</span>
-                    <span className="text-muted-foreground text-xs">
-                      {formatCompactUSD(r.projectedAmount)}
-                    </span>
+          <Label className="text-xs">Yatırım Projeleri (max 2 seçim)</Label>
+          <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
+            {revenues.map(r => {
+              const isSelected = focusProjects.includes(r.category);
+              const isDisabled = !isSelected && focusProjects.length >= 2;
+              
+              return (
+                <div 
+                  key={r.category} 
+                  className={`flex items-center justify-between p-2 rounded-lg border transition-colors ${
+                    isSelected 
+                      ? 'bg-primary/10 border-primary/30' 
+                      : isDisabled 
+                        ? 'bg-muted/30 border-border/30 opacity-50' 
+                        : 'bg-muted/50 border-border hover:bg-muted'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Checkbox 
+                      id={r.category}
+                      checked={isSelected}
+                      disabled={isDisabled}
+                      onCheckedChange={(checked) => handleProjectToggle(r.category, checked as boolean)}
+                    />
+                    <label 
+                      htmlFor={r.category} 
+                      className={`text-sm cursor-pointer ${isDisabled ? 'cursor-not-allowed' : ''}`}
+                    >
+                      {r.category}
+                    </label>
                   </div>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          
-          {selectedRevenue && (
-            <div className="flex items-center gap-4 p-2 bg-muted/30 rounded-lg mt-2">
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Mevcut Gelir</p>
-                <p className="font-semibold">{formatCompactUSD(selectedRevenue.baseAmount)}</p>
-              </div>
-              <TrendingUp className="h-4 w-4 text-muted-foreground" />
-              <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Hedef Gelir</p>
-                <p className="font-semibold text-primary">{formatCompactUSD(selectedRevenue.projectedAmount)}</p>
-              </div>
-            </div>
-          )}
+                  <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                    <span>{formatCompactUSD(r.baseAmount)}</span>
+                    <TrendingUp className="h-3 w-3" />
+                    <span className="text-primary">{formatCompactUSD(r.projectedAmount)}</span>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
         </div>
+        
+        {/* Selected Projects Summary */}
+        {selectedRevenues.length > 0 && (
+          <div className="space-y-3">
+            <Label className="text-xs">Seçili Projeler Özeti</Label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {selectedRevenues.map(r => (
+                <div key={r.category} className="p-2 bg-primary/5 border border-primary/20 rounded-lg">
+                  <p className="text-sm font-medium truncate">{r.category}</p>
+                  <div className="flex items-center gap-2 mt-1">
+                    <span className="text-xs text-muted-foreground">{formatCompactUSD(r.baseAmount)}</span>
+                    <TrendingUp className="h-3 w-3 text-muted-foreground" />
+                    <span className="text-xs text-primary font-medium">{formatCompactUSD(r.projectedAmount)}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+            
+            {/* Combined Totals */}
+            <div className="flex items-center gap-4 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground">Toplam Mevcut</p>
+                <p className="font-semibold">{formatCompactUSD(combinedCurrentRevenue)}</p>
+              </div>
+              <TrendingUp className="h-5 w-5 text-emerald-400" />
+              <div className="flex-1">
+                <p className="text-xs text-muted-foreground">Toplam Hedef</p>
+                <p className="font-semibold text-emerald-400">{formatCompactUSD(combinedProjectedRevenue)}</p>
+              </div>
+              <Badge variant="outline" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                +{growthPercent.toFixed(0)}%
+              </Badge>
+            </div>
+          </div>
+        )}
+        
+        {focusProjects.length === 0 && (
+          <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
+            <AlertCircle className="h-4 w-4 text-amber-400" />
+            <p className="text-xs text-amber-400">En az 1 proje seçin</p>
+          </div>
+        )}
         
         {/* Growth Plan */}
         <div className="space-y-2">
@@ -102,7 +174,7 @@ export const FocusProjectSelector = ({
           <Textarea
             value={focusProjectPlan}
             onChange={(e) => onFocusProjectPlanChange(e.target.value)}
-            placeholder="Bu proje için büyüme planınızı açıklayın. Örn: SBT Tracker'ı tekstil sektörü dışına genişletme, ISO 14064 modülü ekleme, enterprise müşterilere odaklanma..."
+            placeholder="Seçili projeler için büyüme planınızı açıklayın. Örn: SBT Tracker'ı tekstil sektörü dışına genişletme, ISO 14064 modülü ekleme, enterprise müşterilere odaklanma..."
             rows={3}
             className="text-sm"
           />
