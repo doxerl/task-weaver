@@ -1512,6 +1512,10 @@ function ScenarioComparisonContent() {
               summaryB={{ totalRevenue: summaryB!.totalRevenue, totalExpenses: summaryB!.totalExpense, netProfit: summaryB!.netProfit, profitMargin: summaryB!.profitMargin }}
               quarterlyA={{ q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 }}
               quarterlyB={{ q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 }}
+              quarterlyRevenueA={{ q1: quarterlyComparison[0]?.scenarioARevenue || 0, q2: quarterlyComparison[1]?.scenarioARevenue || 0, q3: quarterlyComparison[2]?.scenarioARevenue || 0, q4: quarterlyComparison[3]?.scenarioARevenue || 0 }}
+              quarterlyExpenseA={{ q1: quarterlyComparison[0]?.scenarioAExpense || 0, q2: quarterlyComparison[1]?.scenarioAExpense || 0, q3: quarterlyComparison[2]?.scenarioAExpense || 0, q4: quarterlyComparison[3]?.scenarioAExpense || 0 }}
+              quarterlyRevenueB={{ q1: quarterlyComparison[0]?.scenarioBRevenue || 0, q2: quarterlyComparison[1]?.scenarioBRevenue || 0, q3: quarterlyComparison[2]?.scenarioBRevenue || 0, q4: quarterlyComparison[3]?.scenarioBRevenue || 0 }}
+              quarterlyExpenseB={{ q1: quarterlyComparison[0]?.scenarioBExpense || 0, q2: quarterlyComparison[1]?.scenarioBExpense || 0, q3: quarterlyComparison[2]?.scenarioBExpense || 0, q4: quarterlyComparison[3]?.scenarioBExpense || 0 }}
               dealConfig={dealConfig}
               onDealConfigChange={updateDealConfig}
             />
