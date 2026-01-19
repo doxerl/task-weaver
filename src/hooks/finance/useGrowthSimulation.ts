@@ -9,7 +9,7 @@ import {
 import { useFinancialDataHub } from './useFinancialDataHub';
 import { useCurrency } from '@/contexts/CurrencyContext';
 import { usePayrollAccruals } from './usePayrollAccruals';
-
+import { getCompletedYear, getScenarioYear } from '@/utils/yearCalculations';
 const generateId = () => Math.random().toString(36).substr(2, 9);
 
 // Helper to create default quarterly distribution
@@ -76,11 +76,16 @@ function mapCategoryCode(code: string | null, mapping: Record<string, string>, d
   return defaultCategory;
 }
 
-const currentYear = new Date().getFullYear();
+// Use centralized year calculations for consistency
+// Internet time: Jan 2026 → Completed Year = 2025, Scenario Year = 2026
 
 export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?: number) {
-  const [baseYear, setBaseYear] = useState(initialBaseYear || currentYear - 1);
-  const [targetYear, setTargetYear] = useState(initialTargetYear || currentYear);
+  // Calculate years based on internet time
+  const completedYear = getCompletedYear();   // 2025
+  const scenarioYear = getScenarioYear();     // 2026
+  
+  const [baseYear, setBaseYear] = useState(initialBaseYear || completedYear);
+  const [targetYear, setTargetYear] = useState(initialTargetYear || scenarioYear);
   
   const hub = useFinancialDataHub(baseYear);
   const { yearlyAverageRate } = useCurrency();
@@ -391,9 +396,12 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
 
   // Load scenario
   const loadScenario = useCallback((scenario: SimulationScenario) => {
+    const completed = getCompletedYear();
+    const target = getScenarioYear();
+    
     setScenarioName(scenario.name);
-    setBaseYear(scenario.baseYear || currentYear - 1);
-    setTargetYear(scenario.targetYear || currentYear);
+    setBaseYear(scenario.baseYear || completed);
+    setTargetYear(scenario.targetYear || target);
     setRevenues(scenario.revenues);
     setExpenses(scenario.expenses);
     setInvestments(scenario.investments);

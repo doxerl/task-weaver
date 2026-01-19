@@ -333,6 +333,48 @@ serve(async (req) => {
     // Use the most powerful model for deep reasoning
     const MODEL_ID = "google/gemini-3-pro-preview";
 
+    // Calculate year references based on scenario data
+    const currentYear = new Date().getFullYear();
+    const baseYear = scenarioA.baseYear || currentYear - 1;    // 2025 - Last completed year
+    const scenarioYear = scenarioA.targetYear || currentYear;  // 2026 - Scenario target year
+    const year2 = scenarioYear + 1;  // 2027
+    const year3 = scenarioYear + 3;  // 2029 (3-year MOIC)
+    const year5 = scenarioYear + 5;  // 2031 (5-year MOIC)
+
+    // Build year context section for AI
+    const yearContextSection = `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📅 YIL YAPISI VE SENARYO ROLLERİ (KRİTİK)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+🗓️ ZAMAN ÇİZELGESİ:
+┌────────────────┬──────────────────────────────────────────┐
+│ ${baseYear} (Base)    │ Tamamlanan yıl - Gerçek finansallar     │
+│ ${scenarioYear} (Year 1)   │ Senaryo yılı - Pozitif/Negatif hedef    │
+│ ${year2} (Year 2)   │ İlk projeksiyon yılı                    │
+│ ${year3} (Year 3+)  │ 3 Yıllık MOIC hesaplama noktası         │
+│ ${year5} (Year 5+)  │ 5 Yıllık MOIC hesaplama noktası         │
+└────────────────┴──────────────────────────────────────────┘
+
+🎯 SENARYO TANIMLARI:
+- SENARYO A (POZİTİF) = "${scenarioA.name}"
+  - ${scenarioYear} yılı HEDEFİ (yatırım alırsak)
+  - TÜM DASHBOARD VE ANALİZLER BUNA ODAKLI
+  - Exit Plan, MOIC, Pitch Deck bu senaryoya dayalı
+
+- SENARYO B (NEGATİF) = "${scenarioB.name}"  
+  - ${scenarioYear} yılı RİSK senaryosu (yatırım alamazsak)
+  - SADECE risk analizi ve downside değerlendirmesi için
+
+⚠️ KRİTİK TALİMATLAR:
+1. Tüm projeksiyon hesaplamaları POZİTİF SENARYO (A) verilerine dayalı
+2. MOIC 3 Yıl = ${year3} yılındaki değerleme bazlı
+3. MOIC 5 Yıl = ${year5} yılındaki değerleme bazlı
+4. Pitch deck'te SPESİFİK YILLARI kullan (örn: "${year3}'te $2.5M değerleme")
+5. Negatif senaryoyu "Yatırım alamazsak senaryosu" olarak referans ver
+6. Gelecek yıl projeksiyonu = ${scenarioYear + 1} (${year2})
+`;
+
     // Build historical balance section if available
     // Note: Balance values are already converted to USD by the frontend
     const currencyNote = exchangeRate ? `
@@ -413,17 +455,17 @@ DEAL CONFIG (Kullanıcı Girişi):
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-HESAPLANMIŞ EXIT PLANI:
+HESAPLANMIŞ EXIT PLANI (${scenarioYear} bazlı, POZİTİF SENARYO):
 - Post-Money Değerleme: $${exitPlan.postMoneyValuation.toLocaleString()}
-- 3. Yıl Yatırımcı Payı: $${exitPlan.investorShare3Year.toLocaleString()}
-- 5. Yıl Yatırımcı Payı: $${exitPlan.investorShare5Year.toLocaleString()}
-- MOIC (3 Yıl): ${exitPlan.moic3Year.toFixed(2)}x
-- MOIC (5 Yıl): ${exitPlan.moic5Year.toFixed(2)}x
+- ${year3} (3. Yıl) Yatırımcı Payı: $${exitPlan.investorShare3Year.toLocaleString()}
+- ${year5} (5. Yıl) Yatırımcı Payı: $${exitPlan.investorShare5Year.toLocaleString()}
+- MOIC (${year3}): ${exitPlan.moic3Year.toFixed(2)}x
+- MOIC (${year5}): ${exitPlan.moic5Year.toFixed(2)}x
 - Break-Even Yılı: ${exitPlan.breakEvenYear || 'Belirsiz'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-DEATH VALLEY ANALİZİ:
+DEATH VALLEY ANALİZİ (POZİTİF SENARYO BAZLI):
 - Kritik Çeyrek: ${capitalNeeds.criticalQuarter}
 - Minimum Kümülatif Nakit: $${capitalNeeds.minCumulativeCash.toLocaleString()}
 - Hesaplanan Gereken Yatırım: $${capitalNeeds.requiredInvestment.toLocaleString()}
@@ -432,6 +474,8 @@ DEATH VALLEY ANALİZİ:
 - Kendi Kendini Finanse Edebilir mi: ${capitalNeeds.selfSustaining ? 'Evet' : 'Hayır'}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${yearContextSection}
 
 GELİR/GİDER DETAYLARI:
 

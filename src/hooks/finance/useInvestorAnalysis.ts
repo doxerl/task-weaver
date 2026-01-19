@@ -12,6 +12,7 @@ import {
 } from '@/types/simulation';
 import { toast } from 'sonner';
 import { generateScenarioHash, checkDataChanged } from '@/lib/scenarioHash';
+import { getProjectionYears } from '@/utils/yearCalculations';
 
 interface QuarterlyData {
   q1: number;
@@ -62,6 +63,7 @@ export const projectFutureRevenue = (
   growthRate: number, 
   sectorMultiple: number
 ): { year3: MultiYearProjection; year5: MultiYearProjection; allYears: MultiYearProjection[] } => {
+  const { year1: scenarioYear } = getProjectionYears();
   const years: MultiYearProjection[] = [];
   let revenue = year1Revenue;
   let expenses = year1Expenses;
@@ -76,6 +78,7 @@ export const projectFutureRevenue = (
     
     years.push({
       year: i,
+      actualYear: scenarioYear + i,  // 2027, 2028, 2029, 2030, 2031
       revenue,
       expenses,
       netProfit,
@@ -98,8 +101,13 @@ export const calculateExitPlan = (
   year1Expenses: number,
   growthRate: number
 ): ExitPlan => {
+  const { year1, year3, year5 } = getProjectionYears();
+  
+  // Ensure minimum 10% growth rate for projections
+  const safeGrowthRate = Math.max(0.10, growthRate);
+  
   const postMoney = deal.investmentAmount / (deal.equityPercentage / 100);
-  const projections = projectFutureRevenue(year1Revenue, year1Expenses, growthRate, deal.sectorMultiple);
+  const projections = projectFutureRevenue(year1Revenue, year1Expenses, safeGrowthRate, deal.sectorMultiple);
   
   const investorShare3 = projections.year3.companyValuation * (deal.equityPercentage / 100);
   const investorShare5 = projections.year5.companyValuation * (deal.equityPercentage / 100);
@@ -122,7 +130,12 @@ export const calculateExitPlan = (
     moic5Year: investorShare5 / deal.investmentAmount,
     breakEvenYear,
     potentialAcquirers: [], // AI tarafından doldurulacak
-    exitStrategy: 'unknown'
+    exitStrategy: 'unknown',
+    yearLabels: {
+      scenarioYear: year1,   // 2026
+      moic3Year: year3,      // 2029
+      moic5Year: year5       // 2031
+    }
   };
 };
 
