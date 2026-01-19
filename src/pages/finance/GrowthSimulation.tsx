@@ -8,7 +8,8 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, RotateCcw, TrendingUp, Save, Plus, Loader2, FileText, GitCompare } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, RotateCcw, TrendingUp, TrendingDown, Save, Plus, Loader2, FileText, GitCompare } from 'lucide-react';
 import { useGrowthSimulation } from '@/hooks/finance/useGrowthSimulation';
 import { useScenarios } from '@/hooks/finance/useScenarios';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
@@ -21,6 +22,7 @@ import { AddItemDialog } from '@/components/simulation/AddItemDialog';
 import { ComparisonChart } from '@/components/simulation/ComparisonChart';
 import { CapitalAnalysis } from '@/components/simulation/CapitalAnalysis';
 import { ScenarioSelector } from '@/components/simulation/ScenarioSelector';
+import { NewScenarioDialog } from '@/components/simulation/NewScenarioDialog';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SimulationScenario } from '@/types/simulation';
@@ -38,6 +40,8 @@ function GrowthSimulationContent() {
   
   const [showNextYearDialog, setShowNextYearDialog] = useState(false);
   const [isCreatingNextYear, setIsCreatingNextYear] = useState(false);
+  const [showNewScenarioDialog, setShowNewScenarioDialog] = useState(false);
+  const [scenarioType, setScenarioType] = useState<'positive' | 'negative'>('positive');
   
   const {
     scenarioName,
@@ -63,6 +67,7 @@ function GrowthSimulationContent() {
     removeInvestment,
     resetToDefaults,
     loadScenario,
+    getCurrentScenario,
   } = simulation;
 
   // Advanced analysis hooks
@@ -92,6 +97,7 @@ function GrowthSimulationContent() {
         investments,
         assumedExchangeRate,
         notes,
+        scenarioType,
       },
       scenariosHook.currentScenarioId
     );
@@ -106,7 +112,7 @@ function GrowthSimulationContent() {
   const handleCreateNextYear = async () => {
     setIsCreatingNextYear(true);
     try {
-      const currentScenario = simulation.getCurrentScenario();
+      const currentScenario = getCurrentScenario();
       const newScenario = await scenariosHook.createNextYearSimulation(currentScenario);
       if (newScenario) {
         loadScenario(newScenario);
@@ -122,10 +128,17 @@ function GrowthSimulationContent() {
   const handleSelectScenario = (scenario: SimulationScenario) => {
     loadScenario(scenario);
     scenariosHook.setCurrentScenarioId(scenario.id);
+    setScenarioType(scenario.scenarioType || 'positive');
   };
 
   const handleNewScenario = () => {
+    setShowNewScenarioDialog(true);
+  };
+
+  const handleNewScenarioConfirm = (name: string, type: 'positive' | 'negative') => {
     resetToDefaults();
+    setScenarioName(name);
+    setScenarioType(type);
     scenariosHook.setCurrentScenarioId(null);
   };
 
@@ -195,9 +208,25 @@ function GrowthSimulationContent() {
                 </Button>
               </Link>
               <div className="flex items-center gap-2">
-                <TrendingUp className="h-6 w-6 text-primary" />
+                {scenarioType === 'positive' ? (
+                  <TrendingUp className="h-6 w-6 text-green-500" />
+                ) : (
+                  <TrendingDown className="h-6 w-6 text-red-500" />
+                )}
                 <div>
-                  <h1 className="text-xl font-bold">{targetYear} Büyüme Simülasyonu</h1>
+                  <div className="flex items-center gap-2">
+                    <h1 className="text-xl font-bold">{targetYear} Büyüme Simülasyonu</h1>
+                    <Badge 
+                      variant="outline" 
+                      className={`text-xs ${
+                        scenarioType === 'positive' 
+                          ? 'border-green-500 text-green-600 bg-green-500/10' 
+                          : 'border-red-500 text-red-600 bg-red-500/10'
+                      }`}
+                    >
+                      {scenarioType === 'positive' ? 'Pozitif' : 'Negatif'}
+                    </Badge>
+                  </div>
                   <p className="text-sm text-muted-foreground">{baseYear} USD verileri baz alınarak</p>
                 </div>
               </div>
@@ -448,6 +477,13 @@ function GrowthSimulationContent() {
           </div>
         </DialogContent>
       </Dialog>
+
+      {/* New Scenario Dialog */}
+      <NewScenarioDialog
+        open={showNewScenarioDialog}
+        onOpenChange={setShowNewScenarioDialog}
+        onConfirm={handleNewScenarioConfirm}
+      />
     </div>
   );
 }

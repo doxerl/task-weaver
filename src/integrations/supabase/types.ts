@@ -1606,9 +1606,11 @@ export type Database = {
           name: string
           notes: string | null
           revenues: Json | null
+          scenario_type: string | null
           target_year: number | null
           updated_at: string | null
           user_id: string
+          version: number | null
         }
         Insert: {
           assumed_exchange_rate?: number | null
@@ -1622,9 +1624,11 @@ export type Database = {
           name: string
           notes?: string | null
           revenues?: Json | null
+          scenario_type?: string | null
           target_year?: number | null
           updated_at?: string | null
           user_id: string
+          version?: number | null
         }
         Update: {
           assumed_exchange_rate?: number | null
@@ -1638,9 +1642,11 @@ export type Database = {
           name?: string
           notes?: string | null
           revenues?: Json | null
+          scenario_type?: string | null
           target_year?: number | null
           updated_at?: string | null
           user_id?: string
+          version?: number | null
         }
         Relationships: []
       }
