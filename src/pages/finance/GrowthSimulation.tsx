@@ -248,7 +248,17 @@ function GrowthSimulationContent() {
                 disabled={scenariosHook.scenarios.length < 2}
               >
                 <GitCompare className="h-4 w-4" />
-                Karşılaştır
+                Risk Analizi
+              </Button>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                className="gap-2"
+                onClick={() => navigate('/finance/simulation/growth')}
+                disabled={scenariosHook.scenarios.length < 2}
+              >
+                <TrendingUp className="h-4 w-4" />
+                Büyüme
               </Button>
               <Button variant="outline" size="sm" className="gap-2" onClick={handleNewScenario}>
                 <RotateCcw className="h-4 w-4" />
