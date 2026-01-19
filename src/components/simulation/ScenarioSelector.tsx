@@ -26,11 +26,13 @@ import {
   Check,
   Loader2,
   TrendingUp,
-  TrendingDown
+  TrendingDown,
+  Rocket
 } from 'lucide-react';
 import { SimulationScenario } from '@/types/simulation';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
+import { getScenarioTypeBadge } from '@/utils/scenarioLabels';
 
 interface ScenarioSelectorProps {
   scenarios: SimulationScenario[];
@@ -78,7 +80,13 @@ export function ScenarioSelector({
   const negativeScenarios = scenarios.filter(s => s.scenarioType === 'negative');
 
   const renderScenarioItem = (scenario: SimulationScenario) => {
-    const isPositive = scenario.scenarioType !== 'negative';
+    const badgeInfo = getScenarioTypeBadge(scenario);
+    
+    const getBadgeIcon = () => {
+      if (badgeInfo.variant === 'growth') return <Rocket className="h-2.5 w-2.5 mr-0.5" />;
+      if (badgeInfo.variant === 'positive') return <TrendingUp className="h-2.5 w-2.5 mr-0.5" />;
+      return <TrendingDown className="h-2.5 w-2.5 mr-0.5" />;
+    };
     
     return (
       <DropdownMenuItem
@@ -91,21 +99,15 @@ export function ScenarioSelector({
             {currentScenarioId === scenario.id && (
               <Check className="h-3 w-3 text-primary shrink-0" />
             )}
-            <span className="font-medium truncate">{scenario.name}</span>
+            <span className="font-medium truncate">
+              {scenario.targetYear} {scenario.name}
+            </span>
             <Badge 
               variant="outline" 
-              className={`text-[10px] px-1.5 py-0 shrink-0 ${
-                isPositive 
-                  ? 'border-green-500 text-green-600 bg-green-500/10' 
-                  : 'border-red-500 text-red-600 bg-red-500/10'
-              }`}
+              className={`text-[10px] px-1.5 py-0 shrink-0 ${badgeInfo.colorClass}`}
             >
-              {isPositive ? (
-                <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
-              ) : (
-                <TrendingDown className="h-2.5 w-2.5 mr-0.5" />
-              )}
-              v{scenario.version || 1}
+              {getBadgeIcon()}
+              {badgeInfo.label} v{scenario.version || 1}
             </Badge>
           </div>
           <div className="flex items-center gap-2 mt-0.5">
