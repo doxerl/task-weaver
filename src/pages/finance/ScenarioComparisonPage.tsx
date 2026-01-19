@@ -479,7 +479,8 @@ function ScenarioComparisonContent() {
     loadAnalysisHistory: loadUnifiedAnalysisHistory,
     checkDataChanges: checkUnifiedDataChanges,
     restoreHistoricalAnalysis: restoreUnifiedHistoricalAnalysis,
-    clearAnalysis: clearUnifiedAnalysis
+    clearAnalysis: clearUnifiedAnalysis,
+    saveEditedProjections
   } = useUnifiedAnalysis();
   
   // Investor Analysis Hook - sadece dealConfig için
@@ -797,6 +798,15 @@ function ScenarioComparisonContent() {
       if (unifiedCachedInfo.investmentAllocation) {
         setInvestmentAllocation(unifiedCachedInfo.investmentAllocation);
       }
+      // Load edited projections from cache
+      if (unifiedCachedInfo.editedRevenueProjection && unifiedCachedInfo.editedRevenueProjection.length > 0) {
+        setEditableRevenueProjection(unifiedCachedInfo.editedRevenueProjection);
+        setOriginalRevenueProjection(JSON.parse(JSON.stringify(unifiedCachedInfo.editedRevenueProjection)));
+      }
+      if (unifiedCachedInfo.editedExpenseProjection && unifiedCachedInfo.editedExpenseProjection.length > 0) {
+        setEditableExpenseProjection(unifiedCachedInfo.editedExpenseProjection);
+        setOriginalExpenseProjection(JSON.parse(JSON.stringify(unifiedCachedInfo.editedExpenseProjection)));
+      }
     }
   }, [unifiedCachedInfo]);
 
@@ -912,6 +922,34 @@ function ScenarioComparisonContent() {
   const handleResetExpenseProjection = useCallback(() => {
     setEditableExpenseProjection(JSON.parse(JSON.stringify(originalExpenseProjection)));
   }, [originalExpenseProjection]);
+  
+  // Auto-save edited projections with debounce (2 seconds)
+  const saveProjectionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  
+  useEffect(() => {
+    if (!scenarioAId || !scenarioBId) return;
+    
+    const hasEdits = editableRevenueProjection.some(i => i.userEdited) || 
+                     editableExpenseProjection.some(i => i.userEdited);
+    
+    if (!hasEdits) return;
+    
+    // Clear previous timeout
+    if (saveProjectionsTimeoutRef.current) {
+      clearTimeout(saveProjectionsTimeoutRef.current);
+    }
+    
+    // Debounce save (2 seconds)
+    saveProjectionsTimeoutRef.current = setTimeout(() => {
+      saveEditedProjections(scenarioAId, scenarioBId, editableRevenueProjection, editableExpenseProjection);
+    }, 2000);
+    
+    return () => {
+      if (saveProjectionsTimeoutRef.current) {
+        clearTimeout(saveProjectionsTimeoutRef.current);
+      }
+    };
+  }, [editableRevenueProjection, editableExpenseProjection, scenarioAId, scenarioBId, saveEditedProjections]);
   
   // Editable Pitch Deck State
   const [editablePitchDeck, setEditablePitchDeck] = useState<{ slides: any[]; executive_summary: string } | null>(null);

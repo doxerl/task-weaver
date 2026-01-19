@@ -1456,6 +1456,8 @@ export type Database = {
           deal_config: Json | null
           deal_config_snapshot: Json | null
           deal_score: number | null
+          edited_expense_projection: Json | null
+          edited_revenue_projection: Json | null
           focus_project_plan: string | null
           focus_projects: string[] | null
           id: string
@@ -1464,6 +1466,7 @@ export type Database = {
           investor_analysis: Json | null
           next_year_projection: Json | null
           pitch_deck: Json | null
+          projection_user_edited: boolean | null
           quarterly_analysis: Json | null
           recommendations: Json | null
           scenario_a_data_hash: string | null
@@ -1480,6 +1483,8 @@ export type Database = {
           deal_config?: Json | null
           deal_config_snapshot?: Json | null
           deal_score?: number | null
+          edited_expense_projection?: Json | null
+          edited_revenue_projection?: Json | null
           focus_project_plan?: string | null
           focus_projects?: string[] | null
           id?: string
@@ -1488,6 +1493,7 @@ export type Database = {
           investor_analysis?: Json | null
           next_year_projection?: Json | null
           pitch_deck?: Json | null
+          projection_user_edited?: boolean | null
           quarterly_analysis?: Json | null
           recommendations?: Json | null
           scenario_a_data_hash?: string | null
@@ -1504,6 +1510,8 @@ export type Database = {
           deal_config?: Json | null
           deal_config_snapshot?: Json | null
           deal_score?: number | null
+          edited_expense_projection?: Json | null
+          edited_revenue_projection?: Json | null
           focus_project_plan?: string | null
           focus_projects?: string[] | null
           id?: string
@@ -1512,6 +1520,7 @@ export type Database = {
           investor_analysis?: Json | null
           next_year_projection?: Json | null
           pitch_deck?: Json | null
+          projection_user_edited?: boolean | null
           quarterly_analysis?: Json | null
           recommendations?: Json | null
           scenario_a_data_hash?: string | null

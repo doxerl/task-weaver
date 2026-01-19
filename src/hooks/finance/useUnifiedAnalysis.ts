@@ -35,6 +35,10 @@ interface CachedAnalysisInfo {
     hiring: number;
     operations: number;
   };
+  // Edited projections from cache
+  editedRevenueProjection?: any[];
+  editedExpenseProjection?: any[];
+  projectionUserEdited?: boolean;
 }
 
 export function useUnifiedAnalysis() {
@@ -115,7 +119,11 @@ export function useUnifiedAnalysis() {
             marketing: 30,
             hiring: 20,
             operations: 10
-          }
+          },
+          // Edited projections from cache
+          editedRevenueProjection: (data as any).edited_revenue_projection || [],
+          editedExpenseProjection: (data as any).edited_expense_projection || [],
+          projectionUserEdited: (data as any).projection_user_edited || false
         });
         // Hash'leri kaydet - veri değişikliği kontrolü için
         setSavedHashes({
@@ -493,6 +501,40 @@ export function useUnifiedAnalysis() {
     setAnalysisHistory([]);
   }, []);
 
+  // Save edited projections to database
+  const saveEditedProjections = useCallback(async (
+    scenarioAId: string,
+    scenarioBId: string,
+    editedRevenueProjection: any[],
+    editedExpenseProjection: any[]
+  ): Promise<void> => {
+    if (!user?.id) return;
+
+    const hasEdits = editedRevenueProjection.some(i => i.userEdited) || 
+                     editedExpenseProjection.some(i => i.userEdited);
+
+    try {
+      const { error: updateError } = await supabase
+        .from('scenario_ai_analyses')
+        .update({
+          edited_revenue_projection: editedRevenueProjection,
+          edited_expense_projection: editedExpenseProjection,
+          projection_user_edited: hasEdits,
+          updated_at: new Date().toISOString()
+        } as any)
+        .eq('user_id', user.id)
+        .eq('scenario_a_id', scenarioAId)
+        .eq('scenario_b_id', scenarioBId)
+        .eq('analysis_type', 'unified');
+
+      if (updateError) {
+        console.error('Error saving edited projections:', updateError);
+      }
+    } catch (err) {
+      console.error('Error saving edited projections:', err);
+    }
+  }, [user?.id]);
+
   return {
     analysis,
     isLoading,
@@ -508,6 +550,7 @@ export function useUnifiedAnalysis() {
     loadAnalysisHistory,
     checkDataChanges,
     restoreHistoricalAnalysis,
-    clearAnalysis
+    clearAnalysis,
+    saveEditedProjections
   };
 }
