@@ -1,11 +1,10 @@
-import { useState, useRef } from 'react';
+import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Card, CardContent } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
@@ -13,14 +12,10 @@ import { ArrowLeft, RotateCcw, TrendingUp, TrendingDown, Save, Plus, Loader2, Fi
 import { useGrowthSimulation } from '@/hooks/finance/useGrowthSimulation';
 import { useScenarios } from '@/hooks/finance/useScenarios';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
-import { useAdvancedCapitalAnalysis } from '@/hooks/finance/useAdvancedCapitalAnalysis';
-import { useROIAnalysis } from '@/hooks/finance/useROIAnalysis';
 import { useFinancialDataHub } from '@/hooks/finance/useFinancialDataHub';
 import { SummaryCards } from '@/components/simulation/SummaryCards';
 import { ProjectionTable } from '@/components/simulation/ProjectionTable';
 import { AddItemDialog } from '@/components/simulation/AddItemDialog';
-import { ComparisonChart } from '@/components/simulation/ComparisonChart';
-import { CapitalAnalysis } from '@/components/simulation/CapitalAnalysis';
 import { ScenarioSelector } from '@/components/simulation/ScenarioSelector';
 import { NewScenarioDialog } from '@/components/simulation/NewScenarioDialog';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
@@ -34,9 +29,6 @@ function GrowthSimulationContent() {
   const hub = useFinancialDataHub(simulation.baseYear);
   const scenariosHook = useScenarios();
   const { generateSimulationPdfData, isGenerating, progress } = usePdfEngine();
-  
-  // Chart ref for ComparisonChart
-  const chartsContainerRef = useRef<HTMLDivElement>(null);
   
   const [showNextYearDialog, setShowNextYearDialog] = useState(false);
   const [isCreatingNextYear, setIsCreatingNextYear] = useState(false);
@@ -70,21 +62,6 @@ function GrowthSimulationContent() {
     getCurrentScenario,
   } = simulation;
 
-  // Advanced analysis hooks
-  const advancedAnalysis = useAdvancedCapitalAnalysis({
-    revenues,
-    expenses,
-    investments,
-    summary,
-    hub: hub.isLoading ? null : hub,
-  });
-
-  const roiAnalysis = useROIAnalysis({
-    revenues,
-    expenses,
-    investments,
-    summary,
-  });
 
   const handleSave = async () => {
     const savedId = await scenariosHook.saveScenario(
@@ -180,7 +157,7 @@ function GrowthSimulationContent() {
           quarterly: e.projectedQuarterly,
         })),
         exchangeRate: assumedExchangeRate,
-        chartsElement: chartsContainerRef.current,
+        chartsElement: null,
       };
       
       const success = await generateSimulationPdfData(pdfData);
@@ -355,68 +332,38 @@ function GrowthSimulationContent() {
           <SummaryCards summary={summary} exchangeRate={assumedExchangeRate} />
         )}
 
-        {/* Main Content Tabs */}
-        <Tabs defaultValue="projections" className="space-y-4">
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="projections">Projeksiyonlar</TabsTrigger>
-            <TabsTrigger value="charts">Grafikler</TabsTrigger>
-            <TabsTrigger value="capital">Sermaye Analizi</TabsTrigger>
-          </TabsList>
-
-          <TabsContent value="projections" className="space-y-6">
-            {/* Revenue Projections */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-green-600">Gelir Projeksiyonları</h2>
-                <AddItemDialog type="revenue" onAdd={addRevenue} />
-              </div>
-              <ProjectionTable
-                title=""
-                items={revenues}
-                onUpdate={updateRevenue}
-                onRemove={removeRevenue}
-                type="revenue"
-              />
+        {/* Projections Content */}
+        <div className="space-y-6">
+          {/* Revenue Projections */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-green-600">Gelir Projeksiyonları</h2>
+              <AddItemDialog type="revenue" onAdd={addRevenue} />
             </div>
+            <ProjectionTable
+              title=""
+              items={revenues}
+              onUpdate={updateRevenue}
+              onRemove={removeRevenue}
+              type="revenue"
+            />
+          </div>
 
-            {/* Expense Projections */}
-            <div className="space-y-2">
-              <div className="flex items-center justify-between">
-                <h2 className="text-lg font-semibold text-red-600">Gider Projeksiyonları</h2>
-                <AddItemDialog type="expense" onAdd={addExpense} />
-              </div>
-              <ProjectionTable
-                title=""
-                items={expenses}
-                onUpdate={updateExpense}
-                onRemove={removeExpense}
-                type="expense"
-              />
+          {/* Expense Projections */}
+          <div className="space-y-2">
+            <div className="flex items-center justify-between">
+              <h2 className="text-lg font-semibold text-red-600">Gider Projeksiyonları</h2>
+              <AddItemDialog type="expense" onAdd={addExpense} />
             </div>
-          </TabsContent>
-
-          <TabsContent value="charts">
-            <ComparisonChart 
-              ref={chartsContainerRef} 
-              revenues={revenues} 
-              expenses={expenses}
-              baseYear={baseYear}
-              targetYear={targetYear}
+            <ProjectionTable
+              title=""
+              items={expenses}
+              onUpdate={updateExpense}
+              onRemove={removeExpense}
+              type="expense"
             />
-          </TabsContent>
-
-          <TabsContent value="capital">
-            <CapitalAnalysis
-              investments={investments}
-              summary={summary}
-              exchangeRate={assumedExchangeRate}
-              onAddInvestment={addInvestment}
-              onRemoveInvestment={removeInvestment}
-              advancedAnalysis={advancedAnalysis}
-              roiAnalysis={roiAnalysis}
-            />
-          </TabsContent>
-        </Tabs>
+          </div>
+        </div>
       </main>
 
       {/* PDF Progress Dialog */}
