@@ -214,62 +214,109 @@ Bu bölümde şu çıktıları üret:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🎤 BÖLÜM 3: PITCH DECK SLAYTLARI (VERİYE DAYALI, SPESİFİK)
+🎤 BÖLÜM 3: PITCH DECK SLAYTLARI (10 SLAYT - STARTUP KURUCUSU TONU)
 
 ⚠️ KRİTİK: HER SLAYT SPESİFİK RAKAMLAR VE PROJE İSİMLERİ İÇERMELİ!
 
-5 slayt üret, her slayt için:
-- title: Çarpıcı başlık (max 8 kelime) - ODAK PROJE İSMİ DAHİL
+10 slaytlık yatırımcı sunumu üret. Her slayt tek bir mesaj verir, rakamlarla destekler.
+
+DİL VE TON:
+- Startup kurucusu gibi konuş, finans analisti gibi DEĞİL
+- Özgüvenli ama gerçekçi - "Biz" dili kullan
+- Rakamlar hikayeyi destekler, hikaye rakamları değil
+- Yatırımcıyı heyecanlandır ama abartma
+
+Her slayt için:
+- title: Çarpıcı başlık (max 8 kelime)
 - key_message: Ana mesaj (tek cümle) - RAKAM DAHİL ($X, %Y formatında)
 - content_bullets: 3-4 madde - HER MADDE $ veya % FORMATINDA RAKAM İÇERMELİ
-- speaker_notes: Konuşma metni (3-4 cümle) - detaylı açıklama
+- speaker_notes: Konuşma metni (3-4 cümle) - samimi startup dili
 
-SLAYT YAPISI (ZORUNLU İÇERİK):
+SLAYT YAPISI (10 SLAYT):
 
-1️⃣ PROBLEM & FIRSAT (Neden Şimdi?) - YATIRIM ALAMAZSAK NE OLUR?
-- Mevcut iş modelinin sınırlamaları (veriden)
-- Büyüme darboğazı nerede? (gelir konsantrasyonundan)
-- ⚠️ YATIRIM ALAMAZSAK: $X gelir kaybı, %Y düşük büyüme (Negatif Senaryodan)
-Key Message: "Yatırım alamazsak $X gelir kaybı ve organik büyüme %Y ile sınırlı kalacak"
+1️⃣ PROBLEM
+"Müşterilerimizin yaşadığı gerçek acı nedir?"
+- Pazardaki mevcut çözümlerin yetersizliği
+- Bu problemin yarattığı ölçülebilir kayıp ($X/yıl kayıp)
+- Neden şimdiye kadar çözülmedi?
+Key Message: "[Hedef müşteri] her yıl [problem] yüzünden $X kaybediyor"
 
-2️⃣ ÇÖZÜM: [ODAK PROJE İSMİ] - YATIRIM ALIRSAK NE OLUR?
-- Odak projenin değer önerisi (kullanıcı planından)
-- Mevcut vs hedef gelir karşılaştırması ($X → $Y)
-- ✅ YATIRIM ALIRSAK: Hedef büyüme %Z ile gerçekleşir (Pozitif Senaryodan)
-Key Message: "[Proje Adı] ile yatırım alırsak geliri $X'den $Y'ye çıkarıyoruz"
+2️⃣ ÇÖZÜM: [ODAK PROJE ADI]
+"İşte bizim yaklaşımımız"
+- Ürün/hizmetin tek cümlelik açıklaması
+- Mevcut alternatiflerden farkımız
+- Müşteri için yarattığımız değer ($X tasarruf, %Y artış)
+Key Message: "[Ürün adı] ile müşteriler [spesifik fayda] elde ediyor"
 
-3️⃣ YATIRIM KULLANIMI (Use of Funds)
-- $X Toplam yatırım nasıl dağılacak:
-  * Ürün Geliştirme: %A ($X.xxx)
-  * Pazarlama: %B ($X.xxx)
-  * Personel: %C ($X.xxx)
-  * Operasyon: %D ($X.xxx)
-Key Message: "$X yatırımın %Y'si [en büyük kalem]'e ayrılıyor"
+3️⃣ PAZAR FIRSATI
+"Bu pasta ne kadar büyük?"
+- Hedef pazarın büyüklüğü (gerçekçi, ulaşılabilir segment)
+- Bizim hedeflediğimiz dilim ($X/yıl potansiyel)
+- İlk 3 yılda %Y pazar payı hedefi
+Key Message: "İlk 3 yılda $X gelir hedefine ulaşacağız"
 
-4️⃣ GETİRİ HESABI (The Math) - YATIRIMLI vs YATIRIMSIZ KARŞILAŞTIRMA
-- Post-money değerleme: $X (sektör çarpanı: Yx)
-- 3 yıl MOIC: Xx | 5 yıl MOIC: Xx
-- ⚠️ YATIRIM ALAMAZSAK: 5Y değerleme sadece $X (organik büyüme ile)
-- ✅ YATIRIM ALIRSAK: 5Y değerleme $Y (fark: +$Z)
-Key Message: "Yatırım alırsak 5 yılda $X değerleme farkı yaratıyoruz"
+4️⃣ İŞ MODELİ
+"Parayı nasıl kazanıyoruz?"
+- Gelir kalemleri ve fiyatlandırma ([Ürün A]: $X/ay, [Ürün B]: $Y/proje)
+- Gross margin: %Z
+- Birim ekonomisi detayları
+Key Message: "Her müşteriden $X kazanıyoruz - %Z gross margin"
 
-5️⃣ ÇIKIŞ SENARYOSU (Exit) - SONRAKİ YILLAR YATIRIMA GÖRE ŞEKİLLENECEK
-- Yatırımcı 3. yılda: $X | Yatırımcı 5. yılda: $Y
-- Büyüme varsayımı: Year 1-2 %X (agresif), Year 3-5 %Y (normalize)
-- ⚠️ Yatırım alamazsak sonraki yıllar organik büyüme (%Z) ile sınırlı
-- ✅ Yatırım alırsak sonraki yıllar yatırım planına göre şekillenir
-Key Message: "$X yatırım, 5 yılda $Y'ye dönüşüyor - aksi halde sadece $Z"
+5️⃣ TRACTION (Bugüne Kadar)
+"Elimizde ne var?"
+- Bu yılki gelir: $X (geçen yıla göre %Y büyüme)
+- Önemli mihenk taşları
+- Product-market fit kanıtları
+Key Message: "$X gelir ve %Z büyüme ile product-market fit kanıtlandı"
+
+6️⃣ BÜYÜME PLANI (Yatırımla)
+"Yatırım alırsak nereye gidiyoruz?"
+- 1. Yıl hedefi: $X gelir
+- 3. Yıl hedefi: $Y gelir
+- Ana büyüme motorları
+Key Message: "Yatırımla 3 yılda $X'den $Y'ye büyüyoruz"
+
+7️⃣ USE OF FUNDS
+"Yatırımı nasıl kullanacağız?"
+- $X toplam yatırım dağılımı:
+  * Ürün Geliştirme: %A ($X)
+  * Satış & Pazarlama: %B ($X)
+  * Ekip: %C ($X)
+  * Operasyon: %D ($X)
+Key Message: "$X yatırımın %Y'si [en kritik kalem]'e gidiyor"
+
+8️⃣ FİNANSAL PROJEKSİYON
+"Rakamlar ne söylüyor?"
+- Yatırımla: $X gelir, $Y kâr (3. Yıl)
+- Yatırımsız: $X gelir, $Y kâr (3. Yıl)
+- Değerleme farkı: +$Z
+Key Message: "Yatırımla $X daha fazla değer yaratıyoruz"
+
+9️⃣ EKİP
+"Neden biz başaracağız?"
+- Kurucu ekip ve ilgili deneyimleri
+- Bu problemi çözmek için neden doğru ekip
+- Kilit danışmanlar (varsa)
+Key Message: "Ekibimiz [X yıl] sektör deneyimi ile bu problemi çözmeye hazır"
+
+🔟 THE ASK
+"Ne istiyoruz, ne veriyoruz?"
+- Yatırım tutarı: $X
+- Karşılığında: %Y equity
+- Pre-money değerleme: $X
+- Yatırımcı getirisi: 3Y MOIC Xx, 5Y MOIC Xx
+Key Message: "$X yatırım, 5 yılda $Y'ye dönüşüyor - Xx MOIC"
 
 🚫 YASAK:
-- Genel ifadeler ("ölçeklenebilir model", "dijital dönüşüm", "pazar lideri" gibi)
+- Finans analisti dili ("gelir konsantrasyonu", "organik büyüme sınırı" gibi)
+- Genel ifadeler ("ölçeklenebilir", "inovatif", "dijital dönüşüm")
 - Rakam olmayan maddeler
-- Varsayımsal pazar büyüklükleri ($X milyar TAM/SAM/SOM gibi)
 
 ✅ ZORUNLU:
+- Startup kurucusu tonu
 - Her bullet'ta $ veya % formatında rakam
 - Odak proje ismi başlıklarda (varsa)
-- Yatırım dağılımı spesifik tutarlarla
-- Speaker notes'ta detaylı açıklama
+- Speaker notes'ta samimi, ikna edici açıklama
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -695,7 +742,7 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
                     properties: {
                       slides: {
                         type: "array",
-                        description: "5 slides with SPECIFIC $ amounts and % figures in EVERY bullet. Use actual revenue item names from data.",
+                        description: "10 slides for investor pitch. Each slide tells ONE story with supporting numbers. Language: confident startup founder, not financial analyst. Slides: 1-Problem, 2-Çözüm, 3-Pazar, 4-İş Modeli, 5-Traction, 6-Büyüme Planı, 7-Use of Funds, 8-Finansal Projeksiyon, 9-Ekip, 10-The Ask",
                         items: {
                           type: "object",
                           properties: {

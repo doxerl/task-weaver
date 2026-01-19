@@ -13,10 +13,15 @@ import {
   MessageSquare,
   FileText,
   Rocket,
-  AlertTriangle,
+  Sparkles,
+  Globe,
+  BarChart3,
+  TrendingUp,
   DollarSign,
+  Wallet,
   Calculator,
   Users,
+  Target,
   Download,
   Loader2
 } from 'lucide-react';
@@ -35,37 +40,60 @@ interface PitchDeckViewProps {
   onClose?: () => void;
 }
 
+// 10 Slayt İkonları
 const slideIcons: Record<number, React.ReactNode> = {
-  1: <Rocket className="h-5 w-5" />,
-  2: <AlertTriangle className="h-5 w-5" />,
-  3: <DollarSign className="h-5 w-5" />,
-  4: <Calculator className="h-5 w-5" />,
-  5: <Users className="h-5 w-5" />
+  1: <Rocket className="h-5 w-5" />,       // Problem
+  2: <Sparkles className="h-5 w-5" />,     // Çözüm
+  3: <Globe className="h-5 w-5" />,        // Pazar
+  4: <BarChart3 className="h-5 w-5" />,    // İş Modeli
+  5: <TrendingUp className="h-5 w-5" />,   // Traction
+  6: <DollarSign className="h-5 w-5" />,   // Büyüme Planı
+  7: <Wallet className="h-5 w-5" />,       // Use of Funds
+  8: <Calculator className="h-5 w-5" />,   // Finansal
+  9: <Users className="h-5 w-5" />,        // Ekip
+  10: <Target className="h-5 w-5" />       // The Ask
 };
 
+// 10 Slayt Renkleri
 const slideColors: Record<number, string> = {
   1: 'from-blue-500/20 to-indigo-500/20 border-blue-500/30',
-  2: 'from-red-500/20 to-orange-500/20 border-red-500/30',
-  3: 'from-green-500/20 to-emerald-500/20 border-green-500/30',
-  4: 'from-purple-500/20 to-pink-500/20 border-purple-500/30',
-  5: 'from-amber-500/20 to-yellow-500/20 border-amber-500/30'
+  2: 'from-purple-500/20 to-violet-500/20 border-purple-500/30',
+  3: 'from-cyan-500/20 to-teal-500/20 border-cyan-500/30',
+  4: 'from-green-500/20 to-emerald-500/20 border-green-500/30',
+  5: 'from-orange-500/20 to-amber-500/20 border-orange-500/30',
+  6: 'from-pink-500/20 to-rose-500/20 border-pink-500/30',
+  7: 'from-yellow-500/20 to-lime-500/20 border-yellow-500/30',
+  8: 'from-indigo-500/20 to-blue-500/20 border-indigo-500/30',
+  9: 'from-teal-500/20 to-green-500/20 border-teal-500/30',
+  10: 'from-red-500/20 to-orange-500/20 border-red-500/30'
 };
 
-// Google-style minimal color palette - accent colors only
+// Google-style minimal color palette - 10 slides
 const slidePdfColors: Record<number, { accent: string; accentLight: string }> = {
-  1: { accent: '#4285F4', accentLight: '#E8F0FE' },  // Google Blue - Problem
-  2: { accent: '#EA4335', accentLight: '#FCE8E6' },  // Google Red - Solution
-  3: { accent: '#34A853', accentLight: '#E6F4EA' },  // Google Green - Market
-  4: { accent: '#9334E6', accentLight: '#F3E8FD' },  // Purple - Business Model
-  5: { accent: '#FBBC04', accentLight: '#FEF7E0' }   // Google Yellow - Ask
+  1: { accent: '#4285F4', accentLight: '#E8F0FE' },   // Blue - Problem
+  2: { accent: '#9334E6', accentLight: '#F3E8FD' },   // Purple - Çözüm
+  3: { accent: '#00ACC1', accentLight: '#E0F7FA' },   // Cyan - Pazar
+  4: { accent: '#34A853', accentLight: '#E6F4EA' },   // Green - İş Modeli
+  5: { accent: '#FB8C00', accentLight: '#FFF3E0' },   // Orange - Traction
+  6: { accent: '#E91E63', accentLight: '#FCE4EC' },   // Pink - Büyüme
+  7: { accent: '#FBBC04', accentLight: '#FEF7E0' },   // Yellow - Funds
+  8: { accent: '#3949AB', accentLight: '#E8EAF6' },   // Indigo - Finansal
+  9: { accent: '#00897B', accentLight: '#E0F2F1' },   // Teal - Ekip
+  10: { accent: '#EA4335', accentLight: '#FCE8E6' }   // Red - The Ask
 };
 
+// 10 Slayt Emoji Etiketleri
 const slideIconLabels: Record<number, string> = {
-  1: '🚀',
-  2: '⚠️',
-  3: '💰',
-  4: '🧮',
-  5: '👥'
+  1: '🚀',  // Problem
+  2: '✨',  // Çözüm
+  3: '🌐',  // Pazar
+  4: '📊',  // İş Modeli
+  5: '📈',  // Traction
+  6: '💹',  // Büyüme
+  7: '💰',  // Funds
+  8: '🧮',  // Finansal
+  9: '👥',  // Ekip
+  10: '🎯'  // The Ask
 };
 
 export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
