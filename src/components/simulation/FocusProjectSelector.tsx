@@ -28,7 +28,11 @@ export const FocusProjectSelector = ({
   onFocusProjectPlanChange,
   onInvestmentAllocationChange
 }: FocusProjectSelectorProps) => {
-  const selectedRevenues = revenues.filter(r => focusProjects.includes(r.category));
+  // Fallback for undefined props
+  const safeProjects = focusProjects || [];
+  const safeRevenues = revenues || [];
+  
+  const selectedRevenues = safeRevenues.filter(r => safeProjects.includes(r.category));
   
   // Combined totals for selected projects
   const combinedCurrentRevenue = selectedRevenues.reduce((sum, r) => sum + r.baseAmount, 0);
@@ -52,9 +56,9 @@ export const FocusProjectSelector = ({
   
   const handleProjectToggle = (category: string, checked: boolean) => {
     if (checked) {
-      onFocusProjectsChange([...focusProjects, category]);
+      onFocusProjectsChange([...safeProjects, category]);
     } else {
-      onFocusProjectsChange(focusProjects.filter(p => p !== category));
+      onFocusProjectsChange(safeProjects.filter(p => p !== category));
     }
   };
   
@@ -71,9 +75,9 @@ export const FocusProjectSelector = ({
         <CardTitle className="flex items-center gap-2 text-base">
           <Target className="h-4 w-4 text-primary" />
           Yatırım Odak Projeleri
-          {focusProjects.length > 0 && (
+          {safeProjects.length > 0 && (
             <Badge variant="secondary" className="ml-2">
-              {focusProjects.length} proje seçili
+              {safeProjects.length} proje seçili
             </Badge>
           )}
         </CardTitle>
@@ -86,9 +90,9 @@ export const FocusProjectSelector = ({
         <div className="space-y-2">
           <Label className="text-xs">Yatırım Projeleri (max 2 seçim)</Label>
           <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
-            {revenues.map(r => {
-              const isSelected = focusProjects.includes(r.category);
-              const isDisabled = !isSelected && focusProjects.length >= 2;
+            {safeRevenues.map(r => {
+              const isSelected = safeProjects.includes(r.category);
+              const isDisabled = !isSelected && safeProjects.length >= 2;
               
               return (
                 <div 
@@ -161,7 +165,7 @@ export const FocusProjectSelector = ({
           </div>
         )}
         
-        {focusProjects.length === 0 && (
+        {safeProjects.length === 0 && (
           <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
             <AlertCircle className="h-4 w-4 text-amber-400" />
             <p className="text-xs text-amber-400">En az 1 proje seçin</p>
