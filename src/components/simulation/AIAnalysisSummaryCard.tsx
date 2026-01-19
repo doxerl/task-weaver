@@ -190,77 +190,101 @@ export const AIAnalysisSummaryCard: React.FC<AIAnalysisSummaryCardProps> = ({
             )}
 
             {/* Deal Score & Verdict - Compact Summary */}
-            <div className="p-4 rounded-lg bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20">
-              <div className="flex items-center justify-between mb-3">
-                <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-2">
-                    <Target className="h-4 w-4 text-purple-400" />
-                    <span className="text-sm font-medium">Deal Skoru:</span>
+            {unifiedAnalysis.deal_analysis.deal_score > 0 ? (
+              <div className="p-4 rounded-lg bg-gradient-to-r from-purple-500/10 to-blue-500/10 border border-purple-500/20">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      <Target className="h-4 w-4 text-purple-400" />
+                      <span className="text-sm font-medium">Deal Skoru:</span>
+                    </div>
+                    <Badge className={`text-lg px-3 py-1 ${
+                      unifiedAnalysis.deal_analysis.deal_score >= 7 ? 'bg-emerald-600' :
+                      unifiedAnalysis.deal_analysis.deal_score >= 5 ? 'bg-amber-600' : 'bg-red-600'
+                    }`}>
+                      {unifiedAnalysis.deal_analysis.deal_score}/10
+                    </Badge>
+                    <Badge variant="outline" className={`${
+                      unifiedAnalysis.deal_analysis.valuation_verdict === 'cheap' ? 'border-emerald-500 text-emerald-400' :
+                      unifiedAnalysis.deal_analysis.valuation_verdict === 'premium' ? 'border-red-500 text-red-400' :
+                      'border-amber-500 text-amber-400'
+                    }`}>
+                      {unifiedAnalysis.deal_analysis.valuation_verdict === 'cheap' ? '💎 Ucuz' :
+                       unifiedAnalysis.deal_analysis.valuation_verdict === 'premium' ? '💰 Pahalı' : '⚖️ Adil'}
+                    </Badge>
                   </div>
-                  <Badge className={`text-lg px-3 py-1 ${
-                    unifiedAnalysis.deal_analysis.deal_score >= 7 ? 'bg-emerald-600' :
-                    unifiedAnalysis.deal_analysis.deal_score >= 5 ? 'bg-amber-600' : 'bg-red-600'
-                  }`}>
-                    {unifiedAnalysis.deal_analysis.deal_score}/10
-                  </Badge>
-                  <Badge variant="outline" className={`${
-                    unifiedAnalysis.deal_analysis.valuation_verdict === 'cheap' ? 'border-emerald-500 text-emerald-400' :
-                    unifiedAnalysis.deal_analysis.valuation_verdict === 'premium' ? 'border-red-500 text-red-400' :
-                    'border-amber-500 text-amber-400'
-                  }`}>
-                    {unifiedAnalysis.deal_analysis.valuation_verdict === 'cheap' ? '💎 Ucuz' :
-                     unifiedAnalysis.deal_analysis.valuation_verdict === 'premium' ? '💰 Pahalı' : '⚖️ Adil'}
-                  </Badge>
                 </div>
+                
+                {/* Enhanced Executive Summary */}
+                {unifiedAnalysis.pitch_deck?.executive_summary && (
+                  <div className="text-sm text-muted-foreground border-t border-purple-500/20 pt-3 space-y-2">
+                    {isEnhancedSummary(unifiedAnalysis.pitch_deck.executive_summary) ? (
+                      <>
+                        <p>{unifiedAnalysis.pitch_deck.executive_summary.short_pitch}</p>
+                        {unifiedAnalysis.pitch_deck.executive_summary.scenario_comparison && (
+                          <p className="text-xs border-t border-purple-500/10 pt-2 mt-2">
+                            📊 {unifiedAnalysis.pitch_deck.executive_summary.scenario_comparison}
+                          </p>
+                        )}
+                        {unifiedAnalysis.pitch_deck.executive_summary.investment_impact && (
+                          <p className="text-xs text-amber-400/80">
+                            ⚠️ {unifiedAnalysis.pitch_deck.executive_summary.investment_impact}
+                          </p>
+                        )}
+                      </>
+                    ) : (
+                      <p>{unifiedAnalysis.pitch_deck.executive_summary}</p>
+                    )}
+                  </div>
+                )}
+                
+                {/* Next Year Summary */}
+                {unifiedAnalysis.next_year_projection && (
+                  <div className="grid grid-cols-3 gap-2 mt-3 text-center border-t border-purple-500/20 pt-3">
+                    <div>
+                      <div className="text-sm font-bold text-blue-400">
+                        {formatCompactUSD(unifiedAnalysis.next_year_projection.summary.total_revenue)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">{targetYear ? targetYear + 1 : 'Gelecek Yıl'} Gelir</div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-red-400">
+                        {formatCompactUSD(unifiedAnalysis.next_year_projection.summary.total_expenses)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Gider</div>
+                    </div>
+                    <div>
+                      <div className="text-sm font-bold text-emerald-400">
+                        {formatCompactUSD(unifiedAnalysis.next_year_projection.summary.net_profit)}
+                      </div>
+                      <div className="text-xs text-muted-foreground">Net Kâr</div>
+                    </div>
+                  </div>
+                )}
               </div>
-              
-              {/* Enhanced Executive Summary */}
-              {unifiedAnalysis.pitch_deck?.executive_summary && (
-                <div className="text-sm text-muted-foreground border-t border-purple-500/20 pt-3 space-y-2">
-                  {isEnhancedSummary(unifiedAnalysis.pitch_deck.executive_summary) ? (
-                    <>
-                      <p>{unifiedAnalysis.pitch_deck.executive_summary.short_pitch}</p>
-                      {unifiedAnalysis.pitch_deck.executive_summary.scenario_comparison && (
-                        <p className="text-xs border-t border-purple-500/10 pt-2 mt-2">
-                          📊 {unifiedAnalysis.pitch_deck.executive_summary.scenario_comparison}
-                        </p>
-                      )}
-                      {unifiedAnalysis.pitch_deck.executive_summary.investment_impact && (
-                        <p className="text-xs text-amber-400/80">
-                          ⚠️ {unifiedAnalysis.pitch_deck.executive_summary.investment_impact}
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <p>{unifiedAnalysis.pitch_deck.executive_summary}</p>
-                  )}
+            ) : (
+              /* Fallback for incomplete/old format analyses */
+              <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                <div className="flex items-center gap-2 text-amber-400 mb-2">
+                  <AlertTriangle className="h-4 w-4" />
+                  <span className="text-sm font-medium">Eksik Analiz Verileri</span>
                 </div>
-              )}
-              
-              {/* Next Year Summary */}
-              {unifiedAnalysis.next_year_projection && (
-                <div className="grid grid-cols-3 gap-2 mt-3 text-center border-t border-purple-500/20 pt-3">
-                  <div>
-                    <div className="text-sm font-bold text-blue-400">
-                      {formatCompactUSD(unifiedAnalysis.next_year_projection.summary.total_revenue)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">{targetYear ? targetYear + 1 : 'Gelecek Yıl'} Gelir</div>
+                <p className="text-xs text-muted-foreground">
+                  Bu analiz eski formatta kaydedilmiş. Tam sonuçlar için yukarıdaki "Yeniden Analiz" butonuna tıklayın.
+                </p>
+                {/* Show existing insights if available */}
+                {unifiedAnalysis.insights && unifiedAnalysis.insights.length > 0 && (
+                  <div className="space-y-1.5 border-t border-amber-500/20 pt-3 mt-3">
+                    <p className="text-xs font-medium text-muted-foreground">📊 Mevcut Analizler ({unifiedAnalysis.insights.length}):</p>
+                    {unifiedAnalysis.insights.slice(0, 3).map((insight, i) => (
+                      <div key={i} className="text-xs text-muted-foreground">
+                        • {insight.title}
+                      </div>
+                    ))}
                   </div>
-                  <div>
-                    <div className="text-sm font-bold text-red-400">
-                      {formatCompactUSD(unifiedAnalysis.next_year_projection.summary.total_expenses)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Gider</div>
-                  </div>
-                  <div>
-                    <div className="text-sm font-bold text-emerald-400">
-                      {formatCompactUSD(unifiedAnalysis.next_year_projection.summary.net_profit)}
-                    </div>
-                    <div className="text-xs text-muted-foreground">Net Kâr</div>
-                  </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {/* Action Buttons */}
             <div className="grid grid-cols-2 gap-3">
