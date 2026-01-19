@@ -1259,10 +1259,16 @@ function ScenarioComparisonContent() {
                   scenarioB={scenarioB}
                   summaryA={summaryA}
                   summaryB={summaryB}
+              />
+                
+                {/* AI Analysis Details - Collapsible - Sayfanın başında */}
+                <AIAnalysisDetails
+                  unifiedAnalysis={unifiedAnalysis}
+                  targetYear={scenarioB?.targetYear}
                 />
                 
                 {/* Analysis History - Right below AI Summary Card for visibility */}
-                <AnalysisHistoryPanel 
+                <AnalysisHistoryPanel
                   history={unifiedAnalysisHistory}
                   isLoading={unifiedHistoryLoading}
                   onSelectHistory={handleSelectUnifiedHistory}
@@ -1400,12 +1406,6 @@ function ScenarioComparisonContent() {
               quarterlyB={{ q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 }}
               dealConfig={dealConfig}
               onDealConfigChange={updateDealConfig}
-            />
-            
-            {/* AI Analysis Details - Collapsible */}
-            <AIAnalysisDetails
-              unifiedAnalysis={unifiedAnalysis}
-              targetYear={scenarioB?.targetYear}
             />
                 
                 {/* Focus Project Selector - Yatırım Odak Projesi (çoklu seçim) */}
