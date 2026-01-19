@@ -22,6 +22,8 @@ interface DatabaseScenario {
   investments: InvestmentItem[];
   notes: string | null;
   is_default: boolean;
+  scenario_type: 'positive' | 'negative' | null;
+  version: number;
   created_at: string;
   updated_at: string;
 }
@@ -57,6 +59,8 @@ export function useScenarios() {
         investments: d.investments || [],
         assumedExchangeRate: d.assumed_exchange_rate,
         notes: d.notes || '',
+        scenarioType: d.scenario_type || 'positive',
+        version: d.version || 1,
         createdAt: d.created_at,
         updatedAt: d.updated_at,
       }));
@@ -79,35 +83,52 @@ export function useScenarios() {
 
     setIsSaving(true);
     try {
-      const dbData = {
-        user_id: user.id,
-        name: scenario.name,
-        base_year: scenario.baseYear,
-        target_year: scenario.targetYear,
-        assumed_exchange_rate: scenario.assumedExchangeRate,
-        revenues: JSON.parse(JSON.stringify(scenario.revenues)),
-        expenses: JSON.parse(JSON.stringify(scenario.expenses)),
-        investments: JSON.parse(JSON.stringify(scenario.investments)),
-        notes: scenario.notes,
-      };
-
       if (existingId) {
+        // Get current version and increment
+        const existingScenario = scenarios.find(s => s.id === existingId);
+        const currentVersion = existingScenario?.version || 1;
+        const newVersion = currentVersion + 1;
+
         // Update existing
         const { error } = await supabase
           .from('simulation_scenarios')
-          .update(dbData)
+          .update({
+            user_id: user.id,
+            name: scenario.name,
+            base_year: scenario.baseYear,
+            target_year: scenario.targetYear,
+            assumed_exchange_rate: scenario.assumedExchangeRate,
+            revenues: JSON.parse(JSON.stringify(scenario.revenues)),
+            expenses: JSON.parse(JSON.stringify(scenario.expenses)),
+            investments: JSON.parse(JSON.stringify(scenario.investments)),
+            notes: scenario.notes,
+            scenario_type: scenario.scenarioType || 'positive',
+            version: newVersion,
+          })
           .eq('id', existingId);
 
         if (error) throw error;
         
-        toast.success('Senaryo güncellendi');
+        toast.success(`Senaryo güncellendi (v${newVersion})`);
         await fetchScenarios();
         return existingId;
       } else {
-        // Insert new
+        // Insert new with version 1
         const { data, error } = await supabase
           .from('simulation_scenarios')
-          .insert(dbData)
+          .insert({
+            user_id: user.id,
+            name: scenario.name,
+            base_year: scenario.baseYear,
+            target_year: scenario.targetYear,
+            assumed_exchange_rate: scenario.assumedExchangeRate,
+            revenues: JSON.parse(JSON.stringify(scenario.revenues)),
+            expenses: JSON.parse(JSON.stringify(scenario.expenses)),
+            investments: JSON.parse(JSON.stringify(scenario.investments)),
+            notes: scenario.notes,
+            scenario_type: scenario.scenarioType || 'positive',
+            version: 1,
+          })
           .select('id')
           .single();
 
@@ -124,7 +145,7 @@ export function useScenarios() {
     } finally {
       setIsSaving(false);
     }
-  }, [user, fetchScenarios]);
+  }, [user, fetchScenarios, scenarios]);
 
   // Delete scenario
   const deleteScenario = useCallback(async (id: string) => {
@@ -167,6 +188,7 @@ export function useScenarios() {
       investments: scenario.investments,
       assumedExchangeRate: scenario.assumedExchangeRate,
       notes: scenario.notes,
+      scenarioType: scenario.scenarioType,
     });
   }, [scenarios, saveScenario]);
 

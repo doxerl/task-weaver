@@ -17,13 +17,16 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { 
   ChevronDown, 
   FolderOpen, 
   Trash2, 
   Copy, 
   Check,
-  Loader2 
+  Loader2,
+  TrendingUp,
+  TrendingDown
 } from 'lucide-react';
 import { SimulationScenario } from '@/types/simulation';
 import { format } from 'date-fns';
@@ -70,6 +73,79 @@ export function ScenarioSelector({
     return null;
   }
 
+  // Group scenarios by type
+  const positiveScenarios = scenarios.filter(s => s.scenarioType !== 'negative');
+  const negativeScenarios = scenarios.filter(s => s.scenarioType === 'negative');
+
+  const renderScenarioItem = (scenario: SimulationScenario) => {
+    const isPositive = scenario.scenarioType !== 'negative';
+    
+    return (
+      <DropdownMenuItem
+        key={scenario.id}
+        className="flex items-center justify-between cursor-pointer p-3"
+        onClick={() => onSelect(scenario)}
+      >
+        <div className="flex-1 min-w-0">
+          <div className="flex items-center gap-2">
+            {currentScenarioId === scenario.id && (
+              <Check className="h-3 w-3 text-primary shrink-0" />
+            )}
+            <span className="font-medium truncate">{scenario.name}</span>
+            <Badge 
+              variant="outline" 
+              className={`text-[10px] px-1.5 py-0 shrink-0 ${
+                isPositive 
+                  ? 'border-green-500 text-green-600 bg-green-500/10' 
+                  : 'border-red-500 text-red-600 bg-red-500/10'
+              }`}
+            >
+              {isPositive ? (
+                <TrendingUp className="h-2.5 w-2.5 mr-0.5" />
+              ) : (
+                <TrendingDown className="h-2.5 w-2.5 mr-0.5" />
+              )}
+              v{scenario.version || 1}
+            </Badge>
+          </div>
+          <div className="flex items-center gap-2 mt-0.5">
+            {scenario.updatedAt && (
+              <span className="text-xs text-muted-foreground">
+                {format(new Date(scenario.updatedAt), 'd MMM yyyy HH:mm', { locale: tr })}
+              </span>
+            )}
+          </div>
+        </div>
+        <div className="flex items-center gap-1 shrink-0 ml-2">
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7"
+            onClick={(e) => handleDuplicate(scenario.id, e)}
+            disabled={duplicatingId === scenario.id}
+          >
+            {duplicatingId === scenario.id ? (
+              <Loader2 className="h-3 w-3 animate-spin" />
+            ) : (
+              <Copy className="h-3 w-3" />
+            )}
+          </Button>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-destructive hover:text-destructive"
+            onClick={(e) => {
+              e.stopPropagation();
+              setDeleteId(scenario.id);
+            }}
+          >
+            <Trash2 className="h-3 w-3" />
+          </Button>
+        </div>
+      </DropdownMenuItem>
+    );
+  };
+
   return (
     <>
       <DropdownMenu>
@@ -84,59 +160,37 @@ export function ScenarioSelector({
             )}
           </Button>
         </DropdownMenuTrigger>
-        <DropdownMenuContent align="end" className="w-72">
+        <DropdownMenuContent align="end" className="w-80">
           {scenarios.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
               Kayıtlı senaryo yok
             </div>
           ) : (
-            scenarios.map((scenario) => (
-              <DropdownMenuItem
-                key={scenario.id}
-                className="flex items-center justify-between cursor-pointer p-3"
-                onClick={() => onSelect(scenario)}
-              >
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2">
-                    {currentScenarioId === scenario.id && (
-                      <Check className="h-3 w-3 text-primary shrink-0" />
-                    )}
-                    <span className="font-medium truncate">{scenario.name}</span>
+            <>
+              {positiveScenarios.length > 0 && (
+                <>
+                  <div className="px-2 py-1.5 text-xs font-medium text-green-600 flex items-center gap-1">
+                    <TrendingUp className="h-3 w-3" />
+                    Pozitif Senaryolar
                   </div>
-                  {scenario.updatedAt && (
-                    <span className="text-xs text-muted-foreground">
-                      {format(new Date(scenario.updatedAt), 'd MMM yyyy HH:mm', { locale: tr })}
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 shrink-0 ml-2">
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7"
-                    onClick={(e) => handleDuplicate(scenario.id, e)}
-                    disabled={duplicatingId === scenario.id}
-                  >
-                    {duplicatingId === scenario.id ? (
-                      <Loader2 className="h-3 w-3 animate-spin" />
-                    ) : (
-                      <Copy className="h-3 w-3" />
-                    )}
-                  </Button>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className="h-7 w-7 text-destructive hover:text-destructive"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setDeleteId(scenario.id);
-                    }}
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </Button>
-                </div>
-              </DropdownMenuItem>
-            ))
+                  {positiveScenarios.map(renderScenarioItem)}
+                </>
+              )}
+              
+              {positiveScenarios.length > 0 && negativeScenarios.length > 0 && (
+                <DropdownMenuSeparator />
+              )}
+              
+              {negativeScenarios.length > 0 && (
+                <>
+                  <div className="px-2 py-1.5 text-xs font-medium text-red-600 flex items-center gap-1">
+                    <TrendingDown className="h-3 w-3" />
+                    Negatif Senaryolar
+                  </div>
+                  {negativeScenarios.map(renderScenarioItem)}
+                </>
+              )}
+            </>
           )}
         </DropdownMenuContent>
       </DropdownMenu>

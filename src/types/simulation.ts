@@ -66,6 +66,7 @@ export interface SimulationScenario {
   assumedExchangeRate: number;  // TL/USD for display
   notes: string;
   scenarioType?: 'positive' | 'negative';  // Scenario role: positive = investment, negative = risk
+  version?: number;             // Version number for tracking updates
   createdAt?: string;
   updatedAt?: string;
 }
