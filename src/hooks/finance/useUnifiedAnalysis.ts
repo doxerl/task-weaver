@@ -65,6 +65,19 @@ export function useUnifiedAnalysis() {
       }
 
       if (data) {
+        // Cache validation: Eksik unified analiz verisi kontrolü
+        // Eski format (scenario_comparison, investor_pitch) kayıtlarında bu alanlar boş
+        const isValidUnifiedCache = 
+          data.deal_score !== null && 
+          data.pitch_deck !== null && 
+          data.next_year_projection !== null;
+
+        if (!isValidUnifiedCache) {
+          console.log('Found incomplete cached analysis (old format), treating as no cache');
+          setIsCacheLoading(false);
+          return false; // Cache yok gibi davran
+        }
+
         const result: UnifiedAnalysisResult = {
           insights: (data.insights as any) || [],
           recommendations: (data.recommendations as any) || [],
