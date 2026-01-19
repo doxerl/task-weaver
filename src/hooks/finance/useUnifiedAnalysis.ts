@@ -349,6 +349,13 @@ export function useUnifiedAnalysis() {
     setError(null);
 
     try {
+      // exitPlan.allYears çok büyük olabilir (30+ yıl) - sadece ilk 5 yılı gönder
+      // Bu payload boyutunu azaltır ve Edge Function timeout'unu önler
+      const trimmedExitPlan = {
+        ...exitPlan,
+        allYears: exitPlan.allYears?.slice(0, 5) || []
+      };
+
       const { data, error: invokeError } = await supabase.functions.invoke('unified-scenario-analysis', {
         body: {
           scenarioA,
@@ -362,7 +369,7 @@ export function useUnifiedAnalysis() {
             b: quarterlyB
           },
           dealConfig,
-          exitPlan,
+          exitPlan: trimmedExitPlan,
           capitalNeeds,
           historicalBalance,
           quarterlyItemized,
