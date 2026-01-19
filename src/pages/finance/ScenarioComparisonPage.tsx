@@ -54,6 +54,7 @@ import {
   ChevronDown,
   RotateCcw,
   Presentation,
+  Edit2,
 } from 'lucide-react';
 import { 
   SimulationScenario, 
@@ -64,8 +65,12 @@ import {
   TrendAnalysisResult,
   EnhancedSensitivityAnalysis,
   BreakEvenResult,
-  ProfessionalAnalysisData
+  ProfessionalAnalysisData,
+  FocusProjectInfo,
+  EditableProjectionItem
 } from '@/types/simulation';
+import { FocusProjectSelector } from '@/components/simulation/FocusProjectSelector';
+import { EditableProjectionTable } from '@/components/simulation/EditableProjectionTable';
 import { formatCompactUSD } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
@@ -74,6 +79,7 @@ import { useInvestorAnalysis, calculateCapitalNeeds, calculateExitPlan } from '@
 import { useScenarios } from '@/hooks/finance/useScenarios';
 import { InvestmentTab } from '@/components/simulation/InvestmentTab';
 import { PitchDeckView } from '@/components/simulation/PitchDeckView';
+import { PitchDeckEditor } from '@/components/simulation/PitchDeckEditor';
 import { SensitivityTable } from '@/components/simulation/SensitivityTable';
 import { FinancialRatiosPanel } from '@/components/simulation/FinancialRatiosPanel';
 import { ItemTrendCards } from '@/components/simulation/ItemTrendCards';
@@ -415,6 +421,22 @@ function ScenarioComparisonContent() {
   const [selectedHistoricalAnalysis, setSelectedHistoricalAnalysis] = useState<AnalysisHistoryItem | null>(null);
   const [historySheetType, setHistorySheetType] = useState<'scenario_comparison' | 'investor_pitch'>('scenario_comparison');
   const [showPitchDeck, setShowPitchDeck] = useState(false);
+  
+  // Focus Project State - yatırım odak projesi
+  const [focusProject, setFocusProject] = useState<string>('');
+  const [focusProjectPlan, setFocusProjectPlan] = useState<string>('');
+  const [investmentAllocation, setInvestmentAllocation] = useState({
+    product: 40,
+    marketing: 30,
+    hiring: 20,
+    operations: 10
+  });
+  
+  // Editable Projection State - AI'ın ürettiği projeksiyonu düzenlenebilir hale getir
+  const [editableRevenueProjection, setEditableRevenueProjection] = useState<EditableProjectionItem[]>([]);
+  const [editableExpenseProjection, setEditableExpenseProjection] = useState<EditableProjectionItem[]>([]);
+  const [originalRevenueProjection, setOriginalRevenueProjection] = useState<EditableProjectionItem[]>([]);
+  const [originalExpenseProjection, setOriginalExpenseProjection] = useState<EditableProjectionItem[]>([]);
 
   const { generatePdfFromElement, isGenerating } = usePdfEngine();
   
@@ -744,6 +766,147 @@ function ScenarioComparisonContent() {
       checkUnifiedDataChanges(scenarioA, scenarioB);
     }
   }, [scenarioA, scenarioB, unifiedCachedInfo, checkUnifiedDataChanges]);
+  
+  // Senaryo Sıralama Validasyonu - A = Pozitif (yüksek kâr), B = Negatif
+  useEffect(() => {
+    if (!summaryA || !summaryB || !scenarioAId || !scenarioBId) return;
+    
+    // A'nın net kârı B'den düşükse senaryoları yer değiştir
+    if (summaryA.netProfit < summaryB.netProfit) {
+      toast.info('Senaryo sıralaması düzeltildi: A = Pozitif (yüksek kâr), B = Negatif (düşük kâr)', { duration: 4000 });
+      
+      // URL parametrelerini değiştir
+      const newParams = new URLSearchParams();
+      newParams.set('a', scenarioBId);
+      newParams.set('b', scenarioAId);
+      navigate(`/finance/simulation/compare?${newParams.toString()}`, { replace: true });
+    }
+  }, [summaryA, summaryB, scenarioAId, scenarioBId, navigate]);
+  
+  // Editable Projection Sync - AI analizi tamamlandığında düzenlenebilir tabloya aktar
+  useEffect(() => {
+    if (unifiedAnalysis?.next_year_projection && scenarioA) {
+      const projection = unifiedAnalysis.next_year_projection;
+      
+      // Gelir kalemleri için düzenlenebilir projeksiyon oluştur
+      const revenueItems: EditableProjectionItem[] = scenarioA.revenues.map(r => {
+        const growthMultiplier = 1.3; // Varsayılan %30 büyüme
+        const baseQ = r.projectedQuarterly || { q1: r.projectedAmount / 4, q2: r.projectedAmount / 4, q3: r.projectedAmount / 4, q4: r.projectedAmount / 4 };
+        const q1 = Math.round((baseQ.q1 || r.projectedAmount / 4) * growthMultiplier);
+        const q2 = Math.round((baseQ.q2 || r.projectedAmount / 4) * growthMultiplier);
+        const q3 = Math.round((baseQ.q3 || r.projectedAmount / 4) * growthMultiplier);
+        const q4 = Math.round((baseQ.q4 || r.projectedAmount / 4) * growthMultiplier);
+        return {
+          category: r.category,
+          q1,
+          q2,
+          q3,
+          q4,
+          total: q1 + q2 + q3 + q4,
+          aiGenerated: true,
+          userEdited: false
+        };
+      });
+      
+      // Gider kalemleri için düzenlenebilir projeksiyon oluştur
+      const expenseItems: EditableProjectionItem[] = scenarioA.expenses.map(e => {
+        const growthMultiplier = 1.15; // Varsayılan %15 artış
+        const baseQ = e.projectedQuarterly || { q1: e.projectedAmount / 4, q2: e.projectedAmount / 4, q3: e.projectedAmount / 4, q4: e.projectedAmount / 4 };
+        const q1 = Math.round((baseQ.q1 || e.projectedAmount / 4) * growthMultiplier);
+        const q2 = Math.round((baseQ.q2 || e.projectedAmount / 4) * growthMultiplier);
+        const q3 = Math.round((baseQ.q3 || e.projectedAmount / 4) * growthMultiplier);
+        const q4 = Math.round((baseQ.q4 || e.projectedAmount / 4) * growthMultiplier);
+        return {
+          category: e.category,
+          q1,
+          q2,
+          q3,
+          q4,
+          total: q1 + q2 + q3 + q4,
+          aiGenerated: true,
+          userEdited: false
+        };
+      });
+      
+      setEditableRevenueProjection(revenueItems);
+      setEditableExpenseProjection(expenseItems);
+      setOriginalRevenueProjection(JSON.parse(JSON.stringify(revenueItems)));
+      setOriginalExpenseProjection(JSON.parse(JSON.stringify(expenseItems)));
+    }
+  }, [unifiedAnalysis?.next_year_projection, scenarioA]);
+  
+  // Editable projection handlers
+  const handleRevenueProjectionChange = useCallback((index: number, field: 'q1' | 'q2' | 'q3' | 'q4', value: number) => {
+    setEditableRevenueProjection(prev => prev.map((item, i) => 
+      i === index ? { ...item, [field]: value, userEdited: true } : item
+    ));
+  }, []);
+  
+  const handleExpenseProjectionChange = useCallback((index: number, field: 'q1' | 'q2' | 'q3' | 'q4', value: number) => {
+    setEditableExpenseProjection(prev => prev.map((item, i) => 
+      i === index ? { ...item, [field]: value, userEdited: true } : item
+    ));
+  }, []);
+  
+  const handleResetRevenueProjection = useCallback(() => {
+    setEditableRevenueProjection(JSON.parse(JSON.stringify(originalRevenueProjection)));
+  }, [originalRevenueProjection]);
+  
+  const handleResetExpenseProjection = useCallback(() => {
+    setEditableExpenseProjection(JSON.parse(JSON.stringify(originalExpenseProjection)));
+  }, [originalExpenseProjection]);
+  
+  // Editable Pitch Deck State
+  const [editablePitchDeck, setEditablePitchDeck] = useState<{ slides: any[]; executive_summary: string } | null>(null);
+  const [pitchDeckEditMode, setPitchDeckEditMode] = useState(false);
+  
+  // Sync editable pitch deck when unified analysis changes
+  useEffect(() => {
+    if (unifiedAnalysis?.pitch_deck) {
+      setEditablePitchDeck({
+        slides: JSON.parse(JSON.stringify(unifiedAnalysis.pitch_deck.slides || [])),
+        executive_summary: unifiedAnalysis.pitch_deck.executive_summary || ''
+      });
+    }
+  }, [unifiedAnalysis?.pitch_deck]);
+  
+  // Pitch deck edit handlers
+  const handlePitchSlideChange = useCallback((index: number, field: string, value: string | string[]) => {
+    if (!editablePitchDeck) return;
+    setEditablePitchDeck(prev => {
+      if (!prev) return prev;
+      const newSlides = [...prev.slides];
+      newSlides[index] = { ...newSlides[index], [field]: value };
+      return { ...prev, slides: newSlides };
+    });
+  }, [editablePitchDeck]);
+  
+  const handleExecutiveSummaryChange = useCallback((value: string) => {
+    setEditablePitchDeck(prev => prev ? { ...prev, executive_summary: value } : prev);
+  }, []);
+  
+  const handleAddBullet = useCallback((slideIndex: number) => {
+    if (!editablePitchDeck) return;
+    setEditablePitchDeck(prev => {
+      if (!prev) return prev;
+      const newSlides = [...prev.slides];
+      const currentBullets = newSlides[slideIndex]?.content_bullets || [];
+      newSlides[slideIndex] = { ...newSlides[slideIndex], content_bullets: [...currentBullets, ''] };
+      return { ...prev, slides: newSlides };
+    });
+  }, [editablePitchDeck]);
+  
+  const handleRemoveBullet = useCallback((slideIndex: number, bulletIndex: number) => {
+    if (!editablePitchDeck) return;
+    setEditablePitchDeck(prev => {
+      if (!prev) return prev;
+      const newSlides = [...prev.slides];
+      const currentBullets = [...(newSlides[slideIndex]?.content_bullets || [])];
+      currentBullets.splice(bulletIndex, 1);
+      newSlides[slideIndex] = { ...newSlides[slideIndex], content_bullets: currentBullets };
+      return { ...prev, slides: newSlides };
+    });
+  }, [editablePitchDeck]);
 
   // Unified AI Analysis Handler - TEK BUTON, TÜM GÜÇ
   const handleUnifiedAnalysis = async () => {
@@ -1074,6 +1237,41 @@ function ScenarioComparisonContent() {
                   onShowPitchDeck={() => setShowPitchDeck(true)}
                 />
                 
+                {/* Focus Project Selector - Yatırım Odak Projesi */}
+                {scenarioA && (
+                  <FocusProjectSelector
+                    revenues={scenarioA.revenues}
+                    focusProject={focusProject}
+                    focusProjectPlan={focusProjectPlan}
+                    investmentAllocation={investmentAllocation}
+                    onFocusProjectChange={setFocusProject}
+                    onFocusProjectPlanChange={setFocusProjectPlan}
+                    onInvestmentAllocationChange={setInvestmentAllocation}
+                  />
+                )}
+                
+                {/* Editable Projection Tables - Düzenlenebilir Projeksiyon */}
+                {unifiedAnalysis?.next_year_projection && editableRevenueProjection.length > 0 && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <EditableProjectionTable
+                      title={`${scenarioA?.targetYear ? scenarioA.targetYear + 1 : 'Gelecek Yıl'} Gelir Projeksiyonu`}
+                      description="AI tarafından oluşturuldu - düzenleyebilirsiniz"
+                      items={editableRevenueProjection}
+                      onItemChange={handleRevenueProjectionChange}
+                      onReset={handleResetRevenueProjection}
+                      type="revenue"
+                    />
+                    <EditableProjectionTable
+                      title={`${scenarioA?.targetYear ? scenarioA.targetYear + 1 : 'Gelecek Yıl'} Gider Projeksiyonu`}
+                      description="AI tarafından oluşturuldu - düzenleyebilirsiniz"
+                      items={editableExpenseProjection}
+                      onItemChange={handleExpenseProjectionChange}
+                      onReset={handleResetExpenseProjection}
+                      type="expense"
+                    />
+                  </div>
+                )}
+                
                 {/* Global Vizyon Kartı - Yatırımcıyı Heyecanlandır */}
                 {unifiedAnalysis?.next_year_projection && (
                   <Card className="border-emerald-500/30 bg-gradient-to-br from-emerald-950/20 via-background to-teal-950/20 overflow-hidden">
@@ -1213,23 +1411,51 @@ function ScenarioComparisonContent() {
         analysisType={historySheetType}
       />
       
-      {/* Pitch Deck Sheet */}
+      {/* Pitch Deck Sheet - Editable */}
       <Sheet open={showPitchDeck} onOpenChange={setShowPitchDeck}>
-        <SheetContent className="w-full sm:max-w-3xl overflow-y-auto">
+        <SheetContent className="w-full sm:max-w-4xl overflow-y-auto">
           <SheetHeader>
-            <SheetTitle className="flex items-center gap-2">
-              <Presentation className="h-5 w-5 text-purple-400" />
-              Yatırımcı Pitch Deck
-            </SheetTitle>
-            <SheetDescription>
-              AI tarafından oluşturulan 5 slaytlık yatırımcı sunumu
-            </SheetDescription>
-          </SheetHeader>
-          {unifiedAnalysis?.pitch_deck && (
-            <div className="mt-4">
-              <PitchDeckView pitchDeck={unifiedAnalysis.pitch_deck} />
+            <div className="flex items-center justify-between">
+              <div>
+                <SheetTitle className="flex items-center gap-2">
+                  <Presentation className="h-5 w-5 text-purple-400" />
+                  Yatırımcı Pitch Deck
+                </SheetTitle>
+                <SheetDescription>
+                  AI tarafından oluşturulan 5 slaytlık yatırımcı sunumu - düzenleyebilirsiniz
+                </SheetDescription>
+              </div>
+              <Button
+                variant={pitchDeckEditMode ? "default" : "outline"}
+                size="sm"
+                onClick={() => setPitchDeckEditMode(!pitchDeckEditMode)}
+                className="gap-1"
+              >
+                <Edit2 className="h-3 w-3" />
+                {pitchDeckEditMode ? 'Görüntüleme' : 'Düzenleme'}
+              </Button>
             </div>
-          )}
+          </SheetHeader>
+          <div className="mt-4">
+            {pitchDeckEditMode && editablePitchDeck ? (
+              <PitchDeckEditor
+                slides={editablePitchDeck.slides}
+                executiveSummary={editablePitchDeck.executive_summary}
+                onSlideChange={handlePitchSlideChange}
+                onExecutiveSummaryChange={handleExecutiveSummaryChange}
+                onAddBullet={handleAddBullet}
+                onRemoveBullet={handleRemoveBullet}
+              />
+            ) : unifiedAnalysis?.pitch_deck ? (
+              <PitchDeckView pitchDeck={unifiedAnalysis.pitch_deck} />
+            ) : (
+              <div className="text-center py-8 text-muted-foreground">
+                <Presentation className="h-12 w-12 mx-auto mb-4 opacity-50" />
+                <p>Henüz pitch deck oluşturulmadı.</p>
+                <p className="text-xs mt-1">Önce AI analizi çalıştırın.</p>
+              </div>
+            )}
+          </div>
         </SheetContent>
       </Sheet>
       
