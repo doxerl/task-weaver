@@ -27,13 +27,14 @@ function GrowthIndicator({ value }: { value: number }) {
 }
 
 export function SummaryCards({ summary, exchangeRate, baseYear, targetYear }: SummaryCardsProps) {
-  const displayBaseYear = baseYear || new Date().getFullYear();
-  const displayTargetYear = targetYear || displayBaseYear + 1;
+  // baseYear = hedef yıl (örn. 2026), baz yıl = baseYear - 1 (örn. 2025)
+  const displayBaseYear = baseYear ? baseYear - 1 : new Date().getFullYear() - 1;
+  const displayTargetYear = baseYear || new Date().getFullYear();
   
   const cards = [
     {
-      title: `${displayBaseYear} Baz Senaryo`,
-      subtitle: 'Mevcut Durum',
+      title: `${displayBaseYear} Baz Yıl`,
+      subtitle: 'Gerçek Veriler',
       items: [
         { label: 'Gelir', value: formatCompactUSD(summary.base.totalRevenue) },
         { label: 'Gider', value: formatCompactUSD(summary.base.totalExpense) },

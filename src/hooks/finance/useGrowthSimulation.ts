@@ -246,14 +246,9 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
 
   // Calculate summary
   const summary: SimulationSummary = useMemo(() => {
-    // Senaryo yüklendiyse, senaryonun projectedAmount'larını "baz" olarak kullan
-    // (Yüklenmiş senaryo = pozitif senaryo = baz senaryo)
-    const baseRevenue = isInitialized && revenues.length > 0
-      ? revenues.reduce((sum, r) => sum + r.projectedAmount, 0)
-      : (baseData?.totalRevenue || 0);
-    const baseExpense = isInitialized && expenses.length > 0
-      ? expenses.reduce((sum, e) => sum + e.projectedAmount, 0)
-      : (baseData?.totalExpense || 0);
+    // Base = baseAmount (önceki yılın gerçek verileri)
+    const baseRevenue = revenues.reduce((sum, r) => sum + r.baseAmount, 0);
+    const baseExpense = expenses.reduce((sum, e) => sum + e.baseAmount, 0);
     const baseProfit = baseRevenue - baseExpense;
 
     const totalProjectedRevenue = revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
