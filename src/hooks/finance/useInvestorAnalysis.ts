@@ -11,7 +11,9 @@ import {
   AnalysisHistoryItem,
   GrowthConfiguration,
   SECTOR_NORMALIZED_GROWTH,
-  InvestmentScenarioComparison
+  InvestmentScenarioComparison,
+  ExtendedRunwayInfo,
+  InvestmentTier
 } from '@/types/simulation';
 import { toast } from 'sonner';
 import { generateScenarioHash, checkDataChanged } from '@/lib/scenarioHash';
@@ -32,8 +34,15 @@ interface ScenarioSummary {
 }
 
 // Calculate "Death Valley" - the deepest cumulative cash deficit
-export const calculateCapitalNeeds = (quarterlyData: QuarterlyData): CapitalRequirement => {
+// Enhanced with year-end balance, 2-year projections, and investment tiers
+export const calculateCapitalNeeds = (
+  quarterlyData: QuarterlyData,
+  safetyMargin: number = 0.20,
+  year2GrowthRate: number = 0.15
+): CapitalRequirement => {
   const flows = [quarterlyData.q1, quarterlyData.q2, quarterlyData.q3, quarterlyData.q4];
+  
+  // 1. Year 1 Death Valley hesabı
   let cumulative = 0;
   let minBalance = 0;
   let criticalQuarter = '';
@@ -46,16 +55,99 @@ export const calculateCapitalNeeds = (quarterlyData: QuarterlyData): CapitalRequ
     }
   });
 
-  const totalFlow = flows.reduce((a, b) => a + b, 0);
-  const monthlyBurn = totalFlow < 0 ? Math.abs(totalFlow) / 12 : 0;
+  // 2. Yıl sonu bakiyesi (Faz 1)
+  const yearEndBalance = flows.reduce((a, b) => a + b, 0);
+  const yearEndDeficit = yearEndBalance < 0;
+  
+  // 3. Break-even noktası (Faz 1)
+  let breakEvenQuarter: string | null = null;
+  let cumulativeForBreakeven = 0;
+  flows.forEach((flow, index) => {
+    cumulativeForBreakeven += flow;
+    if (!breakEvenQuarter && cumulativeForBreakeven > 0) {
+      breakEvenQuarter = `Q${index + 1}`;
+    }
+  });
+  
+  // 4. Year 2 projeksiyon (Faz 2)
+  const y2Flows = flows.map(f => f * (1 + year2GrowthRate));
+  let y2Cumulative = yearEndBalance;
+  let y2MinBalance = yearEndBalance;
+  let y2CriticalQuarter = '';
+  
+  y2Flows.forEach((flow, index) => {
+    y2Cumulative += flow;
+    if (y2Cumulative < y2MinBalance) {
+      y2MinBalance = y2Cumulative;
+      y2CriticalQuarter = `Y2-Q${index + 1}`;
+    }
+  });
+  
+  // 5. Combined 2-year death valley
+  const combinedDeathValley = Math.min(minBalance, y2MinBalance);
+  const combinedCriticalPeriod = minBalance <= y2MinBalance ? criticalQuarter : y2CriticalQuarter;
+  
+  // 6. Aylık burn rate
+  const monthlyBurn = yearEndBalance < 0 ? Math.abs(yearEndBalance) / 12 : 0;
+  
+  // 7. Gerekli yatırım = max(death valley, yıl sonu açık) + güvenlik marjı (Faz 1)
+  const deathValleyNeed = Math.abs(minBalance);
+  const yearEndNeed = Math.abs(Math.min(0, yearEndBalance));
+  const baseNeed = Math.max(deathValleyNeed, yearEndNeed);
+  const calculationBasis = baseNeed === 0 ? 'none' 
+    : deathValleyNeed >= yearEndNeed ? 'death_valley' : 'year_end';
+  
+  // 8. Extended runway info (Faz 2)
+  const extendedRunway: ExtendedRunwayInfo = {
+    year1DeathValley: minBalance,
+    year2DeathValley: y2MinBalance,
+    combinedDeathValley,
+    combinedCriticalPeriod: combinedCriticalPeriod || 'N/A',
+    month18Runway: monthlyBurn > 0 ? (baseNeed / monthlyBurn) >= 18 : true,
+    month24Runway: monthlyBurn > 0 ? (baseNeed / monthlyBurn) >= 24 : true
+  };
+  
+  // 9. 3 Seçenekli yatırım önerisi (Faz 2)
+  const investmentTiers: InvestmentTier[] = [
+    {
+      tier: 'minimum',
+      label: 'Minimum (Survival)',
+      amount: baseNeed > 0 ? baseNeed * 1.15 : 0,
+      runwayMonths: monthlyBurn > 0 ? Math.ceil((baseNeed * 1.15) / monthlyBurn) : 999,
+      description: 'Yıl sonuna kadar hayatta kalma',
+      safetyMargin: 0.15
+    },
+    {
+      tier: 'recommended',
+      label: 'Önerilen (Growth)',
+      amount: combinedDeathValley < 0 ? Math.abs(combinedDeathValley) * 1.25 : 0,
+      runwayMonths: monthlyBurn > 0 ? Math.ceil((Math.abs(combinedDeathValley) * 1.25) / monthlyBurn) : 999,
+      description: '18 ay runway + büyüme tamponu',
+      safetyMargin: 0.25
+    },
+    {
+      tier: 'aggressive',
+      label: 'Agresif (Scale)',
+      amount: combinedDeathValley < 0 ? Math.abs(combinedDeathValley) * 1.50 : 0,
+      runwayMonths: monthlyBurn > 0 ? Math.ceil((Math.abs(combinedDeathValley) * 1.50) / monthlyBurn) : 999,
+      description: '24 ay runway + işe alım + agresif büyüme',
+      safetyMargin: 0.50
+    }
+  ];
   
   return {
     minCumulativeCash: minBalance,
     criticalQuarter: criticalQuarter || 'N/A',
-    requiredInvestment: minBalance < 0 ? Math.abs(minBalance) * 1.2 : 0, // +20% safety
+    requiredInvestment: baseNeed > 0 ? baseNeed * (1 + safetyMargin) : 0,
     burnRateMonthly: monthlyBurn,
-    runwayMonths: monthlyBurn > 0 ? Math.ceil(Math.abs(minBalance) / monthlyBurn) : 999,
-    selfSustaining: minBalance >= 0
+    runwayMonths: monthlyBurn > 0 ? Math.ceil(baseNeed / monthlyBurn) : 999,
+    selfSustaining: minBalance >= 0 && yearEndBalance >= 0,
+    yearEndBalance,
+    yearEndDeficit,
+    breakEvenQuarter,
+    calculationBasis,
+    extendedRunway,
+    investmentTiers
   };
 };
 
