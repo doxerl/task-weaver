@@ -21,6 +21,8 @@ interface ComparisonItem {
   divergenceTrend: 'increasing' | 'decreasing' | 'stable';
 }
 
+const MAX_ITEMS_TO_SHOW = 6;
+
 export function ScenarioComparisonCards({ quarterlyItemized, type }: ScenarioComparisonCardsProps) {
   const title = type === 'revenues' ? 'Gelir Kalemleri Senaryo Karşılaştırması' : 'Gider Kalemleri Senaryo Karşılaştırması';
   const isRevenue = type === 'revenues';
@@ -74,7 +76,7 @@ export function ScenarioComparisonCards({ quarterlyItemized, type }: ScenarioCom
         maxDiffQuarter,
         divergenceTrend
       };
-    }).sort((a, b) => Math.abs(b.diffs.total) - Math.abs(a.diffs.total));
+    }).sort((a, b) => Math.abs(b.diffs.total) - Math.abs(a.diffs.total)).slice(0, MAX_ITEMS_TO_SHOW);
   }, [quarterlyItemized, type]);
 
   const getRiskColor = (level: string) => {
