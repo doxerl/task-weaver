@@ -251,7 +251,7 @@ export function useUnifiedAnalysis() {
           insights: result.insights as any,
           recommendations: result.recommendations as any,
           quarterly_analysis: result.quarterly_analysis as any,
-          deal_score: result.deal_analysis.deal_score,
+          deal_score: Math.round(result.deal_analysis.deal_score),
           valuation_verdict: result.deal_analysis.valuation_verdict,
           pitch_deck: result.pitch_deck as any,
           next_year_projection: result.next_year_projection as any,
