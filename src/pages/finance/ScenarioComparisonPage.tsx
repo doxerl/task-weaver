@@ -67,7 +67,8 @@ import {
   BreakEvenResult,
   ProfessionalAnalysisData,
   FocusProjectInfo,
-  EditableProjectionItem
+  EditableProjectionItem,
+  InvestmentAllocation
 } from '@/types/simulation';
 import { FocusProjectSelector } from '@/components/simulation/FocusProjectSelector';
 import { EditableProjectionTable } from '@/components/simulation/EditableProjectionTable';
@@ -967,6 +968,31 @@ function ScenarioComparisonContent() {
       : 0.15;
     const exitPlan = calculateExitPlan(dealConfig, summaryB.totalRevenue, summaryB.totalExpense, growthRate);
     
+    // Prepare focus project info if projects are selected
+    let focusProjectInfo: FocusProjectInfo | undefined;
+    if (focusProjects.length > 0 && scenarioA?.revenues) {
+      const projects = focusProjects.map(projectName => {
+        const revenueItemA = scenarioA.revenues.find(r => r.category === projectName);
+        const revenueItemB = scenarioB.revenues.find(r => r.category === projectName);
+        return {
+          projectName,
+          currentRevenue: revenueItemA?.projectedAmount || revenueItemA?.baseAmount || 0,
+          projectedRevenue: revenueItemB?.projectedAmount || 0
+        };
+      });
+      
+      const combinedCurrentRevenue = projects.reduce((sum, p) => sum + p.currentRevenue, 0);
+      const combinedProjectedRevenue = projects.reduce((sum, p) => sum + p.projectedRevenue, 0);
+      
+      focusProjectInfo = {
+        projects,
+        combinedCurrentRevenue,
+        combinedProjectedRevenue,
+        growthPlan: focusProjectPlan,
+        investmentAllocation: investmentAllocation as InvestmentAllocation
+      };
+    }
+    
     await runUnifiedAnalysis(
       scenarioA,
       scenarioB,
@@ -979,7 +1005,8 @@ function ScenarioComparisonContent() {
       capitalNeeds,
       historicalBalance,
       quarterlyItemized,
-      averageRate
+      averageRate,
+      focusProjectInfo
     );
   };
 
