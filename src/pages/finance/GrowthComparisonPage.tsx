@@ -182,7 +182,9 @@ function GrowthComparisonContent() {
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4 items-end">
             {/* Base Scenario */}
             <div className="space-y-2">
-              <label className="text-xs text-muted-foreground">Baz Yıl (Mevcut)</label>
+              <label className="text-xs text-muted-foreground">
+                Baz Yıl {baseScenario?.targetYear ? `(${baseScenario.targetYear})` : ''}
+              </label>
               <Select value={baseScenarioId || ''} onValueChange={setBaseScenarioId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Baz senaryo seçin" />
@@ -190,9 +192,11 @@ function GrowthComparisonContent() {
                 <SelectContent>
                   {scenarios
                     .filter(s => s.id !== growthScenarioId)
+                    .sort((a, b) => (a.targetYear || 0) - (b.targetYear || 0))
                     .map(scenario => (
                       <SelectItem key={scenario.id} value={scenario.id}>
-                        {scenario.targetYear} - {scenario.name}
+                        <span className="font-medium">{scenario.targetYear}</span>
+                        <span className="text-muted-foreground ml-2">- {scenario.name}</span>
                       </SelectItem>
                     ))}
                 </SelectContent>
@@ -210,7 +214,9 @@ function GrowthComparisonContent() {
             
             {/* Growth Scenario */}
             <div className="space-y-2">
-              <label className="text-xs text-muted-foreground">Büyüme Yılı (Hedef)</label>
+              <label className="text-xs text-muted-foreground">
+                Hedef Yıl {growthScenario?.targetYear ? `(${growthScenario.targetYear})` : ''}
+              </label>
               <Select value={growthScenarioId || ''} onValueChange={setGrowthScenarioId}>
                 <SelectTrigger>
                   <SelectValue placeholder="Büyüme senaryosu seçin" />
@@ -218,9 +224,11 @@ function GrowthComparisonContent() {
                 <SelectContent>
                   {scenarios
                     .filter(s => s.id !== baseScenarioId)
+                    .sort((a, b) => (a.targetYear || 0) - (b.targetYear || 0))
                     .map(scenario => (
                       <SelectItem key={scenario.id} value={scenario.id}>
-                        {scenario.targetYear} - {scenario.name}
+                        <span className="font-medium">{scenario.targetYear}</span>
+                        <span className="text-muted-foreground ml-2">- {scenario.name}</span>
                       </SelectItem>
                     ))}
                 </SelectContent>
