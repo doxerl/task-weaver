@@ -46,11 +46,13 @@ import {
   CapitalRequirement,
   ExitPlan,
   UnifiedAnalysisResult,
-  SECTOR_MULTIPLES 
+  SECTOR_MULTIPLES,
+  GrowthConfiguration
 } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
 import { calculateCapitalNeeds, calculateExitPlan, projectFutureRevenue } from '@/hooks/finance/useInvestorAnalysis';
 import { calculateInternalGrowthRate, getProjectionYears } from '@/utils/yearCalculations';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 interface InvestmentTabProps {
   scenarioA: SimulationScenario;
@@ -295,6 +297,46 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
         </CardContent>
       </Card>
 
+      {/* Growth Model Info Card */}
+      {exitPlan.growthConfig && (
+        <Card className="bg-gradient-to-r from-blue-500/5 to-indigo-500/5 border-blue-500/20">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-2 mb-3">
+              <TrendingUp className="h-4 w-4 text-blue-500" />
+              <span className="font-medium text-sm">İki Aşamalı Büyüme Modeli</span>
+            </div>
+            
+            <div className="grid grid-cols-2 gap-4 text-sm">
+              <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                <p className="text-xs text-muted-foreground mb-1">Year 1-2 (Agresif)</p>
+                <p className="font-semibold text-amber-600">
+                  %{(exitPlan.growthConfig.aggressiveGrowthRate * 100).toFixed(0)}
+                </p>
+                {exitPlan.growthConfig.rawUserGrowthRate > 1.0 && (
+                  <p className="text-xs text-amber-500 mt-1">
+                    Hedef: %{(exitPlan.growthConfig.rawUserGrowthRate * 100).toFixed(0)} → %100 cap
+                  </p>
+                )}
+              </div>
+              <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
+                <p className="text-xs text-muted-foreground mb-1">Year 3-5 (Normalize)</p>
+                <p className="font-semibold text-green-600">
+                  %{(exitPlan.growthConfig.normalizedGrowthRate * 100).toFixed(0)}
+                </p>
+                <p className="text-xs text-muted-foreground mt-1">Sektör ortalaması</p>
+              </div>
+            </div>
+            
+            {exitPlan.growthConfig.rawUserGrowthRate > 1.0 && (
+              <div className="mt-3 p-2 rounded bg-amber-500/10 text-xs text-amber-600 flex items-center gap-2">
+                <AlertTriangle className="h-3 w-3 flex-shrink-0" />
+                Agresif aşama %100 ile sınırlandı (orijinal hedef: %{(exitPlan.growthConfig.rawUserGrowthRate * 100).toFixed(0)})
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
+
       {/* Exit Plan Card (The Pot of Gold) */}
       <Card className="bg-gradient-to-r from-amber-500/10 via-yellow-500/5 to-amber-500/10 border-amber-500/30">
         <CardHeader className="pb-2">
@@ -326,7 +368,7 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
 
             {/* Year 3 */}
             <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-              <h4 className="text-xs font-semibold text-blue-400 mb-2">3. YIL</h4>
+              <h4 className="text-xs font-semibold text-blue-400 mb-2">3. YIL ({exitPlan.yearLabels?.moic3Year})</h4>
               <div className="space-y-1">
                 <div className="flex justify-between">
                   <span className="text-xs text-muted-foreground">Şirket Değeri:</span>
@@ -347,7 +389,7 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
 
             {/* Year 5 */}
             <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-              <h4 className="text-xs font-semibold text-emerald-400 mb-2">5. YIL 🚀</h4>
+              <h4 className="text-xs font-semibold text-emerald-400 mb-2">5. YIL ({exitPlan.yearLabels?.moic5Year}) 🚀</h4>
               <div className="space-y-1">
                 <div className="flex justify-between">
                   <span className="text-xs text-muted-foreground">Şirket Değeri:</span>
@@ -377,11 +419,11 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
               <div className="text-xs text-muted-foreground">Her $1 için gelir</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Büyüme Hızı</div>
+              <div className="text-xs text-muted-foreground">Hedef Büyüme</div>
               <div className="text-lg font-bold text-primary">
                 %{(growthRate * 100).toFixed(0)}
               </div>
-              <div className="text-xs text-muted-foreground">Yıllık gelir artışı</div>
+              <div className="text-xs text-muted-foreground">Senaryo hedefi</div>
             </div>
             <div>
               <div className="text-xs text-muted-foreground">Break-even</div>
@@ -393,6 +435,67 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
           </div>
         </CardContent>
       </Card>
+
+      {/* 5 Year Projection Detail Table */}
+      {exitPlan.allYears && exitPlan.allYears.length > 0 && (
+        <Card>
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Target className="h-4 w-4 text-primary" />
+              5 Yıllık Projeksiyon Detayı
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead className="w-[100px]">Yıl</TableHead>
+                  <TableHead>Aşama</TableHead>
+                  <TableHead className="text-right">Büyüme</TableHead>
+                  <TableHead className="text-right">Gelir</TableHead>
+                  <TableHead className="text-right">Değerleme</TableHead>
+                  <TableHead className="text-right">MOIC</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {exitPlan.allYears.map((year) => {
+                  const moic = (year.companyValuation * (dealConfig.equityPercentage / 100)) / dealConfig.investmentAmount;
+                  return (
+                    <TableRow key={year.year}>
+                      <TableCell className="font-medium">{year.actualYear}</TableCell>
+                      <TableCell>
+                        {year.growthStage === 'aggressive' ? (
+                          <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
+                            Agresif
+                          </Badge>
+                        ) : (
+                          <Badge variant="secondary" className="text-xs">
+                            Normal
+                          </Badge>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right text-blue-600 font-medium">
+                        +{((year.appliedGrowthRate || 0) * 100).toFixed(0)}%
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatCompactUSD(year.revenue)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatCompactUSD(year.companyValuation)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        <Badge variant={moic >= 3 ? "default" : "secondary"} className="font-mono">
+                          {moic.toFixed(1)}x
+                        </Badge>
+                      </TableCell>
+                    </TableRow>
+                  );
+                })}
+              </TableBody>
+            </Table>
+          </CardContent>
+        </Card>
+      )}
 
       {/* AI Analysis Button & Results */}
       <Card className="bg-gradient-to-r from-purple-500/5 to-blue-500/5 border-purple-500/20">

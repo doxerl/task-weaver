@@ -306,6 +306,23 @@ export interface CapitalRequirement {
   selfSustaining: boolean;       // Kendi kendini finanse edebiliyor mu?
 }
 
+/** Growth Configuration for Two-Stage Model */
+export interface GrowthConfiguration {
+  aggressiveGrowthRate: number;   // Year 1-2: Kullanıcı hedefi (max %100)
+  normalizedGrowthRate: number;   // Year 3-5: Sektör ortalaması
+  transitionYear: number;         // Geçiş yılı (default: 2)
+  rawUserGrowthRate: number;      // Orijinal kullanıcı hedefi (cap öncesi)
+}
+
+/** Sector-based normalized growth rates */
+export const SECTOR_NORMALIZED_GROWTH: Record<string, number> = {
+  'saas': 0.30,      // %30
+  'fintech': 0.35,   // %35
+  'ecommerce': 0.25, // %25
+  'marketplace': 0.28, // %28
+  'default': 0.25    // %25
+};
+
 /** Multi-Year Financial Projection */
 export interface MultiYearProjection {
   year: number;                  // Relative year (1, 2, 3, 4, 5)
@@ -315,6 +332,8 @@ export interface MultiYearProjection {
   netProfit: number;
   cumulativeProfit: number;
   companyValuation: number;      // Ciro x Çarpan
+  appliedGrowthRate?: number;    // Uygulanan büyüme oranı (şeffaflık için)
+  growthStage?: 'aggressive' | 'normalized'; // Büyüme aşaması
 }
 
 /** Exit Plan for Investors */
@@ -334,6 +353,8 @@ export interface ExitPlan {
     moic3Year: number;           // 2029
     moic5Year: number;           // 2031
   };
+  growthConfig?: GrowthConfiguration; // İki aşamalı büyüme konfigürasyonu
+  allYears?: MultiYearProjection[];   // 5 yıllık detaylı projeksiyon
 }
 
 /** AI Investor Analysis Result */
