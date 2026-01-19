@@ -156,21 +156,28 @@ export function useUnifiedAnalysis() {
       if (data) {
         const history: AnalysisHistoryItem[] = data.map(item => {
           const itemAny = item as any;
+          
+          // investor_analysis JSON'dan verileri çıkar
+          const investorAnalysis = itemAny.investor_analysis as any;
+          
           return {
             id: item.id,
             createdAt: new Date(item.created_at || new Date()),
-            analysisType: 'unified' as const,
+            analysisType: (item.analysis_type as 'unified' | 'scenario_comparison' | 'investor_pitch') || 'unified',
             insights: (item.insights as any) || [],
             recommendations: (item.recommendations as any) || [],
             quarterlyAnalysis: (item.quarterly_analysis as any),
-            dealAnalysis: itemAny.deal_score ? {
-              deal_score: itemAny.deal_score as number,
-              valuation_verdict: (itemAny.valuation_verdict as 'premium' | 'fair' | 'cheap') || 'fair',
-              investor_attractiveness: '',
-              risk_factors: []
+            // investor_analysis JSON'dan okuma (eski format için uyumluluk)
+            investorAnalysis: investorAnalysis ? {
+              capitalStory: investorAnalysis.capitalStory || '',
+              exitNarrative: investorAnalysis.exitNarrative || '',
+              investorROI: investorAnalysis.investorROI || '',
+              keyMetrics: investorAnalysis.keyMetrics,
+              opportunityCost: investorAnalysis.opportunityCost || '',
+              potentialAcquirers: investorAnalysis.potentialAcquirers || [],
+              recommendedExit: investorAnalysis.recommendedExit,
+              riskFactors: investorAnalysis.riskFactors || []
             } : undefined,
-            pitchDeck: itemAny.pitch_deck,
-            nextYearProjection: itemAny.next_year_projection,
             dealConfig: (item.deal_config as any)
           };
         });
@@ -382,19 +389,27 @@ export function useUnifiedAnalysis() {
 
   // Restore historical analysis
   const restoreHistoricalAnalysis = useCallback((historyItem: AnalysisHistoryItem): void => {
-    if (historyItem.insights && historyItem.recommendations && historyItem.quarterlyAnalysis) {
+    // Farklı analiz tiplerini destekle - insights/recommendations yoksa bile restore et
+    const hasValidData = historyItem.insights || historyItem.investorAnalysis;
+    
+    if (hasValidData) {
       setAnalysis({
-        insights: historyItem.insights,
-        recommendations: historyItem.recommendations,
-        quarterly_analysis: historyItem.quarterlyAnalysis,
-        deal_analysis: historyItem.dealAnalysis || {
+        insights: historyItem.insights || [],
+        recommendations: historyItem.recommendations || [],
+        quarterly_analysis: historyItem.quarterlyAnalysis || { 
+          overview: '', 
+          critical_periods: [], 
+          seasonal_trends: [], 
+          growth_trajectory: '' 
+        },
+        deal_analysis: {
           deal_score: 0,
           valuation_verdict: 'fair',
-          investor_attractiveness: '',
-          risk_factors: []
+          investor_attractiveness: historyItem.investorAnalysis?.capitalStory || '',
+          risk_factors: historyItem.investorAnalysis?.riskFactors || []
         },
-        pitch_deck: historyItem.pitchDeck || { slides: [], executive_summary: '' },
-        next_year_projection: historyItem.nextYearProjection || {
+        pitch_deck: { slides: [], executive_summary: '' },
+        next_year_projection: {
           strategy_note: '',
           quarterly: {
             q1: { revenue: 0, expenses: 0, cash_flow: 0, key_event: '' },
@@ -410,6 +425,8 @@ export function useUnifiedAnalysis() {
         updatedAt: historyItem.createdAt
       });
       toast.success('Geçmiş analiz geri yüklendi');
+    } else {
+      toast.error('Geri yüklenecek analiz verisi bulunamadı');
     }
   }, []);
 

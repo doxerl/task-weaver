@@ -261,9 +261,11 @@ const AnalysisHistoryPanel = ({
                         {format(item.createdAt, 'dd MMMM yyyy HH:mm', { locale: tr })}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {analysisType === 'scenario_comparison' 
-                          ? `${item.insights?.length || 0} çıkarım, ${item.recommendations?.length || 0} öneri`
-                          : 'Yatırımcı analizi'
+                        {item.analysisType === 'investor_pitch' 
+                          ? `Yatırımcı analizi ${item.investorAnalysis ? '✓' : ''}`
+                          : item.analysisType === 'unified'
+                          ? `Kapsamlı analiz`
+                          : `${item.insights?.length || 0} çıkarım, ${item.recommendations?.length || 0} öneri`
                         }
                       </p>
                     </div>
