@@ -773,6 +773,29 @@ function ScenarioComparisonContent() {
     breakEvenAnalysis
   }), [financialRatios, itemTrendAnalysis, sensitivityAnalysis, breakEvenAnalysis]);
 
+  // =====================================================
+  // PDF EXIT PLAN - UI ile aynı hesaplama (Merkezi)
+  // =====================================================
+  const pdfExitPlan = useMemo(() => {
+    if (!scenarioA || !summaryA || !dealConfig) return null;
+    
+    const baseRevenue = scenarioA.revenues?.reduce(
+      (sum, r) => sum + (r.baseAmount || 0), 0
+    ) || 0;
+    const growthRate = calculateInternalGrowthRate(
+      baseRevenue, 
+      summaryA.totalRevenue, 
+      0.10
+    );
+    
+    return calculateExitPlan(
+      dealConfig, 
+      summaryA.totalRevenue, 
+      summaryA.totalExpense, 
+      growthRate
+    );
+  }, [scenarioA, summaryA, dealConfig]);
+
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
   // Load cached unified analysis when scenarios change
@@ -2167,35 +2190,120 @@ function ScenarioComparisonContent() {
                 </div>
               )}
 
-              {/* Exit Strategy Preview */}
-              <div style={{ 
-                padding: '20px', 
-                background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
-                borderRadius: '12px',
-                border: '1px solid #86efac'
-              }}>
-                <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '12px', color: '#166534' }}>Çıkış Stratejisi</h3>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
-                  <div>
-                    <p style={{ fontSize: '12px', color: '#166534', marginBottom: '4px' }}>3 Yıllık MOIC</p>
-                    <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#166534' }}>
-                      {((summaryB?.netProfit || 0) * 3 / dealConfig.investmentAmount + 1).toFixed(1)}x
-                    </p>
+              {/* Exit Strategy Preview - pdfExitPlan ile senkronize */}
+              {pdfExitPlan && (
+                <div style={{ 
+                  padding: '20px', 
+                  background: 'linear-gradient(135deg, #f0fdf4 0%, #ecfdf5 100%)',
+                  borderRadius: '12px',
+                  border: '1px solid #86efac'
+                }}>
+                  <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '12px', color: '#166534' }}>Çıkış Stratejisi</h3>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '20px' }}>
+                    <div>
+                      <p style={{ fontSize: '12px', color: '#166534', marginBottom: '4px' }}>3 Yıllık MOIC</p>
+                      <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#166534' }}>
+                        {pdfExitPlan.moic3Year.toFixed(1)}x
+                      </p>
+                      <p style={{ fontSize: '10px', color: '#6b7280' }}>{pdfExitPlan.yearLabels?.moic3Year}</p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '12px', color: '#166534', marginBottom: '4px' }}>5 Yıllık MOIC</p>
+                      <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#166534' }}>
+                        {pdfExitPlan.moic5Year.toFixed(1)}x
+                      </p>
+                      <p style={{ fontSize: '10px', color: '#6b7280' }}>{pdfExitPlan.yearLabels?.moic5Year}</p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '12px', color: '#166534', marginBottom: '4px' }}>5. Yıl Değerleme</p>
+                      <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#166534' }}>
+                        {formatCompactUSD(pdfExitPlan.year5Projection?.companyValuation || 0)}
+                      </p>
+                    </div>
+                    <div>
+                      <p style={{ fontSize: '12px', color: '#166534', marginBottom: '4px' }}>Yatırımcı Payı</p>
+                      <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#166534' }}>
+                        {formatCompactUSD(pdfExitPlan.investorShare5Year)}
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <p style={{ fontSize: '12px', color: '#166534', marginBottom: '4px' }}>5 Yıllık MOIC</p>
-                    <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#166534' }}>
-                      {((summaryB?.netProfit || 0) * 5 / dealConfig.investmentAmount + 1).toFixed(1)}x
-                    </p>
-                  </div>
-                  <div>
-                    <p style={{ fontSize: '12px', color: '#166534', marginBottom: '4px' }}>Tahmini ROI</p>
-                    <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#166534' }}>
-                      +{(((summaryB?.netProfit || 0) * 3 / dealConfig.investmentAmount) * 100).toFixed(0)}%
-                    </p>
-                  </div>
+                  
+                  {/* 5 Yıllık Projeksiyon Tablosu */}
+                  {pdfExitPlan.allYears && pdfExitPlan.allYears.length > 0 && (
+                    <div style={{ marginTop: '20px' }}>
+                      <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#374151' }}>
+                        5 Yıllık Finansal Projeksiyon
+                      </h4>
+                      <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '11px' }}>
+                        <thead>
+                          <tr style={{ background: '#f8fafc' }}>
+                            <th style={{ padding: '8px', textAlign: 'left', borderBottom: '2px solid #e2e8f0', color: '#374151' }}>Yıl</th>
+                            <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #e2e8f0', color: '#374151' }}>Gelir</th>
+                            <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #e2e8f0', color: '#374151' }}>Gider</th>
+                            <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #e2e8f0', color: '#374151' }}>Net Kâr</th>
+                            <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #e2e8f0', color: '#374151' }}>Şirket Değeri</th>
+                            <th style={{ padding: '8px', textAlign: 'right', borderBottom: '2px solid #e2e8f0', color: '#374151' }}>MOIC</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {pdfExitPlan.allYears.slice(0, 5).map((year) => (
+                            <tr key={year.year}>
+                              <td style={{ padding: '6px 8px', borderBottom: '1px solid #e2e8f0', fontWeight: '500', color: '#374151' }}>
+                                {year.year}
+                              </td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', color: '#374151' }}>
+                                {formatCompactUSD(year.revenue)}
+                              </td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', color: '#374151' }}>
+                                {formatCompactUSD(year.expenses)}
+                              </td>
+                              <td style={{ 
+                                padding: '6px 8px', 
+                                textAlign: 'right', 
+                                borderBottom: '1px solid #e2e8f0', 
+                                color: year.netProfit >= 0 ? '#16a34a' : '#dc2626',
+                                fontWeight: '500'
+                              }}>
+                                {formatCompactUSD(year.netProfit)}
+                              </td>
+                              <td style={{ padding: '6px 8px', textAlign: 'right', borderBottom: '1px solid #e2e8f0', color: '#374151' }}>
+                                {formatCompactUSD(year.companyValuation)}
+                              </td>
+                              <td style={{ 
+                                padding: '6px 8px', 
+                                textAlign: 'right', 
+                                borderBottom: '1px solid #e2e8f0', 
+                                fontWeight: '600',
+                                color: '#166534'
+                              }}>
+                                {(year.companyValuation * (dealConfig.equityPercentage/100) / dealConfig.investmentAmount).toFixed(1)}x
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                  
+                  {/* Büyüme Modeli */}
+                  {pdfExitPlan.growthConfig && (
+                    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginTop: '16px' }}>
+                      <div style={{ padding: '12px 16px', background: '#fef3c7', borderRadius: '8px' }}>
+                        <p style={{ fontSize: '11px', color: '#92400e', marginBottom: '4px' }}>Yıl 1-2 (Agresif Aşama)</p>
+                        <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#d97706' }}>
+                          %{(pdfExitPlan.growthConfig.aggressiveGrowthRate * 100).toFixed(0)}
+                        </p>
+                      </div>
+                      <div style={{ padding: '12px 16px', background: '#dcfce7', borderRadius: '8px' }}>
+                        <p style={{ fontSize: '11px', color: '#166534', marginBottom: '4px' }}>Yıl 3-5 (Normalize Aşama)</p>
+                        <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#16a34a' }}>
+                          %{(pdfExitPlan.growthConfig.normalizedGrowthRate * 100).toFixed(0)}
+                        </p>
+                      </div>
+                    </div>
+                  )}
                 </div>
-              </div>
+              )}
             </div>
           )}
 
