@@ -200,7 +200,9 @@ export function useUnifiedAnalysis() {
     if (!user?.id || !scenarioA.id || !scenarioB.id) return;
 
     try {
-      await supabase.from('scenario_analysis_history').insert({
+      // Tabloda olmayan sütunları kaldırdık (deal_score, valuation_verdict, pitch_deck, next_year_projection)
+      // Tüm deal verilerini investor_analysis JSON içine koyuyoruz
+      const { error: insertError } = await supabase.from('scenario_analysis_history').insert({
         user_id: user.id,
         scenario_a_id: scenarioA.id,
         scenario_b_id: scenarioB.id,
@@ -208,14 +210,22 @@ export function useUnifiedAnalysis() {
         insights: result.insights as any,
         recommendations: result.recommendations as any,
         quarterly_analysis: result.quarterly_analysis as any,
-        deal_score: result.deal_analysis.deal_score,
-        valuation_verdict: result.deal_analysis.valuation_verdict,
-        pitch_deck: result.pitch_deck as any,
-        next_year_projection: result.next_year_projection as any,
+        investor_analysis: {
+          deal_score: result.deal_analysis.deal_score,
+          valuation_verdict: result.deal_analysis.valuation_verdict,
+          investor_attractiveness: result.deal_analysis.investor_attractiveness,
+          risk_factors: result.deal_analysis.risk_factors,
+          pitch_deck: result.pitch_deck,
+          next_year_projection: result.next_year_projection
+        } as any,
         deal_config: dealConfig as any,
         scenario_a_data_hash: generateScenarioHash(scenarioA),
         scenario_b_data_hash: generateScenarioHash(scenarioB)
       });
+      
+      if (insertError) {
+        console.error('History insert failed:', insertError);
+      }
     } catch (err) {
       console.error('Error saving to unified analysis history:', err);
     }
