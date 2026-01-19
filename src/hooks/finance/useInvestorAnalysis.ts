@@ -8,7 +8,9 @@ import {
   ExitPlan,
   AIInvestorAnalysis,
   DEFAULT_DEAL_CONFIG,
-  AnalysisHistoryItem
+  AnalysisHistoryItem,
+  GrowthConfiguration,
+  SECTOR_NORMALIZED_GROWTH
 } from '@/types/simulation';
 import { toast } from 'sonner';
 import { generateScenarioHash, checkDataChanged } from '@/lib/scenarioHash';
@@ -56,11 +58,11 @@ export const calculateCapitalNeeds = (quarterlyData: QuarterlyData): CapitalRequ
   };
 };
 
-// Project 3-5 year financials with decaying growth rate
+// İki Aşamalı Büyüme Modeli ile 3-5 yıllık finansal projeksiyon
 export const projectFutureRevenue = (
   year1Revenue: number, 
   year1Expenses: number,
-  growthRate: number, 
+  growthConfig: GrowthConfiguration, 
   sectorMultiple: number
 ): { year3: MultiYearProjection; year5: MultiYearProjection; allYears: MultiYearProjection[] } => {
   const { year1: scenarioYear } = getProjectionYears();
@@ -70,9 +72,23 @@ export const projectFutureRevenue = (
   let cumulativeProfit = 0;
   
   for (let i = 1; i <= 5; i++) {
-    const decayFactor = Math.max(0.4, 1 - (i * 0.1)); // Büyüme yıldan yıla yavaşlar, min %40
-    revenue = revenue * (1 + growthRate * decayFactor);
-    expenses = expenses * (1 + (growthRate * 0.5) * decayFactor); // Giderler daha yavaş büyür
+    let effectiveGrowthRate: number;
+    let growthStage: 'aggressive' | 'normalized';
+    
+    if (i <= growthConfig.transitionYear) {
+      // Agresif Aşama (Year 1-2): Kullanıcı hedefi, hafif decay ile
+      const aggressiveDecay = Math.max(0.7, 1 - (i * 0.15));
+      effectiveGrowthRate = growthConfig.aggressiveGrowthRate * aggressiveDecay;
+      growthStage = 'aggressive';
+    } else {
+      // Normalize Aşama (Year 3-5): Sektör ortalaması, stabil
+      const normalDecay = Math.max(0.8, 1 - ((i - growthConfig.transitionYear) * 0.05));
+      effectiveGrowthRate = growthConfig.normalizedGrowthRate * normalDecay;
+      growthStage = 'normalized';
+    }
+    
+    revenue = revenue * (1 + effectiveGrowthRate);
+    expenses = expenses * (1 + (effectiveGrowthRate * 0.6)); // Giderler gelirden daha yavaş büyür
     const netProfit = revenue - expenses;
     cumulativeProfit += netProfit;
     
@@ -83,7 +99,9 @@ export const projectFutureRevenue = (
       expenses,
       netProfit,
       cumulativeProfit,
-      companyValuation: revenue * sectorMultiple
+      companyValuation: revenue * sectorMultiple,
+      appliedGrowthRate: effectiveGrowthRate,
+      growthStage
     });
   }
   
@@ -94,20 +112,26 @@ export const projectFutureRevenue = (
   };
 };
 
-// Calculate Exit Plan for investors
+// Calculate Exit Plan for investors with Two-Stage Growth Model
 export const calculateExitPlan = (
   deal: DealConfiguration,
   year1Revenue: number,
   year1Expenses: number,
-  growthRate: number
+  userGrowthRate: number,
+  sector: string = 'default'
 ): ExitPlan => {
   const { year1, year3, year5 } = getProjectionYears();
   
-  // Ensure minimum 10% growth rate for projections
-  const safeGrowthRate = Math.max(0.10, growthRate);
+  // İki aşamalı konfigürasyon oluştur
+  const growthConfig: GrowthConfiguration = {
+    aggressiveGrowthRate: Math.min(Math.max(userGrowthRate, 0.10), 1.0), // Min %10, Max %100
+    normalizedGrowthRate: SECTOR_NORMALIZED_GROWTH[sector] || SECTOR_NORMALIZED_GROWTH['default'],
+    transitionYear: 2,
+    rawUserGrowthRate: userGrowthRate
+  };
   
   const postMoney = deal.investmentAmount / (deal.equityPercentage / 100);
-  const projections = projectFutureRevenue(year1Revenue, year1Expenses, safeGrowthRate, deal.sectorMultiple);
+  const projections = projectFutureRevenue(year1Revenue, year1Expenses, growthConfig, deal.sectorMultiple);
   
   const investorShare3 = projections.year3.companyValuation * (deal.equityPercentage / 100);
   const investorShare5 = projections.year5.companyValuation * (deal.equityPercentage / 100);
@@ -135,7 +159,9 @@ export const calculateExitPlan = (
       scenarioYear: year1,   // 2026
       moic3Year: year3,      // 2029
       moic5Year: year5       // 2031
-    }
+    },
+    growthConfig,
+    allYears: projections.allYears
   };
 };
 
