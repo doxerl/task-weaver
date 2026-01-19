@@ -673,11 +673,18 @@ export interface InvestmentAllocation {
   operations: number;   // Operational expenses %
 }
 
-/** Focus project info for AI analysis */
-export interface FocusProjectInfo {
+/** Single focus project item */
+export interface FocusProjectItem {
   projectName: string;
   currentRevenue: number;
   projectedRevenue: number;
+}
+
+/** Focus project info for AI analysis - supports multiple projects */
+export interface FocusProjectInfo {
+  projects: FocusProjectItem[];
+  combinedCurrentRevenue: number;
+  combinedProjectedRevenue: number;
   description?: string;
   growthPlan: string;
   investmentAllocation: InvestmentAllocation;
