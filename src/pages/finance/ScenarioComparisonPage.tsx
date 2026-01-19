@@ -1258,6 +1258,14 @@ function ScenarioComparisonContent() {
                   summaryA={summaryA}
                   summaryB={summaryB}
                 />
+                
+                {/* Analysis History - Right below AI Summary Card for visibility */}
+                <AnalysisHistoryPanel 
+                  history={unifiedAnalysisHistory}
+                  isLoading={unifiedHistoryLoading}
+                  onSelectHistory={handleSelectUnifiedHistory}
+                  analysisType="scenario_comparison"
+                />
               </>
             )}
 
@@ -1380,13 +1388,6 @@ function ScenarioComparisonContent() {
             )}
 
             {/* SECTION 3: INVESTMENT TAB + AI DETAILS */}
-            {/* Analysis history */}
-            <AnalysisHistoryPanel 
-              history={unifiedAnalysisHistory}
-              isLoading={unifiedHistoryLoading}
-              onSelectHistory={handleSelectUnifiedHistory}
-              analysisType="scenario_comparison"
-            />
             
             <InvestmentTab
               scenarioA={scenarioA}
