@@ -83,6 +83,7 @@ import { PitchDeckEditor } from '@/components/simulation/PitchDeckEditor';
 import { SensitivityTable } from '@/components/simulation/SensitivityTable';
 import { FinancialRatiosPanel } from '@/components/simulation/FinancialRatiosPanel';
 import { ItemTrendCards } from '@/components/simulation/ItemTrendCards';
+import { ScenarioComparisonCards } from '@/components/simulation/ScenarioComparisonCards';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { useExchangeRates } from '@/hooks/finance/useExchangeRates';
 import {
@@ -1266,6 +1267,15 @@ function ScenarioComparisonContent() {
                     <SensitivityTable analysis={sensitivityAnalysis} baseProfit={summaryB?.netProfit || 0} />
                   )}
                 </div>
+                {/* Cross-Scenario Comparison - Pozitif vs Negatif senaryo karşılaştırması */}
+                {quarterlyItemized && (
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+                    <ScenarioComparisonCards quarterlyItemized={quarterlyItemized} type="revenues" />
+                    <ScenarioComparisonCards quarterlyItemized={quarterlyItemized} type="expenses" />
+                  </div>
+                )}
+                
+                {/* Single Scenario Trend Analysis */}
                 {itemTrendAnalysis && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <ItemTrendCards analysis={itemTrendAnalysis} type="revenues" />
