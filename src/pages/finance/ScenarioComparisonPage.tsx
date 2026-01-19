@@ -896,7 +896,9 @@ function ScenarioComparisonContent() {
     if (unifiedAnalysis?.pitch_deck) {
       setEditablePitchDeck({
         slides: JSON.parse(JSON.stringify(unifiedAnalysis.pitch_deck.slides || [])),
-        executive_summary: unifiedAnalysis.pitch_deck.executive_summary || ''
+        executive_summary: typeof unifiedAnalysis.pitch_deck.executive_summary === 'string' 
+          ? unifiedAnalysis.pitch_deck.executive_summary 
+          : unifiedAnalysis.pitch_deck.executive_summary?.short_pitch || ''
       });
     }
   }, [unifiedAnalysis?.pitch_deck]);
@@ -1251,6 +1253,10 @@ function ScenarioComparisonContent() {
                   onCreateNextYear={handleCreateNextYear}
                   targetYear={scenarioB?.targetYear}
                   cachedAt={unifiedCachedInfo?.updatedAt || null}
+                  scenarioA={scenarioA}
+                  scenarioB={scenarioB}
+                  summaryA={summaryA}
+                  summaryB={summaryB}
                 />
               </>
             )}
@@ -2158,7 +2164,9 @@ function ScenarioComparisonContent() {
               {unifiedAnalysis.pitch_deck.executive_summary && (
                 <div style={{ marginBottom: '24px', padding: '20px', background: 'linear-gradient(135deg, #eff6ff 0%, #f0fdf4 100%)', borderRadius: '16px', border: '1px solid #bfdbfe' }}>
                   <p style={{ fontSize: '15px', color: '#374151', fontStyle: 'italic', lineHeight: '1.6' }}>
-                    "{unifiedAnalysis.pitch_deck.executive_summary}"
+                    "{typeof unifiedAnalysis.pitch_deck.executive_summary === 'string' 
+                      ? unifiedAnalysis.pitch_deck.executive_summary 
+                      : unifiedAnalysis.pitch_deck.executive_summary?.short_pitch || ''}"
                   </p>
                 </div>
               )}

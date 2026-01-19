@@ -33,7 +33,13 @@ const ANTI_HALLUCINATION_RULES = `
    - "Deal config'e göre: Yatırım = $X"
    - "Hesaplanan: MOIC = X" (formül göster)
    
-4. **KESİNLİKLE YASAK ÇIKARIMLAR:**
+4. **KESİNLİKLE YASAK İFADELER (OTOMATİK RED):**
+   ❌ "danışmanlık modeli" (gerçek proje isimlerini kullan)
+   ❌ "dijital dönüşüm" (ne dönüştüğünü söyle)
+   ❌ "ölçeklenebilir" (rakamla göster)
+   ❌ "geleneksel iş modeli" (gelir kalemlerini listele)
+   ❌ "pazar lideri" (veri yok)
+   ❌ "sektör ortalaması" (karşılaştırmalı veri yok)
    ❌ "Pazar $X milyar büyüklüğünde" (harici veri yok)
    ❌ "Rakip şirket Y bunu yapıyor" (veri yok)
    ❌ "Sektör trendi Z yönünde" (veri yok)
@@ -43,6 +49,7 @@ const ANTI_HALLUCINATION_RULES = `
    ❌ "Delaware C-Corp kurulumu..." (yasal veri yok)
    ❌ "$X milyar TAM/SAM/SOM" (pazar verisi yok)
    ❌ "McKinsey/Gartner raporuna göre..." (harici kaynak yok)
+   ❌ Rakam olmayan bullet point (HER BULLET $ veya % İÇERMELİ)
 
 5. **İZİN VERİLEN ÇIKARIMLAR:**
    ✅ Verilen finansal oranlardan hesaplama
@@ -285,13 +292,26 @@ Odak proje varsa, onun büyümesi ön planda:
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📧 BÖLÜM 5: EXECUTIVE SUMMARY
+📧 BÖLÜM 5: EXECUTIVE SUMMARY (YAPILANDIRILMIŞ FORMAT - ZORUNLU)
 
-Yatırımcıya gönderilecek özet (max 150 kelime):
-- Problem + Çözüm (1 cümle)
-- Talep (1 cümle)
-- Teklif (1 cümle)
-- Sonuç (neden bu fırsat kaçırılmamalı)
+⚠️ KRİTİK: Executive summary bir OBJE olmalı, düz metin DEĞİL!
+
+1️⃣ short_pitch (150 kelime): Yatırımcı özeti
+   - "[Gelir Kalemi 1], [Gelir Kalemi 2], [Gelir Kalemi 3] üzerinden gelir üreten..."
+   - Şirketin ne yaptığını SOMUT olarak anlat
+   - Rakamlarla destekle
+
+2️⃣ revenue_items (zorunlu): Top gelir kalemleri listesi
+   - Format: "[Kalem1] ($X), [Kalem2] ($Y), [Kalem3] ($Z)"
+   - En az 3 kalem, $ formatında
+
+3️⃣ scenario_comparison (zorunlu): A vs B karşılaştırması
+   - Format: "Pozitif ([A adı]): $X gelir, $Y kâr | Negatif ([B adı]): $X gelir, $Y kâr | Fark: $X (%Y)"
+   - Her iki senaryonun ismi ve rakamları ZORUNLU
+
+4️⃣ investment_impact (zorunlu): Yatırım alamazsak ne olur
+   - Format: "Yatırım alamazsak $X daha az gelir, %Y düşük büyüme, [risk açıklaması]"
+   - Fırsat maliyetini NET olarak belirt
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -671,21 +691,55 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
                   },
                   pitch_deck: {
                     type: "object",
+                    description: "CRITICAL: Every slide MUST contain $ amounts and % figures. NO generic statements.",
                     properties: {
                       slides: {
                         type: "array",
+                        description: "5 slides with SPECIFIC $ amounts and % figures in EVERY bullet. Use actual revenue item names from data.",
                         items: {
                           type: "object",
                           properties: {
                             slide_number: { type: "number" },
-                            title: { type: "string" },
-                            key_message: { type: "string" },
-                            content_bullets: { type: "array", items: { type: "string" } },
+                            title: { 
+                              type: "string", 
+                              description: "Max 8 words. MUST include focus project name if available" 
+                            },
+                            key_message: { 
+                              type: "string", 
+                              description: "MUST contain at least one $ amount or % figure. Example: '$150K yatırım ile $560K gelir hedefine ulaşıyoruz'" 
+                            },
+                            content_bullets: { 
+                              type: "array", 
+                              items: { type: "string" },
+                              description: "3-4 bullets. EVERY bullet MUST contain $ or % format number. NO generic statements like 'ölçeklenebilir model'."
+                            },
                             speaker_notes: { type: "string" }
                           }
                         }
                       },
-                      executive_summary: { type: "string" }
+                      executive_summary: { 
+                        type: "object",
+                        description: "MUST be an object with structured fields, NOT a plain string. Include scenario comparison and revenue items.",
+                        properties: {
+                          short_pitch: { 
+                            type: "string", 
+                            description: "150 word investor pitch with company description and revenue sources. List actual revenue item names." 
+                          },
+                          revenue_items: { 
+                            type: "string", 
+                            description: "REQUIRED: List top 3-4 revenue items with $ amounts. Example: 'SBT Tracker ($230K), PlannerDeck ($150K), Billiyor App ($120K)'" 
+                          },
+                          scenario_comparison: { 
+                            type: "string", 
+                            description: "REQUIRED: A vs B comparison. Format: 'Pozitif (Senaryo A adı): $X gelir, $Y kâr | Negatif (Senaryo B adı): $X gelir, $Y kâr | Fark: $X (%Y)'" 
+                          },
+                          investment_impact: { 
+                            type: "string", 
+                            description: "REQUIRED: What happens without investment. Example: 'Yatırım alamazsak $210K daha az gelir ve organik büyüme %15 ile sınırlı'" 
+                          }
+                        },
+                        required: ["short_pitch", "revenue_items", "scenario_comparison", "investment_impact"]
+                      }
                     }
                   },
                   next_year_projection: {

@@ -20,10 +20,15 @@ import {
   Download,
   Loader2
 } from 'lucide-react';
-import { PitchDeck, PitchSlide } from '@/types/simulation';
+import { PitchDeck, PitchSlide, getExecutiveSummaryText, EnhancedExecutiveSummary } from '@/types/simulation';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
 import { turkishToAscii } from '@/lib/pdf/fonts/roboto-base64';
+
+// Helper to check if executive summary is enhanced
+const isEnhancedSummary = (summary: string | EnhancedExecutiveSummary | undefined): summary is EnhancedExecutiveSummary => {
+  return typeof summary === 'object' && summary !== null && 'short_pitch' in summary;
+};
 
 interface PitchDeckViewProps {
   pitchDeck: PitchDeck;
@@ -86,7 +91,8 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
 
   const handleCopyExecutiveSummary = async () => {
     try {
-      await navigator.clipboard.writeText(pitchDeck.executive_summary);
+      const summaryText = getExecutiveSummaryText(pitchDeck.executive_summary);
+      await navigator.clipboard.writeText(summaryText);
       setCopied(true);
       toast.success('Executive summary kopyalandı!');
       setTimeout(() => setCopied(false), 2000);
@@ -277,7 +283,8 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
         // Summary content - clean text on white
         pdf.setTextColor(66, 66, 66);
         pdf.setFontSize(11);
-        const summaryLines = wrapText(turkishToAscii(pitchDeck.executive_summary), contentWidth, 11);
+        const summaryText = getExecutiveSummaryText(pitchDeck.executive_summary);
+        const summaryLines = wrapText(turkishToAscii(summaryText), contentWidth, 11);
         summaryLines.forEach((line, idx) => {
           if (margin + 45 + (idx * 6) < pageHeight - 25) {
             pdf.text(line, margin, margin + 45 + (idx * 6));
@@ -477,7 +484,18 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-32">
-            <p className="text-sm leading-relaxed">{pitchDeck.executive_summary}</p>
+            {isEnhancedSummary(pitchDeck.executive_summary) ? (
+              <div className="text-sm leading-relaxed space-y-2">
+                <p>{pitchDeck.executive_summary.short_pitch}</p>
+                {pitchDeck.executive_summary.scenario_comparison && (
+                  <p className="text-xs text-muted-foreground border-t pt-2">
+                    📊 {pitchDeck.executive_summary.scenario_comparison}
+                  </p>
+                )}
+              </div>
+            ) : (
+              <p className="text-sm leading-relaxed">{pitchDeck.executive_summary}</p>
+            )}
           </ScrollArea>
         </CardContent>
       </Card>
