@@ -164,6 +164,15 @@ export const projectFutureRevenue = (
   let expenses = year1Expenses;
   let cumulativeProfit = 0;
   
+  // Debug: Log inputs
+  console.log('[projectFutureRevenue] Inputs:', {
+    year1Revenue,
+    year1Expenses,
+    aggressiveGrowthRate: growthConfig.aggressiveGrowthRate,
+    normalizedGrowthRate: growthConfig.normalizedGrowthRate,
+    sectorMultiple
+  });
+  
   for (let i = 1; i <= 5; i++) {
     let effectiveGrowthRate: number;
     let growthStage: 'aggressive' | 'normalized';
@@ -197,6 +206,13 @@ export const projectFutureRevenue = (
       growthStage
     });
   }
+  
+  // Debug: Log results
+  console.log('[projectFutureRevenue] Results:', {
+    year3Valuation: years[2]?.companyValuation,
+    year5Valuation: years[4]?.companyValuation,
+    year5Revenue: years[4]?.revenue
+  });
   
   return { 
     year3: years[2], 
@@ -237,6 +253,24 @@ export const calculateExitPlan = (
     }
   }
   
+  const moic5YearCalc = investorShare5 / deal.investmentAmount;
+  
+  // Debug: Log MOIC calculation
+  console.log('[calculateExitPlan] MOIC Calculation:', {
+    year5Valuation: projections.year5.companyValuation,
+    equityPercentage: deal.equityPercentage,
+    investorShare5,
+    investmentAmount: deal.investmentAmount,
+    moic5Year: moic5YearCalc,
+    // Sanity check
+    expectedMOIC: (projections.year5.companyValuation * (deal.equityPercentage / 100)) / deal.investmentAmount
+  });
+  
+  // Sanity check: MOIC should reasonably be < 100x for most scenarios
+  if (moic5YearCalc > 100) {
+    console.warn('[calculateExitPlan] Abnormally high MOIC detected:', moic5YearCalc, 'Check inputs!');
+  }
+  
   return {
     postMoneyValuation: postMoney,
     year3Projection: projections.year3,
@@ -244,7 +278,7 @@ export const calculateExitPlan = (
     investorShare3Year: investorShare3,
     investorShare5Year: investorShare5,
     moic3Year: investorShare3 / deal.investmentAmount,
-    moic5Year: investorShare5 / deal.investmentAmount,
+    moic5Year: moic5YearCalc,
     breakEvenYear,
     potentialAcquirers: [], // AI tarafından doldurulacak
     exitStrategy: 'unknown',

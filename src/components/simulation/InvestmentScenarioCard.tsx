@@ -98,7 +98,9 @@ export const InvestmentScenarioCard: React.FC<InvestmentScenarioCardProps> = ({
               <div className="flex justify-between items-center">
                 <span className="text-xs text-muted-foreground">MOIC (5Y):</span>
                 <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30">
-                  {withInvestment.moic5Year.toFixed(1)}x
+                  {withInvestment.moic5Year > 100 
+                    ? `${(withInvestment.moic5Year / 1000).toFixed(1)}Kx` 
+                    : `${withInvestment.moic5Year.toFixed(1)}x`}
                 </Badge>
               </div>
             </div>
