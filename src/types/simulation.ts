@@ -299,12 +299,43 @@ export interface DealConfiguration {
 
 /** Capital Requirement Calculation (Death Valley Analysis) */
 export interface CapitalRequirement {
+  // Temel alanlar
   minCumulativeCash: number;     // En derin nakit açığı (Ölüm Vadisi)
   criticalQuarter: string;       // Nakit açığının en derin olduğu çeyrek
   requiredInvestment: number;    // Gereken yatırım (açık + güvenlik marjı)
   burnRateMonthly: number;       // Aylık nakit yakma hızı
   runwayMonths: number;          // Mevcut nakitle kaç ay gidilebilir
   selfSustaining: boolean;       // Kendi kendini finanse edebiliyor mu?
+  
+  // Faz 1: Yıl sonu ve break-even
+  yearEndBalance: number;          // Yıl sonu nakit bakiyesi
+  yearEndDeficit: boolean;         // Yıl sonu açık mı?
+  breakEvenQuarter: string | null; // Break-even noktası (hangi çeyrekte kâra geçiyor)
+  calculationBasis: 'death_valley' | 'year_end' | 'none'; // Hangi değer baz alındı
+  
+  // Faz 2: Çoklu yıl ve seçenekler
+  extendedRunway: ExtendedRunwayInfo;
+  investmentTiers: InvestmentTier[];
+}
+
+/** Extended Runway Information - 2 Yıllık Projeksiyon */
+export interface ExtendedRunwayInfo {
+  year1DeathValley: number;         // 1. yıl death valley
+  year2DeathValley: number;         // 2. yıl death valley
+  combinedDeathValley: number;      // 2 yıl kombine death valley
+  combinedCriticalPeriod: string;   // Kritik dönem (Y1-Q2, Y2-Q3 vs)
+  month18Runway: boolean;           // 18 aylık runway yeterli mi
+  month24Runway: boolean;           // 24 aylık runway yeterli mi
+}
+
+/** Investment Tier - Yatırım Seçenekleri */
+export interface InvestmentTier {
+  tier: 'minimum' | 'recommended' | 'aggressive';
+  label: string;
+  amount: number;
+  runwayMonths: number;
+  description: string;
+  safetyMargin: number;
 }
 
 /** Growth Configuration for Two-Stage Model */

@@ -13,6 +13,7 @@ import {
   Rocket,
   CheckCircle2,
   Target,
+  AlertCircle,
 } from 'lucide-react';
 import {
   ChartConfig,
@@ -175,6 +176,11 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
               </div>
               <p className="text-xs text-muted-foreground">
                 Önerilen: {formatCompactUSD(capitalNeedB.requiredInvestment)}
+                {capitalNeedB.calculationBasis && capitalNeedB.calculationBasis !== 'none' && (
+                  <span className="text-[10px] ml-1 opacity-70">
+                    ({capitalNeedB.calculationBasis === 'death_valley' ? 'Death Valley' : 'Yıl Sonu Açığı'} bazlı)
+                  </span>
+                )}
               </p>
             </div>
             
@@ -215,6 +221,48 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
         </CardContent>
       </Card>
 
+      {/* Investment Tier Selector - 3 Seçenekli Yatırım Önerisi */}
+      {capitalNeedB.investmentTiers && !capitalNeedB.selfSustaining && (
+        <Card className="border-blue-500/20 bg-blue-500/5">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-sm flex items-center gap-2">
+              <Target className="h-4 w-4 text-blue-400" />
+              Yatırım Seçenekleri
+            </CardTitle>
+            <CardDescription className="text-xs">
+              İş ihtiyaçlarınıza göre uygun yatırım tutarını seçin
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-3 gap-3">
+              {capitalNeedB.investmentTiers.map((tier) => (
+                <button
+                  key={tier.tier}
+                  onClick={() => onDealConfigChange({ investmentAmount: tier.amount })}
+                  className={`p-3 rounded-lg border text-left transition-all hover:scale-[1.02] ${
+                    tier.tier === 'minimum' ? 'border-amber-500/30 hover:border-amber-500/50 bg-amber-500/5' :
+                    tier.tier === 'recommended' ? 'border-emerald-500/30 hover:border-emerald-500/50 bg-emerald-500/5 ring-1 ring-emerald-500/20' :
+                    'border-blue-500/30 hover:border-blue-500/50 bg-blue-500/5'
+                  }`}
+                >
+                  <div className="flex items-center gap-1 mb-1">
+                    {tier.tier === 'minimum' && <AlertCircle className="h-3 w-3 text-amber-400" />}
+                    {tier.tier === 'recommended' && <CheckCircle2 className="h-3 w-3 text-emerald-400" />}
+                    {tier.tier === 'aggressive' && <Rocket className="h-3 w-3 text-blue-400" />}
+                    <span className="text-xs font-medium">{tier.label}</span>
+                  </div>
+                  <div className="text-lg font-bold">{formatCompactUSD(tier.amount)}</div>
+                  <div className="text-[10px] text-muted-foreground mt-1">
+                    {tier.runwayMonths < 999 ? `${tier.runwayMonths} ay runway` : '∞'}
+                  </div>
+                  <div className="text-[10px] text-muted-foreground">{tier.description}</div>
+                </button>
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Investment Scenario Comparison - Yatırım Al vs Alama */}
       <InvestmentScenarioCard 
         comparison={scenarioComparison}
@@ -247,6 +295,34 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
                 </p>
               </>
             )}
+            
+            {/* Ek Metrikler */}
+            <div className="mt-3 pt-3 border-t border-border/50 space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Yıl Sonu:</span>
+                <span className={capitalNeedA.yearEndDeficit ? 'text-red-400' : 'text-emerald-400'}>
+                  {formatCompactUSD(capitalNeedA.yearEndBalance)}
+                </span>
+              </div>
+              {capitalNeedA.breakEvenQuarter && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Break-even:</span>
+                  <span className="text-blue-400">{capitalNeedA.breakEvenQuarter}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Runway:</span>
+                <span>{capitalNeedA.runwayMonths < 999 ? `${capitalNeedA.runwayMonths} ay` : '∞'}</span>
+              </div>
+              {capitalNeedA.extendedRunway && capitalNeedA.extendedRunway.combinedDeathValley < 0 && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">2Y Death Valley:</span>
+                  <span className="text-orange-400">
+                    {formatCompactUSD(capitalNeedA.extendedRunway.combinedDeathValley)}
+                  </span>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
@@ -264,6 +340,34 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
             <p className="text-xs text-muted-foreground">
               Aylık Burn: {formatCompactUSD(capitalNeedB.burnRateMonthly)}
             </p>
+            
+            {/* Ek Metrikler */}
+            <div className="mt-3 pt-3 border-t border-border/50 space-y-1">
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Yıl Sonu:</span>
+                <span className={capitalNeedB.yearEndDeficit ? 'text-red-400' : 'text-emerald-400'}>
+                  {formatCompactUSD(capitalNeedB.yearEndBalance)}
+                </span>
+              </div>
+              {capitalNeedB.breakEvenQuarter && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">Break-even:</span>
+                  <span className="text-blue-400">{capitalNeedB.breakEvenQuarter}</span>
+                </div>
+              )}
+              <div className="flex justify-between text-xs">
+                <span className="text-muted-foreground">Runway:</span>
+                <span>{capitalNeedB.runwayMonths < 999 ? `${capitalNeedB.runwayMonths} ay` : '∞'}</span>
+              </div>
+              {capitalNeedB.extendedRunway && capitalNeedB.extendedRunway.combinedDeathValley < 0 && (
+                <div className="flex justify-between text-xs">
+                  <span className="text-muted-foreground">2Y Death Valley:</span>
+                  <span className="text-orange-400">
+                    {formatCompactUSD(capitalNeedB.extendedRunway.combinedDeathValley)}
+                  </span>
+                </div>
+              )}
+            </div>
           </CardContent>
         </Card>
 
