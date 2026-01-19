@@ -862,32 +862,61 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
 
     const data = await response.json();
     console.log("AI response received successfully");
+    
+    // Debug: log the response structure
+    console.log("Response structure:", JSON.stringify({
+      hasChoices: !!data.choices,
+      choicesLength: data.choices?.length,
+      hasMessage: !!data.choices?.[0]?.message,
+      hasToolCalls: !!data.choices?.[0]?.message?.tool_calls,
+      toolCallsLength: data.choices?.[0]?.message?.tool_calls?.length,
+      hasContent: !!data.choices?.[0]?.message?.content,
+      contentPreview: data.choices?.[0]?.message?.content?.substring?.(0, 200)
+    }));
 
     // Extract the function call result
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
-      const analysisResult = JSON.parse(toolCall.function.arguments);
-      return new Response(
-        JSON.stringify(analysisResult),
-        { headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
+      try {
+        const analysisResult = JSON.parse(toolCall.function.arguments);
+        console.log("Successfully parsed tool call arguments");
+        return new Response(
+          JSON.stringify(analysisResult),
+          { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+        );
+      } catch (parseError) {
+        console.error("Failed to parse tool call arguments:", parseError);
+      }
     }
 
     // Fallback: try to parse content directly
     const content = data.choices?.[0]?.message?.content;
     if (content) {
+      console.log("Trying to parse content directly, length:", content.length);
       try {
-        const parsed = JSON.parse(content);
+        // Try to extract JSON from markdown code blocks if present
+        let jsonContent = content;
+        const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
+        if (jsonMatch) {
+          jsonContent = jsonMatch[1].trim();
+          console.log("Extracted JSON from code block");
+        }
+        
+        const parsed = JSON.parse(jsonContent);
+        console.log("Successfully parsed content as JSON");
         return new Response(
           JSON.stringify(parsed),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
-      } catch {
-        console.error("Failed to parse content as JSON");
+      } catch (contentParseError) {
+        console.error("Failed to parse content as JSON:", contentParseError);
+        console.log("Raw content (first 500 chars):", content.substring(0, 500));
       }
     }
 
-    throw new Error("No valid response from AI");
+    // Last resort: return partial data if available
+    console.error("No valid response structure found in AI response");
+    throw new Error("No valid response from AI - check logs for response structure");
   } catch (error) {
     console.error("Unified analysis error:", error);
     return new Response(
