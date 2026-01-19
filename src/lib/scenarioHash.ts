@@ -5,6 +5,7 @@ import { SimulationScenario } from '@/types/simulation';
  * Compares relevant financial data to detect if analysis should be re-run
  */
 export const generateScenarioHash = (scenario: SimulationScenario): string => {
+  // SADECE finansal veri değişikliklerini takip et - updatedAt dahil değil
   const relevantData = {
     revenues: scenario.revenues.map(r => ({
       category: r.category,
@@ -21,7 +22,9 @@ export const generateScenarioHash = (scenario: SimulationScenario): string => {
       amount: i.amount,
       quarterly: i.quarterly
     })),
-    updatedAt: scenario.updatedAt
+    // Senaryo hedef yılları da hash'e dahil
+    targetYear: scenario.targetYear,
+    baseYear: scenario.baseYear
   };
   
   // Create a simple hash using btoa (base64 encoding)

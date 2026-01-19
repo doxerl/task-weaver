@@ -37,6 +37,8 @@ export function useUnifiedAnalysis() {
   const [dataChanged, setDataChanged] = useState(false);
   const [analysisHistory, setAnalysisHistory] = useState<AnalysisHistoryItem[]>([]);
   const [isHistoryLoading, setIsHistoryLoading] = useState(false);
+  // Hash'leri kaydet - veri değişikliği kontrolü için
+  const [savedHashes, setSavedHashes] = useState<{ hashA: string | null; hashB: string | null }>({ hashA: null, hashB: null });
 
   // Load cached analysis from database
   const loadCachedAnalysis = useCallback(async (scenarioAId: string, scenarioBId: string): Promise<boolean> => {
@@ -44,13 +46,14 @@ export function useUnifiedAnalysis() {
     setIsCacheLoading(true);
 
     try {
+      // Backward compatibility: hem 'unified' hem de eski 'scenario_comparison' ve 'investor_pitch' tiplerini ara
       const { data, error: fetchError } = await supabase
         .from('scenario_ai_analyses')
         .select('*')
         .eq('user_id', user.id)
         .eq('scenario_a_id', scenarioAId)
         .eq('scenario_b_id', scenarioBId)
-        .eq('analysis_type', 'unified')
+        .in('analysis_type', ['unified', 'scenario_comparison', 'investor_pitch'])
         .order('updated_at', { ascending: false })
         .limit(1)
         .maybeSingle();
@@ -80,6 +83,11 @@ export function useUnifiedAnalysis() {
           id: data.id,
           updatedAt: new Date(data.updated_at || data.created_at || new Date())
         });
+        // Hash'leri kaydet - veri değişikliği kontrolü için
+        setSavedHashes({
+          hashA: data.scenario_a_data_hash || null,
+          hashB: data.scenario_b_data_hash || null
+        });
         return true;
       }
       return false;
@@ -93,10 +101,21 @@ export function useUnifiedAnalysis() {
 
   // Check if data has changed since last analysis
   const checkDataChanges = useCallback((scenarioA: SimulationScenario, scenarioB: SimulationScenario): boolean => {
-    if (!cachedInfo) return false;
-    // Simple check - in production, compare hashes
-    return false; // Assume no change for now
-  }, [cachedInfo]);
+    // Eğer kaydedilmiş hash yoksa, veri değişikliği kontrolü yapılamaz
+    if (!savedHashes.hashA || !savedHashes.hashB) {
+      setDataChanged(false);
+      return false;
+    }
+    
+    // Mevcut senaryo hash'lerini hesapla
+    const currentHashA = generateScenarioHash(scenarioA);
+    const currentHashB = generateScenarioHash(scenarioB);
+    
+    // Hash'leri karşılaştır
+    const hasChanged = currentHashA !== savedHashes.hashA || currentHashB !== savedHashes.hashB;
+    setDataChanged(hasChanged);
+    return hasChanged;
+  }, [savedHashes]);
 
   // Load analysis history
   const loadAnalysisHistory = useCallback(async (scenarioAId: string, scenarioBId: string): Promise<void> => {
@@ -104,13 +123,14 @@ export function useUnifiedAnalysis() {
     setIsHistoryLoading(true);
 
     try {
+      // Backward compatibility: tüm analiz tiplerini getir
       const { data, error: fetchError } = await supabase
         .from('scenario_analysis_history')
         .select('*')
         .eq('user_id', user.id)
         .eq('scenario_a_id', scenarioAId)
         .eq('scenario_b_id', scenarioBId)
-        .eq('analysis_type', 'unified')
+        .in('analysis_type', ['unified', 'scenario_comparison', 'investor_pitch'])
         .order('created_at', { ascending: false })
         .limit(10);
 
