@@ -98,6 +98,11 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
   const [assumedExchangeRate, setAssumedExchangeRate] = useState(45);
   const [notes, setNotes] = useState('');
   const [isInitialized, setIsInitialized] = useState(false);
+  
+  // Baz yıl senaryosundan gelen değerler (önceki yılın pozitif senaryosu)
+  const [baseScenarioRevenues, setBaseScenarioRevenues] = useState<ProjectionItem[]>([]);
+  const [baseScenarioExpenses, setBaseScenarioExpenses] = useState<ProjectionItem[]>([]);
+  const [hasBaseScenario, setHasBaseScenario] = useState(false);
 
   // Calculate base data from hub when available
   const baseData = useMemo(() => {
@@ -246,9 +251,17 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
 
   // Calculate summary
   const summary: SimulationSummary = useMemo(() => {
-    // Base = baseAmount (önceki yılın gerçek verileri)
-    const baseRevenue = revenues.reduce((sum, r) => sum + r.baseAmount, 0);
-    const baseExpense = expenses.reduce((sum, e) => sum + e.baseAmount, 0);
+    // Baz yıl değerleri:
+    // 1. Eğer baseScenario yüklendiyse (önceki yılın pozitif senaryosu), onun projectedAmount değerlerini kullan
+    // 2. Yoksa, mevcut senaryonun baseAmount değerlerini kullan (geriye dönük uyumluluk)
+    const baseRevenue = hasBaseScenario && baseScenarioRevenues.length > 0
+      ? baseScenarioRevenues.reduce((sum, r) => sum + r.projectedAmount, 0)
+      : revenues.reduce((sum, r) => sum + r.baseAmount, 0);
+    
+    const baseExpense = hasBaseScenario && baseScenarioExpenses.length > 0
+      ? baseScenarioExpenses.reduce((sum, e) => sum + e.projectedAmount, 0)
+      : expenses.reduce((sum, e) => sum + e.baseAmount, 0);
+    
     const baseProfit = baseRevenue - baseExpense;
 
     const totalProjectedRevenue = revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
@@ -286,7 +299,7 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
         netCapitalNeed: Math.max(0, totalInvestment - projectedProfit),
       },
     };
-  }, [baseData, revenues, expenses, investments, isInitialized]);
+  }, [baseData, revenues, expenses, investments, isInitialized, hasBaseScenario, baseScenarioRevenues, baseScenarioExpenses]);
 
   // Revenue operations
   const updateRevenue = useCallback((id: string, updates: Partial<ProjectionItem>) => {
@@ -410,6 +423,20 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
     setNotes(scenario.notes);
     setIsInitialized(true);
   }, []);
+  
+  // Baz yıl senaryosunu yükle (önceki yılın pozitif senaryosu)
+  const loadBaseScenario = useCallback((scenario: SimulationScenario) => {
+    setBaseScenarioRevenues(scenario.revenues);
+    setBaseScenarioExpenses(scenario.expenses);
+    setHasBaseScenario(true);
+  }, []);
+  
+  // Baz yıl senaryosunu temizle
+  const clearBaseScenario = useCallback(() => {
+    setBaseScenarioRevenues([]);
+    setBaseScenarioExpenses([]);
+    setHasBaseScenario(false);
+  }, []);
 
   return {
     // State
@@ -448,5 +475,10 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
     resetToDefaults,
     getCurrentScenario,
     loadScenario,
+    
+    // Base scenario operations
+    loadBaseScenario,
+    clearBaseScenario,
+    hasBaseScenario,
   };
 }
