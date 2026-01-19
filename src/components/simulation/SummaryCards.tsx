@@ -27,9 +27,9 @@ function GrowthIndicator({ value }: { value: number }) {
 }
 
 export function SummaryCards({ summary, exchangeRate, baseYear, targetYear }: SummaryCardsProps) {
-  // baseYear = hedef yıl (örn. 2026), baz yıl = baseYear - 1 (örn. 2025)
+  // baseYear = senaryonun baz yılı, targetYear = hedef yıl
   const displayBaseYear = baseYear ? baseYear - 1 : new Date().getFullYear() - 1;
-  const displayTargetYear = baseYear || new Date().getFullYear();
+  const displayTargetYear = targetYear || baseYear || new Date().getFullYear();
   
   const cards = [
     {
