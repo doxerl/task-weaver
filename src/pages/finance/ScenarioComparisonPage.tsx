@@ -767,21 +767,38 @@ function ScenarioComparisonContent() {
     }
   }, [scenarioA, scenarioB, unifiedCachedInfo, checkUnifiedDataChanges]);
   
-  // Senaryo Sıralama Validasyonu - A = Pozitif (yüksek kâr), B = Negatif
+  // Senaryo net kâr bilgisini hesapla - dropdown'da göstermek için
+  const scenariosWithProfit = useMemo(() => {
+    return scenarios.map(s => {
+      const summary = calculateScenarioSummary(s);
+      return { ...s, netProfit: summary.netProfit };
+    }).sort((a, b) => b.netProfit - a.netProfit); // Yüksek kârdan düşüğe
+  }, [scenarios]);
+  
+  // Otomatik senaryo ataması - sayfa ilk açıldığında
   useEffect(() => {
-    if (!summaryA || !summaryB || !scenarioAId || !scenarioBId) return;
-    
-    // A'nın net kârı B'den düşükse senaryoları yer değiştir
-    if (summaryA.netProfit < summaryB.netProfit) {
-      toast.info('Senaryo sıralaması düzeltildi: A = Pozitif (yüksek kâr), B = Negatif (düşük kâr)', { duration: 4000 });
-      
-      // URL parametrelerini değiştir
-      const newParams = new URLSearchParams();
-      newParams.set('a', scenarioBId);
-      newParams.set('b', scenarioAId);
-      navigate(`/finance/simulation/compare?${newParams.toString()}`, { replace: true });
+    if (scenariosWithProfit.length >= 2 && !scenarioAId && !scenarioBId) {
+      // En yüksek kârlı senaryoyu A'ya, en düşük kârlıyı B'ye ata
+      setScenarioAId(scenariosWithProfit[0].id!);
+      setScenarioBId(scenariosWithProfit[scenariosWithProfit.length - 1].id!);
     }
-  }, [summaryA, summaryB, scenarioAId, scenarioBId, navigate]);
+  }, [scenariosWithProfit, scenarioAId, scenarioBId]);
+  
+  // Senaryo sıralaması hatalı mı? (uyarı banner'ı için)
+  const isScenarioOrderWrong = useMemo(() => {
+    if (!summaryA || !summaryB) return false;
+    return summaryA.netProfit < summaryB.netProfit;
+  }, [summaryA, summaryB]);
+  
+  // Senaryoları yer değiştir
+  const swapScenarios = useCallback(() => {
+    if (!scenarioAId || !scenarioBId) return;
+    const newParams = new URLSearchParams();
+    newParams.set('a', scenarioBId);
+    newParams.set('b', scenarioAId);
+    navigate(`/finance/simulation/compare?${newParams.toString()}`, { replace: true });
+    toast.success('Senaryo sıralaması düzeltildi');
+  }, [scenarioAId, scenarioBId, navigate]);
   
   // Editable Projection Sync - AI analizi tamamlandığında düzenlenebilir tabloya aktar
   useEffect(() => {
@@ -1057,27 +1074,91 @@ function ScenarioComparisonContent() {
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Scenario Selection */}
         <Card>
-          <CardContent className="pt-4">
+          <CardContent className="pt-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Senaryo A</label>
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
+                    Pozitif
+                  </Badge>
+                  Senaryo A
+                </label>
                 <Select value={scenarioAId || ''} onValueChange={setScenarioAId}>
                   <SelectTrigger><SelectValue placeholder="Senaryo seçin..." /></SelectTrigger>
                   <SelectContent>
-                    {scenarios.map((s) => <SelectItem key={s.id} value={s.id!} disabled={s.id === scenarioBId}>{s.name}</SelectItem>)}
+                    {scenariosWithProfit.map((s) => (
+                      <SelectItem key={s.id} value={s.id!} disabled={s.id === scenarioBId}>
+                        <div className="flex items-center justify-between w-full gap-2">
+                          <span>{s.name}</span>
+                          <Badge 
+                            variant="outline" 
+                            className={s.netProfit >= 0 
+                              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-xs' 
+                              : 'bg-red-500/10 text-red-500 border-red-500/30 text-xs'
+                            }
+                          >
+                            {s.netProfit >= 0 ? '+' : ''}{formatCompactUSD(s.netProfit)}
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
               <div className="space-y-2">
-                <label className="text-sm font-medium text-muted-foreground">Senaryo B</label>
+                <label className="text-sm font-medium flex items-center gap-2">
+                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">
+                    Negatif
+                  </Badge>
+                  Senaryo B
+                </label>
                 <Select value={scenarioBId || ''} onValueChange={setScenarioBId}>
                   <SelectTrigger><SelectValue placeholder="Senaryo seçin..." /></SelectTrigger>
                   <SelectContent>
-                    {scenarios.map((s) => <SelectItem key={s.id} value={s.id!} disabled={s.id === scenarioAId}>{s.name}</SelectItem>)}
+                    {scenariosWithProfit.map((s) => (
+                      <SelectItem key={s.id} value={s.id!} disabled={s.id === scenarioAId}>
+                        <div className="flex items-center justify-between w-full gap-2">
+                          <span>{s.name}</span>
+                          <Badge 
+                            variant="outline" 
+                            className={s.netProfit >= 0 
+                              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-xs' 
+                              : 'bg-red-500/10 text-red-500 border-red-500/30 text-xs'
+                            }
+                          >
+                            {s.netProfit >= 0 ? '+' : ''}{formatCompactUSD(s.netProfit)}
+                          </Badge>
+                        </div>
+                      </SelectItem>
+                    ))}
                   </SelectContent>
                 </Select>
               </div>
             </div>
+            
+            {/* Wrong Order Warning Banner */}
+            {isScenarioOrderWrong && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-amber-500">
+                    Senaryo Sıralaması Hatalı
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    Senaryo A pozitif (yüksek kâr), Senaryo B negatif (düşük kâr) olmalıdır.
+                  </p>
+                </div>
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="gap-1 border-amber-500/30 text-amber-500 hover:bg-amber-500/20 flex-shrink-0"
+                  onClick={swapScenarios}
+                >
+                  <ArrowLeftRight className="h-4 w-4" />
+                  Düzelt
+                </Button>
+              </div>
+            )}
           </CardContent>
         </Card>
 
