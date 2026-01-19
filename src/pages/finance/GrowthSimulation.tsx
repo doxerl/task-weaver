@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState, useEffect } from 'react';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -25,6 +25,7 @@ import { toast } from 'sonner';
 
 function GrowthSimulationContent() {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const simulation = useGrowthSimulation();
   const hub = useFinancialDataHub(simulation.baseYear);
   const scenariosHook = useScenarios();
@@ -34,6 +35,7 @@ function GrowthSimulationContent() {
   const [isCreatingNextYear, setIsCreatingNextYear] = useState(false);
   const [showNewScenarioDialog, setShowNewScenarioDialog] = useState(false);
   const [scenarioType, setScenarioType] = useState<'positive' | 'negative'>('positive');
+  const [urlScenarioLoaded, setUrlScenarioLoaded] = useState(false);
   
   const {
     scenarioName,
@@ -60,8 +62,36 @@ function GrowthSimulationContent() {
     resetToDefaults,
     loadScenario,
     getCurrentScenario,
+    loadBaseScenario,
+    clearBaseScenario,
   } = simulation;
 
+  // URL'den senaryo yükleme - sayfa ilk açıldığında
+  useEffect(() => {
+    const scenarioId = searchParams.get('scenario');
+    if (scenarioId && scenariosHook.scenarios.length > 0 && !urlScenarioLoaded) {
+      const scenario = scenariosHook.scenarios.find(s => s.id === scenarioId);
+      if (scenario) {
+        loadScenario(scenario);
+        scenariosHook.setCurrentScenarioId(scenario.id);
+        setScenarioType(scenario.scenarioType || 'positive');
+        
+        // Baz yıl için önceki yılın pozitif senaryosunu bul ve yükle
+        const previousYear = scenario.targetYear - 1;
+        const baseScenario = scenariosHook.scenarios.find(
+          s => s.targetYear === previousYear && s.scenarioType === 'positive'
+        );
+        
+        if (baseScenario) {
+          loadBaseScenario(baseScenario);
+        } else {
+          clearBaseScenario();
+        }
+        
+        setUrlScenarioLoaded(true);
+      }
+    }
+  }, [searchParams, scenariosHook.scenarios, urlScenarioLoaded, loadScenario, loadBaseScenario, clearBaseScenario, scenariosHook]);
 
   const handleSave = async () => {
     const savedId = await scenariosHook.saveScenario(
@@ -106,6 +136,18 @@ function GrowthSimulationContent() {
     loadScenario(scenario);
     scenariosHook.setCurrentScenarioId(scenario.id);
     setScenarioType(scenario.scenarioType || 'positive');
+    
+    // Baz yıl için önceki yılın pozitif senaryosunu bul ve yükle
+    const previousYear = scenario.targetYear - 1;
+    const baseScenario = scenariosHook.scenarios.find(
+      s => s.targetYear === previousYear && s.scenarioType === 'positive'
+    );
+    
+    if (baseScenario) {
+      loadBaseScenario(baseScenario);
+    } else {
+      clearBaseScenario();
+    }
   };
 
   const handleNewScenario = () => {
@@ -117,6 +159,7 @@ function GrowthSimulationContent() {
     setScenarioName(name);
     setScenarioType(type);
     scenariosHook.setCurrentScenarioId(null);
+    clearBaseScenario(); // Yeni senaryo için baz senaryoyu temizle
   };
 
   const handleExportPdf = async () => {
