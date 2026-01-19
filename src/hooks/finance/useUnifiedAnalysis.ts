@@ -78,6 +78,8 @@ export function useUnifiedAnalysis() {
           return false; // Cache yok gibi davran
         }
 
+        const investorAnalysis = data.investor_analysis as any;
+        
         const result: UnifiedAnalysisResult = {
           insights: (data.insights as any) || [],
           recommendations: (data.recommendations as any) || [],
@@ -85,8 +87,8 @@ export function useUnifiedAnalysis() {
           deal_analysis: {
             deal_score: data.deal_score || 0,
             valuation_verdict: (data.valuation_verdict as 'premium' | 'fair' | 'cheap') || 'fair',
-            investor_attractiveness: '',
-            risk_factors: []
+            investor_attractiveness: investorAnalysis?.investor_attractiveness || '',
+            risk_factors: investorAnalysis?.risk_factors || []
           },
           pitch_deck: (data.pitch_deck as any) || { slides: [], executive_summary: '' },
           next_year_projection: (data.next_year_projection as any) || null
@@ -253,6 +255,10 @@ export function useUnifiedAnalysis() {
           quarterly_analysis: result.quarterly_analysis as any,
           deal_score: Math.round(result.deal_analysis.deal_score),
           valuation_verdict: result.deal_analysis.valuation_verdict,
+          investor_analysis: {
+            investor_attractiveness: result.deal_analysis.investor_attractiveness,
+            risk_factors: result.deal_analysis.risk_factors
+          } as any,
           pitch_deck: result.pitch_deck as any,
           next_year_projection: result.next_year_projection as any,
           deal_config_snapshot: dealConfig as any,
