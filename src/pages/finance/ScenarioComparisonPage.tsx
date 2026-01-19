@@ -528,7 +528,7 @@ function ScenarioComparisonContent() {
     
     const quarters: ('q1' | 'q2' | 'q3' | 'q4')[] = ['q1', 'q2', 'q3', 'q4'];
     
-    // Scenario A revenues by quarter
+    // Scenario A revenues by quarter - sorted by total descending
     const aRevenuesByQuarter = scenarioA.revenues.map(r => ({
       category: r.category,
       q1: r.projectedQuarterly?.q1 || r.projectedAmount / 4,
@@ -536,9 +536,9 @@ function ScenarioComparisonContent() {
       q3: r.projectedQuarterly?.q3 || r.projectedAmount / 4,
       q4: r.projectedQuarterly?.q4 || r.projectedAmount / 4,
       total: r.projectedAmount
-    }));
-    
-    // Scenario A expenses by quarter
+    })).sort((a, b) => b.total - a.total);
+
+    // Scenario A expenses by quarter - sorted by total descending
     const aExpensesByQuarter = scenarioA.expenses.map(e => ({
       category: e.category,
       q1: e.projectedQuarterly?.q1 || e.projectedAmount / 4,
@@ -546,9 +546,9 @@ function ScenarioComparisonContent() {
       q3: e.projectedQuarterly?.q3 || e.projectedAmount / 4,
       q4: e.projectedQuarterly?.q4 || e.projectedAmount / 4,
       total: e.projectedAmount
-    }));
-    
-    // Scenario B revenues by quarter
+    })).sort((a, b) => b.total - a.total);
+
+    // Scenario B revenues by quarter - sorted by total descending
     const bRevenuesByQuarter = scenarioB.revenues.map(r => ({
       category: r.category,
       q1: r.projectedQuarterly?.q1 || r.projectedAmount / 4,
@@ -556,9 +556,9 @@ function ScenarioComparisonContent() {
       q3: r.projectedQuarterly?.q3 || r.projectedAmount / 4,
       q4: r.projectedQuarterly?.q4 || r.projectedAmount / 4,
       total: r.projectedAmount
-    }));
-    
-    // Scenario B expenses by quarter
+    })).sort((a, b) => b.total - a.total);
+
+    // Scenario B expenses by quarter - sorted by total descending
     const bExpensesByQuarter = scenarioB.expenses.map(e => ({
       category: e.category,
       q1: e.projectedQuarterly?.q1 || e.projectedAmount / 4,
@@ -566,7 +566,7 @@ function ScenarioComparisonContent() {
       q3: e.projectedQuarterly?.q3 || e.projectedAmount / 4,
       q4: e.projectedQuarterly?.q4 || e.projectedAmount / 4,
       total: e.projectedAmount
-    }));
+    })).sort((a, b) => b.total - a.total);
     
     // Calculate revenue differences between scenarios
     const revenueDiffs = bRevenuesByQuarter.map(b => {
