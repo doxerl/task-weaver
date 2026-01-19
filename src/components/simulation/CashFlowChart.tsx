@@ -11,6 +11,9 @@ interface CashFlowChartProps {
   safetyBuffer?: number;
   breakEvenQuarter?: 'Q1' | 'Q2' | 'Q3' | 'Q4' | null;
   className?: string;
+  targetYear?: number;
+  scenarioAName?: string;
+  scenarioBName?: string;
 }
 
 const QUARTER_MONTHS: Record<string, string> = {
@@ -21,7 +24,7 @@ const QUARTER_MONTHS: Record<string, string> = {
 };
 
 export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
-  ({ quarterlyProjections, currentCash = 0, safetyBuffer, breakEvenQuarter, className }, ref) => {
+  ({ quarterlyProjections, currentCash = 0, safetyBuffer, breakEvenQuarter, className, targetYear, scenarioAName, scenarioBName }, ref) => {
     // Build chart data with starting point
     const data = [
       {
@@ -50,10 +53,15 @@ export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
     const yMin = Math.min(0, minBalance) - 5000;
     const yMax = maxBalance + 10000;
 
+    // Dynamic chart title with year
+    const chartTitle = targetYear 
+      ? `${targetYear} Çeyreklik Nakit Akış Projeksiyonu` 
+      : 'Çeyreklik Nakit Akış Projeksiyonu';
+
     return (
       <Card className={cn("", className)} ref={ref}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Çeyreklik Nakit Akış Projeksiyonu</CardTitle>
+          <CardTitle className="text-base">{chartTitle}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[300px]">

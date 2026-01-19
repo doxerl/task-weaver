@@ -149,13 +149,15 @@ export const AIAnalysisSummaryCard: React.FC<AIAnalysisSummaryCardProps> = ({
               </div>
             )}
 
-            {/* Scenario Comparison - A vs B */}
+            {/* Scenario Comparison - A vs B with Year Labels */}
             {scenarioA && scenarioB && summaryA && summaryB && (
               <div className="grid grid-cols-2 gap-2 text-xs">
                 <div className="bg-emerald-500/10 p-2.5 rounded-lg border border-emerald-500/20">
                   <div className="flex items-center gap-1.5 mb-1">
                     <TrendingUp className="h-3.5 w-3.5 text-emerald-400" />
-                    <span className="font-medium text-emerald-400 truncate">{scenarioA.name}</span>
+                    <span className="font-medium text-emerald-400 truncate">
+                      {scenarioA.targetYear} {scenarioA.name}
+                    </span>
                   </div>
                   <div className="text-foreground font-semibold">{formatCompactUSD(summaryA.totalRevenue)}</div>
                   <div className="text-muted-foreground">
@@ -165,7 +167,9 @@ export const AIAnalysisSummaryCard: React.FC<AIAnalysisSummaryCardProps> = ({
                 <div className="bg-red-500/10 p-2.5 rounded-lg border border-red-500/20">
                   <div className="flex items-center gap-1.5 mb-1">
                     <TrendingDown className="h-3.5 w-3.5 text-red-400" />
-                    <span className="font-medium text-red-400 truncate">{scenarioB.name}</span>
+                    <span className="font-medium text-red-400 truncate">
+                      {scenarioB.targetYear} {scenarioB.name}
+                    </span>
                   </div>
                   <div className="text-foreground font-semibold">{formatCompactUSD(summaryB.totalRevenue)}</div>
                   <div className="text-muted-foreground">

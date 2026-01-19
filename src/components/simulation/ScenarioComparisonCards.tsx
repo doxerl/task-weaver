@@ -8,6 +8,10 @@ import { formatCompactUSD } from '@/lib/formatters';
 interface ScenarioComparisonCardsProps {
   quarterlyItemized: QuarterlyItemizedData;
   type: 'revenues' | 'expenses';
+  scenarioAYear?: number;
+  scenarioBYear?: number;
+  scenarioAName?: string;
+  scenarioBName?: string;
 }
 
 interface ComparisonItem {
@@ -23,9 +27,20 @@ interface ComparisonItem {
 
 const MAX_ITEMS_TO_SHOW = 6;
 
-export function ScenarioComparisonCards({ quarterlyItemized, type }: ScenarioComparisonCardsProps) {
+export function ScenarioComparisonCards({ 
+  quarterlyItemized, 
+  type,
+  scenarioAYear,
+  scenarioBYear,
+  scenarioAName,
+  scenarioBName
+}: ScenarioComparisonCardsProps) {
   const title = type === 'revenues' ? 'Gelir Kalemleri Senaryo Karşılaştırması' : 'Gider Kalemleri Senaryo Karşılaştırması';
   const isRevenue = type === 'revenues';
+  
+  // Determine scenario labels with years
+  const labelA = scenarioAYear ? `${scenarioAYear} ${scenarioAName || 'Pozitif'}` : 'Pozitif (A)';
+  const labelB = scenarioBYear ? `${scenarioBYear} ${scenarioBName || 'Negatif'}` : 'Negatif (B)';
   
   const comparisonItems = useMemo((): ComparisonItem[] => {
     const itemsA = type === 'revenues' ? quarterlyItemized.scenarioA.revenues : quarterlyItemized.scenarioA.expenses;
@@ -151,7 +166,7 @@ export function ScenarioComparisonCards({ quarterlyItemized, type }: ScenarioCom
           <ArrowLeftRight className="h-4 w-4 text-primary" />
           {title}
         </CardTitle>
-        <p className="text-xs text-muted-foreground">Pozitif (A) vs Negatif (B) senaryo karşılaştırması</p>
+        <p className="text-xs text-muted-foreground">{labelA} vs {labelB} senaryo karşılaştırması</p>
       </CardHeader>
       <CardContent className="space-y-3">
         {comparisonItems.map((item, idx) => (
@@ -176,11 +191,11 @@ export function ScenarioComparisonCards({ quarterlyItemized, type }: ScenarioCom
             {/* Totals Row */}
             <div className="grid grid-cols-3 gap-2 mb-2 p-2 bg-background/50 rounded-md">
               <div className="text-center">
-                <p className="text-xs text-muted-foreground">Pozitif (A)</p>
+                <p className="text-xs text-muted-foreground">{scenarioAYear || ''} (A)</p>
                 <p className="text-sm font-semibold text-emerald-400">{formatCompactUSD(item.scenarioA.total)}</p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-muted-foreground">Negatif (B)</p>
+                <p className="text-xs text-muted-foreground">{scenarioBYear || ''} (B)</p>
                 <p className="text-sm font-semibold text-red-400">{formatCompactUSD(item.scenarioB.total)}</p>
               </div>
               <div className="text-center">

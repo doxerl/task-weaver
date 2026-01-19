@@ -329,7 +329,12 @@ function GrowthSimulationContent() {
             ))}
           </div>
         ) : (
-          <SummaryCards summary={summary} exchangeRate={assumedExchangeRate} />
+          <SummaryCards 
+            summary={summary} 
+            exchangeRate={assumedExchangeRate} 
+            baseYear={baseYear}
+            targetYear={targetYear}
+          />
         )}
 
         {/* Projections Content */}

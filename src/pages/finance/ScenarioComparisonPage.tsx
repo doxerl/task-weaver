@@ -1230,7 +1230,7 @@ function ScenarioComparisonContent() {
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
-                    Pozitif
+                    {scenarioA?.targetYear || '?'} {scenarioA && scenarioB && scenarioA.targetYear > scenarioB.targetYear ? 'Büyüme' : 'Pozitif'}
                   </Badge>
                   Senaryo A
                 </label>
@@ -1240,15 +1240,16 @@ function ScenarioComparisonContent() {
                     {scenariosWithProfit.map((s) => (
                       <SelectItem key={s.id} value={s.id!} disabled={s.id === scenarioBId}>
                         <div className="flex items-center justify-between w-full gap-2">
-                          <span>{s.name}</span>
+                          <span className="font-medium">{s.targetYear}</span>
+                          <span className="truncate">{s.name}</span>
                           <Badge 
                             variant="outline" 
-                            className={s.netProfit >= 0 
-                              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-xs' 
-                              : 'bg-red-500/10 text-red-500 border-red-500/30 text-xs'
+                            className={s.scenarioType === 'negative'
+                              ? 'bg-red-500/10 text-red-500 border-red-500/30 text-xs' 
+                              : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-xs'
                             }
                           >
-                            {s.netProfit >= 0 ? '+' : ''}{formatCompactUSD(s.netProfit)}
+                            {s.scenarioType === 'negative' ? 'Negatif' : 'Pozitif'}
                           </Badge>
                         </div>
                       </SelectItem>
@@ -1259,7 +1260,7 @@ function ScenarioComparisonContent() {
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">
-                    Negatif
+                    {scenarioB?.targetYear || '?'} {scenarioA && scenarioB && scenarioA.targetYear > scenarioB.targetYear ? 'Baz' : 'Negatif'}
                   </Badge>
                   Senaryo B
                 </label>
@@ -1269,15 +1270,16 @@ function ScenarioComparisonContent() {
                     {scenariosWithProfit.map((s) => (
                       <SelectItem key={s.id} value={s.id!} disabled={s.id === scenarioAId}>
                         <div className="flex items-center justify-between w-full gap-2">
-                          <span>{s.name}</span>
+                          <span className="font-medium">{s.targetYear}</span>
+                          <span className="truncate">{s.name}</span>
                           <Badge 
                             variant="outline" 
-                            className={s.netProfit >= 0 
-                              ? 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-xs' 
-                              : 'bg-red-500/10 text-red-500 border-red-500/30 text-xs'
+                            className={s.scenarioType === 'negative'
+                              ? 'bg-red-500/10 text-red-500 border-red-500/30 text-xs' 
+                              : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-xs'
                             }
                           >
-                            {s.netProfit >= 0 ? '+' : ''}{formatCompactUSD(s.netProfit)}
+                            {s.scenarioType === 'negative' ? 'Negatif' : 'Pozitif'}
                           </Badge>
                         </div>
                       </SelectItem>
@@ -1468,8 +1470,22 @@ function ScenarioComparisonContent() {
                       </AccordionTrigger>
                       <AccordionContent className="px-4 pb-4">
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                          <ScenarioComparisonCards quarterlyItemized={quarterlyItemized} type="revenues" />
-                          <ScenarioComparisonCards quarterlyItemized={quarterlyItemized} type="expenses" />
+                          <ScenarioComparisonCards 
+                            quarterlyItemized={quarterlyItemized} 
+                            type="revenues" 
+                            scenarioAYear={scenarioA?.targetYear}
+                            scenarioBYear={scenarioB?.targetYear}
+                            scenarioAName={scenarioA?.name}
+                            scenarioBName={scenarioB?.name}
+                          />
+                          <ScenarioComparisonCards 
+                            quarterlyItemized={quarterlyItemized} 
+                            type="expenses" 
+                            scenarioAYear={scenarioA?.targetYear}
+                            scenarioBYear={scenarioB?.targetYear}
+                            scenarioAName={scenarioA?.name}
+                            scenarioBName={scenarioB?.name}
+                          />
                         </div>
                       </AccordionContent>
                     </AccordionItem>
