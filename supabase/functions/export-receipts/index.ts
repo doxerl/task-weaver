@@ -35,6 +35,8 @@ interface Receipt {
   category?: { name: string } | null;
 }
 
+type FilterType = 'all' | 'slip' | 'invoice' | 'issued' | 'foreign';
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -58,10 +60,12 @@ serve(async (req) => {
       throw new Error('Unauthorized');
     }
 
-    const { year } = await req.json();
+    const { year, filter = 'all' } = await req.json();
     if (!year) {
       throw new Error('Year is required');
     }
+
+    const filterType = filter as FilterType;
 
     // Fetch user profile
     const { data: profile } = await supabase
@@ -100,8 +104,36 @@ serve(async (req) => {
     const slips = allReceipts.filter(r => r.document_type !== 'issued' && r.receipt_subtype !== 'invoice');
     const invoices = allReceipts.filter(r => r.document_type !== 'issued' && r.receipt_subtype === 'invoice');
     const issued = allReceipts.filter(r => r.document_type === 'issued');
+    const foreignAll = allReceipts.filter(r => r.is_foreign_invoice || (r.currency && r.currency !== 'TRY'));
 
-    // Calculate totals
+    // Determine which data to export based on filter
+    let exportSlips: Receipt[] = [];
+    let exportInvoices: Receipt[] = [];
+    let exportIssued: Receipt[] = [];
+    let exportForeign: Receipt[] = [];
+
+    switch (filterType) {
+      case 'slip':
+        exportSlips = slips;
+        break;
+      case 'invoice':
+        exportInvoices = invoices;
+        break;
+      case 'issued':
+        exportIssued = issued;
+        break;
+      case 'foreign':
+        exportForeign = foreignAll;
+        break;
+      case 'all':
+      default:
+        exportSlips = slips;
+        exportInvoices = invoices;
+        exportIssued = issued;
+        break;
+    }
+
+    // Calculate totals for stats
     const calcStats = (items: Receipt[]) => {
       const total = items.reduce((sum, r) => sum + (r.total_amount || 0), 0);
       const vatTotal = items.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
@@ -112,12 +144,8 @@ serve(async (req) => {
         .reduce((sum, r) => sum + (r.original_amount || r.total_amount || 0), 0);
       const foreignByEUR = items.filter(r => r.is_foreign_invoice && (r.original_currency || r.currency) === 'EUR')
         .reduce((sum, r) => sum + (r.original_amount || r.total_amount || 0), 0);
-      return { total, vatTotal, reportTotal, foreignCount, foreignByUSD, foreignByEUR };
+      return { total, vatTotal, reportTotal, foreignCount, foreignByUSD, foreignByEUR, count: items.length };
     };
-
-    const slipStats = calcStats(slips);
-    const invoiceStats = calcStats(invoices);
-    const issuedStats = calcStats(issued);
 
     // Create workbook
     const workbook = XLSX.utils.book_new();
@@ -131,40 +159,6 @@ serve(async (req) => {
 
     const today = new Date();
     const todayStr = formatDate(today.toISOString());
-
-    // ===== ÖZET SHEET =====
-    const summaryData = [
-      ['FİŞ/FATURA RAPORU'],
-      [],
-      ['Rapor Bilgileri'],
-      ['Yıl:', year],
-      ['Oluşturma Tarihi:', todayStr],
-      ['Kullanıcı:', `${profile?.first_name || ''} ${profile?.last_name || ''}`],
-      [],
-      ['GENEL İSTATİSTİKLER'],
-      ['', 'Adet', 'Toplam Tutar', 'Rapora Dahil', 'Toplam KDV'],
-      ['Alınan Fişler', slips.length, slipStats.total, slipStats.reportTotal, slipStats.vatTotal],
-      ['Alınan Faturalar', invoices.length, invoiceStats.total, invoiceStats.reportTotal, invoiceStats.vatTotal],
-      ['Kesilen Faturalar', issued.length, issuedStats.total, issuedStats.reportTotal, issuedStats.vatTotal],
-      [],
-      ['KDV ÖZETİ'],
-      ['Ödenen KDV (Gider):', slipStats.vatTotal + invoiceStats.vatTotal],
-      ['Hesaplanan KDV (Gelir):', issuedStats.vatTotal],
-      ['Net KDV Durumu:', issuedStats.vatTotal - (slipStats.vatTotal + invoiceStats.vatTotal)],
-      [],
-      ['YURTDIŞI FATURA ÖZETİ'],
-      ['Toplam Yurtdışı Fatura:', slipStats.foreignCount + invoiceStats.foreignCount + issuedStats.foreignCount],
-      ['USD Toplam:', slipStats.foreignByUSD + invoiceStats.foreignByUSD + issuedStats.foreignByUSD],
-      ['EUR Toplam:', slipStats.foreignByEUR + invoiceStats.foreignByEUR + issuedStats.foreignByEUR],
-    ];
-    const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-    
-    // Set column widths for summary
-    summarySheet['!cols'] = [
-      { wch: 25 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 15 }
-    ];
-    
-    XLSX.utils.book_append_sheet(workbook, summarySheet, 'Özet');
 
     // ===== HELPER: Create receipt sheet =====
     const createReceiptSheet = (items: Receipt[], isReceived: boolean) => {
@@ -219,38 +213,215 @@ serve(async (req) => {
       
       // Set column widths
       sheet['!cols'] = [
-        { wch: 12 }, // Tarih
-        { wch: 15 }, // No
-        { wch: 25 }, // İsim
-        { wch: 14 }, // VKN
-        { wch: 14 }, // Ara Toplam
-        { wch: 8 },  // KDV %
-        { wch: 12 }, // KDV Tutarı
-        { wch: 12 }, // Stopaj
-        { wch: 14 }, // Toplam
-        { wch: 10 }, // Para Birimi
-        { wch: 14 }, // Orijinal Tutar
-        { wch: 10 }, // Yurtdışı
-        { wch: 18 }, // Kategori
-        { wch: 12 }, // Rapora Dahil
-        { wch: 25 }, // Notlar
-        { wch: 30 }, // Dosya Adı
+        { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 14 }, { wch: 14 },
+        { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 10 },
+        { wch: 14 }, { wch: 10 }, { wch: 18 }, { wch: 12 }, { wch: 25 }, { wch: 30 },
       ];
 
       return sheet;
     };
 
-    // ===== ALINAN FİŞLER SHEET =====
-    const slipsSheet = createReceiptSheet(slips, true);
-    XLSX.utils.book_append_sheet(workbook, slipsSheet, 'Alınan Fişler');
+    // ===== HELPER: Create foreign receipts sheet =====
+    const createForeignSheet = (items: Receipt[]) => {
+      const headers = ['Belge Türü', 'Tarih', 'Belge No', 'Satıcı/Alıcı', 'VKN', 'Orijinal Para Birimi', 'Orijinal Tutar', 'TRY Karşılığı', 'Kategori', 'Rapora Dahil', 'Dosya Adı'];
 
-    // ===== ALINAN FATURALAR SHEET =====
-    const invoicesSheet = createReceiptSheet(invoices, true);
-    XLSX.utils.book_append_sheet(workbook, invoicesSheet, 'Alınan Faturalar');
+      const rows = items.map(r => {
+        const isReceived = r.document_type !== 'issued';
+        const docTypeLabel = r.document_type === 'issued' ? 'Kesilen Fatura' 
+          : r.receipt_subtype === 'invoice' ? 'Alınan Fatura' : 'Alınan Fiş';
+        const partyName = isReceived 
+          ? (r.seller_name || r.vendor_name || '') 
+          : (r.buyer_name || '');
+        const partyTaxNo = isReceived 
+          ? (r.seller_tax_no || r.vendor_tax_no || '') 
+          : (r.buyer_tax_no || '');
+        
+        return [
+          docTypeLabel,
+          formatDate(r.receipt_date),
+          r.receipt_no || '',
+          partyName,
+          partyTaxNo,
+          r.original_currency || r.currency || 'USD',
+          r.original_amount || r.total_amount || 0,
+          r.total_amount || 0,
+          r.category?.name || '',
+          r.is_included_in_report ? 'Evet' : 'Hayır',
+          r.file_name || ''
+        ];
+      });
 
-    // ===== KESİLEN FATURALAR SHEET =====
-    const issuedSheet = createReceiptSheet(issued, false);
-    XLSX.utils.book_append_sheet(workbook, issuedSheet, 'Kesilen Faturalar');
+      const sheetData = [headers, ...rows];
+      const sheet = XLSX.utils.aoa_to_sheet(sheetData);
+      
+      sheet['!cols'] = [
+        { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 14 },
+        { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 30 },
+      ];
+
+      return sheet;
+    };
+
+    // ===== BUILD SHEETS BASED ON FILTER =====
+    let filename = '';
+    let totalExported = 0;
+
+    if (filterType === 'foreign') {
+      // Foreign only export
+      const foreignStats = calcStats(exportForeign);
+      totalExported = exportForeign.length;
+      
+      // Summary for foreign
+      const summaryData = [
+        ['YURTDIŞI FATURA RAPORU'],
+        [],
+        ['Rapor Bilgileri'],
+        ['Yıl:', year],
+        ['Oluşturma Tarihi:', todayStr],
+        ['Kullanıcı:', `${profile?.first_name || ''} ${profile?.last_name || ''}`],
+        [],
+        ['İSTATİSTİKLER'],
+        ['Toplam Belge Sayısı:', exportForeign.length],
+        ['Toplam TRY Karşılığı:', foreignStats.total],
+        ['USD Toplam:', foreignStats.foreignByUSD],
+        ['EUR Toplam:', foreignStats.foreignByEUR],
+      ];
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+      summarySheet['!cols'] = [{ wch: 25 }, { wch: 18 }];
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Özet');
+
+      const foreignSheet = createForeignSheet(exportForeign);
+      XLSX.utils.book_append_sheet(workbook, foreignSheet, 'Yurtdışı Faturalar');
+      
+      filename = `YurtdisiFaturalar_${year}_${todayStr.replace(/\./g, '-')}`;
+
+    } else if (filterType === 'slip') {
+      const slipStats = calcStats(exportSlips);
+      totalExported = exportSlips.length;
+
+      const summaryData = [
+        ['ALINAN FİŞLER RAPORU'],
+        [],
+        ['Rapor Bilgileri'],
+        ['Yıl:', year],
+        ['Oluşturma Tarihi:', todayStr],
+        ['Kullanıcı:', `${profile?.first_name || ''} ${profile?.last_name || ''}`],
+        [],
+        ['İSTATİSTİKLER'],
+        ['Toplam Fiş Sayısı:', exportSlips.length],
+        ['Toplam Tutar:', slipStats.total],
+        ['Rapora Dahil:', slipStats.reportTotal],
+        ['Toplam KDV:', slipStats.vatTotal],
+      ];
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+      summarySheet['!cols'] = [{ wch: 25 }, { wch: 18 }];
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Özet');
+
+      const slipsSheet = createReceiptSheet(exportSlips, true);
+      XLSX.utils.book_append_sheet(workbook, slipsSheet, 'Alınan Fişler');
+
+      filename = `AlinanFisler_${year}_${todayStr.replace(/\./g, '-')}`;
+
+    } else if (filterType === 'invoice') {
+      const invoiceStats = calcStats(exportInvoices);
+      totalExported = exportInvoices.length;
+
+      const summaryData = [
+        ['ALINAN FATURALAR RAPORU'],
+        [],
+        ['Rapor Bilgileri'],
+        ['Yıl:', year],
+        ['Oluşturma Tarihi:', todayStr],
+        ['Kullanıcı:', `${profile?.first_name || ''} ${profile?.last_name || ''}`],
+        [],
+        ['İSTATİSTİKLER'],
+        ['Toplam Fatura Sayısı:', exportInvoices.length],
+        ['Toplam Tutar:', invoiceStats.total],
+        ['Rapora Dahil:', invoiceStats.reportTotal],
+        ['Toplam KDV:', invoiceStats.vatTotal],
+      ];
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+      summarySheet['!cols'] = [{ wch: 25 }, { wch: 18 }];
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Özet');
+
+      const invoicesSheet = createReceiptSheet(exportInvoices, true);
+      XLSX.utils.book_append_sheet(workbook, invoicesSheet, 'Alınan Faturalar');
+
+      filename = `AlinanFaturalar_${year}_${todayStr.replace(/\./g, '-')}`;
+
+    } else if (filterType === 'issued') {
+      const issuedStats = calcStats(exportIssued);
+      totalExported = exportIssued.length;
+
+      const summaryData = [
+        ['KESİLEN FATURALAR RAPORU'],
+        [],
+        ['Rapor Bilgileri'],
+        ['Yıl:', year],
+        ['Oluşturma Tarihi:', todayStr],
+        ['Kullanıcı:', `${profile?.first_name || ''} ${profile?.last_name || ''}`],
+        [],
+        ['İSTATİSTİKLER'],
+        ['Toplam Fatura Sayısı:', exportIssued.length],
+        ['Toplam Tutar:', issuedStats.total],
+        ['Rapora Dahil:', issuedStats.reportTotal],
+        ['Toplam KDV:', issuedStats.vatTotal],
+      ];
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+      summarySheet['!cols'] = [{ wch: 25 }, { wch: 18 }];
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Özet');
+
+      const issuedSheet = createReceiptSheet(exportIssued, false);
+      XLSX.utils.book_append_sheet(workbook, issuedSheet, 'Kesilen Faturalar');
+
+      filename = `KesilenFaturalar_${year}_${todayStr.replace(/\./g, '-')}`;
+
+    } else {
+      // ALL - default behavior
+      const slipStats = calcStats(exportSlips);
+      const invoiceStats = calcStats(exportInvoices);
+      const issuedStats = calcStats(exportIssued);
+      totalExported = exportSlips.length + exportInvoices.length + exportIssued.length;
+
+      const summaryData = [
+        ['FİŞ/FATURA RAPORU'],
+        [],
+        ['Rapor Bilgileri'],
+        ['Yıl:', year],
+        ['Oluşturma Tarihi:', todayStr],
+        ['Kullanıcı:', `${profile?.first_name || ''} ${profile?.last_name || ''}`],
+        [],
+        ['GENEL İSTATİSTİKLER'],
+        ['', 'Adet', 'Toplam Tutar', 'Rapora Dahil', 'Toplam KDV'],
+        ['Alınan Fişler', slipStats.count, slipStats.total, slipStats.reportTotal, slipStats.vatTotal],
+        ['Alınan Faturalar', invoiceStats.count, invoiceStats.total, invoiceStats.reportTotal, invoiceStats.vatTotal],
+        ['Kesilen Faturalar', issuedStats.count, issuedStats.total, issuedStats.reportTotal, issuedStats.vatTotal],
+        [],
+        ['KDV ÖZETİ'],
+        ['Ödenen KDV (Gider):', slipStats.vatTotal + invoiceStats.vatTotal],
+        ['Hesaplanan KDV (Gelir):', issuedStats.vatTotal],
+        ['Net KDV Durumu:', issuedStats.vatTotal - (slipStats.vatTotal + invoiceStats.vatTotal)],
+        [],
+        ['YURTDIŞI FATURA ÖZETİ'],
+        ['Toplam Yurtdışı Fatura:', slipStats.foreignCount + invoiceStats.foreignCount + issuedStats.foreignCount],
+        ['USD Toplam:', slipStats.foreignByUSD + invoiceStats.foreignByUSD + issuedStats.foreignByUSD],
+        ['EUR Toplam:', slipStats.foreignByEUR + invoiceStats.foreignByEUR + issuedStats.foreignByEUR],
+      ];
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+      summarySheet['!cols'] = [{ wch: 25 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 15 }];
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Özet');
+
+      const slipsSheet = createReceiptSheet(exportSlips, true);
+      XLSX.utils.book_append_sheet(workbook, slipsSheet, 'Alınan Fişler');
+
+      const invoicesSheet = createReceiptSheet(exportInvoices, true);
+      XLSX.utils.book_append_sheet(workbook, invoicesSheet, 'Alınan Faturalar');
+
+      const issuedSheet = createReceiptSheet(exportIssued, false);
+      XLSX.utils.book_append_sheet(workbook, issuedSheet, 'Kesilen Faturalar');
+
+      filename = `FisFaturalar_${year}_${todayStr.replace(/\./g, '-')}`;
+    }
 
     // Generate XLSX buffer
     const xlsxBuffer = XLSX.write(workbook, { type: 'buffer', bookType: 'xlsx' });
@@ -258,18 +429,13 @@ serve(async (req) => {
     // Convert to base64
     const base64 = btoa(String.fromCharCode(...new Uint8Array(xlsxBuffer)));
 
-    // Generate filename
-    const filename = `FisFaturalar_${year}_${todayStr.replace(/\./g, '-')}`;
-
     return new Response(
       JSON.stringify({
         xlsxBase64: base64,
         filename,
         stats: {
-          slips: slips.length,
-          invoices: invoices.length,
-          issued: issued.length,
-          total: allReceipts.length
+          total: totalExported,
+          filter: filterType
         }
       }),
       { 
