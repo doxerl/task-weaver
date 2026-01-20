@@ -77,8 +77,32 @@ export default function ReceiptUpload() {
   // Uploaded receipts - start with empty, then merge with newly uploaded
   const [sessionUploadedIds, setSessionUploadedIds] = useState<Set<string>>(new Set());
   
-  // Show recent receipts from DB (limit to last 20 for this session view)
-  const recentReceipts = dbReceipts.slice(0, 20);
+  // Show recent receipts from DB (limit to last 100 for this session view)
+  const recentReceipts = dbReceipts.slice(0, 100);
+  
+  // Currency symbol helper
+  const getCurrencySymbol = (currency?: string | null) => {
+    switch (currency?.toUpperCase()) {
+      case 'USD': return '$';
+      case 'EUR': return '€';
+      case 'GBP': return '£';
+      case 'TRY':
+      default: return '₺';
+    }
+  };
+
+  // Format receipt amount with correct currency
+  const formatReceiptAmount = (receipt: Receipt) => {
+    const isForeign = receipt.is_foreign_invoice || (receipt.currency && receipt.currency !== 'TRY');
+    const symbol = getCurrencySymbol(isForeign ? (receipt.original_currency || receipt.currency) : 'TRY');
+    const amount = isForeign ? (receipt.original_amount || receipt.total_amount || 0) : (receipt.total_amount || 0);
+    const locale = isForeign ? 'en-US' : 'tr-TR';
+    
+    return `${symbol}${amount.toLocaleString(locale, { 
+      minimumFractionDigits: 2, 
+      maximumFractionDigits: 2 
+    })}`;
+  };
   
   // Edit sheet state
   const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
@@ -487,8 +511,14 @@ export default function ReceiptUpload() {
                             <FileStatusIcon status={result.status} />
                             <span className="truncate flex-1">{result.fileName}</span>
                             {result.status === 'success' && result.receipt?.total_amount && (
-                              <span className="text-xs text-green-600 font-medium">
-                                ₺{result.receipt.total_amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                              <span className={cn(
+                                "text-xs font-medium",
+                                result.receipt.is_foreign_invoice ? "text-blue-600" : "text-green-600"
+                              )}>
+                                {formatReceiptAmount(result.receipt)}
+                                {result.receipt.is_foreign_invoice && (
+                                  <span className="ml-1 text-[10px] text-muted-foreground">(Yurtdışı)</span>
+                                )}
                               </span>
                             )}
                             {result.status === 'failed' && (
