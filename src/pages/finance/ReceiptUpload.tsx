@@ -2,7 +2,10 @@ import { useCallback, useState, useRef, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code, FileCheck, Globe, Home, Check, AlertCircle, Copy, RefreshCw } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code, FileCheck, Globe, Home, Check, AlertCircle, Copy, RefreshCw, Download } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 import { useReceipts, BatchProgress, BatchFileResult } from '@/hooks/finance/useReceipts';
 import { useExchangeRates } from '@/hooks/finance/useExchangeRates';
 import { cn } from '@/lib/utils';
@@ -42,6 +45,42 @@ function FileStatusIcon({ status }: { status: BatchFileResult['status'] }) {
 
 export default function ReceiptUpload() {
   const isMobile = useIsMobile();
+  const { toast } = useToast();
+  const [isExporting, setIsExporting] = useState(false);
+
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('export-receipts', {
+        body: { year: new Date().getFullYear() }
+      });
+      
+      if (error) throw error;
+      
+      const binaryString = atob(data.xlsxBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      const blob = new Blob([bytes], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = data.filename;
+      a.click();
+      URL.revokeObjectURL(url);
+      
+      toast({ title: 'Excel dosyası indirildi' });
+    } catch (err) {
+      console.error('Export error:', err);
+      toast({ title: 'Export başarısız', variant: 'destructive' });
+    } finally {
+      setIsExporting(false);
+    }
+  };
   const cameraInputRef = useRef<HTMLInputElement>(null);
   const galleryInputRef = useRef<HTMLInputElement>(null);
   const [searchParams] = useSearchParams();
@@ -335,11 +374,22 @@ export default function ReceiptUpload() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="p-4 space-y-4">
-        <div className="flex items-center gap-3">
-          <Link to="/finance/receipts" className="p-2 hover:bg-accent rounded-lg">
-            <ArrowLeft className="h-5 w-5" />
-          </Link>
-          <h1 className="text-xl font-bold">Fiş/Fatura Yükle</h1>
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <Link to="/finance/receipts" className="p-2 hover:bg-accent rounded-lg">
+              <ArrowLeft className="h-5 w-5" />
+            </Link>
+            <h1 className="text-xl font-bold">Fiş/Fatura Yükle</h1>
+          </div>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleExportExcel}
+            disabled={isExporting}
+          >
+            <Download className="h-4 w-4 mr-1" />
+            {isExporting ? 'İndiriliyor...' : 'Excel'}
+          </Button>
         </div>
 
         {/* Document Type Selection - Kesilen / Alınan */}
