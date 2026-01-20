@@ -46,16 +46,17 @@ serve(async (req) => {
     console.log('Fetching file and converting to base64...');
     const { dataUrl, mimeType } = await fetchAsBase64(imageUrl);
     
-    // Validate mime type - now includes PDF
-    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf'];
+    // Validate mime type - now includes PDF and HTML
+    const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf', 'text/html'];
     const isSupported = supportedTypes.some(t => {
       if (t === 'application/pdf') return mimeType.includes('pdf');
+      if (t === 'text/html') return mimeType.includes('html') || mimeType.includes('text/html');
       return mimeType.includes(t.split('/')[1]);
     });
     
     if (!isSupported) {
       return new Response(JSON.stringify({ 
-        error: `Desteklenmeyen dosya formatı: ${mimeType}. Lütfen JPG, PNG, WebP, GIF veya PDF yükleyin.`,
+        error: `Desteklenmeyen dosya formatı: ${mimeType}. Lütfen JPG, PNG, WebP, GIF, PDF veya HTML yükleyin.`,
         supportedFormats: supportedTypes
       }), {
         status: 400,
@@ -64,8 +65,13 @@ serve(async (req) => {
     }
     
     const isPdf = mimeType.includes('pdf');
+    const isHtml = mimeType.includes('html') || mimeType.includes('text/html');
+    
     if (isPdf) {
       console.log('Processing PDF file with Gemini...');
+    }
+    if (isHtml) {
+      console.log('Processing HTML file with Gemini...');
     }
 
     const systemPrompt = `Sen Türk fiş/fatura OCR uzmanısın.
