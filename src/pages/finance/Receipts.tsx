@@ -7,7 +7,7 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Loader2, Plus, Receipt as ReceiptIcon, FileText, Building2, ArrowRightLeft, Trash2, Eye, LayoutGrid, Table as TableIcon, FileCheck } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Receipt as ReceiptIcon, FileText, Building2, ArrowRightLeft, Trash2, Eye, LayoutGrid, Table as TableIcon, FileCheck, Download } from 'lucide-react';
 import { useReceipts } from '@/hooks/finance/useReceipts';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { cn } from '@/lib/utils';
@@ -15,6 +15,8 @@ import { BottomTabBar } from '@/components/BottomTabBar';
 import { Receipt, ReceiptSubtype } from '@/types/finance';
 import { MissingVatAlert } from '@/components/finance/MissingVatAlert';
 import { ReceiptTable } from '@/components/finance/ReceiptTable';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
 
@@ -175,6 +177,8 @@ export default function Receipts() {
   const [activeTab, setActiveTab] = useState<TabType>('slip');
   const [viewMode, setViewMode] = useState<ViewMode>('card');
   const [isReprocessingAll, setIsReprocessingAll] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+  const { toast } = useToast();
   
   const { 
     receipts, 
@@ -240,6 +244,50 @@ export default function Receipts() {
     deleteReceipt.mutate(id);
   };
 
+  const handleExportExcel = async () => {
+    setIsExporting(true);
+    try {
+      const { data, error } = await supabase.functions.invoke('export-receipts', {
+        body: { year }
+      });
+      
+      if (error) throw error;
+      
+      // Download file
+      const binaryString = atob(data.xlsxBase64);
+      const bytes = new Uint8Array(binaryString.length);
+      for (let i = 0; i < binaryString.length; i++) {
+        bytes[i] = binaryString.charCodeAt(i);
+      }
+      
+      const blob = new Blob([bytes], { 
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' 
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `${data.filename}.xlsx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast({ 
+        title: 'Excel dosyası indirildi',
+        description: `${data.stats.total} kayıt export edildi`
+      });
+    } catch (err: any) {
+      console.error('Export error:', err);
+      toast({ 
+        title: 'Export başarısız', 
+        description: err.message || 'Bir hata oluştu',
+        variant: 'destructive' 
+      });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
   const getUploadUrl = () => {
     if (activeTab === 'issued') return '/finance/receipts/upload?type=issued';
     if (activeTab === 'invoice') return '/finance/receipts/upload?type=received&subtype=invoice';
@@ -267,6 +315,20 @@ export default function Receipts() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold flex-1">Fiş/Faturalar</h1>
+          <Button 
+            variant="outline" 
+            size="sm" 
+            onClick={handleExportExcel}
+            disabled={isExporting || isLoading}
+            className="gap-1"
+          >
+            {isExporting ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <Download className="h-4 w-4" />
+            )}
+            <span className="hidden sm:inline">{isExporting ? 'İndiriliyor...' : 'Excel'}</span>
+          </Button>
           <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
             <SelectTrigger className="w-20">
               <SelectValue />
