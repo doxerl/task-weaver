@@ -497,7 +497,12 @@ export default function ReceiptUpload() {
                               </span>
                             )}
                             {result.status === 'duplicate' && (
-                              <span className="text-xs text-amber-600">Zaten mevcut</span>
+                              <span className="text-xs text-amber-600">
+                                {result.duplicateType === 'receipt_no' && 'Fiş No eşleşti'}
+                                {result.duplicateType === 'file_date' && 'Dosya+Tarih eşleşti'}
+                                {result.duplicateType === 'soft' && 'Benzer belge'}
+                                {!result.duplicateType && 'Zaten mevcut'}
+                              </span>
                             )}
                           </div>
                         ))}

@@ -12,6 +12,15 @@ export interface BatchFileResult {
   status: 'pending' | 'processing' | 'success' | 'failed' | 'duplicate';
   receipt?: Receipt;
   error?: string;
+  duplicateType?: 'receipt_no' | 'file_date' | 'soft';
+}
+
+// Duplicate check result type
+interface DuplicateCheckResult {
+  isDuplicate: boolean;
+  duplicateType: 'receipt_no' | 'file_date' | 'soft' | null;
+  existingReceipt: Receipt | null;
+  message: string | null;
 }
 
 export interface BatchProgress {
@@ -81,7 +90,7 @@ export function useReceipts(year?: number, month?: number) {
   });
 
   // Helper to check for duplicate receipts by receipt_no
-  const checkDuplicateReceipt = async (receiptNo: string): Promise<Receipt | null> => {
+  const checkDuplicateByReceiptNo = async (receiptNo: string): Promise<Receipt | null> => {
     if (!receiptNo || !user?.id) return null;
     
     const { data } = await supabase
@@ -94,6 +103,122 @@ export function useReceipts(year?: number, month?: number) {
     return data as Receipt | null;
   };
 
+  // Helper to check for duplicate by file name + date combination
+  const checkDuplicateByFileAndDate = async (
+    fileName: string, 
+    receiptDate: string | null
+  ): Promise<Receipt | null> => {
+    if (!fileName || !user?.id) return null;
+    
+    // Normalize file name (remove extension, lowercase, trim)
+    const normalizedName = fileName.replace(/\.[^/.]+$/, '').toLowerCase().trim();
+    
+    let query = supabase
+      .from('receipts')
+      .select('*, category:transaction_categories!category_id(*)')
+      .eq('user_id', user.id);
+    
+    // If date available, filter by date as well
+    if (receiptDate) {
+      query = query.eq('receipt_date', receiptDate);
+    }
+    
+    const { data } = await query;
+    
+    // Check file name similarity
+    const match = data?.find(r => {
+      const existingName = (r.file_name || '').replace(/\.[^/.]+$/, '').toLowerCase().trim();
+      return existingName === normalizedName || 
+             existingName.includes(normalizedName) || 
+             normalizedName.includes(existingName);
+    });
+    
+    return match as Receipt | null;
+  };
+
+  // Helper to check for soft duplicates (same seller + amount + date)
+  const checkSoftDuplicate = async (
+    sellerName: string | null,
+    totalAmount: number | null,
+    receiptDate: string | null
+  ): Promise<Receipt | null> => {
+    if (!sellerName || !totalAmount || !receiptDate || !user?.id) return null;
+    
+    // Use a tolerance for amount matching (within 1 TL)
+    const { data } = await supabase
+      .from('receipts')
+      .select('*, category:transaction_categories!category_id(*)')
+      .eq('user_id', user.id)
+      .eq('receipt_date', receiptDate)
+      .gte('total_amount', totalAmount - 1)
+      .lte('total_amount', totalAmount + 1);
+    
+    // Check seller name similarity
+    const normalizedSeller = sellerName.toLowerCase().trim();
+    const match = data?.find(r => {
+      const existingSeller = (r.seller_name || r.vendor_name || '').toLowerCase().trim();
+      return existingSeller.includes(normalizedSeller) || 
+             normalizedSeller.includes(existingSeller);
+    });
+    
+    return match as Receipt | null;
+  };
+
+  // Multi-layer duplicate check
+  const checkForDuplicate = async (
+    ocr: Record<string, any>,
+    fileName: string,
+    receiptDate: string | null
+  ): Promise<DuplicateCheckResult> => {
+    // 1. First check by receipt_no (most reliable)
+    if (ocr.receiptNo) {
+      const existing = await checkDuplicateByReceiptNo(ocr.receiptNo);
+      if (existing) {
+        const sellerInfo = existing.seller_name || existing.vendor_name || 'Bilinmeyen satıcı';
+        return {
+          isDuplicate: true,
+          duplicateType: 'receipt_no',
+          existingReceipt: existing,
+          message: `Fiş No: ${ocr.receiptNo} zaten kayıtlı (${sellerInfo})`
+        };
+      }
+    }
+    
+    // 2. Check by file name + date combination
+    const fileMatch = await checkDuplicateByFileAndDate(fileName, receiptDate);
+    if (fileMatch) {
+      return {
+        isDuplicate: true,
+        duplicateType: 'file_date',
+        existingReceipt: fileMatch,
+        message: `"${fileName}" dosyası ${receiptDate ? 'bu tarihte' : ''} zaten yüklenmiş`
+      };
+    }
+    
+    // 3. Soft duplicate check (warning only)
+    const softMatch = await checkSoftDuplicate(
+      ocr.sellerName || ocr.vendorName,
+      ocr.totalAmount,
+      receiptDate
+    );
+    if (softMatch) {
+      const sellerInfo = softMatch.seller_name || softMatch.vendor_name || 'Bilinmeyen';
+      return {
+        isDuplicate: false, // Allow upload but warn
+        duplicateType: 'soft',
+        existingReceipt: softMatch,
+        message: `Benzer belge bulundu: ${sellerInfo} - ₺${softMatch.total_amount?.toLocaleString('tr-TR')}`
+      };
+    }
+    
+    return {
+      isDuplicate: false,
+      duplicateType: null,
+      existingReceipt: null,
+      message: null
+    };
+  };
+
   // Helper to save a single receipt from parsed data
   const saveReceiptFromOCR = async (
     ocr: Record<string, any>,
@@ -103,20 +228,14 @@ export function useReceipts(year?: number, month?: number) {
     documentType: DocumentType,
     receiptSubtype?: ReceiptSubtype,
     skipDuplicateCheck = false
-  ): Promise<{ receipt: Receipt | null; skipped: boolean; duplicateInfo?: string }> => {
-    // Duplicate check
-    if (!skipDuplicateCheck && ocr.receiptNo) {
-      const existing = await checkDuplicateReceipt(ocr.receiptNo);
-      if (existing) {
-        const sellerInfo = existing.seller_name || existing.vendor_name || 'Bilinmeyen satıcı';
-        return { 
-          receipt: null, 
-          skipped: true, 
-          duplicateInfo: `${ocr.receiptNo} (${sellerInfo})`
-        };
-      }
-    }
-
+  ): Promise<{ 
+    receipt: Receipt | null; 
+    skipped: boolean; 
+    duplicateInfo?: string;
+    duplicateType?: 'receipt_no' | 'file_date' | 'soft';
+    softDuplicateWarning?: string;
+  }> => {
+    // Parse date first (needed for duplicate check)
     let receiptDate = null;
     let receiptMonth = new Date().getMonth() + 1;
     let receiptYear = new Date().getFullYear();
@@ -129,6 +248,27 @@ export function useReceipts(year?: number, month?: number) {
         receiptDate = `${year}-${m.padStart(2, '0')}-${d.padStart(2, '0')}`;
         receiptMonth = parseInt(m);
         receiptYear = parseInt(year);
+      }
+    }
+
+    // Multi-layer duplicate check
+    let softDuplicateWarning: string | undefined;
+    if (!skipDuplicateCheck) {
+      const duplicateCheck = await checkForDuplicate(ocr, fileName, receiptDate);
+      
+      if (duplicateCheck.isDuplicate) {
+        return { 
+          receipt: null, 
+          skipped: true, 
+          duplicateInfo: duplicateCheck.message || 'Duplicate bulundu',
+          duplicateType: duplicateCheck.duplicateType || undefined
+        };
+      }
+      
+      // Soft duplicate: allow but warn
+      if (duplicateCheck.duplicateType === 'soft') {
+        console.log('Soft duplicate warning:', duplicateCheck.message);
+        softDuplicateWarning = duplicateCheck.message || undefined;
       }
     }
 
@@ -212,7 +352,7 @@ export function useReceipts(year?: number, month?: number) {
       .single();
     
     if (insertError) throw insertError;
-    return { receipt: receipt as Receipt, skipped: false };
+    return { receipt: receipt as Receipt, skipped: false, softDuplicateWarning };
   };
 
   const uploadReceipt = useMutation({
@@ -447,7 +587,7 @@ export function useReceipts(year?: number, month?: number) {
     file: File,
     documentType: DocumentType,
     receiptSubtype?: ReceiptSubtype
-  ): Promise<{ receipt: Receipt | null; status: 'success' | 'failed' | 'duplicate'; error?: string }> => {
+  ): Promise<{ receipt: Receipt | null; status: 'success' | 'failed' | 'duplicate'; error?: string; duplicateType?: 'receipt_no' | 'file_date' | 'soft'; softDuplicateWarning?: string }> => {
     if (!user?.id) throw new Error('Giriş yapmalısınız');
     
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
@@ -481,10 +621,19 @@ export function useReceipts(year?: number, month?: number) {
       const saveResult = await saveReceiptFromOCR(ocr, publicUrl, file.name, 'xml', documentType, 'invoice');
       
       if (saveResult.skipped) {
-        return { receipt: null, status: 'duplicate', error: saveResult.duplicateInfo };
+        return { 
+          receipt: null, 
+          status: 'duplicate', 
+          error: saveResult.duplicateInfo,
+          duplicateType: saveResult.duplicateType
+        };
       }
       
-      return { receipt: saveResult.receipt, status: 'success' };
+      return { 
+        receipt: saveResult.receipt, 
+        status: 'success',
+        softDuplicateWarning: saveResult.softDuplicateWarning
+      };
     }
 
     // Handle images and PDFs
@@ -505,10 +654,19 @@ export function useReceipts(year?: number, month?: number) {
     );
     
     if (saveResult.skipped) {
-      return { receipt: null, status: 'duplicate', error: saveResult.duplicateInfo };
+      return { 
+        receipt: null, 
+        status: 'duplicate', 
+        error: saveResult.duplicateInfo,
+        duplicateType: saveResult.duplicateType
+      };
     }
     
-    return { receipt: saveResult.receipt, status: 'success' };
+    return { 
+      receipt: saveResult.receipt, 
+      status: 'success',
+      softDuplicateWarning: saveResult.softDuplicateWarning
+    };
   };
 
   // Batch upload mutation
@@ -577,12 +735,18 @@ export function useReceipts(year?: number, month?: number) {
           const fileIndex = batchIndex * BATCH_SIZE + idx;
           
           if (result.status === 'fulfilled') {
-            const { receipt, status, error } = result.value;
+            const { receipt, status, error, duplicateType } = result.value as { 
+              receipt: Receipt | null; 
+              status: 'success' | 'failed' | 'duplicate'; 
+              error?: string;
+              duplicateType?: 'receipt_no' | 'file_date' | 'soft';
+            };
             results[fileIndex] = {
               fileName: nonZipFiles[fileIndex].name,
               status,
               receipt: receipt || undefined,
-              error
+              error,
+              duplicateType
             };
             
             if (status === 'success') successCount++;
