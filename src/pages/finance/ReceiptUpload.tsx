@@ -69,18 +69,23 @@ export default function ReceiptUpload() {
 
   // Summary calculations with filter support and exchange rate conversion
   const receiptSummary = useMemo(() => {
+    // Separate ALL receipts by type (for filtering display)
+    const allDomestic = recentReceipts.filter(r => !r.is_foreign_invoice && (!r.currency || r.currency === 'TRY'));
+    const allForeign = recentReceipts.filter(r => r.is_foreign_invoice || (r.currency && r.currency !== 'TRY'));
+    
+    // Included receipts only (for totals)
     const included = recentReceipts.filter(r => r.is_included_in_report);
-    const domestic = included.filter(r => !r.is_foreign_invoice && (!r.currency || r.currency === 'TRY'));
-    const foreign = included.filter(r => r.is_foreign_invoice || (r.currency && r.currency !== 'TRY'));
+    const includedDomestic = included.filter(r => !r.is_foreign_invoice && (!r.currency || r.currency === 'TRY'));
+    const includedForeign = included.filter(r => r.is_foreign_invoice || (r.currency && r.currency !== 'TRY'));
     
-    // TRY total from domestic invoices
-    const domesticTRY = domestic.reduce((sum, r) => sum + (r.total_amount || 0), 0);
+    // TRY total from included domestic invoices
+    const domesticTRY = includedDomestic.reduce((sum, r) => sum + (r.total_amount || 0), 0);
     
-    // Foreign invoices - calculate TRY using exchange rates
+    // Foreign invoices - calculate TRY using exchange rates (only included)
     let foreignTRY = 0;
     const foreignByCurrency: Record<string, { amount: number; tryAmount: number; rate: number | null }> = {};
     
-    foreign.forEach(r => {
+    includedForeign.forEach(r => {
       const cur = r.original_currency || r.currency || 'USD';
       const originalAmount = r.original_amount || r.total_amount || 0;
       
@@ -110,16 +115,20 @@ export default function ReceiptUpload() {
       if (rate) foreignByCurrency[cur].rate = rate;
     });
     
-    // Filtered receipts based on current filter
-    const filteredReceipts = receiptFilter === 'domestic' ? domestic 
-                           : receiptFilter === 'foreign' ? foreign 
-                           : included;
+    // Filtered receipts based on current filter (show ALL receipts of type, not just included)
+    const filteredReceipts = receiptFilter === 'domestic' ? allDomestic 
+                           : receiptFilter === 'foreign' ? allForeign 
+                           : recentReceipts;
     
     return {
       totalCount: recentReceipts.length,
       includedCount: included.length,
-      domesticCount: domestic.length,
-      foreignCount: foreign.length,
+      // Counts for filter buttons (show ALL, not just included)
+      allDomesticCount: allDomestic.length,
+      allForeignCount: allForeign.length,
+      // Counts for included only (for totals)
+      domesticCount: includedDomestic.length,
+      foreignCount: includedForeign.length,
       domesticTRY,
       foreignTRY,
       grandTotalTRY: domesticTRY + foreignTRY,
@@ -515,7 +524,7 @@ export default function ReceiptUpload() {
                           : "bg-muted hover:bg-muted/80"
                       )}
                     >
-                      Tümü ({receiptSummary.includedCount})
+                      Tümü ({receiptSummary.totalCount})
                     </button>
                     <button
                       onClick={() => setReceiptFilter('domestic')}
@@ -527,7 +536,7 @@ export default function ReceiptUpload() {
                       )}
                     >
                       <Home className="h-3 w-3" />
-                      Yurtiçi ({receiptSummary.domesticCount})
+                      Yurtiçi ({receiptSummary.allDomesticCount})
                     </button>
                     <button
                       onClick={() => setReceiptFilter('foreign')}
@@ -539,7 +548,7 @@ export default function ReceiptUpload() {
                       )}
                     >
                       <Globe className="h-3 w-3" />
-                      Yurtdışı ({receiptSummary.foreignCount})
+                      Yurtdışı ({receiptSummary.allForeignCount})
                     </button>
                   </div>
                 </div>
