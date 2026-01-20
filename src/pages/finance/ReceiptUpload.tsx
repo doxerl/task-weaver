@@ -3,7 +3,8 @@ import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code, FileCheck, Globe, Home, Check, AlertCircle, Copy, RefreshCw, Download } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code, FileCheck, Globe, Home, Check, AlertCircle, Copy, RefreshCw, Download, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useReceipts, BatchProgress, BatchFileResult } from '@/hooks/finance/useReceipts';
@@ -17,6 +18,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 type ReceiptFilter = 'all' | 'domestic' | 'foreign';
+type ExportFilter = 'all' | 'slip' | 'invoice' | 'issued' | 'foreign';
 
 // Helper to get file type info
 function getFileTypeInfo(file: File) {
@@ -48,11 +50,11 @@ export default function ReceiptUpload() {
   const { toast } = useToast();
   const [isExporting, setIsExporting] = useState(false);
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (filter: ExportFilter) => {
     setIsExporting(true);
     try {
       const { data, error } = await supabase.functions.invoke('export-receipts', {
-        body: { year: new Date().getFullYear() }
+        body: { year: new Date().getFullYear(), filter }
       });
       
       if (error) throw error;
@@ -69,11 +71,14 @@ export default function ReceiptUpload() {
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
-      a.download = data.filename;
+      a.download = `${data.filename}.xlsx`;
       a.click();
       URL.revokeObjectURL(url);
       
-      toast({ title: 'Excel dosyası indirildi' });
+      toast({ 
+        title: 'Excel dosyası indirildi',
+        description: `${data.stats.total} kayıt export edildi`
+      });
     } catch (err) {
       console.error('Export error:', err);
       toast({ title: 'Export başarısız', variant: 'destructive' });
@@ -381,15 +386,43 @@ export default function ReceiptUpload() {
             </Link>
             <h1 className="text-xl font-bold">Fiş/Fatura Yükle</h1>
           </div>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleExportExcel}
-            disabled={isExporting}
-          >
-            <Download className="h-4 w-4 mr-1" />
-            {isExporting ? 'İndiriliyor...' : 'Excel'}
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={isExporting}
+                className="gap-1"
+              >
+                {isExporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                {isExporting ? 'İndiriliyor...' : 'Excel'}
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-popover">
+              <DropdownMenuItem onClick={() => handleExportExcel('all')}>
+                📊 Tümünü Export Et
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleExportExcel('slip')}>
+                🧾 Sadece Alınan Fişler
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportExcel('invoice')}>
+                📄 Sadece Alınan Faturalar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportExcel('issued')}>
+                📝 Sadece Kesilen Faturalar
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleExportExcel('foreign')}>
+                🌍 Sadece Yurtdışı Belgeler
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
         </div>
 
         {/* Document Type Selection - Kesilen / Alınan */}

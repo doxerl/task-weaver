@@ -7,7 +7,8 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { ArrowLeft, Loader2, Plus, Receipt as ReceiptIcon, FileText, Building2, ArrowRightLeft, Trash2, Eye, LayoutGrid, Table as TableIcon, FileCheck, Download } from 'lucide-react';
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { ArrowLeft, Loader2, Plus, Receipt as ReceiptIcon, FileText, Building2, ArrowRightLeft, Trash2, Eye, LayoutGrid, Table as TableIcon, FileCheck, Download, ChevronDown, Globe } from 'lucide-react';
 import { useReceipts } from '@/hooks/finance/useReceipts';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { cn } from '@/lib/utils';
@@ -22,6 +23,7 @@ const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'c
 
 type ViewMode = 'card' | 'table';
 type TabType = 'slip' | 'invoice' | 'issued';
+type ExportFilter = 'all' | 'slip' | 'invoice' | 'issued' | 'foreign';
 
 interface ReceiptCardProps {
   receipt: Receipt;
@@ -244,11 +246,11 @@ export default function Receipts() {
     deleteReceipt.mutate(id);
   };
 
-  const handleExportExcel = async () => {
+  const handleExportExcel = async (filter: ExportFilter) => {
     setIsExporting(true);
     try {
       const { data, error } = await supabase.functions.invoke('export-receipts', {
-        body: { year }
+        body: { year, filter }
       });
       
       if (error) throw error;
@@ -315,20 +317,43 @@ export default function Receipts() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold flex-1">Fiş/Faturalar</h1>
-          <Button 
-            variant="outline" 
-            size="sm" 
-            onClick={handleExportExcel}
-            disabled={isExporting || isLoading}
-            className="gap-1"
-          >
-            {isExporting ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Download className="h-4 w-4" />
-            )}
-            <span className="hidden sm:inline">{isExporting ? 'İndiriliyor...' : 'Excel'}</span>
-          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button 
+                variant="outline" 
+                size="sm" 
+                disabled={isExporting || isLoading}
+                className="gap-1"
+              >
+                {isExporting ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                ) : (
+                  <Download className="h-4 w-4" />
+                )}
+                <span className="hidden sm:inline">{isExporting ? 'İndiriliyor...' : 'Excel'}</span>
+                <ChevronDown className="h-3 w-3" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="bg-popover">
+              <DropdownMenuItem onClick={() => handleExportExcel('all')}>
+                📊 Tümünü Export Et
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleExportExcel('slip')}>
+                🧾 Sadece Alınan Fişler
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportExcel('invoice')}>
+                📄 Sadece Alınan Faturalar
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExportExcel('issued')}>
+                📝 Sadece Kesilen Faturalar
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleExportExcel('foreign')}>
+                🌍 Sadece Yurtdışı Belgeler
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
           <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
             <SelectTrigger className="w-20">
               <SelectValue />
