@@ -76,70 +76,7 @@ export function useExchangeRates(year?: number) {
     },
   });
 
-  // Get USD/TRY rate for a specific month (with fallback)
-  const getRate = useCallback((targetYear: number, targetMonth: number): number | null => {
-    // First check database
-    const dbRate = rates.find(r => r.year === targetYear && r.month === targetMonth);
-    if (dbRate) return Number(dbRate.rate);
-    
-    // Fallback to hardcoded rates
-    const key = `${targetYear}-${targetMonth}`;
-    return FALLBACK_USD_TRY_RATES[key] || null;
-  }, [rates]);
-
-  // Get rate for any currency (USD, EUR) with fallback
-  const getCurrencyRate = useCallback((currency: string, targetYear: number, targetMonth: number): number | null => {
-    const key = `${targetYear}-${targetMonth}`;
-    
-    if (currency === 'USD') {
-      // First check database, then fallback
-      const dbRate = rates.find(r => r.year === targetYear && r.month === targetMonth);
-      if (dbRate) return Number(dbRate.rate);
-      return FALLBACK_USD_TRY_RATES[key] || null;
-    }
-    
-    if (currency === 'EUR') {
-      return FALLBACK_EUR_TRY_RATES[key] || null;
-    }
-    
-    // For other currencies, try to use USD rate as approximation
-    return getRate(targetYear, targetMonth);
-  }, [rates, getRate]);
-
-  // Check if rate exists for a specific month
-  const hasRate = (targetYear: number, targetMonth: number): boolean => {
-    return getRate(targetYear, targetMonth) !== null;
-  };
-
-  // Convert TRY to USD
-  const convertToUsd = (amountTry: number, targetYear: number, targetMonth: number): number | null => {
-    const rate = getRate(targetYear, targetMonth);
-    if (!rate || rate === 0) return null;
-    return amountTry / rate;
-  };
-
-  // Convert USD to TRY
-  const convertToTry = (amountUsd: number, targetYear: number, targetMonth: number): number | null => {
-    const rate = getRate(targetYear, targetMonth);
-    if (!rate) return null;
-    return amountUsd * rate;
-  };
-
-  // Calculate yearly average rate (for months with data)
-  const yearlyAverageRate = useMemo(() => {
-    if (!rates.length) return null;
-    const sum = rates.reduce((acc, r) => acc + Number(r.rate), 0);
-    return sum / rates.length;
-  }, [rates]);
-
-  // Get available months for a year
-  const getAvailableMonths = (targetYear: number): number[] => {
-    return rates
-      .filter(r => r.year === targetYear)
-      .map(r => r.month);
-  };
-
-  // Upsert rate mutation
+  // Upsert rate mutation - MUST be called before useCallback/useMemo that depend on rates
   const upsertRate = useMutation({
     mutationFn: async ({ 
       year: rateYear, 
@@ -189,6 +126,69 @@ export function useExchangeRates(year?: number) {
       queryClient.invalidateQueries({ queryKey: ['exchange-rates'] });
     },
   });
+
+  // Get USD/TRY rate for a specific month (with fallback)
+  const getRate = useCallback((targetYear: number, targetMonth: number): number | null => {
+    // First check database
+    const dbRate = rates.find(r => r.year === targetYear && r.month === targetMonth);
+    if (dbRate) return Number(dbRate.rate);
+    
+    // Fallback to hardcoded rates
+    const key = `${targetYear}-${targetMonth}`;
+    return FALLBACK_USD_TRY_RATES[key] || null;
+  }, [rates]);
+
+  // Get rate for any currency (USD, EUR) with fallback
+  const getCurrencyRate = useCallback((currency: string, targetYear: number, targetMonth: number): number | null => {
+    const key = `${targetYear}-${targetMonth}`;
+    
+    if (currency === 'USD') {
+      // First check database, then fallback
+      const dbRate = rates.find(r => r.year === targetYear && r.month === targetMonth);
+      if (dbRate) return Number(dbRate.rate);
+      return FALLBACK_USD_TRY_RATES[key] || null;
+    }
+    
+    if (currency === 'EUR') {
+      return FALLBACK_EUR_TRY_RATES[key] || null;
+    }
+    
+    // For other currencies, try to use USD rate as approximation
+    return getRate(targetYear, targetMonth);
+  }, [rates, getRate]);
+
+  // Check if rate exists for a specific month
+  const hasRate = useCallback((targetYear: number, targetMonth: number): boolean => {
+    return getRate(targetYear, targetMonth) !== null;
+  }, [getRate]);
+
+  // Convert TRY to USD
+  const convertToUsd = useCallback((amountTry: number, targetYear: number, targetMonth: number): number | null => {
+    const rate = getRate(targetYear, targetMonth);
+    if (!rate || rate === 0) return null;
+    return amountTry / rate;
+  }, [getRate]);
+
+  // Convert USD to TRY
+  const convertToTry = useCallback((amountUsd: number, targetYear: number, targetMonth: number): number | null => {
+    const rate = getRate(targetYear, targetMonth);
+    if (!rate) return null;
+    return amountUsd * rate;
+  }, [getRate]);
+
+  // Calculate yearly average rate (for months with data)
+  const yearlyAverageRate = useMemo(() => {
+    if (!rates.length) return null;
+    const sum = rates.reduce((acc, r) => acc + Number(r.rate), 0);
+    return sum / rates.length;
+  }, [rates]);
+
+  // Get available months for a year
+  const getAvailableMonths = useCallback((targetYear: number): number[] => {
+    return rates
+      .filter(r => r.year === targetYear)
+      .map(r => r.month);
+  }, [rates]);
 
   return {
     rates,
