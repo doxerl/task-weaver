@@ -46,11 +46,15 @@ serve(async (req) => {
     console.log('Fetching file and converting to base64...');
     const { dataUrl, mimeType } = await fetchAsBase64(imageUrl);
     
+    // Check file extension from URL for HTML files (storage may return text/plain)
+    const urlLower = imageUrl.toLowerCase();
+    const isHtmlByExtension = urlLower.endsWith('.html') || urlLower.endsWith('.htm');
+    
     // Validate mime type - now includes PDF and HTML
     const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf', 'text/html'];
-    const isSupported = supportedTypes.some(t => {
+    const isSupported = isHtmlByExtension || supportedTypes.some(t => {
       if (t === 'application/pdf') return mimeType.includes('pdf');
-      if (t === 'text/html') return mimeType.includes('html') || mimeType.includes('text/html');
+      if (t === 'text/html') return mimeType.includes('html');
       return mimeType.includes(t.split('/')[1]);
     });
     
@@ -65,7 +69,7 @@ serve(async (req) => {
     }
     
     const isPdf = mimeType.includes('pdf');
-    const isHtml = mimeType.includes('html') || mimeType.includes('text/html');
+    const isHtml = isHtmlByExtension || mimeType.includes('html');
     
     if (isPdf) {
       console.log('Processing PDF file with Gemini...');
