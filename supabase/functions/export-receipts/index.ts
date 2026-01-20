@@ -70,7 +70,7 @@ serve(async (req) => {
       .eq('id', user.id)
       .single();
 
-    // Fetch receipts with category
+    // Fetch receipts with category (specify foreign key to avoid ambiguity)
     const { data: receipts, error: receiptsError } = await supabase
       .from('receipts')
       .select(`
@@ -80,7 +80,7 @@ serve(async (req) => {
         subtotal, vat_rate, vat_amount, withholding_tax_amount, withholding_tax_rate,
         total_amount, currency, original_currency, original_amount,
         is_foreign_invoice, is_included_in_report, notes, file_name,
-        category:transaction_categories(name)
+        category:transaction_categories!receipts_category_id_fkey(name)
       `)
       .eq('user_id', user.id)
       .eq('year', year)
