@@ -211,6 +211,40 @@ export default function ReceiptUpload() {
       return { totalTRY, byCurrency };
     };
     
+    // Calculate domestic VAT totals and year breakdown
+    const calculateDomesticVatByYear = (receipts: typeof allDomestic) => {
+      const byYear: Record<number, { 
+        count: number; 
+        total: number; 
+        vat: number; 
+        subtotal: number 
+      }> = {};
+      
+      let totalVat = 0;
+      let totalSubtotal = 0;
+      
+      receipts.forEach(r => {
+        const year = r.year || (r.receipt_date ? new Date(r.receipt_date).getFullYear() : new Date(r.created_at || '').getFullYear());
+        const total = r.total_amount || 0;
+        const vat = r.vat_amount || 0;
+        // If subtotal exists use it, otherwise calculate from total - vat
+        const subtotal = r.subtotal || (total - vat);
+        
+        if (!byYear[year]) {
+          byYear[year] = { count: 0, total: 0, vat: 0, subtotal: 0 };
+        }
+        byYear[year].count++;
+        byYear[year].total += total;
+        byYear[year].vat += vat;
+        byYear[year].subtotal += subtotal;
+        
+        totalVat += vat;
+        totalSubtotal += subtotal;
+      });
+      
+      return { byYear, totalVat, totalSubtotal };
+    };
+    
     // TRY totals for included receipts (for "Tümü" filter)
     const domesticTRY = includedDomestic.reduce((sum, r) => sum + (r.total_amount || 0), 0);
     const { totalTRY: foreignTRY, byCurrency: foreignByCurrency } = calculateForeignTotals(includedForeign);
@@ -218,6 +252,9 @@ export default function ReceiptUpload() {
     // TRY totals for ALL receipts (for individual filters)
     const allDomesticTRY = allDomestic.reduce((sum, r) => sum + (r.total_amount || 0), 0);
     const { totalTRY: allForeignTRY, byCurrency: allForeignByCurrency } = calculateForeignTotals(allForeign);
+    
+    // Domestic VAT breakdown by year
+    const { byYear: domesticByYear, totalVat: domesticTotalVat, totalSubtotal: domesticTotalSubtotal } = calculateDomesticVatByYear(allDomestic);
     
     // Filtered receipts based on current filter (show ALL receipts of type, not just included)
     const filteredReceipts = receiptFilter === 'domestic' ? allDomestic 
@@ -243,6 +280,10 @@ export default function ReceiptUpload() {
       allForeignTRY,
       allForeignByCurrency,
       filteredReceipts,
+      // NEW: Domestic VAT breakdown by year
+      domesticByYear,
+      domesticTotalVat,
+      domesticTotalSubtotal,
     };
   }, [recentReceipts, receiptFilter, getCurrencyRate]);
 
@@ -935,14 +976,58 @@ export default function ReceiptUpload() {
                 )}
                 
                 {receiptFilter === 'domestic' && (
-                  <div>
-                    <p className="text-xs text-muted-foreground mb-1">Toplam Yurtiçi Fatura</p>
-                    <p className="text-2xl font-bold">
-                      ₺{receiptSummary.allDomesticTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                    </p>
-                    <p className="text-xs text-muted-foreground mt-1">
-                      {receiptSummary.allDomesticCount} adet belge
-                    </p>
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground">Yurtiçi Fatura Özeti (Yıla Göre)</p>
+                    
+                    {/* Year-by-year breakdown */}
+                    {Object.entries(receiptSummary.domesticByYear)
+                      .sort(([a], [b]) => Number(b) - Number(a)) // Descending by year
+                      .map(([year, data]) => (
+                        <div key={year} className="p-3 rounded-lg bg-background/50 border">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-semibold text-sm">{year}</span>
+                            <span className="text-xs text-muted-foreground">{data.count} belge</span>
+                          </div>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Matrah (KDV Hariç)</span>
+                              <span>₺{data.subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">KDV Tutarı</span>
+                              <span className="text-orange-600">₺{data.vat.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            <div className="flex justify-between font-medium pt-1 border-t border-dashed">
+                              <span>Toplam</span>
+                              <span>₺{data.total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    
+                    {/* Grand total summary */}
+                    {Object.keys(receiptSummary.domesticByYear).length > 1 && (
+                      <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-sm">Genel Toplam</span>
+                          <span className="text-xs text-muted-foreground">{receiptSummary.allDomesticCount} belge</span>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Toplam Matrah</span>
+                            <span>₺{receiptSummary.domesticTotalSubtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Toplam KDV</span>
+                            <span className="text-orange-600">₺{receiptSummary.domesticTotalVat.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex justify-between font-bold pt-1 border-t">
+                            <span>Genel Toplam</span>
+                            <span className="text-green-600">₺{receiptSummary.allDomesticTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 )}
                 
