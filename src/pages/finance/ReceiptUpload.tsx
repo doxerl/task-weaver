@@ -245,6 +245,51 @@ export default function ReceiptUpload() {
       return { byYear, totalVat, totalSubtotal };
     };
     
+    // Calculate foreign totals by year
+    const calculateForeignByYear = (receipts: typeof allForeign) => {
+      const byYear: Record<number, { 
+        count: number; 
+        byCurrency: Record<string, { amount: number; tryAmount: number; rate: number | null }>;
+        totalTRY: number;
+      }> = {};
+      
+      receipts.forEach(r => {
+        const year = r.year || (r.receipt_date ? new Date(r.receipt_date).getFullYear() : new Date(r.created_at || '').getFullYear());
+        const cur = r.original_currency || r.currency || 'USD';
+        const originalAmount = r.original_amount || r.total_amount || 0;
+        
+        let tryAmount = r.amount_try || 0;
+        let rate: number | null = null;
+        
+        if (!tryAmount && r.receipt_date) {
+          const receiptDate = new Date(r.receipt_date);
+          const rYear = receiptDate.getFullYear();
+          const month = receiptDate.getMonth() + 1;
+          rate = getCurrencyRate(cur, rYear, month);
+          if (rate) {
+            tryAmount = originalAmount * rate;
+          }
+        } else if (r.exchange_rate_used) {
+          rate = r.exchange_rate_used;
+        }
+        
+        if (!byYear[year]) {
+          byYear[year] = { count: 0, byCurrency: {}, totalTRY: 0 };
+        }
+        byYear[year].count++;
+        byYear[year].totalTRY += tryAmount;
+        
+        if (!byYear[year].byCurrency[cur]) {
+          byYear[year].byCurrency[cur] = { amount: 0, tryAmount: 0, rate };
+        }
+        byYear[year].byCurrency[cur].amount += originalAmount;
+        byYear[year].byCurrency[cur].tryAmount += tryAmount;
+        if (rate) byYear[year].byCurrency[cur].rate = rate;
+      });
+      
+      return byYear;
+    };
+    
     // TRY totals for included receipts (for "Tümü" filter)
     const domesticTRY = includedDomestic.reduce((sum, r) => sum + (r.total_amount || 0), 0);
     const { totalTRY: foreignTRY, byCurrency: foreignByCurrency } = calculateForeignTotals(includedForeign);
@@ -255,6 +300,9 @@ export default function ReceiptUpload() {
     
     // Domestic VAT breakdown by year
     const { byYear: domesticByYear, totalVat: domesticTotalVat, totalSubtotal: domesticTotalSubtotal } = calculateDomesticVatByYear(allDomestic);
+    
+    // Foreign breakdown by year
+    const foreignByYear = calculateForeignByYear(allForeign);
     
     // Filtered receipts based on current filter (show ALL receipts of type, not just included)
     const filteredReceipts = receiptFilter === 'domestic' ? allDomestic 
@@ -284,6 +332,8 @@ export default function ReceiptUpload() {
       domesticByYear,
       domesticTotalVat,
       domesticTotalSubtotal,
+      // NEW: Foreign breakdown by year
+      foreignByYear,
     };
   }, [recentReceipts, receiptFilter, getCurrencyRate]);
 
@@ -1033,25 +1083,69 @@ export default function ReceiptUpload() {
                 
                 {receiptFilter === 'foreign' && (
                   <div className="space-y-3">
-                    <p className="text-xs text-muted-foreground">Toplam Yurtdışı Fatura</p>
-                    {Object.entries(receiptSummary.allForeignByCurrency).map(([cur, data]) => (
-                      <div key={cur} className="flex items-center justify-between">
-                        <div>
-                          <span className="text-lg font-bold text-blue-600">
-                            {cur === 'USD' ? '$' : cur === 'EUR' ? '€' : cur}
-                            {data.amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                          </span>
-                          {data.rate && (
-                            <p className="text-xs text-muted-foreground">
-                              Kur: 1 {cur} = {data.rate.toFixed(2)} TRY
-                            </p>
-                          )}
+                    <p className="text-xs text-muted-foreground">Yurtdışı Fatura Özeti (Yıla Göre)</p>
+                    
+                    {/* Year-by-year breakdown */}
+                    {Object.entries(receiptSummary.foreignByYear)
+                      .sort(([a], [b]) => Number(b) - Number(a)) // Descending by year
+                      .map(([year, data]) => (
+                        <div key={year} className="p-3 rounded-lg bg-background/50 border">
+                          <div className="flex items-center justify-between mb-2">
+                            <span className="font-semibold text-sm">{year}</span>
+                            <span className="text-xs text-muted-foreground">{data.count} belge</span>
+                          </div>
+                          <div className="space-y-2">
+                            {Object.entries(data.byCurrency).map(([cur, curData]) => (
+                              <div key={cur} className="flex items-center justify-between text-sm">
+                                <div>
+                                  <span className="font-medium text-blue-600">
+                                    {cur === 'USD' ? '$' : cur === 'EUR' ? '€' : cur}
+                                    {curData.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                                  </span>
+                                  {curData.rate && (
+                                    <span className="text-xs text-muted-foreground ml-2">
+                                      (Kur: {curData.rate.toFixed(2)})
+                                    </span>
+                                  )}
+                                </div>
+                                <span className="text-muted-foreground">
+                                  → ₺{curData.tryAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            ))}
+                            <div className="flex justify-between font-medium pt-1 border-t border-dashed text-sm">
+                              <span>TRY Toplam</span>
+                              <span>₺{data.totalTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                          </div>
                         </div>
-                        <span className="text-sm text-muted-foreground">
-                          → ₺{data.tryAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                        </span>
+                      ))}
+                    
+                    {/* Grand total summary */}
+                    {Object.keys(receiptSummary.foreignByYear).length > 1 && (
+                      <div className="p-3 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-sm">Genel Toplam</span>
+                          <span className="text-xs text-muted-foreground">{receiptSummary.allForeignCount} belge</span>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          {Object.entries(receiptSummary.allForeignByCurrency).map(([cur, data]) => (
+                            <div key={cur} className="flex justify-between">
+                              <span className="text-muted-foreground">Toplam {cur}</span>
+                              <span className="text-blue-600">
+                                {cur === 'USD' ? '$' : cur === 'EUR' ? '€' : cur}
+                                {data.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          ))}
+                          <div className="flex justify-between font-bold pt-1 border-t">
+                            <span>Genel Toplam (TRY)</span>
+                            <span className="text-green-600">₺{receiptSummary.allForeignTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                        </div>
                       </div>
-                    ))}
+                    )}
+                    
                     {receiptSummary.allForeignCount === 0 && (
                       <p className="text-sm text-muted-foreground">Yurtdışı fatura bulunmuyor</p>
                     )}
