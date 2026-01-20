@@ -6,6 +6,38 @@ import { Receipt, DocumentType, ReceiptSubtype } from '@/types/finance';
 import { useState, useCallback } from 'react';
 import { useExchangeRates } from './useExchangeRates';
 
+// Batch upload types
+export interface BatchFileResult {
+  fileName: string;
+  status: 'pending' | 'processing' | 'success' | 'failed' | 'duplicate';
+  receipt?: Receipt;
+  error?: string;
+}
+
+export interface BatchProgress {
+  currentBatch: number;
+  totalBatches: number;
+  currentFile: string;
+  processedFiles: number;
+  totalFiles: number;
+  successCount: number;
+  failedCount: number;
+  duplicateCount: number;
+  results: BatchFileResult[];
+}
+
+const BATCH_SIZE = 3; // Process 3 files in parallel
+const BATCH_DELAY_MS = 500; // Delay between batches to prevent rate limiting
+
+// Helper to chunk array
+function chunkArray<T>(arr: T[], size: number): T[][] {
+  const chunks: T[][] = [];
+  for (let i = 0; i < arr.length; i += size) {
+    chunks.push(arr.slice(i, i + size));
+  }
+  return chunks;
+}
+
 export function useReceipts(year?: number, month?: number) {
   const { user } = useAuthContext();
   const queryClient = useQueryClient();
@@ -19,6 +51,9 @@ export function useReceipts(year?: number, month?: number) {
   const [reprocessProgress, setReprocessProgress] = useState(0);
   const [reprocessedCount, setReprocessedCount] = useState(0);
   const [reprocessResults, setReprocessResults] = useState<Array<{ id: string; success: boolean; vatAmount?: number }>>([]);
+  
+  // Batch upload state
+  const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
 
   const { data: receipts = [], isLoading, error } = useQuery({
     queryKey: ['receipts', user?.id, year, month],
@@ -407,6 +442,222 @@ export function useReceipts(year?: number, month?: number) {
     return results;
   }, [reprocessReceipt, queryClient, toast]);
 
+  // Batch upload single file processor
+  const processFileForBatch = async (
+    file: File,
+    documentType: DocumentType,
+    receiptSubtype?: ReceiptSubtype
+  ): Promise<{ receipt: Receipt | null; status: 'success' | 'failed' | 'duplicate'; error?: string }> => {
+    if (!user?.id) throw new Error('Giriş yapmalısınız');
+    
+    const ext = file.name.split('.').pop()?.toLowerCase() || '';
+    const isXml = ext === 'xml';
+    const isImage = file.type.startsWith('image/');
+    const fileExt = ext || (isImage ? 'jpg' : 'pdf');
+    const path = `${user.id}/receipts/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
+    
+    // Upload file to storage
+    const { error: uploadError } = await supabase.storage
+      .from('finance-files')
+      .upload(path, file);
+    
+    if (uploadError) throw uploadError;
+
+    const { data: { publicUrl } } = supabase.storage
+      .from('finance-files')
+      .getPublicUrl(path);
+    
+    // Handle XML e-Fatura
+    if (isXml) {
+      const xmlContent = await file.text();
+      
+      const { data: xmlData, error: xmlError } = await supabase.functions.invoke('parse-xml-invoice', {
+        body: { xmlContent, documentType }
+      });
+      
+      if (xmlError) throw xmlError;
+      
+      const ocr = xmlData?.result || {};
+      const saveResult = await saveReceiptFromOCR(ocr, publicUrl, file.name, 'xml', documentType, 'invoice');
+      
+      if (saveResult.skipped) {
+        return { receipt: null, status: 'duplicate', error: saveResult.duplicateInfo };
+      }
+      
+      return { receipt: saveResult.receipt, status: 'success' };
+    }
+
+    // Handle images and PDFs
+    const { data: ocrData, error: ocrError } = await supabase.functions.invoke('parse-receipt', {
+      body: { imageUrl: publicUrl, documentType }
+    });
+    
+    if (ocrError) throw ocrError;
+    const ocr = ocrData?.result || {};
+    
+    const saveResult = await saveReceiptFromOCR(
+      ocr,
+      publicUrl,
+      file.name,
+      isImage ? 'image' : 'pdf',
+      documentType,
+      receiptSubtype
+    );
+    
+    if (saveResult.skipped) {
+      return { receipt: null, status: 'duplicate', error: saveResult.duplicateInfo };
+    }
+    
+    return { receipt: saveResult.receipt, status: 'success' };
+  };
+
+  // Batch upload mutation
+  const uploadReceiptsBatch = useMutation({
+    mutationFn: async ({ 
+      files, 
+      documentType = 'received', 
+      receiptSubtype,
+      onProgress
+    }: { 
+      files: File[]; 
+      documentType?: DocumentType; 
+      receiptSubtype?: ReceiptSubtype;
+      onProgress?: (progress: BatchProgress) => void;
+    }): Promise<BatchFileResult[]> => {
+      if (!user?.id) throw new Error('Giriş yapmalısınız');
+      
+      // Filter out ZIP files - they should use single upload
+      const nonZipFiles = files.filter(f => !f.name.toLowerCase().endsWith('.zip'));
+      
+      const results: BatchFileResult[] = nonZipFiles.map(f => ({
+        fileName: f.name,
+        status: 'pending' as const
+      }));
+      
+      const batches = chunkArray(nonZipFiles, BATCH_SIZE);
+      let processedCount = 0;
+      let successCount = 0;
+      let failedCount = 0;
+      let duplicateCount = 0;
+      
+      for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
+        const batch = batches[batchIndex];
+        
+        // Update progress for batch start
+        const progress: BatchProgress = {
+          currentBatch: batchIndex + 1,
+          totalBatches: batches.length,
+          currentFile: batch.map(f => f.name).join(', '),
+          processedFiles: processedCount,
+          totalFiles: nonZipFiles.length,
+          successCount,
+          failedCount,
+          duplicateCount,
+          results: [...results]
+        };
+        
+        setBatchProgress(progress);
+        onProgress?.(progress);
+        
+        // Mark batch files as processing
+        batch.forEach((file) => {
+          const idx = nonZipFiles.indexOf(file);
+          if (idx >= 0) {
+            results[idx].status = 'processing';
+          }
+        });
+        
+        // Process batch in parallel
+        const batchResults = await Promise.allSettled(
+          batch.map(file => processFileForBatch(file, documentType, receiptSubtype))
+        );
+        
+        // Update results
+        batchResults.forEach((result, idx) => {
+          const fileIndex = batchIndex * BATCH_SIZE + idx;
+          
+          if (result.status === 'fulfilled') {
+            const { receipt, status, error } = result.value;
+            results[fileIndex] = {
+              fileName: nonZipFiles[fileIndex].name,
+              status,
+              receipt: receipt || undefined,
+              error
+            };
+            
+            if (status === 'success') successCount++;
+            else if (status === 'duplicate') duplicateCount++;
+          } else {
+            results[fileIndex] = {
+              fileName: nonZipFiles[fileIndex].name,
+              status: 'failed',
+              error: result.reason?.message || 'Bilinmeyen hata'
+            };
+            failedCount++;
+          }
+          
+          processedCount++;
+        });
+        
+        // Update progress after batch
+        const updatedProgress: BatchProgress = {
+          currentBatch: batchIndex + 1,
+          totalBatches: batches.length,
+          currentFile: '',
+          processedFiles: processedCount,
+          totalFiles: nonZipFiles.length,
+          successCount,
+          failedCount,
+          duplicateCount,
+          results: [...results]
+        };
+        
+        setBatchProgress(updatedProgress);
+        onProgress?.(updatedProgress);
+        
+        // Delay between batches (except last)
+        if (batchIndex < batches.length - 1) {
+          await new Promise(r => setTimeout(r, BATCH_DELAY_MS));
+        }
+      }
+      
+      return results;
+    },
+    onSuccess: async (results) => {
+      queryClient.invalidateQueries({ queryKey: ['receipts'] });
+      
+      const successReceipts = results.filter(r => r.status === 'success' && r.receipt);
+      const duplicateCount = results.filter(r => r.status === 'duplicate').length;
+      const failedCount = results.filter(r => r.status === 'failed').length;
+      
+      let message = `${successReceipts.length} belge yüklendi`;
+      if (duplicateCount > 0) message += `, ${duplicateCount} duplike atlandı`;
+      if (failedCount > 0) message += `, ${failedCount} başarısız`;
+      
+      toast({ title: message });
+      
+      // Trigger auto-matching for successful receipts
+      for (const result of successReceipts) {
+        if (result.receipt?.id) {
+          try {
+            await supabase.functions.invoke('match-receipts', {
+              body: { receiptId: result.receipt.id }
+            });
+          } catch (e) {
+            console.warn('Auto-match failed:', e);
+          }
+        }
+      }
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Hata', description: error.message, variant: 'destructive' });
+    },
+    onSettled: () => {
+      // Keep batch progress visible for a moment, then clear
+      setTimeout(() => setBatchProgress(null), 2000);
+    }
+  });
+
   const updateCategory = useMutation({
     mutationFn: async ({ id, categoryId }: { id: string; categoryId: string | null }) => {
       const { error } = await supabase
@@ -491,6 +742,10 @@ export function useReceipts(year?: number, month?: number) {
     stats,
     uploadProgress,
     uploadReceipt, 
+    // Batch upload
+    uploadReceiptsBatch,
+    batchProgress,
+    isBatchUploading: uploadReceiptsBatch.isPending,
     updateCategory,
     toggleIncludeInReport,
     deleteReceipt,
