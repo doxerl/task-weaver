@@ -5,6 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code, FileCheck, Globe, Home, Check, AlertCircle, Copy, RefreshCw, Download, ChevronDown } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
@@ -49,7 +50,7 @@ function FileStatusIcon({ status }: { status: BatchFileResult['status'] }) {
 export default function ReceiptUpload() {
   const isMobile = useIsMobile();
   const { toast } = useToast();
-  const { selectedYear } = useYear();
+  const { selectedYear, setSelectedYear } = useYear();
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExportExcel = async (filter: ExportFilter) => {
@@ -388,43 +389,58 @@ export default function ReceiptUpload() {
             </Link>
             <h1 className="text-xl font-bold">Fiş/Fatura Yükle</h1>
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                disabled={isExporting}
-                className="gap-1"
-              >
-                {isExporting ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Download className="h-4 w-4" />
-                )}
-                {isExporting ? 'İndiriliyor...' : 'Excel'}
-                <ChevronDown className="h-3 w-3" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="bg-popover">
-              <DropdownMenuItem onClick={() => handleExportExcel('all')}>
-                📊 Tümünü Export Et
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleExportExcel('slip')}>
-                🧾 Sadece Alınan Fişler
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExportExcel('invoice')}>
-                📄 Sadece Alınan Faturalar
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => handleExportExcel('issued')}>
-                📝 Sadece Kesilen Faturalar
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={() => handleExportExcel('foreign')}>
-                🌍 Sadece Yurtdışı Belgeler
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
+          <div className="flex items-center gap-2">
+            <Select 
+              value={String(selectedYear)} 
+              onValueChange={v => setSelectedYear(Number(v))}
+            >
+              <SelectTrigger className="w-20 h-9">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {[2024, 2025, 2026].map(y => (
+                  <SelectItem key={y} value={String(y)}>{y}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button 
+                  variant="outline" 
+                  size="sm" 
+                  disabled={isExporting}
+                  className="gap-1"
+                >
+                  {isExporting ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Download className="h-4 w-4" />
+                  )}
+                  {isExporting ? 'İndiriliyor...' : 'Excel'}
+                  <ChevronDown className="h-3 w-3" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="bg-popover">
+                <DropdownMenuItem onClick={() => handleExportExcel('all')}>
+                  📊 Tümünü Export Et
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleExportExcel('slip')}>
+                  🧾 Sadece Alınan Fişler
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExportExcel('invoice')}>
+                  📄 Sadece Alınan Faturalar
+                </DropdownMenuItem>
+                <DropdownMenuItem onClick={() => handleExportExcel('issued')}>
+                  📝 Sadece Kesilen Faturalar
+                </DropdownMenuItem>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleExportExcel('foreign')}>
+                  🌍 Sadece Yurtdışı Belgeler
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
         </div>
 
         {/* Document Type Selection - Kesilen / Alınan */}

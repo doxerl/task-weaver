@@ -7,6 +7,39 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+// Fallback exchange rates (same as useExchangeRates.ts)
+const FALLBACK_USD_TRY: Record<string, number> = {
+  '2024-1': 30.12, '2024-2': 30.85, '2024-3': 32.14, '2024-4': 32.34, 
+  '2024-5': 32.24, '2024-6': 32.53, '2024-7': 32.93, '2024-8': 33.59, 
+  '2024-9': 34.05, '2024-10': 34.24, '2024-11': 34.49, '2024-12': 34.86,
+  '2025-1': 35.44, '2025-2': 36.07, '2025-3': 36.42, '2025-4': 38.00, 
+  '2025-5': 38.50, '2025-6': 39.00, '2025-7': 39.50, '2025-8': 40.00, 
+  '2025-9': 40.50, '2025-10': 41.00, '2025-11': 41.50, '2025-12': 42.00,
+  '2026-1': 43.00, '2026-2': 43.50, '2026-3': 44.00, '2026-4': 44.50, 
+  '2026-5': 45.00, '2026-6': 45.50, '2026-7': 46.00, '2026-8': 46.50, 
+  '2026-9': 47.00, '2026-10': 47.50, '2026-11': 48.00, '2026-12': 48.50,
+};
+
+const FALLBACK_EUR_TRY: Record<string, number> = {
+  '2024-1': 32.83, '2024-2': 33.32, '2024-3': 34.82, '2024-4': 34.40, 
+  '2024-5': 34.96, '2024-6': 34.95, '2024-7': 35.66, '2024-8': 37.17, 
+  '2024-9': 37.79, '2024-10': 37.32, '2024-11': 36.37, '2024-12': 36.55,
+  '2025-1': 36.64, '2025-2': 37.52, '2025-3': 39.50, '2025-4': 43.40, 
+  '2025-5': 43.84, '2025-6': 44.50, '2025-7': 45.00, '2025-8': 45.50, 
+  '2025-9': 46.00, '2025-10': 46.50, '2025-11': 47.00, '2025-12': 47.50,
+  '2026-1': 48.00, '2026-2': 48.50, '2026-3': 49.00, '2026-4': 49.50, 
+  '2026-5': 50.00, '2026-6': 50.50, '2026-7': 51.00, '2026-8': 51.50, 
+  '2026-9': 52.00, '2026-10': 52.50, '2026-11': 53.00, '2026-12': 53.50,
+};
+
+// Get exchange rate for a specific currency, year and month
+function getExchangeRate(currency: string, year: number, month: number): number | null {
+  const key = `${year}-${month}`;
+  if (currency === 'USD') return FALLBACK_USD_TRY[key] || null;
+  if (currency === 'EUR') return FALLBACK_EUR_TRY[key] || null;
+  return null;
+}
+
 interface Receipt {
   id: string;
   receipt_date: string | null;
@@ -28,6 +61,8 @@ interface Receipt {
   currency: string | null;
   original_currency: string | null;
   original_amount: number | null;
+  amount_try: number | null;
+  exchange_rate_used: number | null;
   is_foreign_invoice: boolean | null;
   is_included_in_report: boolean | null;
   notes: string | null;
@@ -82,7 +117,7 @@ serve(async (req) => {
         seller_name, seller_tax_no, vendor_name, vendor_tax_no,
         buyer_name, buyer_tax_no,
         subtotal, vat_rate, vat_amount, withholding_tax_amount, withholding_tax_rate,
-        total_amount, currency, original_currency, original_amount,
+        total_amount, currency, original_currency, original_amount, amount_try, exchange_rate_used,
         is_foreign_invoice, is_included_in_report, notes, file_name,
         category:transaction_categories!receipts_category_id_fkey(name)
       `)
@@ -133,18 +168,67 @@ serve(async (req) => {
         break;
     }
 
+    // Helper to calculate TRY amount for foreign receipt
+    const calculateTryAmount = (r: Receipt): { tryAmount: number; rate: number | null } => {
+      const isForeign = r.is_foreign_invoice || (r.currency && r.currency !== 'TRY');
+      if (!isForeign) return { tryAmount: r.total_amount || 0, rate: null };
+      
+      // Use stored amount_try if available
+      if (r.amount_try) {
+        return { tryAmount: r.amount_try, rate: r.exchange_rate_used || null };
+      }
+      
+      // Calculate using exchange rate
+      const currency = r.original_currency || r.currency || 'USD';
+      const originalAmount = r.original_amount || r.total_amount || 0;
+      
+      if (r.receipt_date) {
+        const receiptDate = new Date(r.receipt_date);
+        const receiptYear = receiptDate.getFullYear();
+        const receiptMonth = receiptDate.getMonth() + 1;
+        const rate = getExchangeRate(currency, receiptYear, receiptMonth);
+        if (rate) {
+          return { tryAmount: originalAmount * rate, rate };
+        }
+      }
+      
+      // Fallback to total_amount if no rate found
+      return { tryAmount: r.total_amount || 0, rate: null };
+    };
+
     // Calculate totals for stats
     const calcStats = (items: Receipt[]) => {
       const total = items.reduce((sum, r) => sum + (r.total_amount || 0), 0);
       const vatTotal = items.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
       const reportTotal = items.filter(r => r.is_included_in_report)
         .reduce((sum, r) => sum + (r.total_amount || 0), 0);
-      const foreignCount = items.filter(r => r.is_foreign_invoice).length;
-      const foreignByUSD = items.filter(r => r.is_foreign_invoice && (r.original_currency || r.currency) === 'USD')
-        .reduce((sum, r) => sum + (r.original_amount || r.total_amount || 0), 0);
-      const foreignByEUR = items.filter(r => r.is_foreign_invoice && (r.original_currency || r.currency) === 'EUR')
-        .reduce((sum, r) => sum + (r.original_amount || r.total_amount || 0), 0);
-      return { total, vatTotal, reportTotal, foreignCount, foreignByUSD, foreignByEUR, count: items.length };
+      
+      // Calculate foreign totals with proper TRY conversion
+      const foreignItems = items.filter(r => r.is_foreign_invoice);
+      let foreignTRYTotal = 0;
+      let foreignByUSD = 0;
+      let foreignByEUR = 0;
+      
+      foreignItems.forEach(r => {
+        const currency = r.original_currency || r.currency || 'USD';
+        const originalAmount = r.original_amount || r.total_amount || 0;
+        const { tryAmount } = calculateTryAmount(r);
+        
+        foreignTRYTotal += tryAmount;
+        if (currency === 'USD') foreignByUSD += originalAmount;
+        if (currency === 'EUR') foreignByEUR += originalAmount;
+      });
+      
+      return { 
+        total, 
+        vatTotal, 
+        reportTotal, 
+        foreignCount: foreignItems.length, 
+        foreignTRYTotal,
+        foreignByUSD, 
+        foreignByEUR, 
+        count: items.length 
+      };
     };
 
     // Create workbook
@@ -163,13 +247,14 @@ serve(async (req) => {
     // ===== HELPER: Create receipt sheet =====
     const createReceiptSheet = (items: Receipt[], isReceived: boolean) => {
       const headers = isReceived 
-        ? ['Tarih', 'Fiş/Fatura No', 'Satıcı Adı', 'Satıcı VKN', 'Ara Toplam', 'KDV %', 'KDV Tutarı', 'Stopaj', 'Toplam', 'Para Birimi', 'Orijinal Tutar', 'Yurtdışı', 'Kategori', 'Rapora Dahil', 'Notlar', 'Dosya Adı']
-        : ['Tarih', 'Fatura No', 'Alıcı Adı', 'Alıcı VKN', 'Ara Toplam', 'KDV %', 'KDV Tutarı', 'Stopaj Kesintisi', 'Net Tutar', 'Para Birimi', 'Orijinal Tutar', 'Yurtdışı', 'Kategori', 'Rapora Dahil', 'Notlar', 'Dosya Adı'];
+        ? ['Tarih', 'Fiş/Fatura No', 'Satıcı Adı', 'Satıcı VKN', 'Ara Toplam', 'KDV %', 'KDV Tutarı', 'Stopaj', 'Toplam', 'Para Birimi', 'Orijinal Tutar', 'Kullanılan Kur', 'TRY Karşılığı', 'Yurtdışı', 'Kategori', 'Rapora Dahil', 'Notlar', 'Dosya Adı']
+        : ['Tarih', 'Fatura No', 'Alıcı Adı', 'Alıcı VKN', 'Ara Toplam', 'KDV %', 'KDV Tutarı', 'Stopaj Kesintisi', 'Net Tutar', 'Para Birimi', 'Orijinal Tutar', 'Kullanılan Kur', 'TRY Karşılığı', 'Yurtdışı', 'Kategori', 'Rapora Dahil', 'Notlar', 'Dosya Adı'];
 
       const rows = items.map(r => {
         const isForeign = r.is_foreign_invoice || (r.currency && r.currency !== 'TRY');
         const displayCurrency = isForeign ? (r.original_currency || r.currency || 'USD') : 'TRY';
         const originalAmount = isForeign ? (r.original_amount || r.total_amount || 0) : null;
+        const { tryAmount, rate } = calculateTryAmount(r);
         
         return isReceived ? [
           formatDate(r.receipt_date),
@@ -183,6 +268,8 @@ serve(async (req) => {
           r.total_amount || 0,
           displayCurrency,
           originalAmount,
+          isForeign ? (rate || '-') : '-',
+          isForeign ? tryAmount : (r.total_amount || 0),
           isForeign ? 'Evet' : 'Hayır',
           r.category?.name || '',
           r.is_included_in_report ? 'Evet' : 'Hayır',
@@ -200,6 +287,8 @@ serve(async (req) => {
           r.total_amount || 0,
           r.currency || 'TRY',
           originalAmount,
+          isForeign ? (rate || '-') : '-',
+          isForeign ? tryAmount : (r.total_amount || 0),
           isForeign ? 'Evet' : 'Hayır',
           r.category?.name || '',
           r.is_included_in_report ? 'Evet' : 'Hayır',
@@ -215,7 +304,7 @@ serve(async (req) => {
       sheet['!cols'] = [
         { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 14 }, { wch: 14 },
         { wch: 8 }, { wch: 12 }, { wch: 12 }, { wch: 14 }, { wch: 10 },
-        { wch: 14 }, { wch: 10 }, { wch: 18 }, { wch: 12 }, { wch: 25 }, { wch: 30 },
+        { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 18 }, { wch: 12 }, { wch: 25 }, { wch: 30 },
       ];
 
       return sheet;
@@ -223,7 +312,7 @@ serve(async (req) => {
 
     // ===== HELPER: Create foreign receipts sheet =====
     const createForeignSheet = (items: Receipt[]) => {
-      const headers = ['Belge Türü', 'Tarih', 'Belge No', 'Satıcı/Alıcı', 'VKN', 'Orijinal Para Birimi', 'Orijinal Tutar', 'TRY Karşılığı', 'Kategori', 'Rapora Dahil', 'Dosya Adı'];
+      const headers = ['Belge Türü', 'Tarih', 'Belge No', 'Satıcı/Alıcı', 'VKN', 'Orijinal Para Birimi', 'Orijinal Tutar', 'Kullanılan Kur', 'TRY Karşılığı', 'Kategori', 'Rapora Dahil', 'Dosya Adı'];
 
       const rows = items.map(r => {
         const isReceived = r.document_type !== 'issued';
@@ -236,15 +325,20 @@ serve(async (req) => {
           ? (r.seller_tax_no || r.vendor_tax_no || '') 
           : (r.buyer_tax_no || '');
         
+        const currency = r.original_currency || r.currency || 'USD';
+        const originalAmount = r.original_amount || r.total_amount || 0;
+        const { tryAmount, rate } = calculateTryAmount(r);
+        
         return [
           docTypeLabel,
           formatDate(r.receipt_date),
           r.receipt_no || '',
           partyName,
           partyTaxNo,
-          r.original_currency || r.currency || 'USD',
-          r.original_amount || r.total_amount || 0,
-          r.total_amount || 0,
+          currency,
+          originalAmount,
+          rate || '-',
+          tryAmount,
           r.category?.name || '',
           r.is_included_in_report ? 'Evet' : 'Hayır',
           r.file_name || ''
@@ -256,7 +350,7 @@ serve(async (req) => {
       
       sheet['!cols'] = [
         { wch: 15 }, { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 14 },
-        { wch: 18 }, { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 30 },
+        { wch: 18 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 30 },
       ];
 
       return sheet;
@@ -282,7 +376,7 @@ serve(async (req) => {
         [],
         ['İSTATİSTİKLER'],
         ['Toplam Belge Sayısı:', exportForeign.length],
-        ['Toplam TRY Karşılığı:', foreignStats.total],
+        ['Toplam TRY Karşılığı:', foreignStats.foreignTRYTotal],
         ['USD Toplam:', foreignStats.foreignByUSD],
         ['EUR Toplam:', foreignStats.foreignByEUR],
       ];
@@ -406,6 +500,7 @@ serve(async (req) => {
         ['Toplam Yurtdışı Fatura:', slipStats.foreignCount + invoiceStats.foreignCount + issuedStats.foreignCount],
         ['USD Toplam:', slipStats.foreignByUSD + invoiceStats.foreignByUSD + issuedStats.foreignByUSD],
         ['EUR Toplam:', slipStats.foreignByEUR + invoiceStats.foreignByEUR + issuedStats.foreignByEUR],
+        ['Toplam TRY Karşılığı:', slipStats.foreignTRYTotal + invoiceStats.foreignTRYTotal + issuedStats.foreignTRYTotal],
       ];
       const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
       summarySheet['!cols'] = [{ wch: 25 }, { wch: 12 }, { wch: 18 }, { wch: 18 }, { wch: 15 }];
