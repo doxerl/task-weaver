@@ -7,7 +7,8 @@ import {
   Edit2, 
   RefreshCw, 
   AlertTriangle,
-  CheckCircle2 
+  CheckCircle2,
+  Globe
 } from 'lucide-react';
 import { Receipt } from '@/types/finance';
 import { cn } from '@/lib/utils';
@@ -32,6 +33,10 @@ export function UploadedReceiptCard({
   const hasMissingVat = !receipt.vat_amount && receipt.vat_amount !== 0;
   const hasMissingSeller = !receipt.seller_name;
   const hasWarnings = hasMissingVat || hasMissingSeller;
+  
+  // Foreign invoice detection
+  const isForeignInvoice = receipt.is_foreign_invoice === true || 
+    (receipt.currency && receipt.currency !== 'TRY');
   
   const formatCurrency = (amount: number | null | undefined) => {
     if (amount === null || amount === undefined) return '-';
@@ -74,9 +79,18 @@ export function UploadedReceiptCard({
             {/* Seller Info */}
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h3 className="font-semibold text-sm truncate">
-                  {receipt.seller_name || 'Satıcı bilgisi yok'}
-                </h3>
+                <div className="flex items-center gap-2">
+                  <h3 className="font-semibold text-sm truncate">
+                    {receipt.seller_name || 'Satıcı bilgisi yok'}
+                  </h3>
+                  {/* Foreign Invoice Badge */}
+                  {isForeignInvoice && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 flex items-center gap-1 flex-shrink-0">
+                      <Globe className="h-3 w-3" />
+                      Yurtdışı
+                    </span>
+                  )}
+                </div>
                 {receipt.seller_tax_no && (
                   <p className="text-xs text-muted-foreground">
                     VKN: {receipt.seller_tax_no}
@@ -154,6 +168,21 @@ export function UploadedReceiptCard({
             
             <span className="font-semibold">TOPLAM</span>
             <span className="text-right font-bold">{formatCurrency(receipt.total_amount)}</span>
+            
+            {/* Foreign Invoice: Exchange Rate & TRY Equivalent */}
+            {isForeignInvoice && receipt.amount_try && receipt.exchange_rate_used && (
+              <>
+                <span className="text-muted-foreground text-xs">Döviz Kuru</span>
+                <span className="text-right text-xs">
+                  1 {receipt.original_currency || receipt.currency} = {receipt.exchange_rate_used.toFixed(4)} TRY
+                </span>
+                
+                <span className="text-muted-foreground font-medium">TRY Karşılığı</span>
+                <span className="text-right font-bold text-blue-600">
+                  ₺{receipt.amount_try.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                </span>
+              </>
+            )}
           </div>
         </div>
 
