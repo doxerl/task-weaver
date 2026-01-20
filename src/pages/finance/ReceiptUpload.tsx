@@ -2,14 +2,17 @@ import { useCallback, useState, useRef, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code, FileCheck, Globe } from 'lucide-react';
+import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code, FileCheck, Globe, Home } from 'lucide-react';
 import { useReceipts } from '@/hooks/finance/useReceipts';
+import { useExchangeRates } from '@/hooks/finance/useExchangeRates';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { DocumentType, Receipt, ReceiptSubtype } from '@/types/finance';
 import { UploadedReceiptCard } from '@/components/finance/UploadedReceiptCard';
 import { ReceiptEditSheet } from '@/components/finance/ReceiptEditSheet';
 import { useIsMobile } from '@/hooks/use-mobile';
+
+type ReceiptFilter = 'all' | 'domestic' | 'foreign';
 
 // Helper to get file type info
 function getFileTypeInfo(file: File) {
@@ -40,6 +43,9 @@ export default function ReceiptUpload() {
     toggleIncludeInReport,
     isReprocessing
   } = useReceipts();
+
+  // Exchange rates for TRY conversion
+  const { getCurrencyRate } = useExchangeRates();
   
   const [documentType, setDocumentType] = useState<DocumentType>(initialType);
   const [receiptSubtype, setReceiptSubtype] = useState<ReceiptSubtype>(initialSubtype);
@@ -58,35 +64,69 @@ export default function ReceiptUpload() {
   const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
   const [editSheetOpen, setEditSheetOpen] = useState(false);
 
-  // Summary calculations
+  // Filter state for summary
+  const [receiptFilter, setReceiptFilter] = useState<ReceiptFilter>('all');
+
+  // Summary calculations with filter support and exchange rate conversion
   const receiptSummary = useMemo(() => {
     const included = recentReceipts.filter(r => r.is_included_in_report);
-    const domestic = included.filter(r => !r.is_foreign_invoice && r.currency === 'TRY');
+    const domestic = included.filter(r => !r.is_foreign_invoice && (!r.currency || r.currency === 'TRY'));
     const foreign = included.filter(r => r.is_foreign_invoice || (r.currency && r.currency !== 'TRY'));
     
     // TRY total from domestic invoices
     const domesticTRY = domestic.reduce((sum, r) => sum + (r.total_amount || 0), 0);
     
-    // Foreign invoices TRY equivalent
-    const foreignTRY = foreign.reduce((sum, r) => sum + (r.amount_try || 0), 0);
+    // Foreign invoices - calculate TRY using exchange rates
+    let foreignTRY = 0;
+    const foreignByCurrency: Record<string, { amount: number; tryAmount: number; rate: number | null }> = {};
     
-    // Foreign invoices by original currency
-    const foreignByCurrency: Record<string, number> = {};
     foreign.forEach(r => {
       const cur = r.original_currency || r.currency || 'USD';
-      foreignByCurrency[cur] = (foreignByCurrency[cur] || 0) + (r.original_amount || r.total_amount || 0);
+      const originalAmount = r.original_amount || r.total_amount || 0;
+      
+      // Get exchange rate for the receipt's month
+      let tryAmount = r.amount_try || 0;
+      let rate: number | null = null;
+      
+      if (!tryAmount && r.receipt_date) {
+        const receiptDate = new Date(r.receipt_date);
+        const year = receiptDate.getFullYear();
+        const month = receiptDate.getMonth() + 1;
+        rate = getCurrencyRate(cur, year, month);
+        if (rate) {
+          tryAmount = originalAmount * rate;
+        }
+      } else if (r.exchange_rate_used) {
+        rate = r.exchange_rate_used;
+      }
+      
+      foreignTRY += tryAmount;
+      
+      if (!foreignByCurrency[cur]) {
+        foreignByCurrency[cur] = { amount: 0, tryAmount: 0, rate };
+      }
+      foreignByCurrency[cur].amount += originalAmount;
+      foreignByCurrency[cur].tryAmount += tryAmount;
+      if (rate) foreignByCurrency[cur].rate = rate;
     });
+    
+    // Filtered receipts based on current filter
+    const filteredReceipts = receiptFilter === 'domestic' ? domestic 
+                           : receiptFilter === 'foreign' ? foreign 
+                           : included;
     
     return {
       totalCount: recentReceipts.length,
       includedCount: included.length,
+      domesticCount: domestic.length,
       foreignCount: foreign.length,
       domesticTRY,
       foreignTRY,
       grandTotalTRY: domesticTRY + foreignTRY,
-      foreignByCurrency
+      foreignByCurrency,
+      filteredReceipts,
     };
-  }, [recentReceipts]);
+  }, [recentReceipts, receiptFilter, getCurrencyRate]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
@@ -452,53 +492,147 @@ export default function ReceiptUpload() {
           </div>
         ) : recentReceipts.length > 0 ? (
           <div className="space-y-4">
-            {/* Summary Card */}
+            {/* Summary Card with Filter */}
             <Card className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-950/30 dark:to-green-950/30 border-blue-200 dark:border-blue-800">
               <CardContent className="p-4">
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="font-semibold text-sm">📊 Özet</h3>
-                  <span className="text-xs text-muted-foreground">
-                    {receiptSummary.includedCount} / {receiptSummary.totalCount} belge rapora dahil
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-2 gap-4">
-                  {/* Domestic Total */}
-                  <div>
-                    <p className="text-xs text-muted-foreground">Yurtiçi Faturalar</p>
-                    <p className="text-lg font-bold">
-                      ₺{receiptSummary.domesticTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                    </p>
+                {/* Header with Filter Buttons */}
+                <div className="flex flex-col gap-3 mb-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="font-semibold text-sm">📊 Özet</h3>
+                    <span className="text-xs text-muted-foreground">
+                      {receiptSummary.includedCount} / {receiptSummary.totalCount} belge rapora dahil
+                    </span>
                   </div>
                   
-                  {/* Foreign Total */}
-                  {receiptSummary.foreignCount > 0 && (
-                    <div>
-                      <p className="text-xs text-muted-foreground flex items-center gap-1">
-                        <Globe className="h-3 w-3" />
-                        Yurtdışı ({receiptSummary.foreignCount})
-                      </p>
-                      <div className="space-y-0.5">
-                        {Object.entries(receiptSummary.foreignByCurrency).map(([cur, amount]) => (
-                          <p key={cur} className="text-sm font-medium text-blue-600">
-                            {cur === 'USD' ? '$' : cur === 'EUR' ? '€' : cur}
-                            {amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                          </p>
-                        ))}
-                        <p className="text-xs text-muted-foreground">
-                          ≈ ₺{receiptSummary.foreignTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
-                        </p>
-                      </div>
-                    </div>
-                  )}
+                  {/* Filter Chips */}
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => setReceiptFilter('all')}
+                      className={cn(
+                        "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
+                        receiptFilter === 'all' 
+                          ? "bg-primary text-primary-foreground" 
+                          : "bg-muted hover:bg-muted/80"
+                      )}
+                    >
+                      Tümü ({receiptSummary.includedCount})
+                    </button>
+                    <button
+                      onClick={() => setReceiptFilter('domestic')}
+                      className={cn(
+                        "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
+                        receiptFilter === 'domestic' 
+                          ? "bg-orange-500 text-white" 
+                          : "bg-muted hover:bg-muted/80"
+                      )}
+                    >
+                      <Home className="h-3 w-3" />
+                      Yurtiçi ({receiptSummary.domesticCount})
+                    </button>
+                    <button
+                      onClick={() => setReceiptFilter('foreign')}
+                      className={cn(
+                        "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
+                        receiptFilter === 'foreign' 
+                          ? "bg-blue-500 text-white" 
+                          : "bg-muted hover:bg-muted/80"
+                      )}
+                    >
+                      <Globe className="h-3 w-3" />
+                      Yurtdışı ({receiptSummary.foreignCount})
+                    </button>
+                  </div>
                 </div>
                 
-                {/* Grand Total */}
+                {/* Summary Content Based on Filter */}
+                {receiptFilter === 'all' && (
+                  <div className="grid grid-cols-2 gap-4">
+                    {/* Domestic Total */}
+                    <div>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Home className="h-3 w-3" />
+                        Yurtiçi
+                      </p>
+                      <p className="text-lg font-bold">
+                        ₺{receiptSummary.domesticTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                      </p>
+                    </div>
+                    
+                    {/* Foreign Total */}
+                    {receiptSummary.foreignCount > 0 && (
+                      <div>
+                        <p className="text-xs text-muted-foreground flex items-center gap-1">
+                          <Globe className="h-3 w-3" />
+                          Yurtdışı
+                        </p>
+                        <div className="space-y-0.5">
+                          {Object.entries(receiptSummary.foreignByCurrency).map(([cur, data]) => (
+                            <p key={cur} className="text-sm font-medium text-blue-600">
+                              {cur === 'USD' ? '$' : cur === 'EUR' ? '€' : cur}
+                              {data.amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                            </p>
+                          ))}
+                          <p className="text-xs text-muted-foreground">
+                            ≈ ₺{receiptSummary.foreignTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {receiptFilter === 'domestic' && (
+                  <div>
+                    <p className="text-xs text-muted-foreground mb-1">Toplam Yurtiçi Fatura</p>
+                    <p className="text-2xl font-bold">
+                      ₺{receiptSummary.domesticTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      {receiptSummary.domesticCount} adet belge
+                    </p>
+                  </div>
+                )}
+                
+                {receiptFilter === 'foreign' && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground">Toplam Yurtdışı Fatura</p>
+                    {Object.entries(receiptSummary.foreignByCurrency).map(([cur, data]) => (
+                      <div key={cur} className="flex items-center justify-between">
+                        <div>
+                          <span className="text-lg font-bold text-blue-600">
+                            {cur === 'USD' ? '$' : cur === 'EUR' ? '€' : cur}
+                            {data.amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                          </span>
+                          {data.rate && (
+                            <p className="text-xs text-muted-foreground">
+                              Kur: 1 {cur} = {data.rate.toFixed(2)} TRY
+                            </p>
+                          )}
+                        </div>
+                        <span className="text-sm text-muted-foreground">
+                          → ₺{data.tryAmount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    ))}
+                    {receiptSummary.foreignCount === 0 && (
+                      <p className="text-sm text-muted-foreground">Yurtdışı fatura bulunmuyor</p>
+                    )}
+                  </div>
+                )}
+                
+                {/* Grand Total - Always show */}
                 <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800">
                   <div className="flex items-center justify-between">
-                    <span className="font-medium">Genel Toplam (TRY)</span>
+                    <span className="font-medium">
+                      {receiptFilter === 'all' ? 'Genel Toplam' : receiptFilter === 'domestic' ? 'Yurtiçi Toplam' : 'Yurtdışı Toplam'} (TRY)
+                    </span>
                     <span className="text-xl font-bold text-green-600">
-                      ₺{receiptSummary.grandTotalTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                      ₺{(receiptFilter === 'all' 
+                          ? receiptSummary.grandTotalTRY 
+                          : receiptFilter === 'domestic' 
+                            ? receiptSummary.domesticTRY 
+                            : receiptSummary.foreignTRY
+                        ).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
                 </div>
@@ -507,7 +641,7 @@ export default function ReceiptUpload() {
 
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">
-                📋 Son Yüklenen Belgeler ({recentReceipts.length})
+                📋 {receiptFilter === 'all' ? 'Son Yüklenen Belgeler' : receiptFilter === 'domestic' ? 'Yurtiçi Belgeler' : 'Yurtdışı Belgeler'} ({receiptFilter === 'all' ? recentReceipts.length : receiptSummary.filteredReceipts.length})
               </h2>
               <Link 
                 to="/finance/receipts" 
@@ -518,7 +652,7 @@ export default function ReceiptUpload() {
             </div>
             
             <div className="space-y-3">
-              {recentReceipts.map((receipt) => (
+              {(receiptFilter === 'all' ? recentReceipts : receiptSummary.filteredReceipts).map((receipt) => (
                 <UploadedReceiptCard
                   key={receipt.id}
                   receipt={receipt}
