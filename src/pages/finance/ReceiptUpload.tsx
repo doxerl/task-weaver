@@ -1,5 +1,6 @@
 import { useCallback, useState, useRef, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useYear } from '@/contexts/YearContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
@@ -48,13 +49,14 @@ function FileStatusIcon({ status }: { status: BatchFileResult['status'] }) {
 export default function ReceiptUpload() {
   const isMobile = useIsMobile();
   const { toast } = useToast();
+  const { selectedYear } = useYear();
   const [isExporting, setIsExporting] = useState(false);
 
   const handleExportExcel = async (filter: ExportFilter) => {
     setIsExporting(true);
     try {
       const { data, error } = await supabase.functions.invoke('export-receipts', {
-        body: { year: new Date().getFullYear(), filter }
+        body: { year: selectedYear, filter }
       });
       
       if (error) throw error;
