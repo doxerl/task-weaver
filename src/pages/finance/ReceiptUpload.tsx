@@ -27,6 +27,7 @@ function getFileTypeInfo(file: File) {
   const ext = file.name.split('.').pop()?.toLowerCase() || '';
   if (ext === 'zip') return { type: 'zip', label: 'ZIP Arşiv', icon: Archive, color: 'text-amber-500' };
   if (ext === 'xml') return { type: 'xml', label: 'e-Fatura', icon: Code, color: 'text-green-500' };
+  if (ext === 'html' || ext === 'htm') return { type: 'html', label: 'E-posta/HTML', icon: Code, color: 'text-purple-500' };
   if (file.type === 'application/pdf' || ext === 'pdf') return { type: 'pdf', label: 'PDF', icon: FileText, color: 'text-red-500' };
   return { type: 'image', label: 'Görsel', icon: ImageIcon, color: 'text-blue-500' };
 }
@@ -546,7 +547,7 @@ export default function ReceiptUpload() {
             <input
               ref={galleryInputRef}
               type="file"
-              accept="image/*,.pdf,.xml,.zip"
+              accept="image/*,.pdf,.xml,.zip,.html,.htm"
               multiple
               onChange={handleFileSelect}
               disabled={uploading}
