@@ -15,6 +15,9 @@ export interface VatSeparableTransaction {
   vat_amount?: number | null;
   vat_rate?: number | null;
   is_commercial?: boolean | null;
+  is_foreign?: boolean | null;
+  is_foreign_invoice?: boolean | null;
+  currency?: string | null;
 }
 
 /**
@@ -27,6 +30,14 @@ export interface VatSeparableTransaction {
  */
 export function separateVat(transaction: VatSeparableTransaction): VatSeparationResult {
   const gross = Math.abs(transaction.amount ?? transaction.total_amount ?? 0);
+  
+  // Priority 0: Foreign invoices have no Turkish VAT
+  const isForeign = transaction.is_foreign === true || 
+                    transaction.is_foreign_invoice === true ||
+                    (transaction.currency && transaction.currency !== 'TRY');
+  if (isForeign) {
+    return { grossAmount: gross, netAmount: gross, vatAmount: 0, vatRate: 0 };
+  }
   
   // Priority 1: Use existing calculated values
   if (transaction.net_amount != null && transaction.vat_amount != null) {

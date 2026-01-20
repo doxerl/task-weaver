@@ -1295,6 +1295,7 @@ export type Database = {
       receipts: {
         Row: {
           ai_suggested_category_id: string | null
+          amount_try: number | null
           buyer_address: string | null
           buyer_name: string | null
           buyer_tax_no: string | null
@@ -1302,10 +1303,12 @@ export type Database = {
           created_at: string | null
           currency: string | null
           document_type: string | null
+          exchange_rate_used: number | null
           file_name: string | null
           file_type: string | null
           file_url: string | null
           id: string
+          is_foreign_invoice: boolean | null
           is_included_in_report: boolean | null
           is_manually_categorized: boolean | null
           is_verified: boolean | null
@@ -1316,6 +1319,8 @@ export type Database = {
           notes: string | null
           ocr_confidence: number | null
           ocr_raw_text: string | null
+          original_amount: number | null
+          original_currency: string | null
           processing_status: string | null
           receipt_date: string | null
           receipt_no: string | null
@@ -1339,6 +1344,7 @@ export type Database = {
         }
         Insert: {
           ai_suggested_category_id?: string | null
+          amount_try?: number | null
           buyer_address?: string | null
           buyer_name?: string | null
           buyer_tax_no?: string | null
@@ -1346,10 +1352,12 @@ export type Database = {
           created_at?: string | null
           currency?: string | null
           document_type?: string | null
+          exchange_rate_used?: number | null
           file_name?: string | null
           file_type?: string | null
           file_url?: string | null
           id?: string
+          is_foreign_invoice?: boolean | null
           is_included_in_report?: boolean | null
           is_manually_categorized?: boolean | null
           is_verified?: boolean | null
@@ -1360,6 +1368,8 @@ export type Database = {
           notes?: string | null
           ocr_confidence?: number | null
           ocr_raw_text?: string | null
+          original_amount?: number | null
+          original_currency?: string | null
           processing_status?: string | null
           receipt_date?: string | null
           receipt_no?: string | null
@@ -1383,6 +1393,7 @@ export type Database = {
         }
         Update: {
           ai_suggested_category_id?: string | null
+          amount_try?: number | null
           buyer_address?: string | null
           buyer_name?: string | null
           buyer_tax_no?: string | null
@@ -1390,10 +1401,12 @@ export type Database = {
           created_at?: string | null
           currency?: string | null
           document_type?: string | null
+          exchange_rate_used?: number | null
           file_name?: string | null
           file_type?: string | null
           file_url?: string | null
           id?: string
+          is_foreign_invoice?: boolean | null
           is_included_in_report?: boolean | null
           is_manually_categorized?: boolean | null
           is_verified?: boolean | null
@@ -1404,6 +1417,8 @@ export type Database = {
           notes?: string | null
           ocr_confidence?: number | null
           ocr_raw_text?: string | null
+          original_amount?: number | null
+          original_currency?: string | null
           processing_status?: string | null
           receipt_date?: string | null
           receipt_no?: string | null

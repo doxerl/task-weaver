@@ -98,8 +98,21 @@ TUTAR BİLGİLERİ:
 - totalAmount: Genel toplam (sayı)
 
 DİĞER:
-- currency: Para birimi (varsayılan TRY)
+- currency: Para birimi (TRY, USD, EUR vb.)
 - confidence: Güven skoru (0-1 arası)
+
+YURTDIŞI FATURA TESPİTİ (ÖNEMLİ):
+- isForeign: true/false - Satıcı yurtdışında mı?
+- foreignSellerCountry: Satıcının ülkesi (USA, Germany, UK vb.)
+
+YURTDIŞI FATURA İPUÇLARI:
+- Adres: "United States", "USA", "UK", "Germany", "Netherlands", yabancı şehir/ülke isimleri
+- VKN formatı: Türk VKN değil (10-11 hane olmayan), EIN, VAT numarası
+- Dil: İngilizce, Almanca vb. yazılmış
+- Para birimi: USD, EUR, GBP vb.
+- Firma isimleri: "Inc.", "LLC", "GmbH", "Ltd.", "BV" içeren
+- KDV yok veya VAT/Sales Tax farklı oran
+- YURTDIŞI FATURALARDA TÜRK KDV'Sİ OLMAZ - vatRate ve vatAmount null olmalı
 
 BELGE TİPİ TESPİTİ:
 - documentSubtype: "slip" veya "invoice"
@@ -111,7 +124,7 @@ FİŞ İPUÇLARI (slip) - Aşağıdakilerden biri varsa "slip":
 - Kısa, basit format, tek sayfa, VKN ile başlayan
 
 FATURA İPUÇLARI (invoice) - Aşağıdakilerden biri varsa "invoice":
-- Kelimeler: FATURA, E-FATURA, E-ARŞİV, SATIŞ FATURASI, İRSALİYE, FATURA NO, GIB, TEVKİFAT, STOPAJ
+- Kelimeler: FATURA, E-FATURA, E-ARŞİV, SATIŞ FATURASI, İRSALİYE, FATURA NO, GIB, TEVKİFAT, STOPAJ, INVOICE
 - GIB numarası (uzun alfanumerik kod)
 - Detaylı alıcı/satıcı bilgileri (her ikisinin de VKN ve adresi var)
 - Stopaj veya damga vergisi bilgisi
@@ -137,10 +150,13 @@ Sadece JSON object döndür:
   "totalAmount": 1200.00,
   "currency": "TRY",
   "confidence": 0.9,
-  "documentSubtype": "slip"
+  "documentSubtype": "invoice",
+  "isForeign": false,
+  "foreignSellerCountry": null
 }
 
-Okunamayan alanlar için null kullan.`;
+Okunamayan alanlar için null kullan.
+YURTDIŞI FATURADA: isForeign: true, vatRate: null, vatAmount: null olmalı!`;
 
     console.log('Calling Lovable AI Gateway with Gemini 2.5 Pro...');
 

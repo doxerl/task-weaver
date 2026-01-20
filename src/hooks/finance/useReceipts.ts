@@ -4,12 +4,16 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Receipt, DocumentType, ReceiptSubtype } from '@/types/finance';
 import { useState, useCallback } from 'react';
+import { useExchangeRates } from './useExchangeRates';
 
 export function useReceipts(year?: number, month?: number) {
   const { user } = useAuthContext();
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [uploadProgress, setUploadProgress] = useState(0);
+  
+  // Exchange rates for foreign invoice conversion
+  const { getRate: getExchangeRate } = useExchangeRates();
   
   // Reprocess state
   const [reprocessProgress, setReprocessProgress] = useState(0);
@@ -103,6 +107,31 @@ export function useReceipts(year?: number, month?: number) {
       finalSubtype = isPdfOrXml ? 'invoice' : 'slip';
     }
 
+    // Foreign invoice detection
+    const isForeignInvoice = ocr.isForeign === true || 
+      (ocr.currency && ocr.currency !== 'TRY');
+    
+    // Currency conversion for foreign invoices
+    let originalAmount: number | null = null;
+    let originalCurrency: string | null = null;
+    let exchangeRateUsed: number | null = null;
+    let amountTry: number | null = null;
+    
+    if (isForeignInvoice && ocr.currency && ocr.currency !== 'TRY') {
+      originalCurrency = ocr.currency;
+      originalAmount = ocr.totalAmount || null;
+      
+      // Get exchange rate for the receipt month
+      if (originalAmount && receiptYear && receiptMonth) {
+        const rate = getExchangeRate(receiptYear, receiptMonth);
+        if (rate && (ocr.currency === 'USD' || ocr.currency === 'EUR')) {
+          // For now only USD/TRY is supported, EUR will use same rate as approximation
+          exchangeRateUsed = rate;
+          amountTry = originalAmount * rate;
+        }
+      }
+    }
+
     const { data: receipt, error: insertError } = await supabase
       .from('receipts')
       .insert({
@@ -125,9 +154,9 @@ export function useReceipts(year?: number, month?: number) {
         receipt_no: ocr.receiptNo || null,
         subtotal: ocr.subtotal || null,
         total_amount: ocr.totalAmount || null,
-        tax_amount: ocr.vatAmount || ocr.taxAmount || null,
-        vat_rate: ocr.vatRate || null,
-        vat_amount: ocr.vatAmount || null,
+        tax_amount: isForeignInvoice ? 0 : (ocr.vatAmount || ocr.taxAmount || null),
+        vat_rate: isForeignInvoice ? 0 : (ocr.vatRate || null),
+        vat_amount: isForeignInvoice ? 0 : (ocr.vatAmount || null),
         withholding_tax_rate: ocr.withholdingTaxRate || null,
         withholding_tax_amount: ocr.withholdingTaxAmount || null,
         stamp_tax_amount: ocr.stampTaxAmount || null,
@@ -136,7 +165,13 @@ export function useReceipts(year?: number, month?: number) {
         month: receiptMonth,
         year: receiptYear,
         processing_status: 'completed',
-        match_status: 'unmatched'
+        match_status: 'unmatched',
+        // Foreign invoice fields
+        is_foreign_invoice: isForeignInvoice,
+        original_currency: originalCurrency,
+        original_amount: originalAmount,
+        exchange_rate_used: exchangeRateUsed,
+        amount_try: amountTry || (isForeignInvoice ? null : ocr.totalAmount)
       })
       .select()
       .single();
