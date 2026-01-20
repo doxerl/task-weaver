@@ -47,8 +47,9 @@ serve(async (req) => {
     const { dataUrl, mimeType } = await fetchAsBase64(imageUrl);
     
     // Check file extension from URL for HTML files (storage may return text/plain)
-    const urlLower = imageUrl.toLowerCase();
-    const isHtmlByExtension = urlLower.endsWith('.html') || urlLower.endsWith('.htm');
+    // Remove query string before checking extension
+    const urlPath = imageUrl.split('?')[0].toLowerCase();
+    const isHtmlByExtension = urlPath.endsWith('.html') || urlPath.endsWith('.htm');
     
     // Validate mime type - now includes PDF and HTML
     const supportedTypes = ['image/jpeg', 'image/png', 'image/webp', 'image/gif', 'application/pdf', 'text/html'];
