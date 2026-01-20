@@ -158,6 +158,13 @@ export interface Receipt {
   year?: number;
   notes?: string;
   created_at: string;
+  
+  // Foreign invoice fields
+  is_foreign_invoice?: boolean;
+  original_currency?: string;
+  original_amount?: number;
+  exchange_rate_used?: number;
+  amount_try?: number;
 }
 
 export interface FinancialReport {

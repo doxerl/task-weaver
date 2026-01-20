@@ -1,8 +1,8 @@
-import { useCallback, useState, useRef } from 'react';
+import { useCallback, useState, useRef, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code, FileCheck } from 'lucide-react';
+import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code, FileCheck, Globe } from 'lucide-react';
 import { useReceipts } from '@/hooks/finance/useReceipts';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
@@ -57,6 +57,36 @@ export default function ReceiptUpload() {
   // Edit sheet state
   const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
   const [editSheetOpen, setEditSheetOpen] = useState(false);
+
+  // Summary calculations
+  const receiptSummary = useMemo(() => {
+    const included = recentReceipts.filter(r => r.is_included_in_report);
+    const domestic = included.filter(r => !r.is_foreign_invoice && r.currency === 'TRY');
+    const foreign = included.filter(r => r.is_foreign_invoice || (r.currency && r.currency !== 'TRY'));
+    
+    // TRY total from domestic invoices
+    const domesticTRY = domestic.reduce((sum, r) => sum + (r.total_amount || 0), 0);
+    
+    // Foreign invoices TRY equivalent
+    const foreignTRY = foreign.reduce((sum, r) => sum + (r.amount_try || 0), 0);
+    
+    // Foreign invoices by original currency
+    const foreignByCurrency: Record<string, number> = {};
+    foreign.forEach(r => {
+      const cur = r.original_currency || r.currency || 'USD';
+      foreignByCurrency[cur] = (foreignByCurrency[cur] || 0) + (r.original_amount || r.total_amount || 0);
+    });
+    
+    return {
+      totalCount: recentReceipts.length,
+      includedCount: included.length,
+      foreignCount: foreign.length,
+      domesticTRY,
+      foreignTRY,
+      grandTotalTRY: domesticTRY + foreignTRY,
+      foreignByCurrency
+    };
+  }, [recentReceipts]);
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
     const selected = Array.from(e.target.files || []);
@@ -422,6 +452,59 @@ export default function ReceiptUpload() {
           </div>
         ) : recentReceipts.length > 0 ? (
           <div className="space-y-4">
+            {/* Summary Card */}
+            <Card className="bg-gradient-to-r from-blue-50 to-green-50 dark:from-blue-950/30 dark:to-green-950/30 border-blue-200 dark:border-blue-800">
+              <CardContent className="p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <h3 className="font-semibold text-sm">📊 Özet</h3>
+                  <span className="text-xs text-muted-foreground">
+                    {receiptSummary.includedCount} / {receiptSummary.totalCount} belge rapora dahil
+                  </span>
+                </div>
+                
+                <div className="grid grid-cols-2 gap-4">
+                  {/* Domestic Total */}
+                  <div>
+                    <p className="text-xs text-muted-foreground">Yurtiçi Faturalar</p>
+                    <p className="text-lg font-bold">
+                      ₺{receiptSummary.domesticTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                    </p>
+                  </div>
+                  
+                  {/* Foreign Total */}
+                  {receiptSummary.foreignCount > 0 && (
+                    <div>
+                      <p className="text-xs text-muted-foreground flex items-center gap-1">
+                        <Globe className="h-3 w-3" />
+                        Yurtdışı ({receiptSummary.foreignCount})
+                      </p>
+                      <div className="space-y-0.5">
+                        {Object.entries(receiptSummary.foreignByCurrency).map(([cur, amount]) => (
+                          <p key={cur} className="text-sm font-medium text-blue-600">
+                            {cur === 'USD' ? '$' : cur === 'EUR' ? '€' : cur}
+                            {amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                          </p>
+                        ))}
+                        <p className="text-xs text-muted-foreground">
+                          ≈ ₺{receiptSummary.foreignTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </div>
+                
+                {/* Grand Total */}
+                <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800">
+                  <div className="flex items-center justify-between">
+                    <span className="font-medium">Genel Toplam (TRY)</span>
+                    <span className="text-xl font-bold text-green-600">
+                      ₺{receiptSummary.grandTotalTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                    </span>
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">
                 📋 Son Yüklenen Belgeler ({recentReceipts.length})
