@@ -73,47 +73,55 @@ export default function ReceiptUpload() {
     const allDomestic = recentReceipts.filter(r => !r.is_foreign_invoice && (!r.currency || r.currency === 'TRY'));
     const allForeign = recentReceipts.filter(r => r.is_foreign_invoice || (r.currency && r.currency !== 'TRY'));
     
-    // Included receipts only (for totals)
+    // Included receipts only (for "Tümü" filter totals)
     const included = recentReceipts.filter(r => r.is_included_in_report);
     const includedDomestic = included.filter(r => !r.is_foreign_invoice && (!r.currency || r.currency === 'TRY'));
     const includedForeign = included.filter(r => r.is_foreign_invoice || (r.currency && r.currency !== 'TRY'));
     
-    // TRY total from included domestic invoices
-    const domesticTRY = includedDomestic.reduce((sum, r) => sum + (r.total_amount || 0), 0);
-    
-    // Foreign invoices - calculate TRY using exchange rates (only included)
-    let foreignTRY = 0;
-    const foreignByCurrency: Record<string, { amount: number; tryAmount: number; rate: number | null }> = {};
-    
-    includedForeign.forEach(r => {
-      const cur = r.original_currency || r.currency || 'USD';
-      const originalAmount = r.original_amount || r.total_amount || 0;
+    // Helper function to calculate foreign totals
+    const calculateForeignTotals = (receipts: typeof allForeign) => {
+      let totalTRY = 0;
+      const byCurrency: Record<string, { amount: number; tryAmount: number; rate: number | null }> = {};
       
-      // Get exchange rate for the receipt's month
-      let tryAmount = r.amount_try || 0;
-      let rate: number | null = null;
-      
-      if (!tryAmount && r.receipt_date) {
-        const receiptDate = new Date(r.receipt_date);
-        const year = receiptDate.getFullYear();
-        const month = receiptDate.getMonth() + 1;
-        rate = getCurrencyRate(cur, year, month);
-        if (rate) {
-          tryAmount = originalAmount * rate;
+      receipts.forEach(r => {
+        const cur = r.original_currency || r.currency || 'USD';
+        const originalAmount = r.original_amount || r.total_amount || 0;
+        
+        let tryAmount = r.amount_try || 0;
+        let rate: number | null = null;
+        
+        if (!tryAmount && r.receipt_date) {
+          const receiptDate = new Date(r.receipt_date);
+          const year = receiptDate.getFullYear();
+          const month = receiptDate.getMonth() + 1;
+          rate = getCurrencyRate(cur, year, month);
+          if (rate) {
+            tryAmount = originalAmount * rate;
+          }
+        } else if (r.exchange_rate_used) {
+          rate = r.exchange_rate_used;
         }
-      } else if (r.exchange_rate_used) {
-        rate = r.exchange_rate_used;
-      }
+        
+        totalTRY += tryAmount;
+        
+        if (!byCurrency[cur]) {
+          byCurrency[cur] = { amount: 0, tryAmount: 0, rate };
+        }
+        byCurrency[cur].amount += originalAmount;
+        byCurrency[cur].tryAmount += tryAmount;
+        if (rate) byCurrency[cur].rate = rate;
+      });
       
-      foreignTRY += tryAmount;
-      
-      if (!foreignByCurrency[cur]) {
-        foreignByCurrency[cur] = { amount: 0, tryAmount: 0, rate };
-      }
-      foreignByCurrency[cur].amount += originalAmount;
-      foreignByCurrency[cur].tryAmount += tryAmount;
-      if (rate) foreignByCurrency[cur].rate = rate;
-    });
+      return { totalTRY, byCurrency };
+    };
+    
+    // TRY totals for included receipts (for "Tümü" filter)
+    const domesticTRY = includedDomestic.reduce((sum, r) => sum + (r.total_amount || 0), 0);
+    const { totalTRY: foreignTRY, byCurrency: foreignByCurrency } = calculateForeignTotals(includedForeign);
+    
+    // TRY totals for ALL receipts (for individual filters)
+    const allDomesticTRY = allDomestic.reduce((sum, r) => sum + (r.total_amount || 0), 0);
+    const { totalTRY: allForeignTRY, byCurrency: allForeignByCurrency } = calculateForeignTotals(allForeign);
     
     // Filtered receipts based on current filter (show ALL receipts of type, not just included)
     const filteredReceipts = receiptFilter === 'domestic' ? allDomestic 
@@ -126,13 +134,18 @@ export default function ReceiptUpload() {
       // Counts for filter buttons (show ALL, not just included)
       allDomesticCount: allDomestic.length,
       allForeignCount: allForeign.length,
-      // Counts for included only (for totals)
+      // Counts for included only
       domesticCount: includedDomestic.length,
       foreignCount: includedForeign.length,
+      // Included totals (for "Tümü" filter)
       domesticTRY,
       foreignTRY,
       grandTotalTRY: domesticTRY + foreignTRY,
       foreignByCurrency,
+      // ALL totals (for individual filters)
+      allDomesticTRY,
+      allForeignTRY,
+      allForeignByCurrency,
       filteredReceipts,
     };
   }, [recentReceipts, receiptFilter, getCurrencyRate]);
@@ -594,10 +607,10 @@ export default function ReceiptUpload() {
                   <div>
                     <p className="text-xs text-muted-foreground mb-1">Toplam Yurtiçi Fatura</p>
                     <p className="text-2xl font-bold">
-                      ₺{receiptSummary.domesticTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                      ₺{receiptSummary.allDomesticTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                     </p>
                     <p className="text-xs text-muted-foreground mt-1">
-                      {receiptSummary.domesticCount} adet belge
+                      {receiptSummary.allDomesticCount} adet belge
                     </p>
                   </div>
                 )}
@@ -605,7 +618,7 @@ export default function ReceiptUpload() {
                 {receiptFilter === 'foreign' && (
                   <div className="space-y-3">
                     <p className="text-xs text-muted-foreground">Toplam Yurtdışı Fatura</p>
-                    {Object.entries(receiptSummary.foreignByCurrency).map(([cur, data]) => (
+                    {Object.entries(receiptSummary.allForeignByCurrency).map(([cur, data]) => (
                       <div key={cur} className="flex items-center justify-between">
                         <div>
                           <span className="text-lg font-bold text-blue-600">
@@ -623,7 +636,7 @@ export default function ReceiptUpload() {
                         </span>
                       </div>
                     ))}
-                    {receiptSummary.foreignCount === 0 && (
+                    {receiptSummary.allForeignCount === 0 && (
                       <p className="text-sm text-muted-foreground">Yurtdışı fatura bulunmuyor</p>
                     )}
                   </div>
@@ -639,8 +652,8 @@ export default function ReceiptUpload() {
                       ₺{(receiptFilter === 'all' 
                           ? receiptSummary.grandTotalTRY 
                           : receiptFilter === 'domestic' 
-                            ? receiptSummary.domesticTRY 
-                            : receiptSummary.foreignTRY
+                            ? receiptSummary.allDomesticTRY 
+                            : receiptSummary.allForeignTRY
                         ).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
