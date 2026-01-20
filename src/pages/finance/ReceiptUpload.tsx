@@ -2,8 +2,8 @@ import { useCallback, useState, useRef, useMemo } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code, FileCheck, Globe, Home } from 'lucide-react';
-import { useReceipts } from '@/hooks/finance/useReceipts';
+import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code, FileCheck, Globe, Home, Check, AlertCircle, Copy, RefreshCw } from 'lucide-react';
+import { useReceipts, BatchProgress, BatchFileResult } from '@/hooks/finance/useReceipts';
 import { useExchangeRates } from '@/hooks/finance/useExchangeRates';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
@@ -11,6 +11,7 @@ import { DocumentType, Receipt, ReceiptSubtype } from '@/types/finance';
 import { UploadedReceiptCard } from '@/components/finance/UploadedReceiptCard';
 import { ReceiptEditSheet } from '@/components/finance/ReceiptEditSheet';
 import { useIsMobile } from '@/hooks/use-mobile';
+import { ScrollArea } from '@/components/ui/scroll-area';
 
 type ReceiptFilter = 'all' | 'domestic' | 'foreign';
 
@@ -21,6 +22,22 @@ function getFileTypeInfo(file: File) {
   if (ext === 'xml') return { type: 'xml', label: 'e-Fatura', icon: Code, color: 'text-green-500' };
   if (file.type === 'application/pdf' || ext === 'pdf') return { type: 'pdf', label: 'PDF', icon: FileText, color: 'text-red-500' };
   return { type: 'image', label: 'Görsel', icon: ImageIcon, color: 'text-blue-500' };
+}
+
+// Status icon component
+function FileStatusIcon({ status }: { status: BatchFileResult['status'] }) {
+  switch (status) {
+    case 'success':
+      return <Check className="h-4 w-4 text-green-500" />;
+    case 'failed':
+      return <AlertCircle className="h-4 w-4 text-destructive" />;
+    case 'duplicate':
+      return <Copy className="h-4 w-4 text-amber-500" />;
+    case 'processing':
+      return <Loader2 className="h-4 w-4 text-primary animate-spin" />;
+    default:
+      return <div className="h-4 w-4 rounded-full border-2 border-muted-foreground/30" />;
+  }
 }
 
 export default function ReceiptUpload() {
@@ -35,7 +52,10 @@ export default function ReceiptUpload() {
   const { 
     receipts: dbReceipts,
     isLoading: isLoadingReceipts,
-    uploadReceipt, 
+    uploadReceipt,
+    uploadReceiptsBatch,
+    batchProgress,
+    isBatchUploading,
     uploadProgress, 
     deleteReceipt, 
     updateReceipt,
@@ -66,6 +86,10 @@ export default function ReceiptUpload() {
 
   // Filter state for summary
   const [receiptFilter, setReceiptFilter] = useState<ReceiptFilter>('all');
+  
+  // Local batch progress for UI
+  const [localBatchProgress, setLocalBatchProgress] = useState<BatchProgress | null>(null);
+  const displayBatchProgress = localBatchProgress || batchProgress;
 
   // Summary calculations with filter support and exchange rate conversion
   const receiptSummary = useMemo(() => {
@@ -188,17 +212,22 @@ export default function ReceiptUpload() {
   };
 
   const handleUpload = async () => {
+    // Check if any file is a ZIP - use single upload for ZIPs
+    const hasZip = files.some(f => f.name.toLowerCase().endsWith('.zip'));
+    const nonZipFiles = files.filter(f => !f.name.toLowerCase().endsWith('.zip'));
+    const zipFiles = files.filter(f => f.name.toLowerCase().endsWith('.zip'));
+    
     setUploading(true);
     setCompleted(0);
     const uploadedIds: string[] = [];
     
-    for (const file of files) {
+    // Handle ZIP files with single upload (they contain multiple files)
+    for (const file of zipFiles) {
       const result = await uploadReceipt.mutateAsync({ 
         file, 
         documentType,
         receiptSubtype: documentType === 'received' ? receiptSubtype : undefined
       });
-      // Handle both single receipt and array (from ZIP)
       if (Array.isArray(result)) {
         uploadedIds.push(...result.map(r => r.id));
       } else if (result) {
@@ -207,11 +236,44 @@ export default function ReceiptUpload() {
       setCompleted(prev => prev + 1);
     }
     
+    // Handle non-ZIP files with batch upload if there are multiple
+    if (nonZipFiles.length > 0) {
+      if (nonZipFiles.length >= 3) {
+        // Use batch processing for 3+ files
+        const results = await uploadReceiptsBatch.mutateAsync({
+          files: nonZipFiles,
+          documentType,
+          receiptSubtype: documentType === 'received' ? receiptSubtype : undefined,
+          onProgress: setLocalBatchProgress
+        });
+        
+        results
+          .filter(r => r.status === 'success' && r.receipt)
+          .forEach(r => uploadedIds.push(r.receipt!.id));
+      } else {
+        // Use single upload for 1-2 files
+        for (const file of nonZipFiles) {
+          const result = await uploadReceipt.mutateAsync({ 
+            file, 
+            documentType,
+            receiptSubtype: documentType === 'received' ? receiptSubtype : undefined
+          });
+          if (Array.isArray(result)) {
+            uploadedIds.push(...result.map(r => r.id));
+          } else if (result) {
+            uploadedIds.push((result as Receipt).id);
+          }
+          setCompleted(prev => prev + 1);
+        }
+      }
+    }
+    
     // Clean up previews
     previews.forEach(url => url && URL.revokeObjectURL(url));
     setFiles([]);
     setPreviews([]);
     setUploading(false);
+    setLocalBatchProgress(null);
     
     // Track which receipts were uploaded in this session
     setSessionUploadedIds(prev => new Set([...prev, ...uploadedIds]));
@@ -366,11 +428,90 @@ export default function ReceiptUpload() {
               className="hidden"
             />
 
-            {uploading ? (
+            {uploading || isBatchUploading ? (
               <div className="flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg border-primary bg-primary/5">
-                <Loader2 className="h-10 w-10 text-primary animate-spin" />
-                <p className="text-sm font-medium">Yükleniyor {completed}/{files.length}</p>
-                <Progress value={(completed / files.length) * 100} className="w-full" />
+                {displayBatchProgress ? (
+                  // Batch upload progress
+                  <div className="w-full space-y-4">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <Loader2 className="h-5 w-5 text-primary animate-spin" />
+                        <span className="font-medium text-sm">
+                          Batch {displayBatchProgress.currentBatch}/{displayBatchProgress.totalBatches} işleniyor...
+                        </span>
+                      </div>
+                      <span className="text-sm text-muted-foreground">
+                        {displayBatchProgress.processedFiles}/{displayBatchProgress.totalFiles}
+                      </span>
+                    </div>
+                    
+                    <Progress 
+                      value={(displayBatchProgress.processedFiles / displayBatchProgress.totalFiles) * 100} 
+                      className="w-full h-2" 
+                    />
+                    
+                    {/* Stats */}
+                    <div className="flex gap-4 text-xs">
+                      <span className="flex items-center gap-1 text-green-600">
+                        <Check className="h-3 w-3" />
+                        {displayBatchProgress.successCount} başarılı
+                      </span>
+                      {displayBatchProgress.duplicateCount > 0 && (
+                        <span className="flex items-center gap-1 text-amber-600">
+                          <Copy className="h-3 w-3" />
+                          {displayBatchProgress.duplicateCount} duplike
+                        </span>
+                      )}
+                      {displayBatchProgress.failedCount > 0 && (
+                        <span className="flex items-center gap-1 text-destructive">
+                          <AlertCircle className="h-3 w-3" />
+                          {displayBatchProgress.failedCount} hata
+                        </span>
+                      )}
+                    </div>
+                    
+                    {/* File list */}
+                    <ScrollArea className="max-h-48 border rounded-lg">
+                      <div className="p-2 space-y-1">
+                        {displayBatchProgress.results.map((result, idx) => (
+                          <div 
+                            key={idx} 
+                            className={cn(
+                              "flex items-center gap-2 p-2 rounded text-sm",
+                              result.status === 'processing' && "bg-primary/10",
+                              result.status === 'success' && "bg-green-500/10",
+                              result.status === 'failed' && "bg-destructive/10",
+                              result.status === 'duplicate' && "bg-amber-500/10",
+                            )}
+                          >
+                            <FileStatusIcon status={result.status} />
+                            <span className="truncate flex-1">{result.fileName}</span>
+                            {result.status === 'success' && result.receipt?.total_amount && (
+                              <span className="text-xs text-green-600 font-medium">
+                                ₺{result.receipt.total_amount.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                              </span>
+                            )}
+                            {result.status === 'failed' && (
+                              <span className="text-xs text-destructive truncate max-w-[100px]">
+                                {result.error}
+                              </span>
+                            )}
+                            {result.status === 'duplicate' && (
+                              <span className="text-xs text-amber-600">Zaten mevcut</span>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </ScrollArea>
+                  </div>
+                ) : (
+                  // Simple single file progress
+                  <>
+                    <Loader2 className="h-10 w-10 text-primary animate-spin" />
+                    <p className="text-sm font-medium">Yükleniyor {completed}/{files.length}</p>
+                    <Progress value={(completed / files.length) * 100} className="w-full" />
+                  </>
+                )}
               </div>
             ) : (
               <>
@@ -418,91 +559,144 @@ export default function ReceiptUpload() {
         </Card>
 
         {/* File Previews - Before Upload */}
-        {files.length > 0 && !uploading && (
+        {files.length > 0 && !uploading && !isBatchUploading && (
           <>
-            <div className="space-y-3">
-              {files.map((file, i) => (
-                <Card key={i} className="overflow-hidden">
-                  <CardContent className="p-0">
-                    <div className="flex gap-3">
-                      {/* Preview */}
-                      {(() => {
+            {/* Compact list view for many files */}
+            {files.length > 5 ? (
+              <Card>
+                <CardContent className="p-4">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="font-medium text-sm">{files.length} dosya seçildi</span>
+                    <button 
+                      onClick={() => {
+                        previews.forEach(url => url && URL.revokeObjectURL(url));
+                        setFiles([]);
+                        setPreviews([]);
+                      }}
+                      className="text-xs text-destructive hover:underline"
+                    >
+                      Tümünü Kaldır
+                    </button>
+                  </div>
+                  <ScrollArea className="max-h-60">
+                    <div className="space-y-1">
+                      {files.map((file, i) => {
                         const fileInfo = getFileTypeInfo(file);
                         const FileIcon = fileInfo.icon;
                         return (
-                          <div className="w-24 h-24 flex-shrink-0 bg-muted">
-                            {previews[i] ? (
-                              <img 
-                                src={previews[i]} 
-                                alt="" 
-                                className="w-full h-full object-cover" 
-                              />
-                            ) : (
-                              <div className="w-full h-full flex flex-col items-center justify-center gap-1">
-                                <FileIcon className={cn("h-8 w-8", fileInfo.color)} />
-                                <span className={cn("text-[10px] font-medium", fileInfo.color)}>{fileInfo.label}</span>
-                              </div>
-                            )}
+                          <div key={i} className="flex items-center gap-2 p-2 bg-muted rounded">
+                            <FileIcon className={cn("h-4 w-4 flex-shrink-0", fileInfo.color)} />
+                            <span className="text-sm truncate flex-1">{file.name}</span>
+                            <span className="text-xs text-muted-foreground">
+                              {(file.size / 1024).toFixed(0)} KB
+                            </span>
+                            <button
+                              onClick={() => removeFile(i)}
+                              className="p-1 hover:bg-destructive/10 rounded"
+                            >
+                              <X className="h-3 w-3 text-destructive" />
+                            </button>
                           </div>
                         );
-                      })()}
-                      
-                      {/* File Info */}
-                      {(() => {
-                        const fileInfo = getFileTypeInfo(file);
-                        return (
-                          <div className="flex-1 py-3 pr-3">
-                            <p className="font-medium text-sm truncate">{file.name}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {(file.size / 1024).toFixed(0)} KB • {fileInfo.label}
-                            </p>
-                            <div className="flex items-center gap-1 mt-2 flex-wrap">
-                              {documentType === 'issued' ? (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600">
-                                  📤 Kesilen
-                                </span>
-                              ) : receiptSubtype === 'slip' ? (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600">
-                                  🧾 Fiş
-                                </span>
+                      })}
+                    </div>
+                  </ScrollArea>
+                </CardContent>
+              </Card>
+            ) : (
+              // Detailed preview for few files
+              <div className="space-y-3">
+                {files.map((file, i) => (
+                  <Card key={i} className="overflow-hidden">
+                    <CardContent className="p-0">
+                      <div className="flex gap-3">
+                        {/* Preview */}
+                        {(() => {
+                          const fileInfo = getFileTypeInfo(file);
+                          const FileIcon = fileInfo.icon;
+                          return (
+                            <div className="w-24 h-24 flex-shrink-0 bg-muted">
+                              {previews[i] ? (
+                                <img 
+                                  src={previews[i]} 
+                                  alt="" 
+                                  className="w-full h-full object-cover" 
+                                />
                               ) : (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600">
-                                  📄 Fatura
-                                </span>
-                              )}
-                              {fileInfo.type === 'zip' && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600">
-                                  📦 Çoklu dosya
-                                </span>
-                              )}
-                              {fileInfo.type === 'xml' && (
-                                <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600">
-                                  ✓ %100 doğruluk
-                                </span>
+                                <div className="w-full h-full flex flex-col items-center justify-center gap-1">
+                                  <FileIcon className={cn("h-8 w-8", fileInfo.color)} />
+                                  <span className={cn("text-[10px] font-medium", fileInfo.color)}>{fileInfo.label}</span>
+                                </div>
                               )}
                             </div>
-                          </div>
-                        );
-                      })()}
-                      
-                      {/* Remove Button */}
-                      <button
-                        onClick={() => removeFile(i)}
-                        className="self-start p-2 hover:bg-destructive/10 rounded-lg m-2"
-                      >
-                        <X className="h-4 w-4 text-destructive" />
-                      </button>
-                    </div>
-                  </CardContent>
-                </Card>
-              ))}
-            </div>
+                          );
+                        })()}
+                        
+                        {/* File Info */}
+                        {(() => {
+                          const fileInfo = getFileTypeInfo(file);
+                          return (
+                            <div className="flex-1 py-3 pr-3">
+                              <p className="font-medium text-sm truncate">{file.name}</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {(file.size / 1024).toFixed(0)} KB • {fileInfo.label}
+                              </p>
+                              <div className="flex items-center gap-1 mt-2 flex-wrap">
+                                {documentType === 'issued' ? (
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600">
+                                    📤 Kesilen
+                                  </span>
+                                ) : receiptSubtype === 'slip' ? (
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-orange-500/10 text-orange-600">
+                                    🧾 Fiş
+                                  </span>
+                                ) : (
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600">
+                                    📄 Fatura
+                                  </span>
+                                )}
+                                {fileInfo.type === 'zip' && (
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600">
+                                    📦 Çoklu dosya
+                                  </span>
+                                )}
+                                {fileInfo.type === 'xml' && (
+                                  <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600">
+                                    ✓ %100 doğruluk
+                                  </span>
+                                )}
+                              </div>
+                            </div>
+                          );
+                        })()}
+                        
+                        {/* Remove Button */}
+                        <button
+                          onClick={() => removeFile(i)}
+                          className="self-start p-2 hover:bg-destructive/10 rounded-lg m-2"
+                        >
+                          <X className="h-4 w-4 text-destructive" />
+                        </button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                ))}
+              </div>
+            )}
 
+            {/* Upload button with batch info */}
             <button
               onClick={handleUpload}
               className="w-full bg-primary text-primary-foreground py-3 rounded-lg font-medium"
             >
-              {files.length} Dosya Yükle
+              {files.length >= 3 ? (
+                <span className="flex items-center justify-center gap-2">
+                  <RefreshCw className="h-4 w-4" />
+                  {files.length} Dosya Toplu Yükle (3'lü batch)
+                </span>
+              ) : (
+                `${files.length} Dosya Yükle`
+              )}
             </button>
           </>
         )}
