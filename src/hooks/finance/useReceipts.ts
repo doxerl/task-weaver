@@ -89,18 +89,36 @@ export function useReceipts(year?: number, month?: number) {
     enabled: !!user?.id
   });
 
-  // Helper to check for duplicate receipts by receipt_no
-  const checkDuplicateByReceiptNo = async (receiptNo: string): Promise<Receipt | null> => {
+  // Helper to check for duplicate receipts by receipt_no + seller_tax_no (VKN/TCKN)
+  const checkDuplicateByReceiptNo = async (
+    receiptNo: string,
+    sellerTaxNo?: string | null
+  ): Promise<Receipt | null> => {
     if (!receiptNo || !user?.id) return null;
     
-    const { data } = await supabase
+    let query = supabase
       .from('receipts')
       .select('*, category:transaction_categories!category_id(*)')
       .eq('user_id', user.id)
-      .eq('receipt_no', receiptNo)
-      .maybeSingle();
+      .eq('receipt_no', receiptNo);
     
-    return data as Receipt | null;
+    // VKN/TCKN varsa, onu da kontrol et (asıl duplike tespiti)
+    if (sellerTaxNo) {
+      query = query.eq('seller_tax_no', sellerTaxNo);
+      const { data } = await query.maybeSingle();
+      return data as Receipt | null;
+    }
+    
+    // VKN yoksa, tüm aynı numaralı faturaları getir
+    const { data } = await query;
+    
+    // Eğer VKN olmadan birden fazla eşleşme varsa, null dön (farklı firmalar olabilir)
+    // Tek eşleşme varsa, büyük ihtimalle aynı firma
+    if (data && data.length === 1) {
+      return data[0] as Receipt;
+    }
+    
+    return null;
   };
 
   // Helper to check for duplicate by file name + date combination
@@ -136,13 +154,32 @@ export function useReceipts(year?: number, month?: number) {
     return match as Receipt | null;
   };
 
-  // Helper to check for soft duplicates (same seller + amount + date)
+  // Helper to check for soft duplicates (same seller + amount + date OR same tax_no + amount + date)
   const checkSoftDuplicate = async (
     sellerName: string | null,
+    sellerTaxNo: string | null,
     totalAmount: number | null,
     receiptDate: string | null
   ): Promise<Receipt | null> => {
-    if (!sellerName || !totalAmount || !receiptDate || !user?.id) return null;
+    if (!totalAmount || !receiptDate || !user?.id) return null;
+    
+    // VKN/TCKN varsa, öncelikli olarak onu kullan
+    if (sellerTaxNo) {
+      const { data } = await supabase
+        .from('receipts')
+        .select('*, category:transaction_categories!category_id(*)')
+        .eq('user_id', user.id)
+        .eq('receipt_date', receiptDate)
+        .eq('seller_tax_no', sellerTaxNo)
+        .gte('total_amount', totalAmount - 1)
+        .lte('total_amount', totalAmount + 1)
+        .maybeSingle();
+      
+      return data as Receipt | null;
+    }
+    
+    // VKN yoksa, isim bazlı kontrol
+    if (!sellerName) return null;
     
     // Use a tolerance for amount matching (within 1 TL)
     const { data } = await supabase
@@ -170,16 +207,19 @@ export function useReceipts(year?: number, month?: number) {
     fileName: string,
     receiptDate: string | null
   ): Promise<DuplicateCheckResult> => {
-    // 1. First check by receipt_no (most reliable)
+    const sellerTaxNo = ocr.sellerTaxNo || ocr.vendorTaxNo;
+    
+    // 1. Check by receipt_no + seller_tax_no (en güvenilir - aynı VKN + aynı fatura no = gerçek duplike)
     if (ocr.receiptNo) {
-      const existing = await checkDuplicateByReceiptNo(ocr.receiptNo);
+      const existing = await checkDuplicateByReceiptNo(ocr.receiptNo, sellerTaxNo);
       if (existing) {
         const sellerInfo = existing.seller_name || existing.vendor_name || 'Bilinmeyen satıcı';
+        const taxInfo = sellerTaxNo ? ` (VKN: ${sellerTaxNo})` : '';
         return {
           isDuplicate: true,
           duplicateType: 'receipt_no',
           existingReceipt: existing,
-          message: `Fiş No: ${ocr.receiptNo} zaten kayıtlı (${sellerInfo})`
+          message: `Fiş No: ${ocr.receiptNo}${taxInfo} zaten kayıtlı (${sellerInfo})`
         };
       }
     }
@@ -195,9 +235,10 @@ export function useReceipts(year?: number, month?: number) {
       };
     }
     
-    // 3. Soft duplicate check (warning only)
+    // 3. Soft duplicate check (warning only) - VKN veya isim + tutar + tarih eşleşmesi
     const softMatch = await checkSoftDuplicate(
       ocr.sellerName || ocr.vendorName,
+      sellerTaxNo,
       ocr.totalAmount,
       receiptDate
     );
