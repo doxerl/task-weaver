@@ -120,7 +120,7 @@ export default function ReceiptUpload() {
     reprocessReceipt,
     toggleIncludeInReport,
     isReprocessing
-  } = useReceipts();
+  } = useReceipts(selectedYear);
 
   // Exchange rates for TRY conversion
   const { getCurrencyRate } = useExchangeRates();
