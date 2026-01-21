@@ -1024,9 +1024,12 @@ export function useReceipts(year?: number, month?: number) {
   });
 
   // Missing VAT receipts
+  // Yabancı faturalar için KDV=0 normaldir, sadece yurtiçi TRY faturaları kontrol et
   const missingVatReceipts = receipts.filter(r => 
     r.is_included_in_report && 
-    (r.vat_amount === null || r.vat_amount === 0)
+    (r.vat_amount === null || r.vat_amount === 0) &&
+    !r.is_foreign_invoice &&
+    (r.currency === 'TRY' || !r.currency)
   );
 
   const stats = {
