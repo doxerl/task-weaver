@@ -11,13 +11,16 @@ export interface VatSeparationResult {
 export interface VatSeparableTransaction {
   amount?: number | null;
   total_amount?: number | null;
+  amount_try?: number | null;           // TRY equivalent for foreign invoices
   net_amount?: number | null;
   vat_amount?: number | null;
+  vat_amount_try?: number | null;       // TRY VAT equivalent for foreign invoices
   vat_rate?: number | null;
   is_commercial?: boolean | null;
   is_foreign?: boolean | null;
   is_foreign_invoice?: boolean | null;
   currency?: string | null;
+  original_currency?: string | null;    // Original currency code (EUR, USD, etc.)
 }
 
 /**
@@ -29,13 +32,21 @@ export interface VatSeparableTransaction {
  * 4. Default to 20% VAT for commercial transactions
  */
 export function separateVat(transaction: VatSeparableTransaction): VatSeparationResult {
-  const gross = Math.abs(transaction.amount ?? transaction.total_amount ?? 0);
+  // Check if this is a foreign currency transaction
+  const hasForeignCurrency = (transaction.original_currency && transaction.original_currency !== 'TRY') ||
+                             (transaction.currency && transaction.currency !== 'TRY');
+  
+  // Use TRY equivalent if available for foreign invoices, otherwise use original amount
+  const gross = hasForeignCurrency && transaction.amount_try != null && transaction.amount_try > 0
+    ? Math.abs(transaction.amount_try)
+    : Math.abs(transaction.amount ?? transaction.total_amount ?? 0);
   
   // Priority 0: Foreign invoices have no Turkish VAT
   const isForeign = transaction.is_foreign === true || 
                     transaction.is_foreign_invoice === true ||
-                    (transaction.currency && transaction.currency !== 'TRY');
+                    hasForeignCurrency;
   if (isForeign) {
+    // For foreign invoices, use TRY amount but no VAT
     return { grossAmount: gross, netAmount: gross, vatAmount: 0, vatRate: 0 };
   }
   
