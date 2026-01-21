@@ -91,12 +91,12 @@ function ReceiptCard({ receipt, categories, onCategoryChange, onToggleReport, on
           </div>
         </div>
         
-        {/* Amount Breakdown */}
+        {/* Amount Breakdown - Her zaman TRY göster */}
         <div className="space-y-1 text-xs">
-          {receipt.subtotal && (
+          {(receipt.subtotal_try || receipt.subtotal) && (
             <div className="flex justify-between text-muted-foreground">
               <span>Ara Toplam:</span>
-              <span>{formatCurrency(receipt.subtotal, receipt.currency || 'TRY')}</span>
+              <span>{formatCurrency(receipt.subtotal_try || receipt.subtotal || 0, 'TRY')}</span>
             </div>
           )}
           {receipt.is_foreign_invoice ? (
@@ -104,10 +104,10 @@ function ReceiptCard({ receipt, categories, onCategoryChange, onToggleReport, on
               <span>KDV:</span>
               <span>%0</span>
             </div>
-          ) : receipt.vat_amount ? (
+          ) : (receipt.vat_amount_try || receipt.vat_amount) ? (
             <div className="flex justify-between text-muted-foreground">
               <span>KDV {receipt.vat_rate ? `(%${receipt.vat_rate})` : ''}:</span>
-              <span>{formatCurrency(receipt.vat_amount, 'TRY')}</span>
+              <span>{formatCurrency(receipt.vat_amount_try || receipt.vat_amount || 0, 'TRY')}</span>
             </div>
           ) : null}
           {receipt.withholding_tax_amount && (
@@ -119,10 +119,10 @@ function ReceiptCard({ receipt, categories, onCategoryChange, onToggleReport, on
           <div className="flex justify-between font-bold pt-1 border-t">
             <span>Toplam:</span>
             <div className={cn("text-right", isReceived ? "text-destructive" : "text-green-600")}>
-              {isReceived ? '-' : '+'}{formatCurrency(receipt.total_amount || 0, receipt.currency || 'TRY')}
-              {receipt.is_foreign_invoice && receipt.amount_try && (
+              {isReceived ? '-' : '+'}{formatCurrency(receipt.amount_try || receipt.total_amount || 0, 'TRY')}
+              {receipt.currency && receipt.currency !== 'TRY' && receipt.total_amount && (
                 <span className="block text-xs text-muted-foreground font-normal">
-                  ≈ {formatCurrency(receipt.amount_try, 'TRY')}
+                  ({formatCurrency(receipt.total_amount, receipt.currency)})
                 </span>
               )}
             </div>

@@ -88,10 +88,11 @@ export function ReceiptTable({
   };
 
   // Calculate totals
+  // Her zaman TRY alanlarını kullan
   const totals = receipts.reduce((acc, r) => ({
-    subtotal: acc.subtotal + (r.subtotal || 0),
-    vat: acc.vat + (r.vat_amount || 0),
-    total: acc.total + (r.total_amount || 0),
+    subtotal: acc.subtotal + (r.subtotal_try || r.subtotal || 0),
+    vat: acc.vat + (r.vat_amount_try || r.vat_amount || 0),
+    total: acc.total + (r.amount_try || r.total_amount || 0),
   }), { subtotal: 0, vat: 0, total: 0 });
 
   const SortButton = ({ field, children }: { field: SortField; children: React.ReactNode }) => (
@@ -177,7 +178,9 @@ export function ReceiptTable({
                   </div>
                 </TableCell>
                 <TableCell className="text-right text-sm">
-                  {receipt.subtotal ? formatCurrency(receipt.subtotal, receiptCurrency) : '-'}
+                  {(receipt.subtotal_try || receipt.subtotal) 
+                    ? formatCurrency(receipt.subtotal_try || receipt.subtotal || 0, 'TRY') 
+                    : '-'}
                 </TableCell>
                 <TableCell className="text-right text-sm">
                   {receipt.is_foreign_invoice ? (
@@ -187,9 +190,9 @@ export function ReceiptTable({
                       <AlertTriangle className="h-3 w-3" />
                       Eksik
                     </span>
-                  ) : receipt.vat_amount ? (
+                  ) : (receipt.vat_amount_try || receipt.vat_amount) ? (
                     <span>
-                      {formatCurrency(receipt.vat_amount, 'TRY')}
+                      {formatCurrency(receipt.vat_amount_try || receipt.vat_amount || 0, 'TRY')}
                       {receipt.vat_rate && <span className="text-xs text-muted-foreground ml-1">(%{receipt.vat_rate})</span>}
                     </span>
                   ) : '-'}
@@ -199,10 +202,10 @@ export function ReceiptTable({
                   isReceived ? "text-destructive" : "text-green-600"
                 )}>
                   <div>
-                    {isReceived ? '-' : '+'}{formatCurrency(receipt.total_amount || 0, receiptCurrency)}
-                    {receipt.is_foreign_invoice && receipt.amount_try && (
+                    {isReceived ? '-' : '+'}{formatCurrency(receipt.amount_try || receipt.total_amount || 0, 'TRY')}
+                    {receipt.currency && receipt.currency !== 'TRY' && receipt.total_amount && (
                       <span className="block text-xs text-muted-foreground font-normal">
-                        ≈ {formatCurrency(receipt.amount_try, 'TRY')}
+                        ({formatCurrency(receipt.total_amount, receipt.currency)})
                       </span>
                     )}
                   </div>
