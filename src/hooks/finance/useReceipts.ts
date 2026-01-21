@@ -89,10 +89,11 @@ export function useReceipts(year?: number, month?: number) {
     enabled: !!user?.id
   });
 
-  // Helper to check for duplicate receipts by receipt_no + seller_tax_no (VKN/TCKN)
+  // Helper to check for duplicate receipts by receipt_no + seller_tax_no (VKN/TCKN) + document_type
   const checkDuplicateByReceiptNo = async (
     receiptNo: string,
-    sellerTaxNo?: string | null
+    sellerTaxNo?: string | null,
+    documentType?: string | null
   ): Promise<Receipt | null> => {
     if (!receiptNo || !user?.id) return null;
     
@@ -101,6 +102,11 @@ export function useReceipts(year?: number, month?: number) {
       .select('*, category:transaction_categories!category_id(*)')
       .eq('user_id', user.id)
       .eq('receipt_no', receiptNo);
+    
+    // document_type varsa, AYNI TİP belgede ara (kesilen vs kesilen, alınan vs alınan)
+    if (documentType) {
+      query = query.eq('document_type', documentType);
+    }
     
     // VKN/TCKN varsa, onu da kontrol et (asıl duplike tespiti)
     if (sellerTaxNo) {
@@ -205,21 +211,24 @@ export function useReceipts(year?: number, month?: number) {
   const checkForDuplicate = async (
     ocr: Record<string, any>,
     fileName: string,
-    receiptDate: string | null
+    receiptDate: string | null,
+    documentType?: string
   ): Promise<DuplicateCheckResult> => {
     const sellerTaxNo = ocr.sellerTaxNo || ocr.vendorTaxNo;
     
-    // 1. Check by receipt_no + seller_tax_no (en güvenilir - aynı VKN + aynı fatura no = gerçek duplike)
+    // 1. Check by receipt_no + seller_tax_no + document_type (en güvenilir)
+    // Aynı VKN + aynı fatura no + aynı belge tipi = gerçek duplike
     if (ocr.receiptNo) {
-      const existing = await checkDuplicateByReceiptNo(ocr.receiptNo, sellerTaxNo);
+      const existing = await checkDuplicateByReceiptNo(ocr.receiptNo, sellerTaxNo, documentType);
       if (existing) {
         const sellerInfo = existing.seller_name || existing.vendor_name || 'Bilinmeyen satıcı';
         const taxInfo = sellerTaxNo ? ` (VKN: ${sellerTaxNo})` : '';
+        const typeInfo = documentType === 'issued' ? 'Kesilen' : 'Alınan';
         return {
           isDuplicate: true,
           duplicateType: 'receipt_no',
           existingReceipt: existing,
-          message: `Fiş No: ${ocr.receiptNo}${taxInfo} zaten kayıtlı (${sellerInfo})`
+          message: `${typeInfo} Fatura No: ${ocr.receiptNo}${taxInfo} zaten kayıtlı (${sellerInfo})`
         };
       }
     }
@@ -295,7 +304,7 @@ export function useReceipts(year?: number, month?: number) {
     // Multi-layer duplicate check
     let softDuplicateWarning: string | undefined;
     if (!skipDuplicateCheck) {
-      const duplicateCheck = await checkForDuplicate(ocr, fileName, receiptDate);
+      const duplicateCheck = await checkForDuplicate(ocr, fileName, receiptDate, documentType);
       
       if (duplicateCheck.isDuplicate) {
         return { 
