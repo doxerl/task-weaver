@@ -498,57 +498,53 @@ serve(async (req) => {
       summarySheet['!cols'] = [{ wch: 25 }, { wch: 30 }];
       XLSX.utils.book_append_sheet(workbook, summarySheet, 'Özet');
       
-      // Create domestic invoices sheet
-      if (domesticInvoices.length > 0) {
-        const domesticHeaders = ['Tarih', 'Fatura No', 'Satıcı Adı', 'Satıcı VKN', 'Matrah', 'KDV %', 'KDV Tutarı', 'Toplam', 'Kategori', 'Rapora Dahil', 'Dosya Adı'];
-        const domesticRows = domesticInvoices.map(r => [
+      // Create domestic invoices sheet - ALWAYS create it
+      const domesticHeaders = ['Tarih', 'Fatura No', 'Satıcı Adı', 'Satıcı VKN', 'Matrah', 'KDV %', 'KDV Tutarı', 'Toplam', 'Kategori', 'Rapora Dahil', 'Dosya Adı'];
+      const domesticRows = domesticInvoices.map(r => [
+        formatDate(r.receipt_date),
+        r.receipt_no || '',
+        r.seller_name || r.vendor_name || '',
+        r.seller_tax_no || r.vendor_tax_no || '',
+        r.subtotal || ((r.total_amount || 0) - (r.vat_amount || 0)),
+        r.vat_rate || 0,
+        r.vat_amount || 0,
+        r.total_amount || 0,
+        r.category?.name || '',
+        r.is_included_in_report ? 'Evet' : 'Hayır',
+        r.file_name || ''
+      ]);
+      const domesticSheet = XLSX.utils.aoa_to_sheet([domesticHeaders, ...domesticRows]);
+      domesticSheet['!cols'] = [
+        { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 14 }, { wch: 14 },
+        { wch: 8 }, { wch: 12 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 30 }
+      ];
+      XLSX.utils.book_append_sheet(workbook, domesticSheet, 'Yurtiçi Faturalar');
+      
+      // Create foreign invoices sheet - ALWAYS create it
+      const foreignHeaders = ['Tarih', 'Fatura No', 'Satıcı Adı', 'Para Birimi', 'Orijinal Tutar', 'Kullanılan Kur', 'TRY Karşılığı', 'Kategori', 'Rapora Dahil', 'Dosya Adı'];
+      const foreignRows = foreignInvoices.map(r => {
+        const currency = r.original_currency || r.currency || 'USD';
+        const originalAmount = r.original_amount || r.total_amount || 0;
+        const { tryAmount, rate } = calculateTryAmount(r);
+        return [
           formatDate(r.receipt_date),
           r.receipt_no || '',
           r.seller_name || r.vendor_name || '',
-          r.seller_tax_no || r.vendor_tax_no || '',
-          r.subtotal || ((r.total_amount || 0) - (r.vat_amount || 0)),
-          r.vat_rate || 0,
-          r.vat_amount || 0,
-          r.total_amount || 0,
+          currency,
+          originalAmount,
+          rate || '-',
+          tryAmount,
           r.category?.name || '',
           r.is_included_in_report ? 'Evet' : 'Hayır',
           r.file_name || ''
-        ]);
-        const domesticSheet = XLSX.utils.aoa_to_sheet([domesticHeaders, ...domesticRows]);
-        domesticSheet['!cols'] = [
-          { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 14 }, { wch: 14 },
-          { wch: 8 }, { wch: 12 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 30 }
         ];
-        XLSX.utils.book_append_sheet(workbook, domesticSheet, 'Yurtiçi Faturalar');
-      }
-      
-      // Create foreign invoices sheet
-      if (foreignInvoices.length > 0) {
-        const foreignHeaders = ['Tarih', 'Fatura No', 'Satıcı Adı', 'Para Birimi', 'Orijinal Tutar', 'Kullanılan Kur', 'TRY Karşılığı', 'Kategori', 'Rapora Dahil', 'Dosya Adı'];
-        const foreignRows = foreignInvoices.map(r => {
-          const currency = r.original_currency || r.currency || 'USD';
-          const originalAmount = r.original_amount || r.total_amount || 0;
-          const { tryAmount, rate } = calculateTryAmount(r);
-          return [
-            formatDate(r.receipt_date),
-            r.receipt_no || '',
-            r.seller_name || r.vendor_name || '',
-            currency,
-            originalAmount,
-            rate || '-',
-            tryAmount,
-            r.category?.name || '',
-            r.is_included_in_report ? 'Evet' : 'Hayır',
-            r.file_name || ''
-          ];
-        });
-        const foreignSheet = XLSX.utils.aoa_to_sheet([foreignHeaders, ...foreignRows]);
-        foreignSheet['!cols'] = [
-          { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 12 }, { wch: 14 },
-          { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 30 }
-        ];
-        XLSX.utils.book_append_sheet(workbook, foreignSheet, 'Yurtdışı Faturalar');
-      }
+      });
+      const foreignSheet = XLSX.utils.aoa_to_sheet([foreignHeaders, ...foreignRows]);
+      foreignSheet['!cols'] = [
+        { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 12 }, { wch: 14 },
+        { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 30 }
+      ];
+      XLSX.utils.book_append_sheet(workbook, foreignSheet, 'Yurtdışı Faturalar');
 
       filename = `AlinanFaturalar_${year}_${todayStr.replace(/\./g, '-')}`;
 
