@@ -43,12 +43,29 @@ export function UploadedReceiptCard({
   // Check if this is an issued invoice
   const isIssuedInvoice = receipt.document_type === 'issued';
   
-  const formatCurrency = (amount: number | null | undefined) => {
+  const formatCurrency = (amount: number | null | undefined, currencyOverride?: string) => {
     if (amount === null || amount === undefined) return '-';
     return new Intl.NumberFormat('tr-TR', {
       style: 'currency',
-      currency: receipt.currency || 'TRY'
+      currency: currencyOverride || receipt.currency || 'TRY'
     }).format(amount);
+  };
+
+  const formatTry = (amount: number | null | undefined) => {
+    if (amount === null || amount === undefined) return '-';
+    return new Intl.NumberFormat('tr-TR', {
+      style: 'currency',
+      currency: 'TRY'
+    }).format(amount);
+  };
+
+  const getCurrencySymbol = (currency: string) => {
+    switch (currency) {
+      case 'EUR': return '€';
+      case 'USD': return '$';
+      case 'GBP': return '£';
+      default: return currency;
+    }
   };
 
   const formatDate = (dateStr: string | null | undefined) => {
@@ -169,19 +186,39 @@ export function UploadedReceiptCard({
         {/* Financial Details */}
         <div className="px-4 py-3 border-t border-border bg-muted/30">
           <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+            {/* Subtotal - Show TRY for domestic foreign-currency invoices */}
             {receipt.subtotal !== null && receipt.subtotal !== undefined && (
               <>
                 <span className="text-muted-foreground">Ara Toplam</span>
-                <span className="text-right">{formatCurrency(receipt.subtotal)}</span>
+                {isDomesticWithForeignCurrency ? (
+                  <span className="text-right">
+                    {formatTry(receipt.subtotal_try || (receipt.subtotal * (receipt.exchange_rate_used || 1)))}
+                    <span className="text-xs text-muted-foreground ml-1">
+                      ({getCurrencySymbol(receipt.currency!)}{receipt.subtotal?.toLocaleString('en-US', { minimumFractionDigits: 2 })})
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-right">{formatCurrency(receipt.subtotal)}</span>
+                )}
               </>
             )}
             
+            {/* VAT - Show TRY for domestic foreign-currency invoices */}
             {receipt.vat_rate !== null && receipt.vat_amount !== null && (
               <>
                 <span className="text-muted-foreground">
                   KDV {receipt.vat_rate ? `(%${receipt.vat_rate})` : ''}
                 </span>
-                <span className="text-right text-green-600">+{formatCurrency(receipt.vat_amount)}</span>
+                {isDomesticWithForeignCurrency ? (
+                  <span className="text-right text-green-600">
+                    +{formatTry(receipt.vat_amount_try || (receipt.vat_amount * (receipt.exchange_rate_used || 1)))}
+                    <span className="text-xs text-muted-foreground ml-1">
+                      ({getCurrencySymbol(receipt.currency!)}{receipt.vat_amount?.toLocaleString('en-US', { minimumFractionDigits: 2 })})
+                    </span>
+                  </span>
+                ) : (
+                  <span className="text-right text-green-600">+{formatCurrency(receipt.vat_amount)}</span>
+                )}
               </>
             )}
             
@@ -201,8 +238,28 @@ export function UploadedReceiptCard({
               </>
             )}
             
+            {/* Total - Show TRY for domestic foreign-currency invoices */}
             <span className="font-semibold">TOPLAM</span>
-            <span className="text-right font-bold">{formatCurrency(receipt.total_amount)}</span>
+            {isDomesticWithForeignCurrency ? (
+              <span className="text-right font-bold">
+                {formatTry(receipt.amount_try || (receipt.total_amount! * (receipt.exchange_rate_used || 1)))}
+                <span className="text-xs text-muted-foreground ml-1 font-normal">
+                  ({getCurrencySymbol(receipt.currency!)}{receipt.total_amount?.toLocaleString('en-US', { minimumFractionDigits: 2 })})
+                </span>
+              </span>
+            ) : (
+              <span className="text-right font-bold">{formatCurrency(receipt.total_amount)}</span>
+            )}
+            
+            {/* Exchange Rate for domestic foreign-currency invoices */}
+            {isDomesticWithForeignCurrency && receipt.exchange_rate_used && (
+              <>
+                <span className="text-muted-foreground text-xs">Döviz Kuru</span>
+                <span className="text-right text-xs">
+                  1 {receipt.currency} = {receipt.exchange_rate_used.toFixed(4)} TRY
+                </span>
+              </>
+            )}
             
             {/* Foreign Invoice: Exchange Rate & TRY Equivalent */}
             {isForeignInvoice && receipt.amount_try && receipt.exchange_rate_used && (

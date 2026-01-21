@@ -1330,11 +1330,13 @@ export type Database = {
           seller_tax_no: string | null
           stamp_tax_amount: number | null
           subtotal: number | null
+          subtotal_try: number | null
           tax_amount: number | null
           thumbnail_url: string | null
           total_amount: number | null
           user_id: string | null
           vat_amount: number | null
+          vat_amount_try: number | null
           vat_rate: number | null
           vendor_name: string | null
           vendor_tax_no: string | null
@@ -1379,11 +1381,13 @@ export type Database = {
           seller_tax_no?: string | null
           stamp_tax_amount?: number | null
           subtotal?: number | null
+          subtotal_try?: number | null
           tax_amount?: number | null
           thumbnail_url?: string | null
           total_amount?: number | null
           user_id?: string | null
           vat_amount?: number | null
+          vat_amount_try?: number | null
           vat_rate?: number | null
           vendor_name?: string | null
           vendor_tax_no?: string | null
@@ -1428,11 +1432,13 @@ export type Database = {
           seller_tax_no?: string | null
           stamp_tax_amount?: number | null
           subtotal?: number | null
+          subtotal_try?: number | null
           tax_amount?: number | null
           thumbnail_url?: string | null
           total_amount?: number | null
           user_id?: string | null
           vat_amount?: number | null
+          vat_amount_try?: number | null
           vat_rate?: number | null
           vendor_name?: string | null
           vendor_tax_no?: string | null
