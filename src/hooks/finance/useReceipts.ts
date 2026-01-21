@@ -53,8 +53,8 @@ export function useReceipts(year?: number, month?: number) {
   const { toast } = useToast();
   const [uploadProgress, setUploadProgress] = useState(0);
   
-  // Exchange rates for foreign invoice conversion
-  const { getRate: getExchangeRate } = useExchangeRates();
+  // Exchange rates for foreign invoice conversion - use getCurrencyRate for proper EUR/USD separation
+  const { getCurrencyRate } = useExchangeRates();
   
   // Reprocess state
   const [reprocessProgress, setReprocessProgress] = useState(0);
@@ -356,12 +356,26 @@ export function useReceipts(year?: number, month?: number) {
       originalCurrency = ocr.currency;
       originalAmount = ocr.totalAmount || null;
       
-      // Get exchange rate for the receipt month
-      if (originalAmount && receiptYear && receiptMonth) {
-        const rate = getExchangeRate(receiptYear, receiptMonth);
-        if (rate && (ocr.currency === 'USD' || ocr.currency === 'EUR')) {
+      // PRIORITY 1: Use TRY amounts directly from invoice if available
+      if (ocr.amountTRY && ocr.amountTRY > 0) {
+        amountTry = ocr.amountTRY;
+        // Use exchange rate from invoice if provided
+        if (ocr.exchangeRateFromInvoice && ocr.exchangeRateFromInvoice > 0) {
+          exchangeRateUsed = ocr.exchangeRateFromInvoice;
+        } else if (originalAmount && originalAmount > 0) {
+          // Calculate rate from TRY/original amounts
+          exchangeRateUsed = ocr.amountTRY / originalAmount;
+        }
+        console.log('Using TRY from invoice:', { amountTry, exchangeRateUsed, source: 'invoice' });
+      }
+      // PRIORITY 2: Use fallback exchange rate (with proper currency selection!)
+      else if (originalAmount && receiptYear && receiptMonth) {
+        const currency = ocr.currency || 'USD';
+        const rate = getCurrencyRate(currency, receiptYear, receiptMonth);
+        if (rate) {
           exchangeRateUsed = rate;
           amountTry = originalAmount * rate;
+          console.log('Using fallback rate:', { currency, rate, amountTry, source: 'fallback' });
         }
       }
     }
