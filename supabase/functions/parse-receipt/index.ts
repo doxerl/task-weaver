@@ -83,16 +83,31 @@ serve(async (req) => {
 
 GÖREV: Verilen fiş/fatura görüntüsünden detaylı bilgileri çıkar.
 
+VKN ve TCKN FARKI (ÇOK ÖNEMLİ):
+- VKN (Vergi Kimlik Numarası): 10 haneli, şirketler/tüzel kişiler için
+- TCKN (T.C. Kimlik Numarası): 11 haneli, şahıslar/gerçek kişiler için
+- Her ikisi de TÜRKİYE'de YURTİÇİ belgedir!
+- "VKN:" veya "TCKN:" etiketinden sonra gelen numarayı al
+- Eğer 10 hane ise VKN (şirket), 11 hane ise TCKN (şahıs)
+
+e-ARŞİV FATURA YAPISI:
+- Sol üst köşe: SATAN (kesen) bilgileri - Ad/Ünvan, TCKN veya VKN, Adres
+- Orta: e-Arşiv Fatura logosu, QR kod
+- "SAYIN" yazısı altında: ALICI (alan) bilgileri - Ad/Ünvan, VKN, Adres
+- Sağ üst kutu: Fatura No (GIB...), Tarih, Senaryo, Tip
+- Tablo: Mal/Hizmet kalemleri
+- Alt kısım: Toplam tutarlar, KDV
+
 ÇIKARILACAK ALANLAR:
 
 SATICI BİLGİLERİ (Faturayı Kesen):
-- sellerName: Satıcı firma adı (genellikle üst kısımda)
-- sellerTaxNo: Satıcı VKN/TCKN (10-11 hane)
+- sellerName: Satıcı firma adı VEYA şahıs adı-soyadı
+- sellerTaxNo: Satıcı VKN (10 hane) veya TCKN (11 hane)
 - sellerAddress: Satıcı adresi
 
 ALICI BİLGİLERİ (Faturayı Alan):
 - buyerName: Alıcı firma/kişi adı (varsa)
-- buyerTaxNo: Alıcı VKN/TCKN (varsa)
+- buyerTaxNo: Alıcı VKN (10 hane) veya TCKN (11 hane) (varsa)
 - buyerAddress: Alıcı adresi (varsa)
 
 BELGE BİLGİLERİ:
@@ -118,13 +133,20 @@ DİĞER:
 - currency: Para birimi (TRY, USD, EUR vb.)
 - confidence: Güven skoru (0-1 arası)
 
-YURTDIŞI FATURA TESPİTİ (ÖNEMLİ):
-- isForeign: true/false - Satıcı yurtdışında mı?
-- foreignSellerCountry: Satıcının ülkesi (USA, Germany, UK vb.)
+YURTİÇİ / YURTDIŞI TESPİTİ (ÇOK ÖNEMLİ):
 
-YURTDIŞI FATURA İPUÇLARI:
+YURTİÇİ FATURA İPUÇLARI (isForeign: false):
+- VKN: 10 haneli numara (örn: 0511149566) → Türk şirketi = YURTİÇİ
+- TCKN: 11 haneli numara (örn: 20612201206) → Türk vatandaşı/şahıs = YURTİÇİ
+- Türk adresi: İstanbul, Ankara, İzmir vb. şehir isimleri
+- Türk vergi dairesi adı
+- TL veya TRY para birimi
+- Türkçe yazılmış belge
+
+YURTDIŞI FATURA İPUÇLARI (isForeign: true):
+- Vergi numarası Türk formatında DEĞİL (10-11 hane değil)
+- EIN, VAT, ABN gibi yabancı vergi numaraları
 - Adres: "United States", "USA", "UK", "Germany", "Netherlands", yabancı şehir/ülke isimleri
-- VKN formatı: Türk VKN değil (10-11 hane olmayan), EIN, VAT numarası
 - Dil: İngilizce, Almanca vb. yazılmış
 - Para birimi: USD, EUR, GBP vb.
 - Firma isimleri: "Inc.", "LLC", "GmbH", "Ltd.", "BV" içeren
