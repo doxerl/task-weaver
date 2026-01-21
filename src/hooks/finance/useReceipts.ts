@@ -306,17 +306,53 @@ export function useReceipts(year?: number, month?: number) {
       console.log('Defaulting to slip');
     }
 
-    // Foreign invoice detection
-    const isForeignInvoice = ocr.isForeign === true || 
-      (ocr.currency && ocr.currency !== 'TRY');
+    // Foreign invoice detection - VKN based logic
+    // For ISSUED invoices: Foreign if buyer VKN is not Turkish format (10-11 digits)
+    // For RECEIVED invoices: Foreign if seller VKN is not Turkish format AND VAT = 0
+    const isTurkishVKN = (vkn: string | null | undefined): boolean => {
+      if (!vkn) return false;
+      const cleaned = vkn.replace(/\s/g, '');
+      return /^\d{10,11}$/.test(cleaned);
+    };
     
-    // Currency conversion for foreign invoices
+    // Get relevant VKN based on document type
+    const relevantVKN = documentType === 'issued' 
+      ? (ocr.buyerTaxNo || null)   // For issued: check buyer's VKN
+      : (ocr.sellerTaxNo || ocr.vendorTaxNo || null); // For received: check seller's VKN
+    
+    const hasTurkishVKN = isTurkishVKN(relevantVKN);
+    const vatRate = ocr.vatRate || 0;
+    
+    // Determine if foreign invoice
+    let isForeignInvoice = false;
+    if (documentType === 'issued') {
+      // ISSUED: Foreign if buyer VKN is not Turkish format
+      isForeignInvoice = !hasTurkishVKN;
+    } else {
+      // RECEIVED: Foreign if seller VKN is not Turkish AND VAT = 0
+      // OR if OCR explicitly says foreign AND seller VKN is not Turkish
+      isForeignInvoice = (!hasTurkishVKN && vatRate === 0) || (ocr.isForeign === true && !hasTurkishVKN);
+    }
+    
+    console.log('Foreign invoice detection:', {
+      documentType,
+      relevantVKN,
+      hasTurkishVKN,
+      vatRate,
+      ocrIsForeign: ocr.isForeign,
+      finalIsForeign: isForeignInvoice
+    });
+    
+    // Currency conversion for foreign invoices or foreign currency domestic invoices
     let originalAmount: number | null = null;
     let originalCurrency: string | null = null;
     let exchangeRateUsed: number | null = null;
     let amountTry: number | null = null;
     
-    if (isForeignInvoice && ocr.currency && ocr.currency !== 'TRY') {
+    // Has foreign currency but domestic buyer (e.g. EUR invoice to Turkish company)
+    const hasForeignCurrency = ocr.currency && ocr.currency !== 'TRY';
+    
+    if (hasForeignCurrency) {
       originalCurrency = ocr.currency;
       originalAmount = ocr.totalAmount || null;
       
@@ -324,7 +360,6 @@ export function useReceipts(year?: number, month?: number) {
       if (originalAmount && receiptYear && receiptMonth) {
         const rate = getExchangeRate(receiptYear, receiptMonth);
         if (rate && (ocr.currency === 'USD' || ocr.currency === 'EUR')) {
-          // For now only USD/TRY is supported, EUR will use same rate as approximation
           exchangeRateUsed = rate;
           amountTry = originalAmount * rate;
         }

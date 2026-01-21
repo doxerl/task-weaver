@@ -19,8 +19,18 @@ import { ReceiptEditSheet } from '@/components/finance/ReceiptEditSheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
-type ReceiptFilter = 'all' | 'domestic' | 'foreign';
+type ReceiptFilter = 'all' | 'domestic' | 'foreign' | 'received' | 'issued';
 type ExportFilter = 'all' | 'slip' | 'invoice' | 'issued' | 'foreign' | 'domestic';
+
+// Entity grouping type for summary
+interface EntityGroup {
+  count: number;
+  total: number;
+  vat: number;
+  subtotal: number;
+  taxNo?: string;
+  receipts: Receipt[];
+}
 
 // Helper to get file type info
 function getFileTypeInfo(file: File) {
@@ -166,13 +176,79 @@ export default function ReceiptUpload() {
   // Summary calculations with filter support and exchange rate conversion
   const receiptSummary = useMemo(() => {
     // Separate ALL receipts by type (for filtering display)
-    const allDomestic = recentReceipts.filter(r => !r.is_foreign_invoice && (!r.currency || r.currency === 'TRY'));
-    const allForeign = recentReceipts.filter(r => r.is_foreign_invoice || (r.currency && r.currency !== 'TRY'));
+    const allDomestic = recentReceipts.filter(r => !r.is_foreign_invoice);
+    const allForeign = recentReceipts.filter(r => r.is_foreign_invoice);
+    
+    // Alınan (Received) vs Kesilen (Issued) separation
+    const allReceived = recentReceipts.filter(r => r.document_type === 'received');
+    const allIssued = recentReceipts.filter(r => r.document_type === 'issued');
     
     // Included receipts only (for "Tümü" filter totals)
     const included = recentReceipts.filter(r => r.is_included_in_report);
-    const includedDomestic = included.filter(r => !r.is_foreign_invoice && (!r.currency || r.currency === 'TRY'));
-    const includedForeign = included.filter(r => r.is_foreign_invoice || (r.currency && r.currency !== 'TRY'));
+    const includedDomestic = included.filter(r => !r.is_foreign_invoice);
+    const includedForeign = included.filter(r => r.is_foreign_invoice);
+    
+    // Group received documents by seller (Kesen Tüzel Kişilik)
+    const receivedByVendor: Record<string, EntityGroup> = {};
+    allReceived.forEach(r => {
+      const vendor = r.seller_name || r.vendor_name || 'Bilinmeyen Satıcı';
+      if (!receivedByVendor[vendor]) {
+        receivedByVendor[vendor] = { 
+          count: 0, 
+          total: 0, 
+          vat: 0, 
+          subtotal: 0,
+          taxNo: r.seller_tax_no || r.vendor_tax_no || undefined,
+          receipts: [] 
+        };
+      }
+      // Use TRY equivalent for totals (amount_try if foreign, total_amount otherwise)
+      const tryAmount = r.is_foreign_invoice 
+        ? (r.amount_try || r.total_amount || 0) 
+        : (r.total_amount || 0);
+      receivedByVendor[vendor].count++;
+      receivedByVendor[vendor].total += tryAmount;
+      receivedByVendor[vendor].vat += r.vat_amount || 0;
+      receivedByVendor[vendor].subtotal += r.subtotal || (tryAmount - (r.vat_amount || 0));
+      receivedByVendor[vendor].receipts.push(r);
+    });
+    
+    // Group issued documents by buyer (Kesilen Tüzel Kişilik)
+    const issuedByBuyer: Record<string, EntityGroup> = {};
+    allIssued.forEach(r => {
+      const buyer = r.buyer_name || 'Bilinmeyen Alıcı';
+      if (!issuedByBuyer[buyer]) {
+        issuedByBuyer[buyer] = { 
+          count: 0, 
+          total: 0, 
+          vat: 0, 
+          subtotal: 0,
+          taxNo: r.buyer_tax_no || undefined,
+          receipts: [] 
+        };
+      }
+      // Use TRY equivalent for totals
+      const tryAmount = r.is_foreign_invoice 
+        ? (r.amount_try || r.total_amount || 0) 
+        : (r.total_amount || 0);
+      issuedByBuyer[buyer].count++;
+      issuedByBuyer[buyer].total += tryAmount;
+      issuedByBuyer[buyer].vat += r.vat_amount || 0;
+      issuedByBuyer[buyer].subtotal += r.subtotal || (tryAmount - (r.vat_amount || 0));
+      issuedByBuyer[buyer].receipts.push(r);
+    });
+    
+    // Calculate received/issued totals in TRY
+    const allReceivedTRY = allReceived.reduce((sum, r) => {
+      return sum + (r.is_foreign_invoice ? (r.amount_try || r.total_amount || 0) : (r.total_amount || 0));
+    }, 0);
+    const allIssuedTRY = allIssued.reduce((sum, r) => {
+      return sum + (r.is_foreign_invoice ? (r.amount_try || r.total_amount || 0) : (r.total_amount || 0));
+    }, 0);
+    
+    // Calculate VAT totals for received/issued
+    const allReceivedVAT = allReceived.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
+    const allIssuedVAT = allIssued.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
     
     // Helper function to calculate foreign totals
     const calculateForeignTotals = (receipts: typeof allForeign) => {
@@ -305,9 +381,23 @@ export default function ReceiptUpload() {
     const foreignByYear = calculateForeignByYear(allForeign);
     
     // Filtered receipts based on current filter (show ALL receipts of type, not just included)
-    const filteredReceipts = receiptFilter === 'domestic' ? allDomestic 
-                           : receiptFilter === 'foreign' ? allForeign 
-                           : recentReceipts;
+    let filteredReceipts: Receipt[];
+    switch (receiptFilter) {
+      case 'domestic':
+        filteredReceipts = allDomestic;
+        break;
+      case 'foreign':
+        filteredReceipts = allForeign;
+        break;
+      case 'received':
+        filteredReceipts = allReceived;
+        break;
+      case 'issued':
+        filteredReceipts = allIssued;
+        break;
+      default:
+        filteredReceipts = recentReceipts;
+    }
     
     return {
       totalCount: recentReceipts.length,
@@ -315,6 +405,16 @@ export default function ReceiptUpload() {
       // Counts for filter buttons (show ALL, not just included)
       allDomesticCount: allDomestic.length,
       allForeignCount: allForeign.length,
+      // Received/Issued counts
+      allReceivedCount: allReceived.length,
+      allIssuedCount: allIssued.length,
+      allReceivedTRY,
+      allIssuedTRY,
+      allReceivedVAT,
+      allIssuedVAT,
+      // Entity groupings
+      receivedByVendor,
+      issuedByBuyer,
       // Counts for included only
       domesticCount: includedDomestic.length,
       foreignCount: includedForeign.length,
@@ -951,8 +1051,8 @@ export default function ReceiptUpload() {
                     </span>
                   </div>
                   
-                  {/* Filter Chips */}
-                  <div className="flex gap-2">
+                  {/* Filter Chips - Row 1: Tümü, Alınan, Kesilen */}
+                  <div className="flex gap-2 flex-wrap">
                     <button
                       onClick={() => setReceiptFilter('all')}
                       className={cn(
@@ -963,6 +1063,30 @@ export default function ReceiptUpload() {
                       )}
                     >
                       Tümü ({receiptSummary.totalCount})
+                    </button>
+                    <button
+                      onClick={() => setReceiptFilter('received')}
+                      className={cn(
+                        "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
+                        receiptFilter === 'received' 
+                          ? "bg-purple-500 text-white" 
+                          : "bg-muted hover:bg-muted/80"
+                      )}
+                    >
+                      <ReceiptIcon className="h-3 w-3" />
+                      Alınan ({receiptSummary.allReceivedCount})
+                    </button>
+                    <button
+                      onClick={() => setReceiptFilter('issued')}
+                      className={cn(
+                        "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
+                        receiptFilter === 'issued' 
+                          ? "bg-green-500 text-white" 
+                          : "bg-muted hover:bg-muted/80"
+                      )}
+                    >
+                      <FileText className="h-3 w-3" />
+                      Kesilen ({receiptSummary.allIssuedCount})
                     </button>
                     <button
                       onClick={() => setReceiptFilter('domestic')}
@@ -1022,6 +1146,161 @@ export default function ReceiptUpload() {
                           <p className="text-xs text-muted-foreground">
                             ≈ ₺{receiptSummary.foreignTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                           </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+                
+                {/* Alınan Belgeler - Kesen Tüzel Kişilik Bazında */}
+                {receiptFilter === 'received' && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      Alınan Belgeler - Kesen Tüzel Kişilik Bazında
+                    </p>
+                    
+                    {Object.entries(receiptSummary.receivedByVendor)
+                      .sort(([,a], [,b]) => b.total - a.total) // En yüksek tutardan sırala
+                      .slice(0, 15) // İlk 15 satıcı
+                      .map(([vendor, data]) => (
+                        <div key={vendor} className="p-3 rounded-lg bg-background/50 border">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1 min-w-0">
+                              <span className="font-semibold text-sm block truncate">{vendor}</span>
+                              {data.taxNo && (
+                                <p className="text-xs text-muted-foreground">
+                                  VKN: {data.taxNo}
+                                </p>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                              {data.count} belge
+                            </span>
+                          </div>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Matrah</span>
+                              <span>₺{data.subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            {data.vat > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">KDV</span>
+                                <span className="text-orange-600">
+                                  ₺{data.vat.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex justify-between font-medium pt-1 border-t border-dashed">
+                              <span>Toplam (TRY)</span>
+                              <span className="text-purple-600">
+                                ₺{data.total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    
+                    {Object.keys(receiptSummary.receivedByVendor).length > 15 && (
+                      <p className="text-xs text-muted-foreground text-center">
+                        +{Object.keys(receiptSummary.receivedByVendor).length - 15} satıcı daha
+                      </p>
+                    )}
+                    
+                    {/* Genel Toplam */}
+                    <div className="p-3 rounded-lg bg-purple-50 dark:bg-purple-950/30 border border-purple-200 dark:border-purple-800">
+                      <div className="flex items-center justify-between mb-2">
+                        <span className="font-semibold text-sm">Alınan Belgeler Toplamı</span>
+                        <span className="text-xs text-muted-foreground">{receiptSummary.allReceivedCount} belge</span>
+                      </div>
+                      <div className="space-y-1 text-sm">
+                        <div className="flex justify-between">
+                          <span className="text-muted-foreground">Toplam KDV</span>
+                          <span className="text-orange-600">₺{receiptSummary.allReceivedVAT.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                        <div className="flex justify-between font-bold pt-1 border-t">
+                          <span>Genel Toplam (TRY)</span>
+                          <span className="text-purple-600">₺{receiptSummary.allReceivedTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                        </div>
+                      </div>
+                    </div>
+                    
+                    {receiptSummary.allReceivedCount === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Alınan belge bulunmuyor
+                      </p>
+                    )}
+                  </div>
+                )}
+                
+                {/* Kesilen Belgeler - Kesilen Tüzel Kişilik Bazında */}
+                {receiptFilter === 'issued' && (
+                  <div className="space-y-3">
+                    <p className="text-xs text-muted-foreground">
+                      Kesilen Belgeler - Kesilen Tüzel Kişilik Bazında
+                    </p>
+                    
+                    {Object.entries(receiptSummary.issuedByBuyer)
+                      .sort(([,a], [,b]) => b.total - a.total)
+                      .map(([buyer, data]) => (
+                        <div key={buyer} className="p-3 rounded-lg bg-background/50 border">
+                          <div className="flex items-start justify-between mb-2">
+                            <div className="flex-1 min-w-0">
+                              <span className="font-semibold text-sm block truncate">{buyer}</span>
+                              {data.taxNo && (
+                                <p className="text-xs text-muted-foreground">
+                                  VKN/TCKN: {data.taxNo}
+                                </p>
+                              )}
+                            </div>
+                            <span className="text-xs text-muted-foreground whitespace-nowrap ml-2">
+                              {data.count} belge
+                            </span>
+                          </div>
+                          <div className="space-y-1 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Matrah</span>
+                              <span>₺{data.subtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                            </div>
+                            {data.vat > 0 && (
+                              <div className="flex justify-between">
+                                <span className="text-muted-foreground">KDV</span>
+                                <span className="text-orange-600">
+                                  ₺{data.vat.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                                </span>
+                              </div>
+                            )}
+                            <div className="flex justify-between font-medium pt-1 border-t border-dashed">
+                              <span>Toplam (TRY)</span>
+                              <span className="text-green-600">
+                                ₺{data.total.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    
+                    {receiptSummary.allIssuedCount === 0 && (
+                      <p className="text-sm text-muted-foreground text-center py-4">
+                        Kesilen fatura bulunmuyor
+                      </p>
+                    )}
+                    
+                    {/* Genel Toplam */}
+                    {receiptSummary.allIssuedCount > 0 && (
+                      <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/30 border border-green-200 dark:border-green-800">
+                        <div className="flex items-center justify-between mb-2">
+                          <span className="font-semibold text-sm">Kesilen Belgeler Toplamı</span>
+                          <span className="text-xs text-muted-foreground">{receiptSummary.allIssuedCount} belge</span>
+                        </div>
+                        <div className="space-y-1 text-sm">
+                          <div className="flex justify-between">
+                            <span className="text-muted-foreground">Toplam KDV</span>
+                            <span className="text-orange-600">₺{receiptSummary.allIssuedVAT.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                          </div>
+                          <div className="flex justify-between font-bold pt-1 border-t">
+                            <span>Genel Toplam (TRY)</span>
+                            <span className="text-green-600">₺{receiptSummary.allIssuedTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 })}</span>
+                          </div>
                         </div>
                       </div>
                     )}
@@ -1159,14 +1438,25 @@ export default function ReceiptUpload() {
                 <div className="mt-3 pt-3 border-t border-blue-200 dark:border-blue-800">
                   <div className="flex items-center justify-between">
                     <span className="font-medium">
-                      {receiptFilter === 'all' ? 'Genel Toplam' : receiptFilter === 'domestic' ? 'Yurtiçi Toplam' : 'Yurtdışı Toplam'} (TRY)
+                      {receiptFilter === 'all' ? 'Genel Toplam' : 
+                       receiptFilter === 'domestic' ? 'Yurtiçi Toplam' : 
+                       receiptFilter === 'foreign' ? 'Yurtdışı Toplam' :
+                       receiptFilter === 'received' ? 'Alınan Toplam' : 'Kesilen Toplam'} (TRY)
                     </span>
-                    <span className="text-xl font-bold text-green-600">
+                    <span className={cn(
+                      "text-xl font-bold",
+                      receiptFilter === 'received' ? "text-purple-600" :
+                      receiptFilter === 'issued' ? "text-green-600" : "text-green-600"
+                    )}>
                       ₺{(receiptFilter === 'all' 
                           ? receiptSummary.grandTotalTRY 
                           : receiptFilter === 'domestic' 
                             ? receiptSummary.allDomesticTRY 
-                            : receiptSummary.allForeignTRY
+                            : receiptFilter === 'foreign'
+                              ? receiptSummary.allForeignTRY
+                              : receiptFilter === 'received'
+                                ? receiptSummary.allReceivedTRY
+                                : receiptSummary.allIssuedTRY
                         ).toLocaleString('tr-TR', { minimumFractionDigits: 2 })}
                     </span>
                   </div>
@@ -1176,7 +1466,10 @@ export default function ReceiptUpload() {
 
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">
-                📋 {receiptFilter === 'all' ? 'Son Yüklenen Belgeler' : receiptFilter === 'domestic' ? 'Yurtiçi Belgeler' : 'Yurtdışı Belgeler'} ({receiptFilter === 'all' ? recentReceipts.length : receiptSummary.filteredReceipts.length})
+                📋 {receiptFilter === 'all' ? 'Son Yüklenen Belgeler' : 
+                    receiptFilter === 'domestic' ? 'Yurtiçi Belgeler' : 
+                    receiptFilter === 'foreign' ? 'Yurtdışı Belgeler' :
+                    receiptFilter === 'received' ? 'Alınan Belgeler' : 'Kesilen Belgeler'} ({receiptFilter === 'all' ? recentReceipts.length : receiptSummary.filteredReceipts.length})
               </h2>
               <Link 
                 to="/finance/receipts" 
