@@ -34,9 +34,14 @@ export function UploadedReceiptCard({
   const hasMissingSeller = !receipt.seller_name;
   const hasWarnings = hasMissingVat || hasMissingSeller;
   
-  // Foreign invoice detection
-  const isForeignInvoice = receipt.is_foreign_invoice === true || 
-    (receipt.currency && receipt.currency !== 'TRY');
+  // Foreign invoice detection - only trust database field
+  const isForeignInvoice = receipt.is_foreign_invoice === true;
+  
+  // Domestic invoice with foreign currency
+  const isDomesticWithForeignCurrency = !isForeignInvoice && receipt.currency && receipt.currency !== 'TRY';
+  
+  // Check if this is an issued invoice
+  const isIssuedInvoice = receipt.document_type === 'issued';
   
   const formatCurrency = (amount: number | null | undefined) => {
     if (amount === null || amount === undefined) return '-';
@@ -76,13 +81,22 @@ export function UploadedReceiptCard({
 
           {/* Content */}
           <div className="flex-1 min-w-0">
-            {/* Seller Info */}
+            {/* Entity Info - Changes based on document type */}
             <div className="flex items-start justify-between gap-2">
               <div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2 flex-wrap">
                   <h3 className="font-semibold text-sm truncate">
-                    {receipt.seller_name || 'Satıcı bilgisi yok'}
+                    {isIssuedInvoice 
+                      ? (receipt.buyer_name || 'Alıcı bilgisi yok')
+                      : (receipt.seller_name || 'Satıcı bilgisi yok')
+                    }
                   </h3>
+                  {/* Document Type Badge for Issued */}
+                  {isIssuedInvoice && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-green-500/10 text-green-600 flex-shrink-0">
+                      Kesilen
+                    </span>
+                  )}
                   {/* Foreign Invoice Badge */}
                   {isForeignInvoice && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 flex items-center gap-1 flex-shrink-0">
@@ -90,10 +104,31 @@ export function UploadedReceiptCard({
                       Yurtdışı
                     </span>
                   )}
+                  {/* Domestic with Foreign Currency Badge */}
+                  {isDomesticWithForeignCurrency && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-amber-500/10 text-amber-600 flex-shrink-0">
+                      {receipt.currency} → TRY
+                    </span>
+                  )}
                 </div>
-                {receipt.seller_tax_no && (
-                  <p className="text-xs text-muted-foreground">
-                    VKN: {receipt.seller_tax_no}
+                {/* Tax Number - Based on document type */}
+                {isIssuedInvoice ? (
+                  receipt.buyer_tax_no && (
+                    <p className="text-xs text-muted-foreground">
+                      VKN: {receipt.buyer_tax_no}
+                    </p>
+                  )
+                ) : (
+                  receipt.seller_tax_no && (
+                    <p className="text-xs text-muted-foreground">
+                      VKN: {receipt.seller_tax_no}
+                    </p>
+                  )
+                )}
+                {/* For issued invoices, show issuer (own company) */}
+                {isIssuedInvoice && receipt.seller_name && (
+                  <p className="text-xs text-muted-foreground mt-0.5">
+                    Kesen: {receipt.seller_name}
                   </p>
                 )}
               </div>
