@@ -20,7 +20,7 @@ import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
 
 type ReceiptFilter = 'all' | 'domestic' | 'foreign';
-type ExportFilter = 'all' | 'slip' | 'invoice' | 'issued' | 'foreign';
+type ExportFilter = 'all' | 'slip' | 'invoice' | 'issued' | 'foreign' | 'domestic';
 
 // Helper to get file type info
 function getFileTypeInfo(file: File) {
@@ -527,6 +527,9 @@ export default function ReceiptUpload() {
                   📝 Sadece Kesilen Faturalar
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
+                <DropdownMenuItem onClick={() => handleExportExcel('domestic')}>
+                  🇹🇷 Sadece Yurtiçi Belgeler
+                </DropdownMenuItem>
                 <DropdownMenuItem onClick={() => handleExportExcel('foreign')}>
                   🌍 Sadece Yurtdışı Belgeler
                 </DropdownMenuItem>

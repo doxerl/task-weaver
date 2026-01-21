@@ -23,7 +23,7 @@ const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'c
 
 type ViewMode = 'card' | 'table';
 type TabType = 'slip' | 'invoice' | 'issued';
-type ExportFilter = 'all' | 'slip' | 'invoice' | 'issued' | 'foreign';
+type ExportFilter = 'all' | 'slip' | 'invoice' | 'issued' | 'foreign' | 'domestic';
 
 interface ReceiptCardProps {
   receipt: Receipt;
@@ -349,6 +349,9 @@ export default function Receipts() {
                 📝 Sadece Kesilen Faturalar
               </DropdownMenuItem>
               <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={() => handleExportExcel('domestic')}>
+                🇹🇷 Sadece Yurtiçi Belgeler
+              </DropdownMenuItem>
               <DropdownMenuItem onClick={() => handleExportExcel('foreign')}>
                 🌍 Sadece Yurtdışı Belgeler
               </DropdownMenuItem>
