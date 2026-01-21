@@ -29,7 +29,8 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-type ReceiptFilter = 'all' | 'domestic' | 'foreign' | 'received' | 'issued';
+type ReceiptFilter = 'all' | 'domestic' | 'foreign' | 'received' | 'issued' | 
+                     'received_domestic' | 'received_foreign' | 'issued_domestic' | 'issued_foreign';
 type ExportFilter = 'all' | 'slip' | 'invoice' | 'issued' | 'foreign' | 'domestic';
 
 // Entity grouping type for summary
@@ -198,6 +199,14 @@ export default function ReceiptUpload() {
     // Alınan (Received) vs Kesilen (Issued) separation
     const allReceived = recentReceipts.filter(r => r.document_type === 'received');
     const allIssued = recentReceipts.filter(r => r.document_type === 'issued');
+    
+    // Sub-filters: Received domestic/foreign
+    const receivedDomestic = allReceived.filter(r => !r.is_foreign_invoice);
+    const receivedForeign = allReceived.filter(r => r.is_foreign_invoice);
+    
+    // Sub-filters: Issued domestic/foreign
+    const issuedDomestic = allIssued.filter(r => !r.is_foreign_invoice);
+    const issuedForeign = allIssued.filter(r => r.is_foreign_invoice);
     
     // Included receipts only (for "Tümü" filter totals)
     const included = recentReceipts.filter(r => r.is_included_in_report);
@@ -469,6 +478,18 @@ export default function ReceiptUpload() {
       case 'issued':
         filteredReceipts = allIssued;
         break;
+      case 'received_domestic':
+        filteredReceipts = receivedDomestic;
+        break;
+      case 'received_foreign':
+        filteredReceipts = receivedForeign;
+        break;
+      case 'issued_domestic':
+        filteredReceipts = issuedDomestic;
+        break;
+      case 'issued_foreign':
+        filteredReceipts = issuedForeign;
+        break;
       default:
         filteredReceipts = recentReceipts;
     }
@@ -486,6 +507,11 @@ export default function ReceiptUpload() {
       allIssuedTRY,
       allReceivedVAT,
       allIssuedVAT,
+      // Sub-filter counts
+      receivedDomesticCount: receivedDomestic.length,
+      receivedForeignCount: receivedForeign.length,
+      issuedDomesticCount: issuedDomestic.length,
+      issuedForeignCount: issuedForeign.length,
       // Entity groupings
       receivedByVendor,
       issuedByBuyer,
@@ -1181,7 +1207,7 @@ export default function ReceiptUpload() {
                       onClick={() => setReceiptFilter('received')}
                       className={cn(
                         "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
-                        receiptFilter === 'received' 
+                        receiptFilter === 'received' || receiptFilter.startsWith('received_')
                           ? "bg-purple-500 text-white" 
                           : "bg-muted hover:bg-muted/80"
                       )}
@@ -1193,7 +1219,7 @@ export default function ReceiptUpload() {
                       onClick={() => setReceiptFilter('issued')}
                       className={cn(
                         "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
-                        receiptFilter === 'issued' 
+                        receiptFilter === 'issued' || receiptFilter.startsWith('issued_')
                           ? "bg-green-500 text-white" 
                           : "bg-muted hover:bg-muted/80"
                       )}
@@ -1201,31 +1227,89 @@ export default function ReceiptUpload() {
                       <FileText className="h-3 w-3" />
                       Kesilen ({receiptSummary.allIssuedCount})
                     </button>
-                    <button
-                      onClick={() => setReceiptFilter('domestic')}
-                      className={cn(
-                        "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
-                        receiptFilter === 'domestic' 
-                          ? "bg-orange-500 text-white" 
-                          : "bg-muted hover:bg-muted/80"
-                      )}
-                    >
-                      <Home className="h-3 w-3" />
-                      Yurtiçi ({receiptSummary.allDomesticCount})
-                    </button>
-                    <button
-                      onClick={() => setReceiptFilter('foreign')}
-                      className={cn(
-                        "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
-                        receiptFilter === 'foreign' 
-                          ? "bg-blue-500 text-white" 
-                          : "bg-muted hover:bg-muted/80"
-                      )}
-                    >
-                      <Globe className="h-3 w-3" />
-                      Yurtdışı ({receiptSummary.allForeignCount})
-                    </button>
                   </div>
+                  
+                  {/* Sub-filters for Alınan - only show when received is selected */}
+                  {(receiptFilter === 'received' || receiptFilter.startsWith('received_')) && (
+                    <div className="flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => setReceiptFilter('received')}
+                        className={cn(
+                          "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
+                          receiptFilter === 'received' 
+                            ? "bg-purple-400 text-white" 
+                            : "bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 hover:bg-purple-200 dark:hover:bg-purple-900/50"
+                        )}
+                      >
+                        Tümü ({receiptSummary.allReceivedCount})
+                      </button>
+                      <button
+                        onClick={() => setReceiptFilter('received_domestic')}
+                        className={cn(
+                          "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
+                          receiptFilter === 'received_domestic' 
+                            ? "bg-orange-500 text-white" 
+                            : "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/50"
+                        )}
+                      >
+                        <Home className="h-3 w-3" />
+                        Yurtiçi ({receiptSummary.receivedDomesticCount})
+                      </button>
+                      <button
+                        onClick={() => setReceiptFilter('received_foreign')}
+                        className={cn(
+                          "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
+                          receiptFilter === 'received_foreign' 
+                            ? "bg-blue-500 text-white" 
+                            : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                        )}
+                      >
+                        <Globe className="h-3 w-3" />
+                        Yurtdışı ({receiptSummary.receivedForeignCount})
+                      </button>
+                    </div>
+                  )}
+                  
+                  {/* Sub-filters for Kesilen - only show when issued is selected */}
+                  {(receiptFilter === 'issued' || receiptFilter.startsWith('issued_')) && (
+                    <div className="flex gap-2 flex-wrap">
+                      <button
+                        onClick={() => setReceiptFilter('issued')}
+                        className={cn(
+                          "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
+                          receiptFilter === 'issued' 
+                            ? "bg-green-400 text-white" 
+                            : "bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-900/50"
+                        )}
+                      >
+                        Tümü ({receiptSummary.allIssuedCount})
+                      </button>
+                      <button
+                        onClick={() => setReceiptFilter('issued_domestic')}
+                        className={cn(
+                          "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
+                          receiptFilter === 'issued_domestic' 
+                            ? "bg-orange-500 text-white" 
+                            : "bg-orange-100 dark:bg-orange-900/30 text-orange-700 dark:text-orange-300 hover:bg-orange-200 dark:hover:bg-orange-900/50"
+                        )}
+                      >
+                        <Home className="h-3 w-3" />
+                        Yurtiçi ({receiptSummary.issuedDomesticCount})
+                      </button>
+                      <button
+                        onClick={() => setReceiptFilter('issued_foreign')}
+                        className={cn(
+                          "px-3 py-1.5 text-xs rounded-full transition-colors flex items-center gap-1.5",
+                          receiptFilter === 'issued_foreign' 
+                            ? "bg-blue-500 text-white" 
+                            : "bg-blue-100 dark:bg-blue-900/30 text-blue-700 dark:text-blue-300 hover:bg-blue-200 dark:hover:bg-blue-900/50"
+                        )}
+                      >
+                        <Globe className="h-3 w-3" />
+                        Yurtdışı ({receiptSummary.issuedForeignCount})
+                      </button>
+                    </div>
+                  )}
                 </div>
                 
                 {/* Summary Content Based on Filter */}
@@ -1266,7 +1350,7 @@ export default function ReceiptUpload() {
                 )}
                 
                 {/* Alınan Belgeler - Kesen Tüzel Kişilik Bazında */}
-                {receiptFilter === 'received' && (
+                {(receiptFilter === 'received' || receiptFilter.startsWith('received_')) && (
                   <div className="space-y-3">
                     <p className="text-xs text-muted-foreground">
                       Alınan Belgeler - Kesen Tüzel Kişilik Bazında
@@ -1346,7 +1430,7 @@ export default function ReceiptUpload() {
                 )}
                 
                 {/* Kesilen Belgeler - Kesilen Tüzel Kişilik Bazında */}
-                {receiptFilter === 'issued' && (
+                {(receiptFilter === 'issued' || receiptFilter.startsWith('issued_')) && (
                   <div className="space-y-3">
                     <p className="text-xs text-muted-foreground">
                       Kesilen Belgeler - Kesilen Tüzel Kişilik Bazında
