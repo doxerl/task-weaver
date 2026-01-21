@@ -417,29 +417,138 @@ serve(async (req) => {
       filename = `AlinanFisler_${year}_${todayStr.replace(/\./g, '-')}`;
 
     } else if (filterType === 'invoice') {
-      const invoiceStats = calcStats(exportInvoices);
+      // Separate domestic and foreign invoices
+      const domesticInvoices = exportInvoices.filter(
+        r => !r.is_foreign_invoice && (!r.currency || r.currency === 'TRY')
+      );
+      const foreignInvoices = exportInvoices.filter(
+        r => r.is_foreign_invoice || (r.currency && r.currency !== 'TRY')
+      );
+      
       totalExported = exportInvoices.length;
-
-      const summaryData = [
+      
+      // Calculate domestic stats with VAT breakdown
+      let domesticSubtotal = 0;
+      let domesticVat = 0;
+      let domesticTotal = 0;
+      domesticInvoices.forEach(r => {
+        const vat = r.vat_amount || 0;
+        const subtotal = r.subtotal || ((r.total_amount || 0) - vat);
+        domesticSubtotal += subtotal;
+        domesticVat += vat;
+        domesticTotal += r.total_amount || 0;
+      });
+      
+      // Calculate foreign stats by currency
+      const foreignByCurrency: Record<string, { amount: number; tryAmount: number }> = {};
+      let foreignTotalTRY = 0;
+      foreignInvoices.forEach(r => {
+        const curr = r.original_currency || r.currency || 'USD';
+        const originalAmt = r.original_amount || r.total_amount || 0;
+        
+        if (!foreignByCurrency[curr]) {
+          foreignByCurrency[curr] = { amount: 0, tryAmount: 0 };
+        }
+        foreignByCurrency[curr].amount += originalAmt;
+        
+        // Calculate TRY equivalent
+        const { tryAmount } = calculateTryAmount(r);
+        foreignByCurrency[curr].tryAmount += tryAmount;
+        foreignTotalTRY += tryAmount;
+      });
+      
+      // Build summary sheet
+      const summaryData: (string | number)[][] = [
         ['ALINAN FATURALAR RAPORU'],
-        [],
-        ['Rapor Bilgileri'],
+        [''],
         ['Yıl:', year],
         ['Oluşturma Tarihi:', todayStr],
         ['Kullanıcı:', `${profile?.first_name || ''} ${profile?.last_name || ''}`],
-        [],
-        ['İSTATİSTİKLER'],
-        ['Toplam Fatura Sayısı:', exportInvoices.length],
-        ['Toplam Tutar:', invoiceStats.total],
-        ['Rapora Dahil:', invoiceStats.reportTotal],
-        ['Toplam KDV:', invoiceStats.vatTotal],
+        [''],
+        ['═══════════════════════════════════════'],
+        [''],
+        ['YURTİÇİ FATURALAR'],
+        ['Fatura Sayısı:', domesticInvoices.length],
+        ['Matrah (KDV Hariç):', domesticSubtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+        ['KDV Tutarı:', domesticVat.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+        ['Toplam:', domesticTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+        [''],
+        ['═══════════════════════════════════════'],
+        [''],
+        ['YURTDIŞI FATURALAR'],
+        ['Fatura Sayısı:', foreignInvoices.length],
       ];
+      
+      // Add currency breakdown
+      Object.entries(foreignByCurrency).forEach(([curr, data]) => {
+        const symbol = curr === 'USD' ? '$' : curr === 'EUR' ? '€' : curr;
+        summaryData.push([
+          `${curr} Toplam:`,
+          `${symbol}${data.amount.toLocaleString('en-US', { minimumFractionDigits: 2 })}`
+        ]);
+      });
+      summaryData.push(['TRY Karşılığı:', foreignTotalTRY.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺']);
+      
+      summaryData.push(['']);
+      summaryData.push(['═══════════════════════════════════════']);
+      summaryData.push(['']);
+      summaryData.push(['GENEL TOPLAM (TRY):', (domesticTotal + foreignTotalTRY).toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺']);
+      
       const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
-      summarySheet['!cols'] = [{ wch: 25 }, { wch: 18 }];
+      summarySheet['!cols'] = [{ wch: 25 }, { wch: 30 }];
       XLSX.utils.book_append_sheet(workbook, summarySheet, 'Özet');
-
-      const invoicesSheet = createReceiptSheet(exportInvoices, true);
-      XLSX.utils.book_append_sheet(workbook, invoicesSheet, 'Alınan Faturalar');
+      
+      // Create domestic invoices sheet
+      if (domesticInvoices.length > 0) {
+        const domesticHeaders = ['Tarih', 'Fatura No', 'Satıcı Adı', 'Satıcı VKN', 'Matrah', 'KDV %', 'KDV Tutarı', 'Toplam', 'Kategori', 'Rapora Dahil', 'Dosya Adı'];
+        const domesticRows = domesticInvoices.map(r => [
+          formatDate(r.receipt_date),
+          r.receipt_no || '',
+          r.seller_name || r.vendor_name || '',
+          r.seller_tax_no || r.vendor_tax_no || '',
+          r.subtotal || ((r.total_amount || 0) - (r.vat_amount || 0)),
+          r.vat_rate || 0,
+          r.vat_amount || 0,
+          r.total_amount || 0,
+          r.category?.name || '',
+          r.is_included_in_report ? 'Evet' : 'Hayır',
+          r.file_name || ''
+        ]);
+        const domesticSheet = XLSX.utils.aoa_to_sheet([domesticHeaders, ...domesticRows]);
+        domesticSheet['!cols'] = [
+          { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 14 }, { wch: 14 },
+          { wch: 8 }, { wch: 12 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 30 }
+        ];
+        XLSX.utils.book_append_sheet(workbook, domesticSheet, 'Yurtiçi Faturalar');
+      }
+      
+      // Create foreign invoices sheet
+      if (foreignInvoices.length > 0) {
+        const foreignHeaders = ['Tarih', 'Fatura No', 'Satıcı Adı', 'Para Birimi', 'Orijinal Tutar', 'Kullanılan Kur', 'TRY Karşılığı', 'Kategori', 'Rapora Dahil', 'Dosya Adı'];
+        const foreignRows = foreignInvoices.map(r => {
+          const currency = r.original_currency || r.currency || 'USD';
+          const originalAmount = r.original_amount || r.total_amount || 0;
+          const { tryAmount, rate } = calculateTryAmount(r);
+          return [
+            formatDate(r.receipt_date),
+            r.receipt_no || '',
+            r.seller_name || r.vendor_name || '',
+            currency,
+            originalAmount,
+            rate || '-',
+            tryAmount,
+            r.category?.name || '',
+            r.is_included_in_report ? 'Evet' : 'Hayır',
+            r.file_name || ''
+          ];
+        });
+        const foreignSheet = XLSX.utils.aoa_to_sheet([foreignHeaders, ...foreignRows]);
+        foreignSheet['!cols'] = [
+          { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 12 }, { wch: 14 },
+          { wch: 14 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 30 }
+        ];
+        XLSX.utils.book_append_sheet(workbook, foreignSheet, 'Yurtdışı Faturalar');
+      }
 
       filename = `AlinanFaturalar_${year}_${todayStr.replace(/\./g, '-')}`;
 
