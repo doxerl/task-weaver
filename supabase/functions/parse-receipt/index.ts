@@ -100,13 +100,19 @@ BELGE BİLGİLERİ:
 - receiptNo: Fiş/Fatura numarası
 
 TUTAR BİLGİLERİ:
-- subtotal: Ara toplam (KDV hariç, sayı)
+- subtotal: Ara toplam (KDV hariç, sayı) - DÖVİZ CİNSİNDEN
 - vatRate: KDV oranı (%, örn: 20)
-- vatAmount: KDV tutarı (sayı)
+- vatAmount: KDV tutarı (sayı) - DÖVİZ CİNSİNDEN
 - withholdingTaxRate: Stopaj oranı (varsa, %)
 - withholdingTaxAmount: Stopaj tutarı (varsa, sayı)
 - stampTaxAmount: Damga vergisi (varsa, sayı)
-- totalAmount: Genel toplam (sayı)
+- totalAmount: Genel toplam (sayı) - DÖVİZ CİNSİNDEN
+
+TL KARŞILIKLARI (DÖVİZLİ FATURALARDA ÇOK ÖNEMLİ):
+- subtotalTRY: Matrah TL tutarı (varsa, "Mal Hizmet Toplam Tutarı(TL)" satırından)
+- vatAmountTRY: KDV TL tutarı (varsa, "Hesaplanan KDV(%)(TL)" satırından)
+- amountTRY: Toplam TL tutarı (varsa, "Ödenecek Tutar(TL)" veya "Vergiler Dahil Toplam Tutar(TL)" satırından)
+- exchangeRateFromInvoice: Faturadaki döviz kuru (varsa, "#EUR Kuru", "#USD Kuru", "Döviz Kuru" notlarından)
 
 DİĞER:
 - currency: Para birimi (TRY, USD, EUR vb.)
@@ -124,6 +130,15 @@ YURTDIŞI FATURA İPUÇLARI:
 - Firma isimleri: "Inc.", "LLC", "GmbH", "Ltd.", "BV" içeren
 - KDV yok veya VAT/Sales Tax farklı oran
 - YURTDIŞI FATURALARDA TÜRK KDV'Sİ OLMAZ - vatRate ve vatAmount null olmalı
+
+DÖVİZLİ YURTİÇİ FATURA TESPİTİ (ÇOK ÖNEMLİ):
+- EUR veya USD cinsinden kesilen AMA Türk firmaya (VKN: 10-11 hane) kesilen faturalar
+- Bu faturalarda HEM döviz HEM TL tutarları yazar - HER İKİSİNİ DE ÇIKAR!
+- "Ödenecek Tutar(TL)", "Vergiler Dahil Toplam Tutar(TL)" satırlarını ara → amountTRY
+- "Mal Hizmet Toplam Tutarı(TL)" satırını ara → subtotalTRY
+- "Hesaplanan KDV(%)(TL)" satırını ara → vatAmountTRY
+- NOTLAR bölümünde "#EUR Kuru : XX.XXXX TRY" veya "#USD Kuru" ara → exchangeRateFromInvoice
+- Faturada TRY tutarları varsa ONLARI KULLAN, dışarıdan kur hesaplatma!
 
 BELGE TİPİ TESPİTİ (ÇOK ÖNEMLİ):
 - documentSubtype: "slip" veya "invoice"
@@ -164,6 +179,10 @@ Sadece JSON object döndür:
   "subtotal": 1000.00,
   "vatRate": 20,
   "vatAmount": 200.00,
+  "subtotalTRY": null,
+  "vatAmountTRY": null,
+  "amountTRY": null,
+  "exchangeRateFromInvoice": null,
   "withholdingTaxRate": null,
   "withholdingTaxAmount": null,
   "stampTaxAmount": null,
