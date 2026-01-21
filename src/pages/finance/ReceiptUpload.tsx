@@ -1,4 +1,4 @@
-import { useCallback, useState, useRef, useMemo } from 'react';
+import { useCallback, useState, useRef, useMemo, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useYear } from '@/contexts/YearContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -178,7 +178,12 @@ export default function ReceiptUpload() {
   const [editSheetOpen, setEditSheetOpen] = useState(false);
 
   // Filter state for summary
-  const [receiptFilter, setReceiptFilter] = useState<ReceiptFilter>('all');
+  const [receiptFilter, setReceiptFilter] = useState<ReceiptFilter>(initialType === 'issued' ? 'issued' : 'received');
+  
+  // Belge türü değiştiğinde özet filtresini senkronize et
+  useEffect(() => {
+    setReceiptFilter(documentType === 'issued' ? 'issued' : 'received');
+  }, [documentType]);
   
   // Local batch progress for UI
   const [localBatchProgress, setLocalBatchProgress] = useState<BatchProgress | null>(null);
@@ -1091,9 +1096,13 @@ export default function ReceiptUpload() {
                 {/* Header with Filter Buttons */}
                 <div className="flex flex-col gap-3 mb-4">
                   <div className="flex items-center justify-between">
-                    <h3 className="font-semibold text-sm">📊 Özet</h3>
+                    <h3 className="font-semibold text-sm">
+                      {documentType === 'issued' ? '📤 Kesilen Fatura Özeti' : '📥 Alınan Belge Özeti'}
+                    </h3>
                     <span className="text-xs text-muted-foreground">
-                      {receiptSummary.includedCount} / {receiptSummary.totalCount} belge rapora dahil
+                      {documentType === 'issued' 
+                        ? `${receiptSummary.allIssuedCount} kesilen fatura` 
+                        : `${receiptSummary.allReceivedCount} alınan belge`}
                     </span>
                   </div>
                   
