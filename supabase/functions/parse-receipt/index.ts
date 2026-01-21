@@ -125,21 +125,30 @@ YURTDIŞI FATURA İPUÇLARI:
 - KDV yok veya VAT/Sales Tax farklı oran
 - YURTDIŞI FATURALARDA TÜRK KDV'Sİ OLMAZ - vatRate ve vatAmount null olmalı
 
-BELGE TİPİ TESPİTİ:
+BELGE TİPİ TESPİTİ (ÇOK ÖNEMLİ):
 - documentSubtype: "slip" veya "invoice"
 
-FİŞ İPUÇLARI (slip) - Aşağıdakilerden biri varsa "slip":
-- İçerik kelimeleri: YEMEK, BENZIN, BENZİN, DİZEL, MOTORIN, MOTORİN, AKARYAKIT, İÇECEK, KAHVE, SU, EKMEK, SİGARA, HAMBURGER, DÖNER, PİDE, LAHMACUN, AYRAN, COLA, KOLA, ÇAY, SANDVIÇ, TOST, PIZZA
-- Mekan türleri: BÜFE, MARKET, RESTORAN, LOKANTA, ECZANE, PETROL, AKARYAKIT İSTASYONU, CAFE, KAFETERYA, BAKKAL, MANAV, KASAP, FIRIN
-- Belge formatı: FİŞ, FİŞ NO, POS, EKÜ NO, Z NO, YAZAR KASA, PERAKENDESATIŞFİŞİ, ÖKC, PERAKENDE SATIŞ FİŞİ
-- Kısa, basit format, tek sayfa, VKN ile başlayan
+FATURA İPUÇLARI (invoice) - Aşağıdakilerden BİRİ varsa FATURA:
+- GIB ile başlayan herhangi bir numara (GIB2025*, GIB2024*, vb.) -> FATURA
+- E-Arşiv, E-FATURA, e-Belge, E-ARŞİV FATURA kelimeleri -> FATURA
+- HTML formatında belge (genellikle e-Arşiv) -> FATURA
+- Alıcı VKN/TCKN bilgisi (buyerTaxNo) varsa -> FATURA
+- Stopaj veya damga vergisi bilgisi varsa -> FATURA
+- Fatura numarası formatları: FA*, SLS*, INV*, FTR* -> FATURA
+- FATURA, SATIŞ FATURASI, İRSALİYE kelimeleri -> FATURA
+- Detaylı alıcı/satıcı bilgileri (her ikisinin de VKN ve adresi var) -> FATURA
+- PDF formatında resmi belge -> FATURA
+- TEVKİFAT, INVOICE kelimeleri -> FATURA
 
-FATURA İPUÇLARI (invoice) - Aşağıdakilerden biri varsa "invoice":
-- Kelimeler: FATURA, E-FATURA, E-ARŞİV, SATIŞ FATURASI, İRSALİYE, FATURA NO, GIB, TEVKİFAT, STOPAJ, INVOICE
-- GIB numarası (uzun alfanumerik kod)
-- Detaylı alıcı/satıcı bilgileri (her ikisinin de VKN ve adresi var)
-- Stopaj veya damga vergisi bilgisi
-- Uzun, resmi format, birden fazla sayfa olabilir
+FİŞ İPUÇLARI (slip) - SADECE aşağıdakilerin TÜMÜ geçerliyse FİŞ:
+- Yazar kasa fişi, POS fişi, ÖKC fişi, EKÜ formatı
+- Alıcı bilgisi (buyerName, buyerTaxNo) YOK
+- Kısa format, tek sayfa, basit liste
+- İçerik: YEMEK, BENZİN, AKARYAKIT, KAHVE, MARKET alışverişi
+- Mekan: BÜFE, MARKET, RESTORAN, LOKANTA, ECZANE, PETROL
+- Format: FİŞ NO, POS, EKÜ NO, Z NO, YAZAR KASA, PERAKENDESATIŞFİŞİ, ÖKC
+
+ÖNEMLİ: Şüphe durumunda "invoice" tercih et. GIB numarası varsa KESİNLİKLE "invoice"!
 
 ÇIKTI FORMAT:
 Sadece JSON object döndür:

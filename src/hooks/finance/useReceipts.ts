@@ -272,14 +272,38 @@ export function useReceipts(year?: number, month?: number) {
       }
     }
 
-    // Determine subtype from OCR or fallback logic
-    let finalSubtype: ReceiptSubtype = receiptSubtype || 'slip';
-    if (!receiptSubtype && ocr.documentSubtype) {
-      finalSubtype = ocr.documentSubtype === 'invoice' ? 'invoice' : 'slip';
-    } else if (!receiptSubtype) {
-      // Fallback: PDF/XML -> invoice, images -> slip
-      const isPdfOrXml = fileType === 'pdf' || fileType === 'xml' || fileName.endsWith('.pdf') || fileName.endsWith('.xml');
-      finalSubtype = isPdfOrXml ? 'invoice' : 'slip';
+    // Determine subtype with strict priority order
+    let finalSubtype: ReceiptSubtype;
+    
+    // 1. Priority: User's UI selection (ALWAYS takes precedence)
+    if (receiptSubtype) {
+      finalSubtype = receiptSubtype;
+      console.log('Using user-selected subtype:', finalSubtype);
+    }
+    // 2. OCR detected documentSubtype
+    else if (ocr.documentSubtype && ['slip', 'invoice'].includes(ocr.documentSubtype)) {
+      finalSubtype = ocr.documentSubtype as ReceiptSubtype;
+      console.log('Using OCR-detected subtype:', finalSubtype);
+    }
+    // 3. GIB number indicates Turkish e-Invoice
+    else if (ocr.receiptNo && ocr.receiptNo.toUpperCase().startsWith('GIB')) {
+      finalSubtype = 'invoice';
+      console.log('Detected GIB number, setting as invoice');
+    }
+    // 4. PDF/XML files are typically invoices
+    else if (fileType === 'pdf' || fileType === 'xml' || fileName.endsWith('.pdf') || fileName.endsWith('.xml')) {
+      finalSubtype = 'invoice';
+      console.log('PDF/XML file detected, setting as invoice');
+    }
+    // 5. HTML files (e-Arşiv) are typically invoices
+    else if (fileName.endsWith('.html') || fileName.endsWith('.htm')) {
+      finalSubtype = 'invoice';
+      console.log('HTML file detected (e-Arşiv), setting as invoice');
+    }
+    // 6. Default: slip
+    else {
+      finalSubtype = 'slip';
+      console.log('Defaulting to slip');
     }
 
     // Foreign invoice detection
