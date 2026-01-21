@@ -18,6 +18,16 @@ import { UploadedReceiptCard } from '@/components/finance/UploadedReceiptCard';
 import { ReceiptEditSheet } from '@/components/finance/ReceiptEditSheet';
 import { useIsMobile } from '@/hooks/use-mobile';
 import { ScrollArea } from '@/components/ui/scroll-area';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 type ReceiptFilter = 'all' | 'domestic' | 'foreign' | 'received' | 'issued';
 type ExportFilter = 'all' | 'slip' | 'invoice' | 'issued' | 'foreign' | 'domestic';
@@ -131,6 +141,7 @@ export default function ReceiptUpload() {
   const [previews, setPreviews] = useState<string[]>([]);
   const [uploading, setUploading] = useState(false);
   const [completed, setCompleted] = useState(0);
+  const [showUploadConfirm, setShowUploadConfirm] = useState(false);
   
   // Uploaded receipts - start with empty, then merge with newly uploaded
   const [sessionUploadedIds, setSessionUploadedIds] = useState<Set<string>>(new Set());
@@ -645,42 +656,70 @@ export default function ReceiptUpload() {
               setDocumentType('received');
               setReceiptSubtype('slip');
             }}
-            disabled={uploading}
+            disabled={uploading || files.length > 0}
             className={cn(
-              "p-4 rounded-xl border-2 transition-all text-left",
+              "p-4 rounded-xl border-2 transition-all text-left relative",
               documentType === 'received' 
-                ? "border-primary bg-primary/5" 
-                : "border-border hover:border-primary/50"
+                ? "border-purple-500 bg-purple-500/10 ring-2 ring-purple-500/30" 
+                : "border-border hover:border-purple-500/50",
+              (uploading || files.length > 0) && "opacity-60 cursor-not-allowed"
             )}
           >
             <div className="flex items-center gap-2 mb-2">
-              <ReceiptIcon className="h-5 w-5 text-primary" />
-              <span className="font-semibold">Alınan</span>
+              <ReceiptIcon className="h-5 w-5 text-purple-500" />
+              <span className="font-bold">📥 ALINAN</span>
             </div>
             <p className="text-xs text-muted-foreground">
               Gider fişi/faturası
             </p>
+            {documentType === 'received' && (
+              <div className="absolute -top-1 -right-1 h-4 w-4 bg-purple-500 rounded-full flex items-center justify-center">
+                <Check className="h-3 w-3 text-white" />
+              </div>
+            )}
           </button>
           
           <button
             onClick={() => setDocumentType('issued')}
-            disabled={uploading}
+            disabled={uploading || files.length > 0}
             className={cn(
-              "p-4 rounded-xl border-2 transition-all text-left",
+              "p-4 rounded-xl border-2 transition-all text-left relative",
               documentType === 'issued' 
-                ? "border-primary bg-primary/5" 
-                : "border-border hover:border-primary/50"
+                ? "border-green-500 bg-green-500/10 ring-2 ring-green-500/30" 
+                : "border-border hover:border-green-500/50",
+              (uploading || files.length > 0) && "opacity-60 cursor-not-allowed"
             )}
           >
             <div className="flex items-center gap-2 mb-2">
               <FileText className="h-5 w-5 text-green-500" />
-              <span className="font-semibold">Kesilen</span>
+              <span className="font-bold">📤 KESİLEN</span>
             </div>
             <p className="text-xs text-muted-foreground">
               Gelir faturası
             </p>
+            {documentType === 'issued' && (
+              <div className="absolute -top-1 -right-1 h-4 w-4 bg-green-500 rounded-full flex items-center justify-center">
+                <Check className="h-3 w-3 text-white" />
+              </div>
+            )}
           </button>
         </div>
+        
+        {/* Warning if files selected - show what type they'll be uploaded as */}
+        {files.length > 0 && !uploading && !isBatchUploading && (
+          <div className={cn(
+            "p-3 rounded-lg text-center font-bold border-2 animate-pulse",
+            documentType === 'issued' 
+              ? "bg-green-100 dark:bg-green-950/30 text-green-800 dark:text-green-300 border-green-500" 
+              : "bg-purple-100 dark:bg-purple-950/30 text-purple-800 dark:text-purple-300 border-purple-500"
+          )}>
+            {documentType === 'issued' 
+              ? '📤 KESİLEN FATURA OLARAK YÜKLENECEK' 
+              : documentType === 'received' && receiptSubtype === 'invoice'
+                ? '📥 ALINAN FATURA OLARAK YÜKLENECEK'
+                : '📥 ALINAN FİŞ OLARAK YÜKLENECEK'}
+          </div>
+        )}
 
         {/* Receipt Subtype Selection - Only for "Alınan" */}
         {documentType === 'received' && (
@@ -1015,18 +1054,25 @@ export default function ReceiptUpload() {
               </div>
             )}
 
-            {/* Upload button with batch info */}
+            {/* Upload button with batch info - opens confirmation dialog */}
             <button
-              onClick={handleUpload}
-              className="w-full bg-primary text-primary-foreground py-3 rounded-lg font-medium"
+              onClick={() => setShowUploadConfirm(true)}
+              className={cn(
+                "w-full py-3 rounded-lg font-medium text-white transition-colors",
+                documentType === 'issued' 
+                  ? "bg-green-600 hover:bg-green-700" 
+                  : "bg-purple-600 hover:bg-purple-700"
+              )}
             >
               {files.length >= 3 ? (
                 <span className="flex items-center justify-center gap-2">
                   <RefreshCw className="h-4 w-4" />
-                  {files.length} Dosya Toplu Yükle (3'lü batch)
+                  {documentType === 'issued' ? '📤' : '📥'} {files.length} Dosya Toplu Yükle
                 </span>
               ) : (
-                `${files.length} Dosya Yükle`
+                <span>
+                  {documentType === 'issued' ? '📤' : '📥'} {files.length} Dosya Yükle
+                </span>
               )}
             </button>
           </>
@@ -1536,6 +1582,66 @@ export default function ReceiptUpload() {
         onOpenChange={setEditSheetOpen}
         onSave={handleSaveEdit}
       />
+
+      {/* Upload Confirmation Dialog */}
+      <AlertDialog open={showUploadConfirm} onOpenChange={setShowUploadConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2">
+              {documentType === 'issued' ? (
+                <>
+                  <FileText className="h-5 w-5 text-green-500" />
+                  Kesilen Fatura Yüklemesi
+                </>
+              ) : (
+                <>
+                  <ReceiptIcon className="h-5 w-5 text-purple-500" />
+                  Alınan Belge Yüklemesi
+                </>
+              )}
+            </AlertDialogTitle>
+            <AlertDialogDescription className="space-y-3">
+              <p>
+                <strong>{files.length}</strong> dosya{' '}
+                <span className={cn(
+                  "font-bold px-2 py-0.5 rounded",
+                  documentType === 'issued' 
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400" 
+                    : "bg-purple-100 text-purple-700 dark:bg-purple-900/30 dark:text-purple-400"
+                )}>
+                  {documentType === 'issued' ? '📤 KESİLEN' : '📥 ALINAN'}
+                </span>{' '}
+                {documentType === 'received' && receiptSubtype === 'invoice' ? 'fatura' : 
+                 documentType === 'received' ? 'fiş' : 'fatura'} olarak yüklenecek.
+              </p>
+              <p className="text-sm">
+                {documentType === 'issued' 
+                  ? '✓ Bu belgeler sizin kestiğiniz GELİR faturalarıdır.' 
+                  : '✓ Bu belgeler size kesilen GİDER belgeleridir.'}
+              </p>
+              <p className="text-sm font-medium text-amber-600 dark:text-amber-400">
+                ⚠️ Yanlış seçim yaptıysanız "İptal"e basın ve belge türünü değiştirin.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                setShowUploadConfirm(false);
+                handleUpload();
+              }}
+              className={cn(
+                documentType === 'issued' 
+                  ? "bg-green-600 hover:bg-green-700" 
+                  : "bg-purple-600 hover:bg-purple-700"
+              )}
+            >
+              {documentType === 'issued' ? '📤 Kesilen Olarak Yükle' : '📥 Alınan Olarak Yükle'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <BottomTabBar />
     </div>
