@@ -325,11 +325,13 @@ export function useReceipts(year?: number, month?: number) {
       );
     };
 
-    // For ISSUED invoices: Foreign if buyer VKN is not Turkish format (10-11 digits)
-    // For RECEIVED invoices: Foreign if seller VKN is not Turkish format AND VAT = 0
-    const isTurkishVKN = (vkn: string | null | undefined): boolean => {
-      if (!vkn) return false;
-      const cleaned = vkn.replace(/\s/g, '');
+    // Türk vergi numarası kontrolü (VKN veya TCKN)
+    // VKN: 10 haneli (şirketler/tüzel kişiler)
+    // TCKN: 11 haneli (şahıslar/gerçek kişiler)
+    // Her ikisi de yurtiçi belge göstergesidir
+    const isTurkishTaxId = (taxId: string | null | undefined): boolean => {
+      if (!taxId) return false;
+      const cleaned = taxId.replace(/\s/g, '');
       return /^\d{10,11}$/.test(cleaned);
     };
     
@@ -338,7 +340,7 @@ export function useReceipts(year?: number, month?: number) {
       ? (ocr.buyerTaxNo || null)   // For issued: check buyer's VKN
       : (ocr.sellerTaxNo || ocr.vendorTaxNo || null); // For received: check seller's VKN
     
-    const hasTurkishVKN = isTurkishVKN(relevantVKN);
+    const hasTurkishTaxId = isTurkishTaxId(relevantVKN);
     const vatRate = ocr.vatRate || 0;
     
     // Check for foreign indicators in address and company name
@@ -364,14 +366,14 @@ export function useReceipts(year?: number, month?: number) {
       isForeignInvoice = true;
     }
     // 3. Original VKN-based logic as fallback
-    else if (!hasTurkishVKN && vatRate === 0) {
+    else if (!hasTurkishTaxId && vatRate === 0) {
       isForeignInvoice = true;
     }
     
     console.log('Foreign invoice detection:', {
       documentType,
       relevantVKN,
-      hasTurkishVKN,
+      hasTurkishTaxId,
       vatRate,
       ocrIsForeign: ocr.isForeign,
       addressIndicatesForeign,
