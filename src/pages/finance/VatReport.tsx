@@ -8,7 +8,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, Receipt, TrendingUp, TrendingDown, AlertTriangle, FileDown, Calculator, Building2, CreditCard, Loader2 } from 'lucide-react';
+import { ArrowLeft, Receipt, TrendingUp, TrendingDown, AlertTriangle, FileDown, Calculator, Building2, CreditCard, Loader2, Globe } from 'lucide-react';
 import { useVatCalculations } from '@/hooks/finance/useVatCalculations';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
 import { BottomTabBar } from '@/components/BottomTabBar';
@@ -193,9 +193,39 @@ export default function VatReport() {
                 </div>
               </div>
               <p className="text-xs text-muted-foreground mt-2">
-                * Banka işlemleri is_commercial=true filtresiyle, KDV oranına göre hesaplanmıştır
+                * Fatura ile eşleşmeyen ticari banka işlemleri
               </p>
             </div>
+            
+            {/* Foreign Invoices */}
+            {vat.foreignInvoices.count > 0 && (
+              <div className="p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-800">
+                <div className="flex items-center justify-between mb-2">
+                  <div className="flex items-center gap-2">
+                    <Globe className="h-4 w-4 text-amber-600" />
+                    <span className="text-sm font-medium">Yurtdışı Faturalar</span>
+                    <Badge variant="outline" className="text-xs border-amber-300 text-amber-700 dark:text-amber-400">
+                      KDV Muaf
+                    </Badge>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-4 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Fatura Sayısı:</span>
+                    <span className="ml-2 font-medium">{vat.foreignInvoices.count}</span>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Toplam (TRY):</span>
+                    <span className="ml-2 font-medium text-amber-600">
+                      {fmt(vat.foreignInvoices.totalAmountTry)}
+                    </span>
+                  </div>
+                </div>
+                <p className="text-xs text-muted-foreground mt-2">
+                  * Yurtdışı faturalar KDV hesaplamasına dahil edilmez
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
 

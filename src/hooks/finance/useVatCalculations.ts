@@ -36,6 +36,12 @@ export interface VatBySource {
   };
 }
 
+export interface ForeignInvoiceSummary {
+  count: number;
+  totalAmountTry: number;
+  byMonth: Record<number, { count: number; amountTry: number }>;
+}
+
 export interface VatCalculations {
   // Toplam KDV
   totalCalculatedVat: number;    // Kesilen faturalardan + banka gelirlerden (borç)
@@ -58,6 +64,9 @@ export interface VatCalculations {
   
   // Kaynak bazlı dağılım
   bySource: VatBySource;
+  
+  // Yurtdışı fatura özeti (KDV muaf)
+  foreignInvoices: ForeignInvoiceSummary;
   
   // İstatistikler
   issuedCount: number;           // Kesilen fatura sayısı
@@ -91,6 +100,11 @@ export function useVatCalculations(year: number): VatCalculations {
           receipts: { calculated: 0, deductible: 0, count: 0 },
           bank: { calculated: 0, deductible: 0, count: 0 }
         },
+        foreignInvoices: {
+          count: 0,
+          totalAmountTry: 0,
+          byMonth: {},
+        },
         issuedCount: 0,
         receivedCount: 0,
         bankIncomeCount: 0,
@@ -104,23 +118,55 @@ export function useVatCalculations(year: number): VatCalculations {
     const activeTx = (transactions || []).filter(t => !t.is_excluded);
 
     // ===== FATURA BAZLI KDV =====
-    // Tüm faturaları dahil et (banka ile eşleşmeyenler dahil)
-    const unlinkedReceipts = receipts.filter(r => !r.linked_bank_transaction_id);
+    // TÜM yurtiçi faturalar dahil (banka eşleşmesine bakılmaksızın)
+    const domesticReceipts = receipts.filter(r => !r.is_foreign_invoice);
+    const foreignReceipts = receipts.filter(r => r.is_foreign_invoice);
     
-    // Kesilen faturalar (Hesaplanan KDV - borç)
-    const issuedReceipts = unlinkedReceipts.filter(r => r.document_type === 'issued');
-    const receiptCalculatedVat = issuedReceipts.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
+    // Kesilen faturalar (Hesaplanan KDV - borç) - TRY alanını öncelikli kullan
+    const issuedReceipts = domesticReceipts.filter(r => r.document_type === 'issued');
+    const receiptCalculatedVat = issuedReceipts.reduce((sum, r) => 
+      sum + (r.vat_amount_try || r.vat_amount || 0), 0);
     
-    // Alınan fişler (İndirilecek KDV - alacak)
-    const receivedReceipts = unlinkedReceipts.filter(r => r.document_type === 'received');
-    const receiptDeductibleVat = receivedReceipts.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
+    // Alınan fişler (İndirilecek KDV - alacak) - TRY alanını öncelikli kullan
+    const receivedReceipts = domesticReceipts.filter(r => r.document_type === 'received');
+    const receiptDeductibleVat = receivedReceipts.reduce((sum, r) => 
+      sum + (r.vat_amount_try || r.vat_amount || 0), 0);
     
-    // KDV bilgisi eksik olanlar
-    const missingVatCount = receipts.filter(r => !r.vat_amount && r.total_amount).length;
+    // KDV bilgisi eksik olanlar (sadece yurtiçi)
+    const missingVatCount = domesticReceipts.filter(r => 
+      !r.vat_amount && !r.vat_amount_try && r.total_amount
+    ).length;
+
+    // ===== YURTDIŞI FATURA ÖZETİ (KDV muaf) =====
+    const foreignInvoices: ForeignInvoiceSummary = {
+      count: foreignReceipts.length,
+      totalAmountTry: foreignReceipts.reduce((sum, r) => 
+        sum + (r.amount_try || r.total_amount || 0), 0),
+      byMonth: {},
+    };
+    
+    for (let month = 1; month <= 12; month++) {
+      const monthForeign = foreignReceipts.filter(r => r.month === month);
+      foreignInvoices.byMonth[month] = {
+        count: monthForeign.length,
+        amountTry: monthForeign.reduce((sum, r) => 
+          sum + (r.amount_try || r.total_amount || 0), 0),
+      };
+    }
 
     // ===== BANKA İŞLEMİ BAZLI KDV (separateVat ile tutarlı) =====
-    // Gelirlerden hesaplanan KDV - only commercial transactions
-    const bankIncomeTx = activeTx.filter(t => t.amount > 0 && t.is_commercial === true);
+    // Fatura ile eşleşen banka işlem ID'lerini topla (çift sayımı önle)
+    const linkedBankTxIds = new Set(
+      receipts
+        .filter(r => r.linked_bank_transaction_id)
+        .map(r => r.linked_bank_transaction_id)
+    );
+    
+    // Sadece fatura ile EŞLEŞMEMİŞ banka işlemlerinden KDV hesapla
+    const unlinkedBankTx = activeTx.filter(t => !linkedBankTxIds.has(t.id));
+    
+    // Gelirlerden hesaplanan KDV - only commercial & unlinked transactions
+    const bankIncomeTx = unlinkedBankTx.filter(t => t.amount > 0 && t.is_commercial === true);
     const bankCalculatedVat = bankIncomeTx.reduce((sum, t) => {
       const vatResult = separateVat({
         amount: t.amount,
@@ -131,8 +177,8 @@ export function useVatCalculations(year: number): VatCalculations {
       return sum + vatResult.vatAmount;
     }, 0);
     
-    // Giderlerden indirilecek KDV - only commercial transactions
-    const bankExpenseTx = activeTx.filter(t => t.amount < 0 && t.is_commercial === true);
+    // Giderlerden indirilecek KDV - only commercial & unlinked transactions
+    const bankExpenseTx = unlinkedBankTx.filter(t => t.amount < 0 && t.is_commercial === true);
     const bankDeductibleVat = bankExpenseTx.reduce((sum, t) => {
       const vatResult = separateVat({
         amount: t.amount,
@@ -151,11 +197,13 @@ export function useVatCalculations(year: number): VatCalculations {
     // ===== AYLIK DAĞILIM =====
     const byMonth: Record<number, VatByMonth> = {};
     for (let month = 1; month <= 12; month++) {
-      // Receipt VAT
+      // Receipt VAT - TRY alanını öncelikli kullan
       const monthIssued = issuedReceipts.filter(r => r.month === month);
       const monthReceived = receivedReceipts.filter(r => r.month === month);
-      const receiptCalc = monthIssued.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
-      const receiptDed = monthReceived.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
+      const receiptCalc = monthIssued.reduce((sum, r) => 
+        sum + (r.vat_amount_try || r.vat_amount || 0), 0);
+      const receiptDed = monthReceived.reduce((sum, r) => 
+        sum + (r.vat_amount_try || r.vat_amount || 0), 0);
       
       // Bank VAT (using separateVat for consistency)
       const monthBankIncome = bankIncomeTx.filter(t => {
@@ -257,6 +305,7 @@ export function useVatCalculations(year: number): VatCalculations {
       byMonth,
       byVatRate,
       bySource,
+      foreignInvoices,
       issuedCount: issuedReceipts.length,
       receivedCount: receivedReceipts.length,
       bankIncomeCount: bankIncomeTx.length,
