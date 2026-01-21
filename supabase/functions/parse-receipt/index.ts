@@ -244,10 +244,31 @@ YURTDIŞI FATURADA: isForeign: true, vatRate: null, vatAmount: null olmalı!`;
     }
 
     const data = await response.json();
+    console.log('AI Gateway response structure:', JSON.stringify({
+      hasChoices: !!data.choices,
+      choicesLength: data.choices?.length,
+      hasMessage: !!data.choices?.[0]?.message,
+      finishReason: data.choices?.[0]?.finish_reason,
+      contentLength: data.choices?.[0]?.message?.content?.length
+    }));
+    
     const content = data.choices?.[0]?.message?.content;
     
     if (!content) {
-      throw new Error('No content in AI response');
+      // Log full response for debugging
+      console.error('Empty AI response. Full data:', JSON.stringify(data).slice(0, 1000));
+      
+      // Check if there's an error in the response
+      if (data.error) {
+        throw new Error(`AI Gateway error: ${data.error.message || JSON.stringify(data.error)}`);
+      }
+      
+      // Check for content filtering
+      if (data.choices?.[0]?.finish_reason === 'content_filter') {
+        throw new Error('Content was filtered by AI safety system');
+      }
+      
+      throw new Error('No content in AI response - the model may have failed to process the image');
     }
     
     // Extract JSON object from response
