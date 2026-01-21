@@ -349,14 +349,21 @@ export function useFinancialDataHub(year: number, manualBankBalance?: number | n
     });
 
     // Process receipts (unlinked only to avoid double counting)
+    // RECEIVED receipts = expenses
     receipts
       .filter(r => !r.linked_bank_transaction_id && r.document_type === 'received')
       .forEach(r => {
         const cat = r.category_id ? categoryMap.get(r.category_id) : null;
+        
+        // Use TRY values for foreign invoices
         const vatResult = separateVat({
           total_amount: r.total_amount,
+          amount_try: r.amount_try,
           vat_amount: r.vat_amount,
-          vat_rate: r.vat_rate
+          vat_amount_try: r.vat_amount_try,
+          vat_rate: r.vat_rate,
+          is_foreign_invoice: r.is_foreign_invoice,
+          original_currency: r.original_currency,
         });
         
         const month = r.receipt_date ? new Date(r.receipt_date).getMonth() + 1 : 1;
@@ -386,8 +393,49 @@ export function useFinancialDataHub(year: number, manualBankBalance?: number | n
         });
       });
 
-    // Also add issued receipts for VAT calculation (they represent income VAT)
-    const issuedReceipts = receipts.filter(r => r.document_type === 'issued');
+    // ISSUED receipts = income (sales invoices)
+    receipts
+      .filter(r => r.document_type === 'issued')
+      .forEach(r => {
+        const cat = r.category_id ? categoryMap.get(r.category_id) : null;
+        
+        // Use TRY values for foreign invoices
+        const vatResult = separateVat({
+          total_amount: r.total_amount,
+          amount_try: r.amount_try,
+          vat_amount: r.vat_amount,
+          vat_amount_try: r.vat_amount_try,
+          vat_rate: r.vat_rate,
+          is_foreign_invoice: r.is_foreign_invoice,
+          original_currency: r.original_currency,
+        });
+        
+        const month = r.receipt_date ? new Date(r.receipt_date).getMonth() + 1 : 1;
+        
+        processedTx.push({
+          id: r.id,
+          date: r.receipt_date || '',
+          description: r.buyer_name || r.file_name || '',
+          counterparty: r.buyer_name || null,
+          categoryId: r.category_id || null,
+          categoryCode: cat?.code || null,
+          categoryName: cat?.name || 'Satış Geliri',
+          categoryType: 'INCOME',
+          expenseBehavior: 'variable',
+          gross: vatResult.grossAmount,
+          net: vatResult.netAmount,
+          vat: vatResult.vatAmount,
+          vatRate: vatResult.vatRate,
+          isIncome: true,
+          month,
+          source: 'receipt',
+          // Tekdüzen Hesap Planı fields - Default to domestic sales account
+          accountCode: (cat as any)?.account_code || '600',
+          accountSubcode: (cat as any)?.account_subcode || null,
+          costCenter: (cat as any)?.cost_center || null,
+          isKkeg: false,
+        });
+      });
 
     // Categorize transactions - strict filtering based on categoryType
     const income = processedTx.filter(t => t.categoryType === 'INCOME');
@@ -491,17 +539,16 @@ export function useFinancialDataHub(year: number, manualBankBalance?: number | n
     };
     partnerSummary.balance = partnerSummary.deposits - partnerSummary.withdrawals;
 
-    // VAT summary
-    const calculatedVat = incomeSummary.vat + issuedReceipts.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
+    // VAT summary - issued receipts are now included in income via processedTx
+    const calculatedVat = income.reduce((sum, t) => sum + t.vat, 0);
     const deductibleVat = expenseSummary.vat;
     
     const vatByMonth: Record<number, { calculated: number; deductible: number; net: number }> = {};
     for (let m = 1; m <= 12; m++) {
       const monthIncome = income.filter(t => t.month === m);
       const monthExpense = expense.filter(t => t.month === m);
-      const monthIssued = issuedReceipts.filter(r => r.receipt_date && new Date(r.receipt_date).getMonth() + 1 === m);
       
-      const calc = monthIncome.reduce((sum, t) => sum + t.vat, 0) + monthIssued.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
+      const calc = monthIncome.reduce((sum, t) => sum + t.vat, 0);
       const ded = monthExpense.reduce((sum, t) => sum + t.vat, 0);
       
       vatByMonth[m] = { calculated: calc, deductible: ded, net: calc - ded };

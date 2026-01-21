@@ -1,13 +1,15 @@
 import { useMemo } from 'react';
 import { useBankTransactions } from './useBankTransactions';
 import { useCategories } from './useCategories';
+import { useReceipts } from './useReceipts';
 import { ServiceRevenue, CustomerRevenue, MonthlyDataPoint, MONTH_NAMES_SHORT_TR, CHART_COLORS } from '@/types/reports';
 
 export function useIncomeAnalysis(year: number) {
   const { transactions, isLoading: txLoading } = useBankTransactions(year);
   const { categories, isLoading: catLoading } = useCategories();
+  const { receipts, isLoading: receiptLoading } = useReceipts(year);
 
-  const isLoading = txLoading || catLoading;
+  const isLoading = txLoading || catLoading || receiptLoading;
 
   const analysis = useMemo(() => {
     if (isLoading || !categories.length) {
@@ -40,9 +42,13 @@ export function useIncomeAnalysis(year: number) {
       return true;
     });
 
+    // Filter issued receipts (sales invoices) - using TRY values
+    const issuedReceipts = receipts.filter(r => r.document_type === 'issued');
+
     // Service Revenue by Category - Use NET amounts (KDV hariç)
     const serviceMap = new Map<string, { amount: number; byMonth: Record<number, number> }>();
     
+    // Process bank transactions
     incomeTransactions.forEach(tx => {
       const category = categories.find(c => c.id === tx.category_id);
       const code = category?.code || 'DIGER';
@@ -53,6 +59,29 @@ export function useIncomeAnalysis(year: number) {
       const netAmount = tx.net_amount !== undefined && tx.net_amount !== null
         ? tx.net_amount
         : (tx.is_commercial !== false ? (tx.amount || 0) / 1.20 : (tx.amount || 0));
+      
+      if (!serviceMap.has(code)) {
+        serviceMap.set(code, { amount: 0, byMonth: {} });
+      }
+      
+      const entry = serviceMap.get(code)!;
+      entry.amount += netAmount;
+      entry.byMonth[month] = (entry.byMonth[month] || 0) + netAmount;
+    });
+
+    // Process issued receipts - use TRY values for foreign invoices
+    issuedReceipts.forEach(r => {
+      const category = categories.find(c => c.id === r.category_id);
+      const code = category?.code || '600_SATIS';
+      const month = r.receipt_date ? new Date(r.receipt_date).getMonth() + 1 : 1;
+      
+      // Use amount_try for foreign invoices, otherwise total_amount
+      const hasForeignCurrency = r.original_currency && r.original_currency !== 'TRY';
+      const grossTry = hasForeignCurrency && r.amount_try ? r.amount_try : (r.total_amount || 0);
+      const vatTry = hasForeignCurrency && r.vat_amount_try ? r.vat_amount_try : (r.vat_amount || 0);
+      
+      // For foreign invoices, net = gross (no VAT)
+      const netAmount = r.is_foreign_invoice ? grossTry : (grossTry - vatTry);
       
       if (!serviceMap.has(code)) {
         serviceMap.set(code, { amount: 0, byMonth: {} });
@@ -83,6 +112,7 @@ export function useIncomeAnalysis(year: number) {
     // Customer Revenue by Counterparty
     const customerMap = new Map<string, { amount: number; count: number }>();
     
+    // Bank transactions
     incomeTransactions.forEach(tx => {
       const counterparty = tx.counterparty || 'Bilinmeyen';
       
@@ -90,6 +120,23 @@ export function useIncomeAnalysis(year: number) {
       const netAmount = tx.net_amount !== undefined && tx.net_amount !== null
         ? tx.net_amount
         : (tx.is_commercial !== false ? (tx.amount || 0) / 1.20 : (tx.amount || 0));
+      
+      if (!customerMap.has(counterparty)) {
+        customerMap.set(counterparty, { amount: 0, count: 0 });
+      }
+      const entry = customerMap.get(counterparty)!;
+      entry.amount += netAmount;
+      entry.count += 1;
+    });
+
+    // Add issued receipts to customer revenue - use TRY values
+    issuedReceipts.forEach(r => {
+      const counterparty = r.buyer_name || 'Bilinmeyen';
+      
+      const hasForeignCurrency = r.original_currency && r.original_currency !== 'TRY';
+      const grossTry = hasForeignCurrency && r.amount_try ? r.amount_try : (r.total_amount || 0);
+      const vatTry = hasForeignCurrency && r.vat_amount_try ? r.vat_amount_try : (r.vat_amount || 0);
+      const netAmount = r.is_foreign_invoice ? grossTry : (grossTry - vatTry);
       
       if (!customerMap.has(counterparty)) {
         customerMap.set(counterparty, { amount: 0, count: 0 });
@@ -115,7 +162,7 @@ export function useIncomeAnalysis(year: number) {
       monthlyMap.set(m, 0);
     }
 
-    // Monthly income totals - use NET amounts
+    // Monthly income totals from bank transactions - use NET amounts
     incomeTransactions.forEach(tx => {
       const date = new Date(tx.transaction_date || '');
       const month = date.getMonth() + 1;
@@ -124,6 +171,18 @@ export function useIncomeAnalysis(year: number) {
         ? tx.net_amount
         : (tx.is_commercial !== false ? (tx.amount || 0) / 1.20 : (tx.amount || 0));
         
+      monthlyMap.set(month, (monthlyMap.get(month) || 0) + netAmount);
+    });
+
+    // Add issued receipts to monthly income - use TRY values
+    issuedReceipts.forEach(r => {
+      const month = r.receipt_date ? new Date(r.receipt_date).getMonth() + 1 : 1;
+      
+      const hasForeignCurrency = r.original_currency && r.original_currency !== 'TRY';
+      const grossTry = hasForeignCurrency && r.amount_try ? r.amount_try : (r.total_amount || 0);
+      const vatTry = hasForeignCurrency && r.vat_amount_try ? r.vat_amount_try : (r.vat_amount || 0);
+      const netAmount = r.is_foreign_invoice ? grossTry : (grossTry - vatTry);
+      
       monthlyMap.set(month, (monthlyMap.get(month) || 0) + netAmount);
     });
 
@@ -156,7 +215,7 @@ export function useIncomeAnalysis(year: number) {
       bestMonth: { month: bestMonth.month, amount: bestMonth.income },
       worstMonth: { month: worstMonth.month, amount: worstMonth.income },
     };
-  }, [transactions, categories, isLoading]);
+  }, [transactions, categories, receipts, isLoading]);
 
   return {
     ...analysis,
