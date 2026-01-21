@@ -386,9 +386,12 @@ export function useReceipts(year?: number, month?: number) {
     let originalCurrency: string | null = null;
     let exchangeRateUsed: number | null = null;
     let amountTry: number | null = null;
+    let subtotalTry: number | null = null;
+    let vatAmountTry: number | null = null;
     
     // Has foreign currency but domestic buyer (e.g. EUR invoice to Turkish company)
     const hasForeignCurrency = ocr.currency && ocr.currency !== 'TRY';
+    const isDomesticWithForeignCurrency = hasForeignCurrency && !isForeignInvoice;
     
     if (hasForeignCurrency) {
       originalCurrency = ocr.currency;
@@ -415,6 +418,24 @@ export function useReceipts(year?: number, month?: number) {
           amountTry = originalAmount * rate;
           console.log('Using fallback rate:', { currency, rate, amountTry, source: 'fallback' });
         }
+      }
+      
+      // Calculate TL equivalents for subtotal and VAT (domestic foreign-currency invoices)
+      if (isDomesticWithForeignCurrency && exchangeRateUsed) {
+        // Priority 1: Use TRY values from invoice if available
+        if (ocr.subtotalTRY && ocr.subtotalTRY > 0) {
+          subtotalTry = ocr.subtotalTRY;
+        } else if (ocr.subtotal) {
+          subtotalTry = ocr.subtotal * exchangeRateUsed;
+        }
+        
+        if (ocr.vatAmountTRY && ocr.vatAmountTRY > 0) {
+          vatAmountTry = ocr.vatAmountTRY;
+        } else if (ocr.vatAmount) {
+          vatAmountTry = ocr.vatAmount * exchangeRateUsed;
+        }
+        
+        console.log('Domestic foreign-currency TL equivalents:', { subtotalTry, vatAmountTry, exchangeRateUsed });
       }
     }
 
@@ -457,7 +478,10 @@ export function useReceipts(year?: number, month?: number) {
         original_currency: originalCurrency,
         original_amount: originalAmount,
         exchange_rate_used: exchangeRateUsed,
-        amount_try: amountTry || (isForeignInvoice ? null : ocr.totalAmount)
+        amount_try: amountTry || (isForeignInvoice ? null : ocr.totalAmount),
+        // Domestic foreign-currency TL equivalents
+        subtotal_try: subtotalTry,
+        vat_amount_try: vatAmountTry
       })
       .select()
       .single();

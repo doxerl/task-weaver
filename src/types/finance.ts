@@ -165,6 +165,10 @@ export interface Receipt {
   original_amount?: number;
   exchange_rate_used?: number;
   amount_try?: number;
+  
+  // Domestic foreign-currency invoice TL equivalents
+  subtotal_try?: number | null;
+  vat_amount_try?: number | null;
 }
 
 export interface FinancialReport {
