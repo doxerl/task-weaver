@@ -306,7 +306,25 @@ export function useReceipts(year?: number, month?: number) {
       console.log('Defaulting to slip');
     }
 
-    // Foreign invoice detection - VKN based logic
+    // Foreign invoice detection - Enhanced logic with address/name analysis
+    // Common foreign indicators in addresses and company names
+    const FOREIGN_INDICATORS = [
+      'United States', 'USA', 'U.S.A', 'UK', 'United Kingdom', 'Germany', 'Deutschland',
+      'Netherlands', 'Holland', 'Ireland', 'France', 'Switzerland', 'Austria',
+      'California', 'Delaware', 'San Francisco', 'New York', 'Seattle', 'Texas',
+      'London', 'Amsterdam', 'Dublin', 'Berlin', 'Paris', 'Zurich', 'Vienna',
+      'Inc.', 'Inc', 'LLC', 'GmbH', 'Ltd.', 'Ltd', 'BV', 'B.V.', 'Corp.', 'Corp', 
+      'Corporation', 'AG', 'S.A.', 'Pty', 'PLC'
+    ];
+
+    const hasForeignIndicator = (text: string | null | undefined): boolean => {
+      if (!text) return false;
+      const lowerText = text.toLowerCase();
+      return FOREIGN_INDICATORS.some(indicator => 
+        lowerText.includes(indicator.toLowerCase())
+      );
+    };
+
     // For ISSUED invoices: Foreign if buyer VKN is not Turkish format (10-11 digits)
     // For RECEIVED invoices: Foreign if seller VKN is not Turkish format AND VAT = 0
     const isTurkishVKN = (vkn: string | null | undefined): boolean => {
@@ -323,15 +341,31 @@ export function useReceipts(year?: number, month?: number) {
     const hasTurkishVKN = isTurkishVKN(relevantVKN);
     const vatRate = ocr.vatRate || 0;
     
-    // Determine if foreign invoice
+    // Check for foreign indicators in address and company name
+    const relevantAddress = documentType === 'issued' 
+      ? ocr.buyerAddress 
+      : ocr.sellerAddress;
+    const relevantName = documentType === 'issued'
+      ? ocr.buyerName
+      : (ocr.sellerName || ocr.vendorName);
+    
+    const addressIndicatesForeign = hasForeignIndicator(relevantAddress);
+    const nameIndicatesForeign = hasForeignIndicator(relevantName);
+    
+    // Determine if foreign invoice - enhanced logic
     let isForeignInvoice = false;
-    if (documentType === 'issued') {
-      // ISSUED: Foreign if buyer VKN is not Turkish format
-      isForeignInvoice = !hasTurkishVKN;
-    } else {
-      // RECEIVED: Foreign if seller VKN is not Turkish AND VAT = 0
-      // OR if OCR explicitly says foreign AND seller VKN is not Turkish
-      isForeignInvoice = (!hasTurkishVKN && vatRate === 0) || (ocr.isForeign === true && !hasTurkishVKN);
+    
+    // 1. AI explicitly said foreign - trust it
+    if (ocr.isForeign === true || ocr.foreignSellerCountry) {
+      isForeignInvoice = true;
+    }
+    // 2. Address or company name contains foreign indicators + no VAT
+    else if ((addressIndicatesForeign || nameIndicatesForeign) && vatRate === 0) {
+      isForeignInvoice = true;
+    }
+    // 3. Original VKN-based logic as fallback
+    else if (!hasTurkishVKN && vatRate === 0) {
+      isForeignInvoice = true;
     }
     
     console.log('Foreign invoice detection:', {
@@ -340,6 +374,10 @@ export function useReceipts(year?: number, month?: number) {
       hasTurkishVKN,
       vatRate,
       ocrIsForeign: ocr.isForeign,
+      addressIndicatesForeign,
+      nameIndicatesForeign,
+      relevantAddress,
+      relevantName,
       finalIsForeign: isForeignInvoice
     });
     
