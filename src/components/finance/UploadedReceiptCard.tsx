@@ -43,6 +43,18 @@ export function UploadedReceiptCard({
   // Check if this is an issued invoice
   const isIssuedInvoice = receipt.document_type === 'issued';
   
+  // Şahıs/Şirket tespiti (TCKN: 11 hane, VKN: 10 hane)
+  const getEntityType = (taxNo: string | null | undefined): 'individual' | 'company' | null => {
+    if (!taxNo) return null;
+    const cleaned = taxNo.replace(/\s/g, '');
+    if (/^\d{11}$/.test(cleaned)) return 'individual'; // TCKN - Şahıs
+    if (/^\d{10}$/.test(cleaned)) return 'company';    // VKN - Şirket
+    return null;
+  };
+
+  const relevantTaxNo = isIssuedInvoice ? receipt.buyer_tax_no : receipt.seller_tax_no;
+  const entityType = getEntityType(relevantTaxNo);
+  
   const formatCurrency = (amount: number | null | undefined, currencyOverride?: string) => {
     if (amount === null || amount === undefined) return '-';
     return new Intl.NumberFormat('tr-TR', {
@@ -114,6 +126,17 @@ export function UploadedReceiptCard({
                       Kesilen
                     </span>
                   )}
+                  {/* Şahıs/Şirket Etiketi */}
+                  {entityType === 'individual' && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/10 text-purple-600 flex-shrink-0">
+                      👤 Şahıs
+                    </span>
+                  )}
+                  {entityType === 'company' && (
+                    <span className="text-xs px-2 py-0.5 rounded-full bg-cyan-500/10 text-cyan-600 flex-shrink-0">
+                      🏢 Şirket
+                    </span>
+                  )}
                   {/* Foreign Invoice Badge */}
                   {isForeignInvoice && (
                     <span className="text-xs px-2 py-0.5 rounded-full bg-blue-500/10 text-blue-600 flex items-center gap-1 flex-shrink-0">
@@ -128,17 +151,17 @@ export function UploadedReceiptCard({
                     </span>
                   )}
                 </div>
-                {/* Tax Number - Based on document type */}
+                {/* Tax Number - Based on document type with dynamic VKN/TCKN label */}
                 {isIssuedInvoice ? (
                   receipt.buyer_tax_no && (
                     <p className="text-xs text-muted-foreground">
-                      VKN: {receipt.buyer_tax_no}
+                      {entityType === 'individual' ? 'TCKN' : 'VKN'}: {receipt.buyer_tax_no}
                     </p>
                   )
                 ) : (
                   receipt.seller_tax_no && (
                     <p className="text-xs text-muted-foreground">
-                      VKN: {receipt.seller_tax_no}
+                      {entityType === 'individual' ? 'TCKN' : 'VKN'}: {receipt.seller_tax_no}
                     </p>
                   )
                 )}

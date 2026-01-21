@@ -190,6 +190,14 @@ export default function ReceiptUpload() {
   const [localBatchProgress, setLocalBatchProgress] = useState<BatchProgress | null>(null);
   const displayBatchProgress = localBatchProgress || batchProgress;
 
+  // Upload sonuç özeti - Kullanıcı kapatana kadar görünür
+  const [uploadResults, setUploadResults] = useState<{
+    show: boolean;
+    successCount: number;
+    duplicates: Array<{ fileName: string; reason: string }>;
+    failures: Array<{ fileName: string; error: string }>;
+  } | null>(null);
+
   // Summary calculations with filter support and exchange rate conversion
   const receiptSummary = useMemo(() => {
     // Separate ALL receipts by type (for filtering display)
@@ -613,20 +621,68 @@ export default function ReceiptUpload() {
         results
           .filter(r => r.status === 'success' && r.receipt)
           .forEach(r => uploadedIds.push(r.receipt!.id));
+        // Batch sonuçlarından upload results'a aktar
+        const batchDuplicates = results
+          .filter(r => r.status === 'duplicate')
+          .map(r => ({ fileName: r.fileName, reason: r.error || 'Zaten mevcut' }));
+
+        const batchFailures = results
+          .filter(r => r.status === 'failed')
+          .map(r => ({ fileName: r.fileName, error: r.error || 'İşlem başarısız' }));
+
+        if (batchDuplicates.length > 0 || batchFailures.length > 0) {
+          setUploadResults({
+            show: true,
+            successCount: results.filter(r => r.status === 'success').length,
+            duplicates: batchDuplicates,
+            failures: batchFailures
+          });
+        }
       } else {
         // Use single upload for 1-2 files
+        const singleUploadResults: Array<{ fileName: string; status: 'success' | 'duplicate' | 'failed'; error?: string }> = [];
+
         for (const file of nonZipFiles) {
-          const result = await uploadReceipt.mutateAsync({ 
-            file, 
-            documentType,
-            receiptSubtype: documentType === 'received' ? receiptSubtype : undefined
-          });
-          if (Array.isArray(result)) {
-            uploadedIds.push(...result.map(r => r.id));
-          } else if (result) {
-            uploadedIds.push((result as Receipt).id);
+          try {
+            const result = await uploadReceipt.mutateAsync({ 
+              file, 
+              documentType,
+              receiptSubtype: documentType === 'received' ? receiptSubtype : undefined
+            });
+            if (Array.isArray(result)) {
+              uploadedIds.push(...result.map(r => r.id));
+            } else if (result) {
+              uploadedIds.push((result as Receipt).id);
+            }
+            singleUploadResults.push({ fileName: file.name, status: 'success' });
+          } catch (error: unknown) {
+            const errorMessage = error instanceof Error ? error.message : 'Bilinmeyen hata';
+            const isDuplicate = errorMessage.includes('zaten') || errorMessage.includes('duplicate');
+            singleUploadResults.push({ 
+              fileName: file.name, 
+              status: isDuplicate ? 'duplicate' : 'failed',
+              error: errorMessage
+            });
           }
           setCompleted(prev => prev + 1);
+        }
+
+        // Sonuçları kaydet
+        const singleDuplicates = singleUploadResults
+          .filter(r => r.status === 'duplicate')
+          .map(r => ({ fileName: r.fileName, reason: r.error || 'Zaten mevcut' }));
+
+        const singleFailures = singleUploadResults
+          .filter(r => r.status === 'failed')
+          .map(r => ({ fileName: r.fileName, error: r.error || 'İşlem başarısız' }));
+
+        if (singleDuplicates.length > 0 || singleFailures.length > 0) {
+          setUploadResults({
+            show: true,
+            successCount: singleUploadResults.filter(r => r.status === 'success').length,
+            duplicates: singleDuplicates,
+            failures: singleFailures
+          });
         }
       }
     }
@@ -1016,6 +1072,62 @@ export default function ReceiptUpload() {
             )}
           </CardContent>
         </Card>
+
+        {/* Upload Sonuç Özeti - Kullanıcı kapatana kadar görünür */}
+        {uploadResults?.show && (
+          <Card className="bg-amber-50 dark:bg-amber-950/30 border-amber-500/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between mb-3">
+                <h3 className="font-semibold flex items-center gap-2">
+                  <AlertCircle className="h-4 w-4 text-amber-500" />
+                  Yükleme Tamamlandı
+                </h3>
+                <button 
+                  onClick={() => setUploadResults(null)}
+                  className="p-1 hover:bg-accent rounded"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+              
+              {uploadResults.successCount > 0 && (
+                <p className="text-green-600 dark:text-green-400 text-sm mb-2">
+                  ✓ {uploadResults.successCount} belge başarıyla yüklendi
+                </p>
+              )}
+              
+              {uploadResults.duplicates.length > 0 && (
+                <div className="mt-2 p-2 bg-amber-100 dark:bg-amber-900/30 rounded">
+                  <p className="text-amber-700 dark:text-amber-400 font-medium text-sm">
+                    ⚠ {uploadResults.duplicates.length} belge zaten mevcut:
+                  </p>
+                  <ul className="mt-1 space-y-1">
+                    {uploadResults.duplicates.map((d, i) => (
+                      <li key={i} className="text-xs text-amber-600 dark:text-amber-500">
+                        • {d.fileName}: {d.reason}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              
+              {uploadResults.failures.length > 0 && (
+                <div className="mt-2 p-2 bg-destructive/10 rounded">
+                  <p className="text-destructive font-medium text-sm">
+                    ✕ {uploadResults.failures.length} belge yüklenemedi
+                  </p>
+                  <ul className="mt-1 space-y-1">
+                    {uploadResults.failures.map((f, i) => (
+                      <li key={i} className="text-xs text-destructive/80">
+                        • {f.fileName}: {f.error}
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        )}
 
         {/* File Previews - Before Upload */}
         {files.length > 0 && !uploading && !isBatchUploading && (
