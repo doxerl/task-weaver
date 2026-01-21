@@ -218,14 +218,28 @@ export default function ReceiptUpload() {
           receipts: [] 
         };
       }
-      // Use TRY equivalent for totals (amount_try if foreign, total_amount otherwise)
+      // Check for domestic invoice with foreign currency
+      const isDomesticWithForeignCurrency = !r.is_foreign_invoice && r.currency && r.currency !== 'TRY';
+      
+      // Use TRY equivalent for totals
       const tryAmount = r.is_foreign_invoice 
         ? (r.amount_try || r.total_amount || 0) 
-        : (r.total_amount || 0);
+        : isDomesticWithForeignCurrency 
+          ? (r.amount_try || r.total_amount || 0)
+          : (r.total_amount || 0);
+      
+      const vatAmount = isDomesticWithForeignCurrency 
+        ? (r.vat_amount_try || r.vat_amount || 0)
+        : (r.vat_amount || 0);
+      
+      const subtotalAmount = isDomesticWithForeignCurrency
+        ? (r.subtotal_try || r.subtotal || (tryAmount - vatAmount))
+        : (r.subtotal || (tryAmount - vatAmount));
+      
       receivedByVendor[vendor].count++;
       receivedByVendor[vendor].total += tryAmount;
-      receivedByVendor[vendor].vat += r.vat_amount || 0;
-      receivedByVendor[vendor].subtotal += r.subtotal || (tryAmount - (r.vat_amount || 0));
+      receivedByVendor[vendor].vat += vatAmount;
+      receivedByVendor[vendor].subtotal += subtotalAmount;
       receivedByVendor[vendor].receipts.push(r);
     });
     
@@ -243,28 +257,54 @@ export default function ReceiptUpload() {
           receipts: [] 
         };
       }
+      // Check for domestic invoice with foreign currency
+      const isDomesticWithForeignCurrency = !r.is_foreign_invoice && r.currency && r.currency !== 'TRY';
+      
       // Use TRY equivalent for totals
       const tryAmount = r.is_foreign_invoice 
         ? (r.amount_try || r.total_amount || 0) 
-        : (r.total_amount || 0);
+        : isDomesticWithForeignCurrency 
+          ? (r.amount_try || r.total_amount || 0)
+          : (r.total_amount || 0);
+      
+      const vatAmount = isDomesticWithForeignCurrency 
+        ? (r.vat_amount_try || r.vat_amount || 0)
+        : (r.vat_amount || 0);
+      
+      const subtotalAmount = isDomesticWithForeignCurrency
+        ? (r.subtotal_try || r.subtotal || (tryAmount - vatAmount))
+        : (r.subtotal || (tryAmount - vatAmount));
+      
       issuedByBuyer[buyer].count++;
       issuedByBuyer[buyer].total += tryAmount;
-      issuedByBuyer[buyer].vat += r.vat_amount || 0;
-      issuedByBuyer[buyer].subtotal += r.subtotal || (tryAmount - (r.vat_amount || 0));
+      issuedByBuyer[buyer].vat += vatAmount;
+      issuedByBuyer[buyer].subtotal += subtotalAmount;
       issuedByBuyer[buyer].receipts.push(r);
     });
     
     // Calculate received/issued totals in TRY
     const allReceivedTRY = allReceived.reduce((sum, r) => {
-      return sum + (r.is_foreign_invoice ? (r.amount_try || r.total_amount || 0) : (r.total_amount || 0));
+      const isDomesticWithForeignCurrency = !r.is_foreign_invoice && r.currency && r.currency !== 'TRY';
+      if (r.is_foreign_invoice) return sum + (r.amount_try || r.total_amount || 0);
+      if (isDomesticWithForeignCurrency) return sum + (r.amount_try || r.total_amount || 0);
+      return sum + (r.total_amount || 0);
     }, 0);
     const allIssuedTRY = allIssued.reduce((sum, r) => {
-      return sum + (r.is_foreign_invoice ? (r.amount_try || r.total_amount || 0) : (r.total_amount || 0));
+      const isDomesticWithForeignCurrency = !r.is_foreign_invoice && r.currency && r.currency !== 'TRY';
+      if (r.is_foreign_invoice) return sum + (r.amount_try || r.total_amount || 0);
+      if (isDomesticWithForeignCurrency) return sum + (r.amount_try || r.total_amount || 0);
+      return sum + (r.total_amount || 0);
     }, 0);
     
     // Calculate VAT totals for received/issued
-    const allReceivedVAT = allReceived.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
-    const allIssuedVAT = allIssued.reduce((sum, r) => sum + (r.vat_amount || 0), 0);
+    const allReceivedVAT = allReceived.reduce((sum, r) => {
+      const isDomesticWithForeignCurrency = !r.is_foreign_invoice && r.currency && r.currency !== 'TRY';
+      return sum + (isDomesticWithForeignCurrency ? (r.vat_amount_try || r.vat_amount || 0) : (r.vat_amount || 0));
+    }, 0);
+    const allIssuedVAT = allIssued.reduce((sum, r) => {
+      const isDomesticWithForeignCurrency = !r.is_foreign_invoice && r.currency && r.currency !== 'TRY';
+      return sum + (isDomesticWithForeignCurrency ? (r.vat_amount_try || r.vat_amount || 0) : (r.vat_amount || 0));
+    }, 0);
     
     // Helper function to calculate foreign totals
     const calculateForeignTotals = (receipts: typeof allForeign) => {
@@ -317,10 +357,22 @@ export default function ReceiptUpload() {
       
       receipts.forEach(r => {
         const year = r.year || (r.receipt_date ? new Date(r.receipt_date).getFullYear() : new Date(r.created_at || '').getFullYear());
-        const total = r.total_amount || 0;
-        const vat = r.vat_amount || 0;
-        // If subtotal exists use it, otherwise calculate from total - vat
-        const subtotal = r.subtotal || (total - vat);
+        
+        // Check for domestic invoice with foreign currency
+        const isDomesticWithForeignCurrency = !r.is_foreign_invoice && r.currency && r.currency !== 'TRY';
+        
+        // Use TRY equivalent values for domestic invoices with foreign currency
+        const total = isDomesticWithForeignCurrency 
+          ? (r.amount_try || r.total_amount || 0)
+          : (r.total_amount || 0);
+        
+        const vat = isDomesticWithForeignCurrency 
+          ? (r.vat_amount_try || r.vat_amount || 0)
+          : (r.vat_amount || 0);
+        
+        const subtotal = isDomesticWithForeignCurrency
+          ? (r.subtotal_try || r.subtotal || (total - vat))
+          : (r.subtotal || (total - vat));
         
         if (!byYear[year]) {
           byYear[year] = { count: 0, total: 0, vat: 0, subtotal: 0 };
@@ -383,11 +435,17 @@ export default function ReceiptUpload() {
     };
     
     // TRY totals for included receipts (for "Tümü" filter)
-    const domesticTRY = includedDomestic.reduce((sum, r) => sum + (r.total_amount || 0), 0);
+    const domesticTRY = includedDomestic.reduce((sum, r) => {
+      const isDomesticWithForeignCurrency = !r.is_foreign_invoice && r.currency && r.currency !== 'TRY';
+      return sum + (isDomesticWithForeignCurrency ? (r.amount_try || r.total_amount || 0) : (r.total_amount || 0));
+    }, 0);
     const { totalTRY: foreignTRY, byCurrency: foreignByCurrency } = calculateForeignTotals(includedForeign);
     
     // TRY totals for ALL receipts (for individual filters)
-    const allDomesticTRY = allDomestic.reduce((sum, r) => sum + (r.total_amount || 0), 0);
+    const allDomesticTRY = allDomestic.reduce((sum, r) => {
+      const isDomesticWithForeignCurrency = !r.is_foreign_invoice && r.currency && r.currency !== 'TRY';
+      return sum + (isDomesticWithForeignCurrency ? (r.amount_try || r.total_amount || 0) : (r.total_amount || 0));
+    }, 0);
     const { totalTRY: allForeignTRY, byCurrency: allForeignByCurrency } = calculateForeignTotals(allForeign);
     
     // Domestic VAT breakdown by year
