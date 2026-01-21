@@ -36,21 +36,32 @@ export function separateVat(transaction: VatSeparableTransaction): VatSeparation
   const hasForeignCurrency = (transaction.original_currency && transaction.original_currency !== 'TRY') ||
                              (transaction.currency && transaction.currency !== 'TRY');
   
-  // Use TRY equivalent if available for foreign invoices, otherwise use original amount
+  // Use TRY equivalent if available for foreign currency transactions, otherwise use original amount
   const gross = hasForeignCurrency && transaction.amount_try != null && transaction.amount_try > 0
     ? Math.abs(transaction.amount_try)
     : Math.abs(transaction.amount ?? transaction.total_amount ?? 0);
   
-  // Priority 0: Foreign invoices have no Turkish VAT
+  // Priority 0: Only truly foreign invoices have no Turkish VAT
+  // IMPORTANT: Don't use hasForeignCurrency here - domestic EUR/USD invoices still have VAT!
   const isForeign = transaction.is_foreign === true || 
-                    transaction.is_foreign_invoice === true ||
-                    hasForeignCurrency;
+                    transaction.is_foreign_invoice === true;
   if (isForeign) {
     // For foreign invoices, use TRY amount but no VAT
     return { grossAmount: gross, netAmount: gross, vatAmount: 0, vatRate: 0 };
   }
   
-  // Priority 1: Use existing calculated values
+  // Priority 1: Use existing calculated TRY values for foreign currency domestic invoices
+  if (hasForeignCurrency && transaction.vat_amount_try != null && transaction.vat_amount_try > 0) {
+    const vatAmount = Math.abs(transaction.vat_amount_try);
+    return {
+      grossAmount: gross,
+      netAmount: gross - vatAmount,
+      vatAmount,
+      vatRate: transaction.vat_rate ?? 20
+    };
+  }
+  
+  // Priority 2: Use existing calculated values
   if (transaction.net_amount != null && transaction.vat_amount != null) {
     return {
       grossAmount: gross,
@@ -60,13 +71,13 @@ export function separateVat(transaction: VatSeparableTransaction): VatSeparation
     };
   }
   
-  // Priority 2: Non-commercial transactions have no VAT
+  // Priority 3: Non-commercial transactions have no VAT
   const isCommercial = transaction.is_commercial !== false;
   if (!isCommercial) {
     return { grossAmount: gross, netAmount: gross, vatAmount: 0, vatRate: 0 };
   }
   
-  // Priority 3: Use vat_amount if available
+  // Priority 4: Use vat_amount if available
   if (transaction.vat_amount != null && transaction.vat_amount > 0) {
     const vatAmount = Math.abs(transaction.vat_amount);
     return {
@@ -77,7 +88,7 @@ export function separateVat(transaction: VatSeparableTransaction): VatSeparation
     };
   }
   
-  // Priority 4: Calculate from vat_rate or default 20%
+  // Priority 5: Calculate from vat_rate or default 20%
   const vatRate = transaction.vat_rate ?? 20;
   const netAmount = gross / (1 + vatRate / 100);
   const vatAmount = gross - netAmount;
