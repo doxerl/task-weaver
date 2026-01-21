@@ -8,8 +8,16 @@ import {
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Receipt } from '@/types/finance';
-import { Save, Loader2 } from 'lucide-react';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { Receipt, DocumentType } from '@/types/finance';
+import { Save, Loader2, FileText, Receipt as ReceiptIcon } from 'lucide-react';
+import { cn } from '@/lib/utils';
 
 interface ReceiptEditSheetProps {
   receipt: Receipt | null;
@@ -35,7 +43,8 @@ export function ReceiptEditSheet({
     vat_amount: '',
     total_amount: '',
     receipt_date: '',
-    receipt_no: ''
+    receipt_no: '',
+    document_type: 'received' as DocumentType
   });
 
   useEffect(() => {
@@ -50,7 +59,8 @@ export function ReceiptEditSheet({
         vat_amount: receipt.vat_amount?.toString() || '',
         total_amount: receipt.total_amount?.toString() || '',
         receipt_date: receipt.receipt_date || '',
-        receipt_no: receipt.receipt_no || ''
+        receipt_no: receipt.receipt_no || '',
+        document_type: receipt.document_type || 'received'
       });
     }
   }, [receipt]);
@@ -88,7 +98,8 @@ export function ReceiptEditSheet({
         vat_amount: formData.vat_amount ? parseFloat(formData.vat_amount) : null,
         total_amount: formData.total_amount ? parseFloat(formData.total_amount) : null,
         receipt_date: formData.receipt_date || null,
-        receipt_no: formData.receipt_no || null
+        receipt_no: formData.receipt_no || null,
+        document_type: formData.document_type
       });
       onOpenChange(false);
     } finally {
@@ -104,6 +115,46 @@ export function ReceiptEditSheet({
         </SheetHeader>
         
         <div className="space-y-4">
+          {/* Document Type - CRITICAL for fixing issued/received confusion */}
+          <div className="space-y-3">
+            <h3 className="text-sm font-semibold text-muted-foreground">Belge Türü</h3>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, document_type: 'received' }))}
+                className={cn(
+                  "p-3 rounded-lg border-2 transition-all text-left flex items-center gap-2",
+                  formData.document_type === 'received' 
+                    ? "border-purple-500 bg-purple-500/10 ring-2 ring-purple-500/30" 
+                    : "border-border hover:border-purple-500/50"
+                )}
+              >
+                <ReceiptIcon className="h-5 w-5 text-purple-500" />
+                <div>
+                  <span className="font-bold text-sm">📥 ALINAN</span>
+                  <p className="text-xs text-muted-foreground">Gider</p>
+                </div>
+              </button>
+              
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, document_type: 'issued' }))}
+                className={cn(
+                  "p-3 rounded-lg border-2 transition-all text-left flex items-center gap-2",
+                  formData.document_type === 'issued' 
+                    ? "border-green-500 bg-green-500/10 ring-2 ring-green-500/30" 
+                    : "border-border hover:border-green-500/50"
+                )}
+              >
+                <FileText className="h-5 w-5 text-green-500" />
+                <div>
+                  <span className="font-bold text-sm">📤 KESİLEN</span>
+                  <p className="text-xs text-muted-foreground">Gelir</p>
+                </div>
+              </button>
+            </div>
+          </div>
+
           {/* Seller Info */}
           <div className="space-y-3">
             <h3 className="text-sm font-semibold text-muted-foreground">Satıcı Bilgileri</h3>
