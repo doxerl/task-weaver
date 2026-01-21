@@ -19,7 +19,15 @@ import { ReceiptTable } from '@/components/finance/ReceiptTable';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 
-const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
+const formatCurrency = (n: number, currency: string = 'TRY') => {
+  if (currency === 'USD') {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+  }
+  if (currency === 'EUR') {
+    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n);
+  }
+  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
+};
 
 type ViewMode = 'card' | 'table';
 type TabType = 'slip' | 'invoice' | 'issued';
@@ -88,26 +96,36 @@ function ReceiptCard({ receipt, categories, onCategoryChange, onToggleReport, on
           {receipt.subtotal && (
             <div className="flex justify-between text-muted-foreground">
               <span>Ara Toplam:</span>
-              <span>{formatCurrency(receipt.subtotal)}</span>
+              <span>{formatCurrency(receipt.subtotal, receipt.currency || 'TRY')}</span>
             </div>
           )}
-          {receipt.vat_amount && (
+          {receipt.is_foreign_invoice ? (
+            <div className="flex justify-between text-muted-foreground">
+              <span>KDV:</span>
+              <span>%0</span>
+            </div>
+          ) : receipt.vat_amount ? (
             <div className="flex justify-between text-muted-foreground">
               <span>KDV {receipt.vat_rate ? `(%${receipt.vat_rate})` : ''}:</span>
-              <span>{formatCurrency(receipt.vat_amount)}</span>
+              <span>{formatCurrency(receipt.vat_amount, 'TRY')}</span>
             </div>
-          )}
+          ) : null}
           {receipt.withholding_tax_amount && (
             <div className="flex justify-between text-muted-foreground">
               <span>Stopaj:</span>
-              <span>-{formatCurrency(receipt.withholding_tax_amount)}</span>
+              <span>-{formatCurrency(receipt.withholding_tax_amount, 'TRY')}</span>
             </div>
           )}
           <div className="flex justify-between font-bold pt-1 border-t">
             <span>Toplam:</span>
-            <span className={isReceived ? "text-destructive" : "text-green-600"}>
-              {isReceived ? '-' : '+'}{formatCurrency(receipt.total_amount || 0)}
-            </span>
+            <div className={cn("text-right", isReceived ? "text-destructive" : "text-green-600")}>
+              {isReceived ? '-' : '+'}{formatCurrency(receipt.total_amount || 0, receipt.currency || 'TRY')}
+              {receipt.is_foreign_invoice && receipt.amount_try && (
+                <span className="block text-xs text-muted-foreground font-normal">
+                  ≈ {formatCurrency(receipt.amount_try, 'TRY')}
+                </span>
+              )}
+            </div>
           </div>
         </div>
         

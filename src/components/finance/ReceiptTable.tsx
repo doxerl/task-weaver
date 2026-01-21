@@ -9,7 +9,15 @@ import { Trash2, AlertTriangle, ArrowUpDown, Eye } from 'lucide-react';
 import { Receipt } from '@/types/finance';
 import { cn } from '@/lib/utils';
 
-const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
+const formatCurrency = (n: number, currency: string = 'TRY') => {
+  if (currency === 'USD') {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD' }).format(n);
+  }
+  if (currency === 'EUR') {
+    return new Intl.NumberFormat('de-DE', { style: 'currency', currency: 'EUR' }).format(n);
+  }
+  return new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
+};
 const formatDate = (d: string | null) => d ? new Date(d).toLocaleDateString('tr-TR') : '-';
 
 type SortField = 'date' | 'amount' | 'vendor';
@@ -135,7 +143,11 @@ export function ReceiptTable({
             const displayName = isReceived 
               ? (receipt.seller_name || receipt.vendor_name || '-')
               : (receipt.buyer_name || '-');
-            const hasMissingVat = !receipt.vat_amount && receipt.total_amount;
+            // Yabancı faturalar için KDV=0 normaldir, sadece yurtiçi TRY faturaları kontrol et
+            const hasMissingVat = !receipt.vat_amount && receipt.total_amount && 
+                                  !receipt.is_foreign_invoice && 
+                                  (receipt.currency === 'TRY' || !receipt.currency);
+            const receiptCurrency = receipt.currency || 'TRY';
 
             return (
               <TableRow 
@@ -165,17 +177,19 @@ export function ReceiptTable({
                   </div>
                 </TableCell>
                 <TableCell className="text-right text-sm">
-                  {receipt.subtotal ? formatCurrency(receipt.subtotal) : '-'}
+                  {receipt.subtotal ? formatCurrency(receipt.subtotal, receiptCurrency) : '-'}
                 </TableCell>
                 <TableCell className="text-right text-sm">
-                  {hasMissingVat ? (
+                  {receipt.is_foreign_invoice ? (
+                    <span className="text-muted-foreground">%0</span>
+                  ) : hasMissingVat ? (
                     <span className="flex items-center justify-end gap-1 text-yellow-600">
                       <AlertTriangle className="h-3 w-3" />
                       Eksik
                     </span>
                   ) : receipt.vat_amount ? (
                     <span>
-                      {formatCurrency(receipt.vat_amount)}
+                      {formatCurrency(receipt.vat_amount, 'TRY')}
                       {receipt.vat_rate && <span className="text-xs text-muted-foreground ml-1">(%{receipt.vat_rate})</span>}
                     </span>
                   ) : '-'}
@@ -184,7 +198,14 @@ export function ReceiptTable({
                   "text-right font-medium",
                   isReceived ? "text-destructive" : "text-green-600"
                 )}>
-                  {isReceived ? '-' : '+'}{formatCurrency(receipt.total_amount || 0)}
+                  <div>
+                    {isReceived ? '-' : '+'}{formatCurrency(receipt.total_amount || 0, receiptCurrency)}
+                    {receipt.is_foreign_invoice && receipt.amount_try && (
+                      <span className="block text-xs text-muted-foreground font-normal">
+                        ≈ {formatCurrency(receipt.amount_try, 'TRY')}
+                      </span>
+                    )}
+                  </div>
                 </TableCell>
                 <TableCell>
                   <Select
