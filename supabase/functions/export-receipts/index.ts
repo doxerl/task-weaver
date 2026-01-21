@@ -70,7 +70,7 @@ interface Receipt {
   category?: { name: string } | null;
 }
 
-type FilterType = 'all' | 'slip' | 'invoice' | 'issued' | 'foreign';
+type FilterType = 'all' | 'slip' | 'invoice' | 'issued' | 'foreign' | 'domestic';
 
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
@@ -140,12 +140,16 @@ serve(async (req) => {
     const invoices = allReceipts.filter(r => r.document_type !== 'issued' && r.receipt_subtype === 'invoice');
     const issued = allReceipts.filter(r => r.document_type === 'issued');
     const foreignAll = allReceipts.filter(r => r.is_foreign_invoice || (r.currency && r.currency !== 'TRY'));
+    
+    // Domestic: NOT foreign and TRY currency
+    const domesticAll = allReceipts.filter(r => !r.is_foreign_invoice && (!r.currency || r.currency === 'TRY'));
 
     // Determine which data to export based on filter
     let exportSlips: Receipt[] = [];
     let exportInvoices: Receipt[] = [];
     let exportIssued: Receipt[] = [];
     let exportForeign: Receipt[] = [];
+    let exportDomestic: Receipt[] = [];
 
     switch (filterType) {
       case 'slip':
@@ -159,6 +163,9 @@ serve(async (req) => {
         break;
       case 'foreign':
         exportForeign = foreignAll;
+        break;
+      case 'domestic':
+        exportDomestic = domesticAll;
         break;
       case 'all':
       default:
@@ -547,6 +554,159 @@ serve(async (req) => {
       XLSX.utils.book_append_sheet(workbook, foreignSheet, 'Yurtdışı Faturalar');
 
       filename = `AlinanFaturalar_${year}_${todayStr.replace(/\./g, '-')}`;
+
+    } else if (filterType === 'domestic') {
+      // Domestic only export - separate by type
+      const domesticSlips = exportDomestic.filter(r => r.document_type !== 'issued' && r.receipt_subtype !== 'invoice');
+      const domesticInvoices = exportDomestic.filter(r => r.document_type !== 'issued' && r.receipt_subtype === 'invoice');
+      const domesticIssued = exportDomestic.filter(r => r.document_type === 'issued');
+      
+      totalExported = exportDomestic.length;
+      
+      // Calculate totals
+      let slipsTotal = 0, slipsVat = 0, slipsSubtotal = 0;
+      domesticSlips.forEach(r => {
+        const vat = r.vat_amount || 0;
+        const subtotal = r.subtotal || ((r.total_amount || 0) - vat);
+        slipsTotal += r.total_amount || 0;
+        slipsVat += vat;
+        slipsSubtotal += subtotal;
+      });
+      
+      let invoicesTotal = 0, invoicesVat = 0, invoicesSubtotal = 0;
+      domesticInvoices.forEach(r => {
+        const vat = r.vat_amount || 0;
+        const subtotal = r.subtotal || ((r.total_amount || 0) - vat);
+        invoicesTotal += r.total_amount || 0;
+        invoicesVat += vat;
+        invoicesSubtotal += subtotal;
+      });
+      
+      let issuedTotal = 0, issuedVat = 0, issuedSubtotal = 0;
+      domesticIssued.forEach(r => {
+        const vat = r.vat_amount || 0;
+        const subtotal = r.subtotal || ((r.total_amount || 0) - vat);
+        issuedTotal += r.total_amount || 0;
+        issuedVat += vat;
+        issuedSubtotal += subtotal;
+      });
+      
+      const grandTotal = slipsTotal + invoicesTotal + issuedTotal;
+      const grandVat = slipsVat + invoicesVat + issuedVat;
+      const grandSubtotal = slipsSubtotal + invoicesSubtotal + issuedSubtotal;
+      
+      // Summary sheet
+      const summaryData: (string | number)[][] = [
+        ['YURTİÇİ BELGELER RAPORU'],
+        [''],
+        ['Yıl:', year],
+        ['Oluşturma Tarihi:', todayStr],
+        ['Kullanıcı:', `${profile?.first_name || ''} ${profile?.last_name || ''}`],
+        [''],
+        ['═══════════════════════════════════════'],
+        [''],
+        ['YURTİÇİ FİŞLER'],
+        ['Fiş Sayısı:', domesticSlips.length],
+        ['Matrah:', slipsSubtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+        ['KDV Tutarı:', slipsVat.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+        ['Toplam:', slipsTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+        [''],
+        ['═══════════════════════════════════════'],
+        [''],
+        ['YURTİÇİ ALINAN FATURALAR'],
+        ['Fatura Sayısı:', domesticInvoices.length],
+        ['Matrah:', invoicesSubtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+        ['KDV Tutarı:', invoicesVat.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+        ['Toplam:', invoicesTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+        [''],
+        ['═══════════════════════════════════════'],
+        [''],
+        ['YURTİÇİ KESİLEN FATURALAR'],
+        ['Fatura Sayısı:', domesticIssued.length],
+        ['Matrah:', issuedSubtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+        ['KDV Tutarı:', issuedVat.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+        ['Toplam:', issuedTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+        [''],
+        ['═══════════════════════════════════════'],
+        [''],
+        ['GENEL TOPLAM'],
+        ['Toplam Belge:', exportDomestic.length],
+        ['Matrah:', grandSubtotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+        ['KDV Tutarı:', grandVat.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+        ['Genel Toplam:', grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 }) + ' ₺'],
+      ];
+      
+      const summarySheet = XLSX.utils.aoa_to_sheet(summaryData);
+      summarySheet['!cols'] = [{ wch: 25 }, { wch: 30 }];
+      XLSX.utils.book_append_sheet(workbook, summarySheet, 'Özet');
+      
+      // Yurtiçi Fişler sheet
+      const slipsHeaders = ['Tarih', 'Fiş No', 'Satıcı Adı', 'Satıcı VKN', 'Matrah', 'KDV %', 'KDV Tutarı', 'Toplam', 'Kategori', 'Rapora Dahil', 'Dosya Adı'];
+      const slipsRows = domesticSlips.map(r => [
+        formatDate(r.receipt_date),
+        r.receipt_no || '',
+        r.seller_name || r.vendor_name || '',
+        r.seller_tax_no || r.vendor_tax_no || '',
+        r.subtotal || ((r.total_amount || 0) - (r.vat_amount || 0)),
+        r.vat_rate || 0,
+        r.vat_amount || 0,
+        r.total_amount || 0,
+        r.category?.name || '',
+        r.is_included_in_report ? 'Evet' : 'Hayır',
+        r.file_name || ''
+      ]);
+      const slipsSheet = XLSX.utils.aoa_to_sheet([slipsHeaders, ...slipsRows]);
+      slipsSheet['!cols'] = [
+        { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 14 }, { wch: 14 },
+        { wch: 8 }, { wch: 12 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 30 }
+      ];
+      XLSX.utils.book_append_sheet(workbook, slipsSheet, 'Yurtiçi Fişler');
+      
+      // Yurtiçi Alınan Faturalar sheet
+      const invoicesHeaders = ['Tarih', 'Fatura No', 'Satıcı Adı', 'Satıcı VKN', 'Matrah', 'KDV %', 'KDV Tutarı', 'Toplam', 'Kategori', 'Rapora Dahil', 'Dosya Adı'];
+      const invoicesRows = domesticInvoices.map(r => [
+        formatDate(r.receipt_date),
+        r.receipt_no || '',
+        r.seller_name || r.vendor_name || '',
+        r.seller_tax_no || r.vendor_tax_no || '',
+        r.subtotal || ((r.total_amount || 0) - (r.vat_amount || 0)),
+        r.vat_rate || 0,
+        r.vat_amount || 0,
+        r.total_amount || 0,
+        r.category?.name || '',
+        r.is_included_in_report ? 'Evet' : 'Hayır',
+        r.file_name || ''
+      ]);
+      const invoicesSheet = XLSX.utils.aoa_to_sheet([invoicesHeaders, ...invoicesRows]);
+      invoicesSheet['!cols'] = [
+        { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 14 }, { wch: 14 },
+        { wch: 8 }, { wch: 12 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 30 }
+      ];
+      XLSX.utils.book_append_sheet(workbook, invoicesSheet, 'Yurtiçi Alınan Faturalar');
+      
+      // Yurtiçi Kesilen Faturalar sheet
+      const issuedHeaders = ['Tarih', 'Fatura No', 'Alıcı Adı', 'Alıcı VKN', 'Matrah', 'KDV %', 'KDV Tutarı', 'Toplam', 'Kategori', 'Rapora Dahil', 'Dosya Adı'];
+      const issuedRows = domesticIssued.map(r => [
+        formatDate(r.receipt_date),
+        r.receipt_no || '',
+        r.buyer_name || '',
+        r.buyer_tax_no || '',
+        r.subtotal || ((r.total_amount || 0) - (r.vat_amount || 0)),
+        r.vat_rate || 0,
+        r.vat_amount || 0,
+        r.total_amount || 0,
+        r.category?.name || '',
+        r.is_included_in_report ? 'Evet' : 'Hayır',
+        r.file_name || ''
+      ]);
+      const issuedSheet = XLSX.utils.aoa_to_sheet([issuedHeaders, ...issuedRows]);
+      issuedSheet['!cols'] = [
+        { wch: 12 }, { wch: 15 }, { wch: 25 }, { wch: 14 }, { wch: 14 },
+        { wch: 8 }, { wch: 12 }, { wch: 14 }, { wch: 18 }, { wch: 12 }, { wch: 30 }
+      ];
+      XLSX.utils.book_append_sheet(workbook, issuedSheet, 'Yurtiçi Kesilen Faturalar');
+      
+      filename = `YurticiIslemler_${year}_${todayStr.replace(/\./g, '-')}`;
 
     } else if (filterType === 'issued') {
       const issuedStats = calcStats(exportIssued);
