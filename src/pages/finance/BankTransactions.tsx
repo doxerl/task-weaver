@@ -24,7 +24,7 @@ import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { BankTransaction, TransactionCategory } from '@/types/finance';
 
-const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR').format(Math.abs(n));
+const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { maximumFractionDigits: 0 }).format(Math.round(Math.abs(n)));
 const formatDate = (d: string) => new Date(d).toLocaleDateString('tr-TR');
 
 const monthNames = [
