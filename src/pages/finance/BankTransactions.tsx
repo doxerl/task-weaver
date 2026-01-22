@@ -6,7 +6,9 @@ import { Select, SelectContent, SelectGroup, SelectItem, SelectLabel, SelectTrig
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
-import { ArrowLeft, Loader2, TrendingUp, TrendingDown, X, Trash2, FileX } from 'lucide-react';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { ArrowLeft, Loader2, TrendingUp, TrendingDown, X, Trash2, FileX, ChevronDown, Check } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -242,7 +244,7 @@ function TransactionCard({ tx, grouped, onCategoryChange, onDelete, onToggleExcl
 export default function BankTransactions() {
   const { selectedYear: year, setSelectedYear: setYear } = useYear();
   const [selectedMonth, setSelectedMonth] = useState<string>('all');
-  const [categoryFilter, setCategoryFilter] = useState<string>('all');
+  const [selectedCategories, setSelectedCategories] = useState<string[]>([]);
   const [commercialFilter, setCommercialFilter] = useState<string>('all');
   const [excludedFilter, setExcludedFilter] = useState<string>('all');
   
@@ -272,10 +274,10 @@ export default function BankTransactions() {
       });
     }
     
-    if (categoryFilter === 'uncategorized') {
+    if (selectedCategories.includes('uncategorized')) {
       result = result.filter(tx => !tx.category_id);
-    } else if (categoryFilter !== 'all') {
-      result = result.filter(tx => tx.category_id === categoryFilter);
+    } else if (selectedCategories.length > 0) {
+      result = result.filter(tx => tx.category_id && selectedCategories.includes(tx.category_id));
     }
     
     if (commercialFilter === 'commercial') {
@@ -291,7 +293,7 @@ export default function BankTransactions() {
     }
     
     return result;
-  }, [transactions, selectedMonth, categoryFilter, commercialFilter, excludedFilter]);
+  }, [transactions, selectedMonth, selectedCategories, commercialFilter, excludedFilter]);
 
   // Calculate summary for filtered transactions
   const summary = useMemo(() => {
@@ -368,12 +370,31 @@ export default function BankTransactions() {
 
   const clearFilters = () => {
     setSelectedMonth('all');
-    setCategoryFilter('all');
+    setSelectedCategories([]);
     setCommercialFilter('all');
     setExcludedFilter('all');
   };
 
-  const hasActiveFilters = selectedMonth !== 'all' || categoryFilter !== 'all' || commercialFilter !== 'all' || excludedFilter !== 'all';
+  const toggleCategory = (catId: string) => {
+    if (catId === 'uncategorized') {
+      // "Kategorisiz" seçildiğinde diğerlerini temizle
+      setSelectedCategories(prev => 
+        prev.includes('uncategorized') ? [] : ['uncategorized']
+      );
+    } else {
+      setSelectedCategories(prev => {
+        // Kategorisiz varsa kaldır
+        const filtered = prev.filter(id => id !== 'uncategorized');
+        if (filtered.includes(catId)) {
+          return filtered.filter(id => id !== catId);
+        } else {
+          return [...filtered, catId];
+        }
+      });
+    }
+  };
+
+  const hasActiveFilters = selectedMonth !== 'all' || selectedCategories.length > 0 || commercialFilter !== 'all' || excludedFilter !== 'all';
 
   return (
     <div className="min-h-screen bg-background pb-20">
@@ -435,21 +456,59 @@ export default function BankTransactions() {
             </SelectContent>
           </Select>
 
-          {/* Category Filter */}
-          <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[140px]">
-              <SelectValue placeholder="Kategori" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Tüm Kategoriler</SelectItem>
-              <SelectItem value="uncategorized">⚠️ Kategorisiz</SelectItem>
+          {/* Category Filter - Multi Select */}
+          <Popover>
+            <PopoverTrigger asChild>
+              <Button variant="outline" className="w-[160px] justify-between h-10 px-3">
+                {selectedCategories.length === 0 
+                  ? 'Tüm Kategoriler' 
+                  : `${selectedCategories.length} Kategori`
+                }
+                <ChevronDown className="h-4 w-4 opacity-50 ml-2" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent className="w-[240px] p-2 max-h-[320px] overflow-auto bg-popover" align="start">
+              {selectedCategories.length > 0 && (
+                <Button 
+                  variant="ghost" 
+                  size="sm" 
+                  className="w-full mb-2 text-muted-foreground"
+                  onClick={() => setSelectedCategories([])}
+                >
+                  <X className="h-4 w-4 mr-1" /> Temizle
+                </Button>
+              )}
+              
+              {/* Kategorisiz */}
+              <div 
+                className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
+                onClick={() => toggleCategory('uncategorized')}
+              >
+                <Checkbox 
+                  checked={selectedCategories.includes('uncategorized')}
+                  onCheckedChange={() => toggleCategory('uncategorized')}
+                />
+                <span className="text-sm">⚠️ Kategorisiz</span>
+              </div>
+              
+              <div className="my-2 border-t border-border" />
+              
+              {/* Kategoriler */}
               {grouped.all.map(cat => (
-                <SelectItem key={cat.id} value={cat.id}>
-                  {cat.icon} {cat.name}
-                </SelectItem>
+                <div 
+                  key={cat.id}
+                  className="flex items-center gap-2 p-2 hover:bg-accent rounded cursor-pointer"
+                  onClick={() => toggleCategory(cat.id)}
+                >
+                  <Checkbox 
+                    checked={selectedCategories.includes(cat.id)}
+                    onCheckedChange={() => toggleCategory(cat.id)}
+                  />
+                  <span className="text-sm truncate">{cat.icon} {cat.name}</span>
+                </div>
               ))}
-            </SelectContent>
-          </Select>
+            </PopoverContent>
+          </Popover>
 
           {/* Commercial Filter */}
           <Select value={commercialFilter} onValueChange={setCommercialFilter}>
@@ -499,18 +558,21 @@ export default function BankTransactions() {
                 />
               </Badge>
             )}
-            {categoryFilter !== 'all' && (
-              <Badge variant="secondary" className="gap-1">
-                {categoryFilter === 'uncategorized' 
-                  ? 'Kategorisiz' 
-                  : grouped.all.find(c => c.id === categoryFilter)?.name || categoryFilter
-                }
-                <X 
-                  className="h-3 w-3 cursor-pointer hover:text-destructive" 
-                  onClick={() => setCategoryFilter('all')}
-                />
-              </Badge>
-            )}
+            {selectedCategories.map(catId => {
+              const cat = grouped.all.find(c => c.id === catId);
+              const label = catId === 'uncategorized' 
+                ? '⚠️ Kategorisiz' 
+                : `${cat?.icon || ''} ${cat?.name || catId}`;
+              return (
+                <Badge key={catId} variant="secondary" className="gap-1">
+                  {label}
+                  <X 
+                    className="h-3 w-3 cursor-pointer hover:text-destructive" 
+                    onClick={() => setSelectedCategories(prev => prev.filter(id => id !== catId))}
+                  />
+                </Badge>
+              );
+            })}
             {commercialFilter !== 'all' && (
               <Badge variant="secondary" className="gap-1">
                 {commercialFilter === 'commercial' ? '🏢 Ticari' : '👤 Ticari Dışı'}
