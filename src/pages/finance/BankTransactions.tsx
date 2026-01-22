@@ -297,13 +297,30 @@ export default function BankTransactions() {
   const summary = useMemo(() => {
     const income = filteredTransactions.filter(tx => tx.amount > 0);
     const expense = filteredTransactions.filter(tx => tx.amount < 0);
+    
+    // Brüt toplamlar (KDV dahil)
     const incomeTotal = income.reduce((sum, tx) => sum + tx.amount, 0);
     const expenseTotal = expense.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
     const uncategorized = filteredTransactions.filter(tx => !tx.category_id).length;
     
-    // VAT totals
+    // Ticari / Ticari dışı ayrımı
     const commercialIncome = income.filter(tx => tx.is_commercial !== false);
+    const nonCommercialIncome = income.filter(tx => tx.is_commercial === false);
     const commercialExpense = expense.filter(tx => tx.is_commercial !== false);
+    const nonCommercialExpense = expense.filter(tx => tx.is_commercial === false);
+    
+    // Net toplamlar (KDV hariç) - Ticari işlemlerden KDV ayrıştır
+    const incomeNetTotal = commercialIncome.reduce((sum, tx) => {
+      const net = tx.net_amount ?? (tx.amount / 1.20);
+      return sum + net;
+    }, 0) + nonCommercialIncome.reduce((sum, tx) => sum + tx.amount, 0);
+    
+    const expenseNetTotal = commercialExpense.reduce((sum, tx) => {
+      const net = tx.net_amount ?? (Math.abs(tx.amount) / 1.20);
+      return sum + net;
+    }, 0) + nonCommercialExpense.reduce((sum, tx) => sum + Math.abs(tx.amount), 0);
+    
+    // KDV hesaplamaları
     const vatCalculated = commercialIncome.reduce((sum, tx) => {
       return sum + (tx.vat_amount ?? (tx.amount - tx.amount / 1.20));
     }, 0);
@@ -315,9 +332,11 @@ export default function BankTransactions() {
     return {
       income,
       expense,
-      incomeTotal,
-      expenseTotal,
-      net: incomeTotal - expenseTotal,
+      incomeTotal,       // Brüt gelir (KDV dahil)
+      expenseTotal,      // Brüt gider (KDV dahil)
+      incomeNetTotal,    // Net gelir (KDV hariç)
+      expenseNetTotal,   // Net gider (KDV hariç)
+      net: incomeNetTotal - expenseNetTotal,  // Net kazanç (KDV hariç)
       uncategorized,
       vatCalculated,
       vatDeductible,
@@ -569,20 +588,27 @@ export default function BankTransactions() {
                 </h3>
                 <div className="grid grid-cols-3 gap-3">
                   <div className="text-center">
-                    <p className="text-xs text-muted-foreground mb-1">💰 Gelir</p>
+                    <p className="text-xs text-muted-foreground mb-1">💰 Gelir (Brüt)</p>
                     <p className="font-bold text-green-600">+{formatCurrency(summary.incomeTotal)} ₺</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Net: {formatCurrency(summary.incomeNetTotal)} ₺
+                    </p>
                     <p className="text-xs text-muted-foreground">{summary.income.length} işlem</p>
                   </div>
                   <div className="text-center border-x border-border">
-                    <p className="text-xs text-muted-foreground mb-1">💸 Gider</p>
+                    <p className="text-xs text-muted-foreground mb-1">💸 Gider (Brüt)</p>
                     <p className="font-bold text-red-600">-{formatCurrency(summary.expenseTotal)} ₺</p>
+                    <p className="text-[10px] text-muted-foreground">
+                      Net: {formatCurrency(summary.expenseNetTotal)} ₺
+                    </p>
                     <p className="text-xs text-muted-foreground">{summary.expense.length} işlem</p>
                   </div>
                   <div className="text-center">
-                    <p className="text-xs text-muted-foreground mb-1">📈 Net</p>
+                    <p className="text-xs text-muted-foreground mb-1">📈 Net Kazanç</p>
                     <p className={cn("font-bold", summary.net >= 0 ? "text-emerald-600" : "text-red-600")}>
                       {summary.net >= 0 ? '+' : '-'}{formatCurrency(Math.abs(summary.net))} ₺
                     </p>
+                    <p className="text-[10px] text-muted-foreground">(KDV Hariç)</p>
                   </div>
                 </div>
                 
