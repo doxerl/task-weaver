@@ -175,8 +175,11 @@ export default function ReceiptUpload() {
   };
   
   // Edit sheet state
-  const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
+const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
   const [editSheetOpen, setEditSheetOpen] = useState(false);
+  
+  // Drag and drop state
+  const [isDragOver, setIsDragOver] = useState(false);
 
   // Filter state for summary
   const [receiptFilter, setReceiptFilter] = useState<ReceiptFilter>(initialType === 'issued' ? 'issued' : 'received');
@@ -1056,17 +1059,53 @@ export default function ReceiptUpload() {
                     </button>
                   </div>
                 ) : (
-                  /* Desktop: Single drop zone */
-                  <button
+                  /* Desktop: Single drop zone with drag-and-drop */
+                  <div
                     onClick={() => galleryInputRef.current?.click()}
-                    className="w-full flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg cursor-pointer transition-colors border-muted-foreground/25 hover:border-primary/50"
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      if (!uploading) setIsDragOver(true);
+                    }}
+                    onDragLeave={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDragOver(false);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      setIsDragOver(false);
+                      if (uploading) return;
+                      
+                      const droppedFiles = Array.from(e.dataTransfer.files).filter(file => {
+                        const ext = file.name.split('.').pop()?.toLowerCase();
+                        return ['jpg', 'jpeg', 'png', 'pdf', 'xml', 'zip', 'html', 'htm'].includes(ext || '');
+                      });
+                      
+                      if (droppedFiles.length > 0) {
+                        setFiles(prev => [...prev, ...droppedFiles]);
+                      }
+                    }}
+                    className={cn(
+                      "w-full flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg cursor-pointer transition-all",
+                      isDragOver 
+                        ? "border-primary bg-primary/10 scale-[1.02]" 
+                        : "border-muted-foreground/25 hover:border-primary/50"
+                    )}
                   >
-                    <Upload className="h-10 w-10 text-muted-foreground" />
+                    <Upload className={cn(
+                      "h-10 w-10 transition-colors",
+                      isDragOver ? "text-primary" : "text-muted-foreground"
+                    )} />
                     <p className="text-sm font-medium">
-                      {receiptSubtype === 'slip' ? 'Fiş seçin' : 'Fatura seçin'}
+                      {isDragOver 
+                        ? 'Dosyaları bırakın' 
+                        : (receiptSubtype === 'slip' ? 'Fiş seçin veya sürükleyin' : 'Fatura seçin veya sürükleyin')
+                      }
                     </p>
                     <p className="text-xs text-muted-foreground">JPG, PNG, PDF, XML, ZIP</p>
-                  </button>
+                  </div>
                 )}
               </>
             )}
