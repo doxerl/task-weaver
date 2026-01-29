@@ -101,39 +101,40 @@ export function calculateStatementTotals(data: Partial<YearlyIncomeStatementForm
 export function useOfficialIncomeStatement(year: number) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  const userId = user?.id;
   
   // Memoize empty statement to prevent infinite re-renders
   const emptyStatement = useMemo(() => getEmptyStatement(year), [year]);
 
   // Fetch official statement for the year
   const { data: officialStatement, isLoading } = useQuery({
-    queryKey: ['official-income-statement', year, user?.id],
+    queryKey: ['official-income-statement', year, userId],
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!userId) return null;
 
       const { data, error } = await supabase
         .from('yearly_income_statements')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('year', year)
         .maybeSingle();
 
       if (error) throw error;
       return data as YearlyIncomeStatement | null;
     },
-    enabled: !!user?.id,
+    enabled: !!userId,
   });
 
   // Upsert statement
   const upsertMutation = useMutation({
     mutationFn: async (formData: Partial<YearlyIncomeStatementFormData>) => {
-      if (!user?.id) throw new Error('User not authenticated');
+      if (!userId) throw new Error('User not authenticated');
 
       const totals = calculateStatementTotals(formData);
       const payload = {
         ...formData,
         ...totals,
-        user_id: user.id,
+        user_id: userId,
         year,
         updated_at: new Date().toISOString(),
       };
@@ -167,12 +168,12 @@ export function useOfficialIncomeStatement(year: number) {
   // Lock statement
   const lockMutation = useMutation({
     mutationFn: async () => {
-      if (!user?.id) throw new Error('User not authenticated');
+      if (!userId) throw new Error('User not authenticated');
 
       const { error } = await supabase
         .from('yearly_income_statements')
         .update({ is_locked: true, updated_at: new Date().toISOString() })
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('year', year);
 
       if (error) throw error;
@@ -189,12 +190,12 @@ export function useOfficialIncomeStatement(year: number) {
   // Unlock statement
   const unlockMutation = useMutation({
     mutationFn: async () => {
-      if (!user?.id) throw new Error('User not authenticated');
+      if (!userId) throw new Error('User not authenticated');
 
       const { error } = await supabase
         .from('yearly_income_statements')
         .update({ is_locked: false, updated_at: new Date().toISOString() })
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('year', year);
 
       if (error) throw error;
