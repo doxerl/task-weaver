@@ -11,7 +11,8 @@ interface IncomeStatementAccount {
   name: string;
   debit: number;
   credit: number;
-  balance: number;
+  debitBalance: number;
+  creditBalance: number;
 }
 
 interface ParseResult {
@@ -101,8 +102,8 @@ Tüm sayıları standart ondalık formata çevir (1234567.89)
 Boş/eksik değerler = 0
 
 ## BALANCE (BAKİYE) HESAPLAMA
-- Gelir hesapları (600, 601, 602, 64x, 67x): balance = credit - debit
-- Gider hesapları (61x, 62x, 63x, 65x, 66x, 68x, 69x): balance = debit - credit
+- Borç > Alacak ise: debitBalance = Borç - Alacak, creditBalance = 0
+- Alacak > Borç ise: debitBalance = 0, creditBalance = Alacak - Borç
 
 ## ÖNEMLİ
 - Sadece 3 haneli 6xx hesap kodlarını al
@@ -125,9 +126,10 @@ const PARSE_FUNCTION_SCHEMA = {
             name: { type: 'string', description: 'Hesap adı' },
             debit: { type: 'number', description: 'Borç tutarı (standart ondalık format)' },
             credit: { type: 'number', description: 'Alacak tutarı (standart ondalık format)' },
-            balance: { type: 'number', description: 'Hesap bakiyesi' }
+            debitBalance: { type: 'number', description: 'Borç bakiyesi (Borç > Alacak ise: Borç - Alacak, değilse 0)' },
+            creditBalance: { type: 'number', description: 'Alacak bakiyesi (Alacak > Borç ise: Alacak - Borç, değilse 0)' }
           },
-          required: ['code', 'name', 'debit', 'credit', 'balance']
+          required: ['code', 'name', 'debit', 'credit', 'debitBalance', 'creditBalance']
         }
       },
       metadata: {
@@ -280,7 +282,8 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
           name: String(row[1] || ''),
           debit,
           credit,
-          balance: 0,
+          debitBalance: 0,
+          creditBalance: 0,
         };
       }
     }
@@ -307,7 +310,8 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
           name: String(row[columns.name] || ''),
           debit,
           credit,
-          balance: 0,
+          debitBalance: 0,
+          creditBalance: 0,
         };
       }
     }
@@ -316,10 +320,15 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
   // Calculate balances and convert to array
   for (const baseCode of Object.keys(accountAggregator)) {
     const acc = accountAggregator[baseCode];
-    const isIncomeAccount = ['600', '601', '602'].includes(baseCode) || 
-                            baseCode.startsWith('64') || 
-                            baseCode.startsWith('67');
-    acc.balance = isIncomeAccount ? acc.credit - acc.debit : acc.debit - acc.credit;
+    // Borç > Alacak ise: debitBalance = Borç - Alacak, creditBalance = 0
+    // Alacak > Borç ise: debitBalance = 0, creditBalance = Alacak - Borç
+    if (acc.debit > acc.credit) {
+      acc.debitBalance = acc.debit - acc.credit;
+      acc.creditBalance = 0;
+    } else {
+      acc.debitBalance = 0;
+      acc.creditBalance = acc.credit - acc.debit;
+    }
     accounts.push(acc);
   }
 
@@ -459,7 +468,8 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
           name: acc.name || '',
           debit: acc.debit || 0,
           credit: acc.credit || 0,
-          balance: acc.balance || 0,
+          debitBalance: 0,
+          creditBalance: 0,
         };
       }
     }
@@ -468,10 +478,15 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
     const accounts: IncomeStatementAccount[] = [];
     for (const baseCode of Object.keys(accountAggregator)) {
       const acc = accountAggregator[baseCode];
-      const isIncomeAccount = ['600', '601', '602'].includes(baseCode) || 
-                              baseCode.startsWith('64') || 
-                              baseCode.startsWith('67');
-      acc.balance = isIncomeAccount ? acc.credit - acc.debit : acc.debit - acc.credit;
+      // Borç > Alacak ise: debitBalance = Borç - Alacak, creditBalance = 0
+      // Alacak > Borç ise: debitBalance = 0, creditBalance = Alacak - Borç
+      if (acc.debit > acc.credit) {
+        acc.debitBalance = acc.debit - acc.credit;
+        acc.creditBalance = 0;
+      } else {
+        acc.debitBalance = 0;
+        acc.creditBalance = acc.credit - acc.debit;
+      }
       accounts.push(acc);
     }
 

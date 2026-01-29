@@ -112,29 +112,29 @@ export function IncomeStatementUploader({ year }: IncomeStatementUploaderProps) 
 
     const accounts = uploadState.accounts;
     
-    // Gross sales (600-602)
+    // Gross sales (600-602) - use creditBalance
     const grossSales = accounts
       .filter(a => ['600', '601', '602'].includes(a.code))
-      .reduce((sum, a) => sum + a.credit, 0);
+      .reduce((sum, a) => sum + a.creditBalance, 0);
     
-    // Sales deductions (610-611)
+    // Sales deductions (610-611) - use debitBalance
     const salesDeductions = accounts
       .filter(a => ['610', '611'].includes(a.code))
-      .reduce((sum, a) => sum + a.debit, 0);
+      .reduce((sum, a) => sum + a.debitBalance, 0);
     
     const netSales = grossSales - salesDeductions;
     
-    // Cost of sales (620-622)
+    // Cost of sales (620-622) - use debitBalance
     const costOfSales = accounts
       .filter(a => ['620', '621', '622'].includes(a.code))
-      .reduce((sum, a) => sum + a.debit, 0);
+      .reduce((sum, a) => sum + a.debitBalance, 0);
     
     const grossProfit = netSales - costOfSales;
     
-    // Operating expenses (630-632)
+    // Operating expenses (630-632) - use debitBalance
     const operatingExpenses = accounts
       .filter(a => ['630', '631', '632'].includes(a.code))
-      .reduce((sum, a) => sum + a.debit, 0);
+      .reduce((sum, a) => sum + a.debitBalance, 0);
     
     const operatingProfit = grossProfit - operatingExpenses;
 
@@ -281,7 +281,8 @@ export function IncomeStatementUploader({ year }: IncomeStatementUploaderProps) 
                           <TableHead>Hesap Adı</TableHead>
                           <TableHead className="text-right">Borç</TableHead>
                           <TableHead className="text-right">Alacak</TableHead>
-                          <TableHead className="text-right">Bakiye</TableHead>
+                          <TableHead className="text-right">Borç Bak.</TableHead>
+                          <TableHead className="text-right">Alacak Bak.</TableHead>
                         </TableRow>
                       </TableHeader>
                       <TableBody>
@@ -294,7 +295,10 @@ export function IncomeStatementUploader({ year }: IncomeStatementUploaderProps) 
                               <TableCell className="text-right">{formatFullTRY(account.debit)}</TableCell>
                               <TableCell className="text-right">{formatFullTRY(account.credit)}</TableCell>
                               <TableCell className="text-right font-medium">
-                                {formatFullTRY(account.balance)}
+                                {formatFullTRY(account.debitBalance)}
+                              </TableCell>
+                              <TableCell className="text-right font-medium">
+                                {formatFullTRY(account.creditBalance)}
                               </TableCell>
                             </TableRow>
                           ))}
