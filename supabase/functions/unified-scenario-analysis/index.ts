@@ -1003,7 +1003,7 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
                   },
                   next_year_projection: {
                     type: "object",
-                    description: "CRITICAL: All numeric fields MUST be > 0. Revenue should be at least 40% higher than current year.",
+                    description: "CRITICAL: All numeric fields MUST be > 0. Revenue should be at least 40% higher than current year. MUST include itemized_revenues and itemized_expenses arrays.",
                     properties: {
                       strategy_note: { 
                         type: "string",
@@ -1087,8 +1087,43 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
                           valuation_multiple_target: { type: "string", description: "e.g. '4x Revenue Multiple'" },
                           competitive_moat: { type: "string", description: "What makes this company defensible" }
                         }
+                      },
+                      itemized_revenues: {
+                        type: "array",
+                        description: "REQUIRED: Category-based revenue projections. Use EXACT category names from input data (e.g., 'SBT Tracker', 'Leadership Denetim'). Sum of totals MUST match summary.total_revenue. Apply 30-65% growth per category.",
+                        items: {
+                          type: "object",
+                          properties: {
+                            category: { type: "string", description: "EXACT category name from scenario revenues" },
+                            q1: { type: "number", description: "Q1 projected revenue for this category" },
+                            q2: { type: "number", description: "Q2 projected revenue for this category" },
+                            q3: { type: "number", description: "Q3 projected revenue for this category" },
+                            q4: { type: "number", description: "Q4 projected revenue for this category" },
+                            total: { type: "number", description: "Sum of q1+q2+q3+q4" },
+                            growth_rate: { type: "number", description: "Growth rate vs base scenario (e.g., 0.45 for 45%)" }
+                          },
+                          required: ["category", "q1", "q2", "q3", "q4", "total", "growth_rate"]
+                        }
+                      },
+                      itemized_expenses: {
+                        type: "array",
+                        description: "REQUIRED: Category-based expense projections. Use EXACT category names from input data. Sum of totals MUST match summary.total_expenses. Apply 10-25% growth per category.",
+                        items: {
+                          type: "object",
+                          properties: {
+                            category: { type: "string", description: "EXACT category name from scenario expenses" },
+                            q1: { type: "number", description: "Q1 projected expense for this category" },
+                            q2: { type: "number", description: "Q2 projected expense for this category" },
+                            q3: { type: "number", description: "Q3 projected expense for this category" },
+                            q4: { type: "number", description: "Q4 projected expense for this category" },
+                            total: { type: "number", description: "Sum of q1+q2+q3+q4" },
+                            growth_rate: { type: "number", description: "Growth rate vs base scenario (e.g., 0.15 for 15%)" }
+                          },
+                          required: ["category", "q1", "q2", "q3", "q4", "total", "growth_rate"]
+                        }
                       }
-                    }
+                    },
+                    required: ["strategy_note", "quarterly", "summary", "itemized_revenues", "itemized_expenses"]
                   }
                 },
                 required: ["insights", "recommendations", "quarterly_analysis", "deal_analysis", "pitch_deck", "next_year_projection"]

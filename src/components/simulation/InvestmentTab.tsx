@@ -66,6 +66,11 @@ interface InvestmentTabProps {
   onDealConfigChange: (updates: Partial<DealConfiguration>) => void;
   // NEW: AI projection for Exit Plan integration
   aiNextYearProjection?: NextYearProjection;
+  // NEW: User-edited projection override - syncs editable table totals to 5-year projection
+  editedProjectionOverride?: {
+    totalRevenue: number;
+    totalExpenses: number;
+  };
 }
 
 export const InvestmentTab: React.FC<InvestmentTabProps> = ({
@@ -82,6 +87,7 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
   dealConfig,
   onDealConfigChange,
   aiNextYearProjection,
+  editedProjectionOverride,
 }) => {
   // Calculate capital needs for both scenarios
   const capitalNeedA = useMemo(() => calculateCapitalNeeds(quarterlyA), [quarterlyA]);
@@ -101,12 +107,15 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
   }, [scenarioA.targetYear, scenarioB.targetYear]);
 
   // AI projeksiyonunu Exit Plan formatına dönüştür
+  // UPDATED: editedProjectionOverride varsa, kullanıcı düzenlemelerini kullan
   const aiProjectionForExitPlan = useMemo<AIProjectionForExitPlan | undefined>(() => {
     // DEBUG: AI projeksiyonunun gelip gelmediğini kontrol et
     console.log('[InvestmentTab] AI Next Year Projection:', {
       hasProjection: !!aiNextYearProjection,
       summary: aiNextYearProjection?.summary,
       investorHook: aiNextYearProjection?.investor_hook,
+      hasEditedOverride: !!editedProjectionOverride,
+      editedOverride: editedProjectionOverride,
     });
     
     if (!aiNextYearProjection) return undefined;
@@ -120,10 +129,15 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
       }
     }
     
+    // YENİ: Kullanıcı düzenlemesi varsa, AI summary'sini override et
+    const effectiveRevenue = editedProjectionOverride?.totalRevenue ?? aiNextYearProjection.summary.total_revenue;
+    const effectiveExpenses = editedProjectionOverride?.totalExpenses ?? aiNextYearProjection.summary.total_expenses;
+    const effectiveNetProfit = effectiveRevenue - effectiveExpenses;
+    
     const result = {
-      year1Revenue: aiNextYearProjection.summary.total_revenue,
-      year1Expenses: aiNextYearProjection.summary.total_expenses,
-      year1NetProfit: aiNextYearProjection.summary.net_profit,
+      year1Revenue: effectiveRevenue,
+      year1Expenses: effectiveExpenses,
+      year1NetProfit: effectiveNetProfit,
       quarterlyData: {
         revenues: {
           q1: aiNextYearProjection.quarterly.q1.revenue,
@@ -141,10 +155,10 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
       growthRateHint,
     };
     
-    console.log('[InvestmentTab] AI Projection for Exit Plan:', result);
+    console.log('[InvestmentTab] AI Projection for Exit Plan (with override):', result);
     
     return result;
-  }, [aiNextYearProjection]);
+  }, [aiNextYearProjection, editedProjectionOverride]);
 
   // Calculate exit plan - AI DESTEKLİ
   const exitPlan = useMemo(() => {

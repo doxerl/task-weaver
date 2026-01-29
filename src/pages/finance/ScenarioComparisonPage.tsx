@@ -874,54 +874,95 @@ function ScenarioComparisonContent() {
   }, [scenarioAId, scenarioBId, navigate]);
   
   // Editable Projection Sync - AI analizi tamamlandığında düzenlenebilir tabloya aktar
+  // UPDATED: AI'ın itemized_revenues/expenses verilerini öncelikli olarak kullan
   useEffect(() => {
     if (unifiedAnalysis?.next_year_projection && scenarioA) {
       const projection = unifiedAnalysis.next_year_projection;
       
-      // Gelir kalemleri için düzenlenebilir projeksiyon oluştur
-      const revenueItems: EditableProjectionItem[] = scenarioA.revenues.map(r => {
-        const growthMultiplier = 1.3; // Varsayılan %30 büyüme
-        const baseQ = r.projectedQuarterly || { q1: r.projectedAmount / 4, q2: r.projectedAmount / 4, q3: r.projectedAmount / 4, q4: r.projectedAmount / 4 };
-        const q1 = Math.round((baseQ.q1 || r.projectedAmount / 4) * growthMultiplier);
-        const q2 = Math.round((baseQ.q2 || r.projectedAmount / 4) * growthMultiplier);
-        const q3 = Math.round((baseQ.q3 || r.projectedAmount / 4) * growthMultiplier);
-        const q4 = Math.round((baseQ.q4 || r.projectedAmount / 4) * growthMultiplier);
-        return {
-          category: r.category,
-          q1,
-          q2,
-          q3,
-          q4,
-          total: q1 + q2 + q3 + q4,
+      // YENİ: AI'dan gelen itemized veriler varsa bunları kullan
+      if (projection.itemized_revenues && projection.itemized_revenues.length > 0) {
+        console.log('[Editable Sync] Using AI itemized_revenues:', projection.itemized_revenues.length, 'items');
+        const revenueItems: EditableProjectionItem[] = projection.itemized_revenues.map(item => ({
+          category: item.category,
+          q1: Math.round(item.q1),
+          q2: Math.round(item.q2),
+          q3: Math.round(item.q3),
+          q4: Math.round(item.q4),
+          total: Math.round(item.total || (item.q1 + item.q2 + item.q3 + item.q4)),
           aiGenerated: true,
           userEdited: false
-        };
-      });
+        }));
+        setEditableRevenueProjection(revenueItems);
+        setOriginalRevenueProjection(JSON.parse(JSON.stringify(revenueItems)));
+      } else {
+        // Fallback: AI itemized veri üretmediyse, dinamik çarpan ile senaryo verilerini kullan
+        console.log('[Editable Sync] Fallback: Using scenario data with dynamic multiplier');
+        const baseRevenue = scenarioA.revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
+        const aiTotalRevenue = projection.summary?.total_revenue || baseRevenue * 1.3;
+        const growthMultiplier = baseRevenue > 0 ? aiTotalRevenue / baseRevenue : 1.3;
+        
+        const revenueItems: EditableProjectionItem[] = scenarioA.revenues.map(r => {
+          const baseQ = r.projectedQuarterly || { q1: r.projectedAmount / 4, q2: r.projectedAmount / 4, q3: r.projectedAmount / 4, q4: r.projectedAmount / 4 };
+          const q1 = Math.round((baseQ.q1 || r.projectedAmount / 4) * growthMultiplier);
+          const q2 = Math.round((baseQ.q2 || r.projectedAmount / 4) * growthMultiplier);
+          const q3 = Math.round((baseQ.q3 || r.projectedAmount / 4) * growthMultiplier);
+          const q4 = Math.round((baseQ.q4 || r.projectedAmount / 4) * growthMultiplier);
+          return {
+            category: r.category,
+            q1,
+            q2,
+            q3,
+            q4,
+            total: q1 + q2 + q3 + q4,
+            aiGenerated: true,
+            userEdited: false
+          };
+        });
+        setEditableRevenueProjection(revenueItems);
+        setOriginalRevenueProjection(JSON.parse(JSON.stringify(revenueItems)));
+      }
       
-      // Gider kalemleri için düzenlenebilir projeksiyon oluştur
-      const expenseItems: EditableProjectionItem[] = scenarioA.expenses.map(e => {
-        const growthMultiplier = 1.15; // Varsayılan %15 artış
-        const baseQ = e.projectedQuarterly || { q1: e.projectedAmount / 4, q2: e.projectedAmount / 4, q3: e.projectedAmount / 4, q4: e.projectedAmount / 4 };
-        const q1 = Math.round((baseQ.q1 || e.projectedAmount / 4) * growthMultiplier);
-        const q2 = Math.round((baseQ.q2 || e.projectedAmount / 4) * growthMultiplier);
-        const q3 = Math.round((baseQ.q3 || e.projectedAmount / 4) * growthMultiplier);
-        const q4 = Math.round((baseQ.q4 || e.projectedAmount / 4) * growthMultiplier);
-        return {
-          category: e.category,
-          q1,
-          q2,
-          q3,
-          q4,
-          total: q1 + q2 + q3 + q4,
+      // YENİ: AI'dan gelen itemized expense veriler varsa bunları kullan
+      if (projection.itemized_expenses && projection.itemized_expenses.length > 0) {
+        console.log('[Editable Sync] Using AI itemized_expenses:', projection.itemized_expenses.length, 'items');
+        const expenseItems: EditableProjectionItem[] = projection.itemized_expenses.map(item => ({
+          category: item.category,
+          q1: Math.round(item.q1),
+          q2: Math.round(item.q2),
+          q3: Math.round(item.q3),
+          q4: Math.round(item.q4),
+          total: Math.round(item.total || (item.q1 + item.q2 + item.q3 + item.q4)),
           aiGenerated: true,
           userEdited: false
-        };
-      });
-      
-      setEditableRevenueProjection(revenueItems);
-      setEditableExpenseProjection(expenseItems);
-      setOriginalRevenueProjection(JSON.parse(JSON.stringify(revenueItems)));
-      setOriginalExpenseProjection(JSON.parse(JSON.stringify(expenseItems)));
+        }));
+        setEditableExpenseProjection(expenseItems);
+        setOriginalExpenseProjection(JSON.parse(JSON.stringify(expenseItems)));
+      } else {
+        // Fallback: AI itemized veri üretmediyse, dinamik çarpan ile senaryo verilerini kullan
+        const baseExpenses = scenarioA.expenses.reduce((sum, e) => sum + e.projectedAmount, 0);
+        const aiTotalExpenses = projection.summary?.total_expenses || baseExpenses * 1.15;
+        const expenseGrowthMultiplier = baseExpenses > 0 ? aiTotalExpenses / baseExpenses : 1.15;
+        
+        const expenseItems: EditableProjectionItem[] = scenarioA.expenses.map(e => {
+          const baseQ = e.projectedQuarterly || { q1: e.projectedAmount / 4, q2: e.projectedAmount / 4, q3: e.projectedAmount / 4, q4: e.projectedAmount / 4 };
+          const q1 = Math.round((baseQ.q1 || e.projectedAmount / 4) * expenseGrowthMultiplier);
+          const q2 = Math.round((baseQ.q2 || e.projectedAmount / 4) * expenseGrowthMultiplier);
+          const q3 = Math.round((baseQ.q3 || e.projectedAmount / 4) * expenseGrowthMultiplier);
+          const q4 = Math.round((baseQ.q4 || e.projectedAmount / 4) * expenseGrowthMultiplier);
+          return {
+            category: e.category,
+            q1,
+            q2,
+            q3,
+            q4,
+            total: q1 + q2 + q3 + q4,
+            aiGenerated: true,
+            userEdited: false
+          };
+        });
+        setEditableExpenseProjection(expenseItems);
+        setOriginalExpenseProjection(JSON.parse(JSON.stringify(expenseItems)));
+      }
     }
   }, [unifiedAnalysis?.next_year_projection, scenarioA]);
   
@@ -1574,6 +1615,14 @@ function ScenarioComparisonContent() {
               dealConfig={dealConfig}
               onDealConfigChange={updateDealConfig}
               aiNextYearProjection={unifiedAnalysis?.next_year_projection}
+              editedProjectionOverride={
+                editableRevenueProjection.length > 0 
+                  ? {
+                      totalRevenue: editableRevenueProjection.reduce((sum, r) => sum + (r.total || 0), 0),
+                      totalExpenses: editableExpenseProjection.reduce((sum, e) => sum + (e.total || 0), 0),
+                    }
+                  : undefined
+              }
             />
                 
                 {/* Focus Project Selector - Yatırım Odak Projesi (çoklu seçim) */}

@@ -566,7 +566,18 @@ export interface InvestorHook {
   competitive_moat: string;
 }
 
-/** Next Year Projection from AI - ENHANCED with Globalization Vision */
+/** Category-based projection for itemized revenues/expenses */
+export interface CategoryProjection {
+  category: string;
+  q1: number;
+  q2: number;
+  q3: number;
+  q4: number;
+  total: number;
+  growth_rate: number;  // Growth rate compared to base year (e.g., 0.45 = 45%)
+}
+
+/** Next Year Projection from AI - ENHANCED with Globalization Vision and Itemized Data */
 export interface NextYearProjection {
   strategy_note: string;
   virtual_opening_balance?: VirtualOpeningBalance;
@@ -584,6 +595,10 @@ export interface NextYearProjection {
   };
   investor_hook?: InvestorHook;
   projection_year?: number;  // AI'dan gelen hedef yıl: max(A.targetYear, B.targetYear) + 1
+  
+  // NEW: Category-based itemized projections for synchronization with editable tables
+  itemized_revenues?: CategoryProjection[];
+  itemized_expenses?: CategoryProjection[];
 }
 
 /** Enhanced Executive Summary (structured) */
