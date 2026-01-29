@@ -1,120 +1,61 @@
 
 
-## Gelir Tablosu ve Bilanço Yükleme Verilerinin Kaybolması Sorunu
+## Bilanço PDF Yükleme Hatası - Dosya Adı Sanitizasyonu
 
-### Problem Analizi
+### Hata Analizi
 
-Yüklenen ve parse edilen veriler sekmeler arası geçişte kayboluyor çünkü:
+```
+Dosya yüklenemedi: Invalid key: 
+8de85cec-cb06-4d8f-aa41-72f22c04eae1/balance-sheets/2025/ALFAZEN GEÇİÇİ 122025 Bilanco_Ayri.pdf
+```
 
-| Bileşen | Sorun |
-|---------|-------|
-| `useIncomeStatementUpload` | Sadece `useState` kullanıyor, veritabanından okumuyor |
-| `useBalanceSheetUpload` | Aynı sorun - sadece local state |
-| Sekme değişimi | Bileşen unmount olunca state sıfırlanıyor |
-| Sayfa yenilemesi | Local state kaybolduğu için veriler görünmüyor |
-
-### Veritabanı Durumu
-
-Her iki tabloda da gerekli alanlar mevcut:
-- `yearly_income_statements`: `source`, `file_url` alanları var
-- `yearly_balance_sheets`: `source`, `file_name`, `file_url`, `raw_accounts` alanları var
-
-Ancak hook'lar bu verileri başlangıçta okumuyorlar.
+**Sorun:** Supabase Storage, dosya yollarında Türkçe karakterler (İ, Ç, Ğ, Ş, Ü, Ö) ve boşlukları kabul etmiyor. Dosya adı `ALFAZEN GEÇİÇİ` şu karakterleri içeriyor:
+- Boşluklar (` `)
+- Türkçe karakterler (`Ç`, `İ`)
 
 ---
 
-### Çözüm Planı
+### Etkilenen Dosyalar
 
-#### 1. `useIncomeStatementUpload` Hook'unu Güncelle
+| Hook | Dosya Adı Kullanımı | Sorunlu mu? |
+|------|---------------------|-------------|
+| `useBalanceSheetUpload.ts` | `file.name` doğrudan kullanılıyor (satır 92) | Evet |
+| `useTrialBalance.ts` | `file.name` kullanılıyor (satır 53) | Evet |
+| `useIncomeStatementUpload.ts` | Storage'a yüklenmiyor, edge function'a gönderiliyor | Kısmi |
 
-Mevcut durumu veritabanından oku ve upload state'i ile senkronize et:
+---
+
+### Çözüm
+
+Dosya adını temizleyen bir yardımcı fonksiyon oluşturup tüm yükleme hook'larında kullanmak:
 
 ```typescript
-// Hook başlangıcına eklenecek
-const { data: existingData, isLoading: isLoadingExisting } = useQuery({
-  queryKey: ['income-statement-upload', year, userId],
-  queryFn: async () => {
-    const { data } = await supabase
-      .from('yearly_income_statements')
-      .select('source, file_url, file_name')
-      .eq('user_id', userId)
-      .eq('year', year)
-      .maybeSingle();
-    return data;
-  },
-  enabled: !!userId,
-});
-
-// Mevcut veri varsa uploadState'i başlat
-useEffect(() => {
-  if (existingData?.source === 'mizan_upload') {
-    setUploadState({
-      fileName: existingData.file_name,
-      accounts: [], // Önceden parse edilmiş
-      mappedData: {},
-      warnings: [],
-      isApproved: true, // Zaten kayıtlı
-    });
+// Türkçe karakterleri ve özel karakterleri temizle
+function sanitizeFileName(fileName: string): string {
+  const turkishMap: Record<string, string> = {
+    'ç': 'c', 'Ç': 'C',
+    'ğ': 'g', 'Ğ': 'G',
+    'ı': 'i', 'İ': 'I',
+    'ö': 'o', 'Ö': 'O',
+    'ş': 's', 'Ş': 'S',
+    'ü': 'u', 'Ü': 'U',
+  };
+  
+  let sanitized = fileName;
+  
+  // Türkçe karakterleri değiştir
+  for (const [turkish, latin] of Object.entries(turkishMap)) {
+    sanitized = sanitized.split(turkish).join(latin);
   }
-}, [existingData]);
-```
-
-#### 2. `useBalanceSheetUpload` Hook'unu Güncelle
-
-Aynı mantıkla mevcut upload'u oku:
-
-```typescript
-// Hook başlangıcına eklenecek
-const { data: existingUpload, isLoading: isLoadingExisting } = useQuery({
-  queryKey: ['balance-sheet-upload', year, user?.id],
-  queryFn: async () => {
-    const { data } = await supabase
-      .from('yearly_balance_sheets')
-      .select('source, file_name, file_url, raw_accounts, is_locked')
-      .eq('user_id', user.id)
-      .eq('year', year)
-      .maybeSingle();
-    return data;
-  },
-  enabled: !!user?.id,
-});
-
-// Mevcut dosya yüklemesi varsa göster
-useEffect(() => {
-  if (existingUpload?.source === 'file_upload' && existingUpload.raw_accounts) {
-    setUploadResult({
-      accounts: existingUpload.raw_accounts,
-      summary: { ... }
-    });
-    setFileName(existingUpload.file_name);
-    setFileUrl(existingUpload.file_url);
-  }
-}, [existingUpload]);
-```
-
-#### 3. Gelir Tablosu için `file_name` Alanı Ekle
-
-`yearly_income_statements` tablosunda `file_name` eksik, eklenecek:
-
-```sql
-ALTER TABLE yearly_income_statements 
-ADD COLUMN IF NOT EXISTS file_name text;
-```
-
-#### 4. Gelir Tablosu Upload Hook'unda Dosya Bilgisini Kaydet
-
-`approveIncomeStatement` fonksiyonunda dosya adını da kaydet:
-
-```typescript
-const payload = {
-  ...formData,
-  ...totals,
-  user_id: userId,
-  year,
-  source: 'mizan_upload',
-  file_name: uploadState.fileName, // Bu eksikti
-  updated_at: new Date().toISOString(),
-};
+  
+  // Boşlukları ve özel karakterleri değiştir
+  sanitized = sanitized
+    .replace(/\s+/g, '_')           // Boşluklar -> alt çizgi
+    .replace(/[^a-zA-Z0-9._-]/g, '') // Geçersiz karakterleri kaldır
+    .toLowerCase();                  // Küçük harfe çevir
+  
+  return sanitized;
+}
 ```
 
 ---
@@ -123,33 +64,83 @@ const payload = {
 
 | Dosya | Değişiklik |
 |-------|-----------|
-| `src/hooks/finance/useIncomeStatementUpload.ts` | useQuery ile mevcut veriyi oku, dosya adını kaydet |
-| `src/hooks/finance/useBalanceSheetUpload.ts` | useQuery ile mevcut upload'u oku |
-| Veritabanı migrasyonu | `yearly_income_statements` tablosuna `file_name` ekle |
+| `src/lib/fileUtils.ts` | Yeni dosya - `sanitizeFileName` fonksiyonu |
+| `src/hooks/finance/useBalanceSheetUpload.ts` | `sanitizeFileName` kullan (satır 92) |
+| `src/hooks/finance/useTrialBalance.ts` | `sanitizeFileName` kullan (satır 53) |
 
 ---
 
-### Davranış Sonrası
+### Uygulama Detayları
 
-| Senaryo | Sonuç |
-|---------|-------|
-| Dosya yüklendi, sekme değişti | ❌ Kaybolur (henüz onaylanmamış) |
-| Dosya yüklendi + onaylandı, sekme değişti | ✅ Veritabanından yüklenir |
-| Sayfa yenilendi | ✅ Onaylı dosyalar görünür |
-| Yeni dosya yüklemek için | "Sil" butonuyla mevcut yükleme kaldırılır |
+#### 1. Yardımcı Fonksiyon (`src/lib/fileUtils.ts`)
 
-**Not:** Onaylanmamış (henüz kaydedilmemiş) dosyalar sekme değişiminde kaybolacak - bu beklenen davranış. Kullanıcı dosya yükledikten sonra "Onayla" butonuna basmalı.
+```typescript
+export function sanitizeFileName(fileName: string): string {
+  const turkishMap: Record<string, string> = {
+    'ç': 'c', 'Ç': 'C',
+    'ğ': 'g', 'Ğ': 'G',
+    'ı': 'i', 'İ': 'I',
+    'ö': 'o', 'Ö': 'O',
+    'ş': 's', 'Ş': 'S',
+    'ü': 'u', 'Ü': 'U',
+  };
+  
+  let sanitized = fileName;
+  
+  for (const [turkish, latin] of Object.entries(turkishMap)) {
+    sanitized = sanitized.split(turkish).join(latin);
+  }
+  
+  return sanitized
+    .replace(/\s+/g, '_')
+    .replace(/[^a-zA-Z0-9._-]/g, '');
+}
+```
+
+#### 2. Balance Sheet Hook Güncellemesi
+
+```typescript
+// Satır 92 değişikliği
+import { sanitizeFileName } from '@/lib/fileUtils';
+
+// Öncesi:
+const filePath = `${user.id}/balance-sheets/${year}/${file.name}`;
+
+// Sonrası:
+const sanitizedName = sanitizeFileName(file.name);
+const filePath = `${user.id}/balance-sheets/${year}/${Date.now()}-${sanitizedName}`;
+```
+
+#### 3. Trial Balance Hook Güncellemesi
+
+```typescript
+// Satır 53 değişikliği
+import { sanitizeFileName } from '@/lib/fileUtils';
+
+// Öncesi:
+const fileName = `${user.id}/mizan/${year}${month ? `-${month}` : ''}-${Date.now()}-${file.name}`;
+
+// Sonrası:
+const sanitizedName = sanitizeFileName(file.name);
+const fileName = `${user.id}/mizan/${year}${month ? `-${month}` : ''}-${Date.now()}-${sanitizedName}`;
+```
 
 ---
 
-### Alternatif: Anlık Kayıt (Draft Mode)
+### Örnek Dönüşüm
 
-Eğer onaylanmamış dosyaların da korunması istenirse:
+| Orijinal Dosya Adı | Sanitize Edilmiş |
+|--------------------|------------------|
+| `ALFAZEN GEÇİÇİ 122025 Bilanco_Ayri.pdf` | `alfazen_gecici_122025_bilanco_ayri.pdf` |
+| `Mizan Raporu Aralık.xlsx` | `mizan_raporu_aralik.xlsx` |
+| `2025 Yılı Bilanço (Final).pdf` | `2025_yili_bilanco_final.pdf` |
 
-1. "draft" status ile geçici kayıt yapılabilir
-2. Tabloya `status` alanı eklenebilir ('draft' | 'approved')
-3. Draft kayıtlar sekme değişiminde korunur
-4. Onay ile 'approved' statüsüne geçer
+---
 
-Bu yaklaşım daha karmaşık ama daha iyi UX sağlar.
+### Beklenen Sonuç
+
+- Tüm dosya yüklemeleri başarılı olacak
+- Türkçe karakterli dosya adları sorunsuz işlenecek
+- Orijinal dosya adı `file_name` alanında saklanacak (görüntüleme için)
+- Storage path'i güvenli karakterlerle oluşturulacak
 
