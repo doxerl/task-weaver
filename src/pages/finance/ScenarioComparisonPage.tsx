@@ -1153,9 +1153,10 @@ function ScenarioComparisonContent() {
   }, [scenarioA, scenarioB, summaryA, summaryB, generatePdfFromElement]);
 
   const handleCreateNextYear = async () => {
-    if (!unifiedAnalysis?.next_year_projection || !scenarioB) return;
+    if (!unifiedAnalysis?.next_year_projection || !scenarioA || !scenarioB) return;
     
-    const newScenario = await createNextYearFromAI(scenarioB, unifiedAnalysis.next_year_projection);
+    // Pass both scenarios to correctly calculate max(A.targetYear, B.targetYear) + 1
+    const newScenario = await createNextYearFromAI(scenarioA, scenarioB, unifiedAnalysis.next_year_projection);
     if (newScenario) {
       toast.success(`${newScenario.targetYear} yılı senaryosu oluşturuldu!`);
       navigate(`/finance/simulation?scenario=${newScenario.id}`);
@@ -1346,6 +1347,7 @@ function ScenarioComparisonContent() {
                   scenarioB={scenarioB}
                   summaryA={summaryA}
                   summaryB={summaryB}
+                  projectionYear={unifiedAnalysis?.next_year_projection?.projection_year}
               />
                 
                 {/* AI Analysis Details - Collapsible - Sayfanın başında */}

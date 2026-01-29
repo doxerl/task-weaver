@@ -513,6 +513,7 @@ export interface NextYearProjection {
     ending_cash: number;
   };
   investor_hook?: InvestorHook;
+  projection_year?: number;  // AI'dan gelen hedef yıl: max(A.targetYear, B.targetYear) + 1
 }
 
 /** Enhanced Executive Summary (structured) */

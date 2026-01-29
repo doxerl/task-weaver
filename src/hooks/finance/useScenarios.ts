@@ -267,21 +267,32 @@ export function useScenarios() {
   }, [saveScenario, scenarios]);
 
   // Create next year simulation from AI projection with globalization vision
+  // Accepts both scenarios to correctly calculate max(A.targetYear, B.targetYear) + 1
   const createNextYearFromAI = useCallback(async (
-    currentScenario: SimulationScenario,
+    scenarioA: SimulationScenario,
+    scenarioB: SimulationScenario,
     aiProjection: NextYearProjection
   ): Promise<SimulationScenario | null> => {
     const generateId = () => Math.random().toString(36).substr(2, 9);
-    const nextBaseYear = currentScenario.targetYear;
-    const nextTargetYear = currentScenario.targetYear + 1;
-
-    // Önceki yılın pozitif senaryosunu bul (tüm kalemleri miras almak için)
-    const previousYearPositive = scenarios.find(
-      s => s.targetYear === currentScenario.targetYear && s.scenarioType === 'positive'
-    );
     
-    // Referans senaryo: Pozitif varsa onu, yoksa mevcut senaryoyu kullan
-    const referenceScenario = previousYearPositive || currentScenario;
+    // CORRECT CALCULATION: max(A.targetYear, B.targetYear) + 1
+    // Priority: AI projection_year > calculated max + 1
+    const nextTargetYear = aiProjection.projection_year || 
+      Math.max(scenarioA.targetYear, scenarioB.targetYear) + 1;
+    const nextBaseYear = nextTargetYear - 1;
+    
+    console.log('[createNextYearFromAI] Calculating next year:', {
+      scenarioAYear: scenarioA.targetYear,
+      scenarioBYear: scenarioB.targetYear,
+      aiProjectionYear: aiProjection.projection_year,
+      calculatedNextYear: nextTargetYear
+    });
+
+    // Referans senaryo: En yüksek yıla sahip pozitif senaryo tercih edilir
+    // Eğer aynı yılda ise pozitif olanı seç
+    const referenceScenario = scenarioA.targetYear >= scenarioB.targetYear 
+      ? scenarioA 
+      : scenarioB;
     
     console.log('[createNextYearFromAI] Reference scenario:', referenceScenario.name, 
       'with', referenceScenario.revenues.length, 'revenue items,',
@@ -389,9 +400,7 @@ export function useScenarios() {
     });
 
     // Build enhanced notes with investor hook data
-    const inheritedItemsNote = previousYearPositive 
-      ? `📦 ${previousYearPositive.name} senaryosundan ${newRevenues.length} gelir ve ${newExpenses.length} gider kalemi miras alındı.\n\n`
-      : '';
+    const inheritedItemsNote = `📦 ${referenceScenario.name} senaryosundan ${newRevenues.length} gelir ve ${newExpenses.length} gider kalemi miras alındı.\n\n`;
 
     const investorHookNote = aiProjection.investor_hook 
       ? `\n\n🚀 Yatırımcı Vizyonu:\n• Büyüme: ${aiProjection.investor_hook.revenue_growth_yoy}\n• Marj İyileşmesi: ${aiProjection.investor_hook.margin_improvement}\n• Değerleme Hedefi: ${aiProjection.investor_hook.valuation_multiple_target}\n• Rekabet Avantajı: ${aiProjection.investor_hook.competitive_moat}`

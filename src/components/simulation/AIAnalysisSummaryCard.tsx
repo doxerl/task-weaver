@@ -39,6 +39,8 @@ interface AIAnalysisSummaryCardProps {
   scenarioB?: SimulationScenario;
   summaryA?: ScenarioSummary;
   summaryB?: ScenarioSummary;
+  // Projection year from AI (max(A.year, B.year) + 1)
+  projectionYear?: number;
 }
 
 export const AIAnalysisSummaryCard: React.FC<AIAnalysisSummaryCardProps> = ({
@@ -53,7 +55,13 @@ export const AIAnalysisSummaryCard: React.FC<AIAnalysisSummaryCardProps> = ({
   scenarioB,
   summaryA,
   summaryB,
+  projectionYear,
 }) => {
+  // Calculate display year for next year button
+  // Priority: projectionYear from AI > targetYear + 1 > fallback
+  const nextYearDisplay = projectionYear || 
+    (unifiedAnalysis?.next_year_projection?.projection_year) ||
+    (targetYear ? targetYear + 1 : null);
   // Get top revenue items from scenario A
   const topRevenues = React.useMemo(() => {
     if (!scenarioA?.revenues) return [];
@@ -249,7 +257,7 @@ export const AIAnalysisSummaryCard: React.FC<AIAnalysisSummaryCardProps> = ({
                       <div className="text-sm font-bold text-blue-400">
                         {formatCompactUSD(unifiedAnalysis.next_year_projection.summary.total_revenue)}
                       </div>
-                      <div className="text-xs text-muted-foreground">{targetYear ? targetYear + 1 : 'Gelecek Yıl'} Gelir</div>
+                      <div className="text-xs text-muted-foreground">{nextYearDisplay || 'Gelecek Yıl'} Gelir</div>
                     </div>
                     <div>
                       <div className="text-sm font-bold text-red-400">
@@ -315,7 +323,7 @@ export const AIAnalysisSummaryCard: React.FC<AIAnalysisSummaryCardProps> = ({
                   <CardContent className="p-4 flex items-center gap-3">
                     <Rocket className="h-8 w-8 text-emerald-400" />
                     <div>
-                      <h4 className="font-medium text-sm">{targetYear ? targetYear + 1 : 'Sonraki Yıl'}'e Geç</h4>
+                      <h4 className="font-medium text-sm">{nextYearDisplay || 'Sonraki Yıl'}'e Geç</h4>
                       <p className="text-xs text-muted-foreground">AI projeksiyonuyla yeni yıl</p>
                     </div>
                   </CardContent>
