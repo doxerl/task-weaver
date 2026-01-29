@@ -497,6 +497,40 @@ export interface AIInvestorAnalysis {
 }
 
 // =====================================================
+// =====================================================
+// MULTI-YEAR CAPITAL PLAN TYPES
+// =====================================================
+
+/** Çok yıllı sermaye planı */
+export interface MultiYearCapitalPlan {
+  years: YearCapitalRequirement[];
+  totalRequiredInvestment: number;
+  cumulativeEndingCash: number;
+  selfSustainingFromYear: number | null;
+}
+
+/** Tek yıl sermaye ihtiyacı detayı */
+export interface YearCapitalRequirement {
+  year: number;
+  openingCash: number;           // Önceki yıldan devir
+  projectedRevenue: number;
+  projectedExpenses: number;
+  projectedNetProfit: number;
+  quarterlyDeficit: {            // Çeyreklik nakit açıkları
+    q1: number;
+    q2: number;
+    q3: number;
+    q4: number;
+  };
+  peakDeficit: number;           // Death Valley (en derin açık)
+  peakDeficitQuarter: string;    // Hangi çeyrekte
+  requiredCapital: number;       // Bu yıl gereken ek sermaye
+  endingCash: number;            // Yıl sonu bakiye
+  isSelfSustaining: boolean;     // Kendi kendini finanse ediyor mu
+  weightedValuation: number;     // Ağırlıklı değerleme (DCF+EBITDA vb)
+}
+
+// =====================================================
 // UNIFIED ANALYSIS TYPES
 // =====================================================
 

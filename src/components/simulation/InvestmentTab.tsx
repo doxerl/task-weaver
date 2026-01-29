@@ -35,10 +35,11 @@ import {
   SimulationScenario, 
   DealConfiguration, 
   SECTOR_MULTIPLES,
-  InvestmentScenarioComparison
+  InvestmentScenarioComparison,
+  MultiYearCapitalPlan
 } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
-import { calculateCapitalNeeds, calculateExitPlan, calculateInvestmentScenarioComparison } from '@/hooks/finance/useInvestorAnalysis';
+import { calculateCapitalNeeds, calculateExitPlan, calculateInvestmentScenarioComparison, calculateMultiYearCapitalNeeds } from '@/hooks/finance/useInvestorAnalysis';
 import { calculateInternalGrowthRate } from '@/utils/yearCalculations';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { InvestmentScenarioCard } from './InvestmentScenarioCard';
@@ -99,6 +100,16 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
   const exitPlan = useMemo(() => {
     return calculateExitPlan(dealConfig, summaryA.totalRevenue, summaryA.totalExpenses, growthRate, 'default', scenarioTargetYear);
   }, [dealConfig, summaryA.totalRevenue, summaryA.totalExpenses, growthRate, scenarioTargetYear]);
+
+  // Calculate multi-year capital needs - YIL BAĞIMLI sermaye ihtiyacı
+  const multiYearCapitalPlan = useMemo<MultiYearCapitalPlan>(() => {
+    return calculateMultiYearCapitalNeeds(
+      exitPlan,
+      dealConfig.investmentAmount,
+      summaryA.netProfit, // Year 1 net profit
+      dealConfig.safetyMargin / 100 // Convert percentage to decimal
+    );
+  }, [exitPlan, dealConfig.investmentAmount, summaryA.netProfit, dealConfig.safetyMargin]);
 
   // Calculate runway data for chart - CORRECTED LOGIC
   // Yatırımlı = Pozitif Senaryo (A) + Yatırım ile başla
@@ -202,6 +213,19 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
                   </span>
                 )}
               </p>
+              {/* Yıl bazlı ek sermaye önerileri */}
+              {multiYearCapitalPlan.years.length > 1 && multiYearCapitalPlan.years[1]?.requiredCapital > 0 && (
+                <p className="text-xs text-amber-500">
+                  <strong>{multiYearCapitalPlan.years[1]?.year}:</strong> {formatCompactUSD(multiYearCapitalPlan.years[1]?.requiredCapital)}
+                  <span className="text-[10px] ml-1">(ek sermaye)</span>
+                </p>
+              )}
+              {multiYearCapitalPlan.selfSustainingFromYear && (
+                <p className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
+                  <CheckCircle2 className="h-3 w-3" />
+                  {multiYearCapitalPlan.selfSustainingFromYear}'dan itibaren kendi kendini finanse ediyor
+                </p>
+              )}
             </div>
             
             <div className="space-y-2">
@@ -606,75 +630,88 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
         />
       )}
 
-      {/* 5 Year Projection Detail Table - Enhanced with EBITDA and Valuations */}
+      {/* 5 Year Projection Detail Table - Enhanced with Multi-Year Capital Plan */}
       {exitPlan.allYears && exitPlan.allYears.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Target className="h-4 w-4 text-primary" />
               5 Yıllık Projeksiyon Detayı
+              {multiYearCapitalPlan.selfSustainingFromYear && (
+                <Badge variant="outline" className="ml-2 text-emerald-500 border-emerald-500/30">
+                  <CheckCircle2 className="h-3 w-3 mr-1" />
+                  {multiYearCapitalPlan.selfSustainingFromYear}'dan itibaren kendi kendini finanse ediyor
+                </Badge>
+              )}
             </CardTitle>
             <CardDescription className="text-xs">
-              EBITDA, DCF ve çoklu değerleme metodları ile geliştirilmiş projeksiyon
+              Yıl bağımlı sermaye hesaplaması: Devir kar → Çeyreklik death valley → Ek yatırım ihtiyacı
             </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[80px]">Yıl</TableHead>
-                  <TableHead className="w-[80px]">Aşama</TableHead>
-                  <TableHead className="text-right">Büyüme</TableHead>
+                  <TableHead className="w-[70px]">Yıl</TableHead>
+                  <TableHead className="text-right">Açılış</TableHead>
                   <TableHead className="text-right">Gelir</TableHead>
-                  <TableHead className="text-right">EBITDA</TableHead>
-                  <TableHead className="text-right">EBITDA %</TableHead>
-                  <TableHead className="text-right text-muted-foreground">Rev. Mult.</TableHead>
-                  <TableHead className="text-right text-muted-foreground">EBITDA Mult.</TableHead>
-                  <TableHead className="text-right text-muted-foreground">DCF</TableHead>
+                  <TableHead className="text-right">Gider</TableHead>
+                  <TableHead className="text-right">Net Kar</TableHead>
+                  <TableHead className="text-right">Death Valley</TableHead>
+                  <TableHead className="text-right">Sermaye İhtiyacı</TableHead>
+                  <TableHead className="text-right">Yıl Sonu</TableHead>
                   <TableHead className="text-right">Değerleme</TableHead>
                   <TableHead className="text-right">MOIC</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {exitPlan.allYears.map((year) => {
-                  const moic = (year.companyValuation * (dealConfig.equityPercentage / 100)) / dealConfig.investmentAmount;
+                {multiYearCapitalPlan.years.map((yearCap, i) => {
+                  const yearData = exitPlan.allYears?.[i];
+                  const moic = yearCap.weightedValuation > 0 
+                    ? (yearCap.weightedValuation * (dealConfig.equityPercentage / 100)) / dealConfig.investmentAmount 
+                    : 0;
+                  
                   return (
-                    <TableRow key={year.year}>
-                      <TableCell className="font-medium">{year.actualYear}</TableCell>
-                      <TableCell>
-                        {year.growthStage === 'aggressive' ? (
-                          <Badge variant="outline" className="text-amber-600 border-amber-300 text-xs">
-                            Agresif
+                    <TableRow key={yearCap.year}>
+                      <TableCell className="font-medium">{yearCap.year}</TableCell>
+                      <TableCell className="text-right text-muted-foreground font-mono text-sm">
+                        {formatCompactUSD(yearCap.openingCash)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatCompactUSD(yearCap.projectedRevenue)}
+                      </TableCell>
+                      <TableCell className="text-right font-mono">
+                        {formatCompactUSD(yearCap.projectedExpenses)}
+                      </TableCell>
+                      <TableCell className={`text-right font-mono ${yearCap.projectedNetProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                        {formatCompactUSD(yearCap.projectedNetProfit)}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {yearCap.peakDeficit < 0 ? (
+                          <span className="text-red-500 font-mono text-sm">
+                            {formatCompactUSD(yearCap.peakDeficit)} 
+                            <span className="text-[10px] text-muted-foreground ml-1">({yearCap.peakDeficitQuarter})</span>
+                          </span>
+                        ) : (
+                          <span className="text-emerald-500">-</span>
+                        )}
+                      </TableCell>
+                      <TableCell className="text-right">
+                        {yearCap.requiredCapital > 0 ? (
+                          <Badge variant="outline" className="text-amber-500 border-amber-500/30 font-mono">
+                            {formatCompactUSD(yearCap.requiredCapital)}
                           </Badge>
                         ) : (
-                          <Badge variant="secondary" className="text-xs">
-                            Normal
+                          <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
+                            Yok
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-right text-blue-600 dark:text-blue-400 font-medium">
-                        +{((year.appliedGrowthRate || 0) * 100).toFixed(0)}%
-                      </TableCell>
-                      <TableCell className="text-right font-mono">
-                        {formatCompactUSD(year.revenue)}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-purple-600 dark:text-purple-400">
-                        {year.ebitda ? formatCompactUSD(year.ebitda) : '-'}
-                      </TableCell>
-                      <TableCell className="text-right text-muted-foreground">
-                        {year.ebitdaMargin ? `%${year.ebitdaMargin.toFixed(1)}` : '-'}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-xs text-muted-foreground">
-                        {year.valuations?.revenueMultiple ? formatCompactUSD(year.valuations.revenueMultiple) : '-'}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-xs text-muted-foreground">
-                        {year.valuations?.ebitdaMultiple ? formatCompactUSD(year.valuations.ebitdaMultiple) : '-'}
-                      </TableCell>
-                      <TableCell className="text-right font-mono text-xs text-muted-foreground">
-                        {year.valuations?.dcf ? formatCompactUSD(year.valuations.dcf) : '-'}
+                      <TableCell className="text-right font-mono font-medium">
+                        {formatCompactUSD(yearCap.endingCash)}
                       </TableCell>
                       <TableCell className="text-right font-mono font-bold text-primary">
-                        {formatCompactUSD(year.companyValuation)}
+                        {formatCompactUSD(yearCap.weightedValuation)}
                       </TableCell>
                       <TableCell className="text-right">
                         <Badge variant={moic >= 3 ? "default" : "secondary"} className="font-mono">
@@ -684,6 +721,31 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
                     </TableRow>
                   );
                 })}
+                {/* Total Row */}
+                <TableRow className="bg-muted/50 font-bold border-t-2">
+                  <TableCell>TOPLAM</TableCell>
+                  <TableCell className="text-right">-</TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatCompactUSD(multiYearCapitalPlan.years.reduce((sum, y) => sum + y.projectedRevenue, 0))}
+                  </TableCell>
+                  <TableCell className="text-right font-mono">
+                    {formatCompactUSD(multiYearCapitalPlan.years.reduce((sum, y) => sum + y.projectedExpenses, 0))}
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-emerald-500">
+                    {formatCompactUSD(multiYearCapitalPlan.years.reduce((sum, y) => sum + y.projectedNetProfit, 0))}
+                  </TableCell>
+                  <TableCell className="text-right">-</TableCell>
+                  <TableCell className="text-right">
+                    <Badge variant="outline" className="text-amber-500 border-amber-500/30 font-mono">
+                      {formatCompactUSD(multiYearCapitalPlan.totalRequiredInvestment)}
+                    </Badge>
+                  </TableCell>
+                  <TableCell className="text-right font-mono text-emerald-500">
+                    {formatCompactUSD(multiYearCapitalPlan.cumulativeEndingCash)}
+                  </TableCell>
+                  <TableCell className="text-right">-</TableCell>
+                  <TableCell className="text-right">-</TableCell>
+                </TableRow>
               </TableBody>
             </Table>
           </CardContent>
