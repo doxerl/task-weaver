@@ -101,7 +101,8 @@ export default function OfficialData() {
             </TabsTrigger>
           </TabsList>
 
-          <TabsContent value="mizan" className="mt-6">
+          {/* forceMount + hidden ile component'ler unmount olmaz, state korunur */}
+          <TabsContent value="mizan" className="mt-6" forceMount hidden={activeTab !== 'mizan'}>
             <div className="space-y-6">
               <TrialBalanceUploader year={selectedYear} />
               
@@ -119,7 +120,7 @@ export default function OfficialData() {
             </div>
           </TabsContent>
 
-          <TabsContent value="income" className="mt-6">
+          <TabsContent value="income" className="mt-6" forceMount hidden={activeTab !== 'income'}>
             <div className="space-y-4">
               {/* Mode selector */}
               <div className="flex gap-2">
@@ -149,7 +150,7 @@ export default function OfficialData() {
             </div>
           </TabsContent>
 
-          <TabsContent value="balance" className="mt-6">
+          <TabsContent value="balance" className="mt-6" forceMount hidden={activeTab !== 'balance'}>
             <div className="space-y-4">
               {/* Mode selector */}
               <div className="flex gap-2">
