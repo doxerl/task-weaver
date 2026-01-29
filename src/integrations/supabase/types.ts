@@ -2203,6 +2203,7 @@ export type Database = {
           created_at: string | null
           deferred_tax_expense: number | null
           dividend_income: number | null
+          file_name: string | null
           file_url: string | null
           fx_gain: number | null
           fx_loss: number | null
@@ -2248,6 +2249,7 @@ export type Database = {
           created_at?: string | null
           deferred_tax_expense?: number | null
           dividend_income?: number | null
+          file_name?: string | null
           file_url?: string | null
           fx_gain?: number | null
           fx_loss?: number | null
@@ -2293,6 +2295,7 @@ export type Database = {
           created_at?: string | null
           deferred_tax_expense?: number | null
           dividend_income?: number | null
+          file_name?: string | null
           file_url?: string | null
           fx_gain?: number | null
           fx_loss?: number | null

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { useQueryClient } from '@tanstack/react-query';
+import { useState, useEffect } from 'react';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
@@ -23,6 +23,62 @@ export function useBalanceSheetUpload(year: number) {
   const [uploadResult, setUploadResult] = useState<BalanceSheetUploadResult | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
   const [fileUrl, setFileUrl] = useState<string | null>(null);
+
+  // Load existing upload from database
+  const { data: existingUpload, isLoading: isLoadingExisting } = useQuery({
+    queryKey: ['balance-sheet-upload', year, user?.id],
+    queryFn: async () => {
+      if (!user?.id) return null;
+      const { data } = await supabase
+        .from('yearly_balance_sheets')
+        .select('source, file_name, file_url, raw_accounts, is_locked')
+        .eq('user_id', user.id)
+        .eq('year', year)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!user?.id,
+  });
+
+  // Sync existing data to upload state
+  useEffect(() => {
+    if (existingUpload?.source === 'file_upload' && existingUpload.raw_accounts) {
+      const accounts = existingUpload.raw_accounts as unknown as BalanceSheetParsedAccount[];
+      
+      // Calculate summary from raw accounts
+      let totalAssets = 0;
+      let totalLiabilities = 0;
+      
+      for (const account of accounts) {
+        const mainCode = account.code.split('.')[0];
+        if (mainCode.startsWith('1') || mainCode.startsWith('2')) {
+          if (mainCode === '257') {
+            totalAssets -= Math.abs(account.creditBalance || account.credit || 0);
+          } else {
+            totalAssets += account.debitBalance || account.debit || 0;
+          }
+        } else {
+          if (mainCode === '501') {
+            totalLiabilities -= Math.abs(account.debitBalance || account.debit || 0);
+          } else {
+            totalLiabilities += account.creditBalance || account.credit || 0;
+          }
+        }
+      }
+
+      setUploadResult({
+        accounts,
+        summary: {
+          accountCount: accounts.length,
+          totalAssets: Math.round(totalAssets),
+          totalLiabilities: Math.round(totalLiabilities),
+          isBalanced: Math.abs(totalAssets - totalLiabilities) < 1,
+        },
+      });
+      setFileName(existingUpload.file_name);
+      setFileUrl(existingUpload.file_url);
+    }
+  }, [existingUpload]);
 
   const uploadBalanceSheet = async (file: File) => {
     if (!user?.id) {
@@ -188,12 +244,8 @@ export function useBalanceSheetUpload(year: number) {
       }
 
       queryClient.invalidateQueries({ queryKey: ['yearly-balance-sheet', user.id, year] });
+      queryClient.invalidateQueries({ queryKey: ['balance-sheet-upload', year, user.id] });
       toast.success('Bilanço kaydedildi ve kilitlendi');
-      
-      // Reset state
-      setUploadResult(null);
-      setFileName(null);
-      setFileUrl(null);
 
     } catch (error) {
       console.error('Approve balance sheet error:', error);
@@ -203,7 +255,24 @@ export function useBalanceSheetUpload(year: number) {
     }
   };
 
-  const clearUpload = () => {
+  const clearUpload = async () => {
+    if (existingUpload?.source === 'file_upload' && user?.id) {
+      // Clear the file info from database
+      await supabase
+        .from('yearly_balance_sheets')
+        .update({ 
+          source: 'manual', 
+          file_name: null, 
+          file_url: null, 
+          raw_accounts: null,
+          is_locked: false 
+        })
+        .eq('user_id', user.id)
+        .eq('year', year);
+      
+      queryClient.invalidateQueries({ queryKey: ['balance-sheet-upload', year, user.id] });
+    }
+    
     setUploadResult(null);
     setFileName(null);
     setFileUrl(null);
@@ -215,7 +284,9 @@ export function useBalanceSheetUpload(year: number) {
     clearUpload,
     isUploading,
     isApproving,
+    isLoadingExisting,
     uploadResult,
     fileName,
+    isLocked: existingUpload?.is_locked ?? false,
   };
 }
