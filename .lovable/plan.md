@@ -1,196 +1,168 @@
 
-## AI Senaryo İsimlendirme Mantığı Düzeltmesi
 
-### Problem Analizi
+## Hardcoded Yıl Hesaplamaları - Analiz Raporu
 
-Mevcut kodda senaryo yılı hesaplama mantığı hatalı:
+### Tespit Edilen Sorunlar
+
+`/finance/simulation/compare` sayfasında **Yatırım Senaryoları Karşılaştırması** ve **Yatırım Alamazsak Zarar** bölümlerinde yıl hesaplamaları şu mantıkla çalışıyor:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│ MEVCUT (HATALI) - useScenarios.ts satır 275-276               │
+│ MEVCUT MANTIK - getProjectionYears() kullanımı                 │
 ├─────────────────────────────────────────────────────────────────┤
-│ const nextTargetYear = currentScenario.targetYear + 1;         │
+│ getProjectionYears() → new Date().getFullYear() - 1 + 1        │
 │                                                                 │
-│ scenarioB.targetYear + 1 olarak sabitlenmiş                    │
+│ year1 = 2026 (internet zamanına göre sabit)                    │
+│ year3 = 2029 (year1 + 3)                                       │
+│ year5 = 2031 (year1 + 5)                                       │
 │                                                                 │
-│ SORUN: scenarioA daha ileri yılda olabilir!                    │
+│ SORUN: Senaryo targetYear'ı dikkate alınmıyor!                │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-**Örnek durumlar:**
-| Senaryo A | Senaryo B | Mevcut Sonuç | Beklenen Sonuç |
-|-----------|-----------|--------------|----------------|
-| 2026 Negatif | 2026 Pozitif | 2027 ✓ | 2027 ✓ |
-| 2027 Büyüme | 2026 Pozitif | **2027 ✗** | **2028** |
-| 2028 | 2027 | **2028 ✗** | **2029** |
+### Hardcoded Olan Yerler
 
-### Çözüm: max(A.targetYear, B.targetYear) + 1
+| Dosya | Satır | Sorun | Açıklama |
+|-------|-------|-------|----------|
+| `useInvestorAnalysis.ts` | 161 | `getProjectionYears()` | `projectFutureRevenue` içinde yıl sabit alınıyor |
+| `useInvestorAnalysis.ts` | 232 | `getProjectionYears()` | `calculateExitPlan` içinde yıl sabit alınıyor |
+| `useInvestorAnalysis.ts` | 319 | `getProjectionYears()` | `calculateInvestmentScenarioComparison` içinde yıl sabit alınıyor |
+| `useInvestorAnalysis.ts` | 367 | `${year1} (Senaryo)` | yearlyProjections label'ı sabit yıl kullanıyor |
+| `useInvestorAnalysis.ts` | 381 | `${year1 + i}` | Projeksiyon yılları sabit yıla göre hesaplanıyor |
+| `InvestmentScenarioCard.tsx` | 93, 139 | `5Y Değerleme` | "5 Yıl" hardcoded label |
+| `FutureImpactChart.tsx` | 50, 106-118 | `5 Yıllık`, `1./3./5. Yıl` | Yıl numaraları hardcoded |
 
-Edge function zaten doğru hesaplıyor (satır 86-117):
-```typescript
-projectionYear: targetYearA + 1  // veya targetYearB + 1
+### Beklenen Davranış
+
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│ OLMASI GEREKEN - Senaryo targetYear bazlı                      │
+├─────────────────────────────────────────────────────────────────┤
+│ Senaryo A: 2027 Büyüme  /  Senaryo B: 2026 Pozitif             │
+│                                                                 │
+│ max(2027, 2026) = 2027 → Bu yıl SENARYO YILI olmalı            │
+│                                                                 │
+│ year1 (Senaryo) = 2027                                         │
+│ year3 (MOIC)    = 2030                                         │
+│ year5 (MOIC)    = 2032                                         │
+│                                                                 │
+│ Projeksiyon: 2027, 2028, 2029, 2030, 2031, 2032                │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-Ama bu bilgi frontend'e iletilmiyor. İki yerde düzeltme yapılacak:
+### Çözüm Önerisi
 
----
+#### 1. Fonksiyon İmzalarını Güncelle
 
-### Değişiklik 1: Edge Function - projectionYear'ı response'a ekle
-
-**Dosya:** `supabase/functions/unified-scenario-analysis/index.ts`
-
-Edge function'ın döndürdüğü JSON'a `projection_year` alanı eklenecek:
+`projectFutureRevenue`, `calculateExitPlan`, ve `calculateInvestmentScenarioComparison` fonksiyonlarına `scenarioTargetYear` parametresi ekle:
 
 ```typescript
-// Response'a ekle
-return new Response(
-  JSON.stringify({
-    ...analysisResult,
-    projection_year: scenarioRelationship.projectionYear  // YENİ ALAN
-  }),
-  { headers: { ...corsHeaders, "Content-Type": "application/json" } }
+// useInvestorAnalysis.ts
+
+export const projectFutureRevenue = (
+  year1Revenue: number, 
+  year1Expenses: number,
+  growthConfig: GrowthConfiguration, 
+  sectorMultiple: number,
+  scenarioTargetYear: number  // YENİ PARAMETRE
+): { ... } => {
+  // getProjectionYears() yerine scenarioTargetYear kullan
+  const scenarioYear = scenarioTargetYear;
+  // ...
+}
+
+export const calculateExitPlan = (
+  deal: DealConfiguration,
+  year1Revenue: number,
+  year1Expenses: number,
+  userGrowthRate: number,
+  sector: string = 'default',
+  scenarioTargetYear: number  // YENİ PARAMETRE
+): ExitPlan => {
+  const year1 = scenarioTargetYear;
+  const year3 = scenarioTargetYear + 3;
+  const year5 = scenarioTargetYear + 5;
+  // ...
+}
+
+export const calculateInvestmentScenarioComparison = (
+  scenarioA: ScenarioInputs,
+  scenarioB: ScenarioInputs,
+  exitPlan: ExitPlan,
+  sectorMultiple: number,
+  scenarioTargetYear: number  // YENİ PARAMETRE
+): InvestmentScenarioComparison => {
+  const year1 = scenarioTargetYear;
+  // yearLabel: `${year1} (Senaryo)` → doğru yıl
+}
+```
+
+#### 2. Çağrı Noktalarını Güncelle
+
+**InvestmentTab.tsx (satır 91-93, 132-154):**
+```typescript
+// max(A.targetYear, B.targetYear) hesapla
+const scenarioTargetYear = Math.max(scenarioA.targetYear, scenarioB.targetYear);
+
+const exitPlan = useMemo(() => {
+  return calculateExitPlan(
+    dealConfig, 
+    summaryA.totalRevenue, 
+    summaryA.totalExpenses, 
+    growthRate,
+    'default',
+    scenarioTargetYear  // YENİ
+  );
+}, [dealConfig, summaryA, growthRate, scenarioTargetYear]);
+
+const scenarioComparison = useMemo(() => {
+  return calculateInvestmentScenarioComparison(
+    {...},
+    {...},
+    exitPlan,
+    dealConfig.sectorMultiple,
+    scenarioTargetYear  // YENİ
+  );
+}, [..., scenarioTargetYear]);
+```
+
+**ScenarioComparisonPage.tsx (satır 1070-1075):**
+```typescript
+const scenarioTargetYear = Math.max(
+  scenarioA?.targetYear || 2026, 
+  scenarioB?.targetYear || 2026
+);
+
+const exitPlan = calculateExitPlan(
+  dealConfig, 
+  summaryA.totalRevenue, 
+  summaryA.totalExpense,
+  growthRate,
+  'default',
+  scenarioTargetYear
 );
 ```
 
----
+#### 3. UI Bileşenlerini Güncelle
 
-### Değişiklik 2: NextYearProjection tipine projectionYear ekle
-
-**Dosya:** `src/types/simulation.ts`
-
-```typescript
-export interface NextYearProjection {
-  strategy_note: string;
-  virtual_opening_balance?: VirtualOpeningBalance;
-  quarterly: { ... };
-  summary: { ... };
-  investor_hook?: InvestorHook;
-  projection_year?: number;  // YENİ ALAN - AI'dan gelen hedef yıl
-}
-```
-
----
-
-### Değişiklik 3: createNextYearFromAI fonksiyonunu güncelle
-
-**Dosya:** `src/hooks/finance/useScenarios.ts`
-
-```typescript
-// Create next year simulation from AI projection
-const createNextYearFromAI = useCallback(async (
-  scenarioA: SimulationScenario,  // Her iki senaryo da geçilecek
-  scenarioB: SimulationScenario,
-  aiProjection: NextYearProjection
-): Promise<SimulationScenario | null> => {
-  
-  // DOĞRU HESAPLAMA: max(A.targetYear, B.targetYear) + 1
-  const nextTargetYear = aiProjection.projection_year || 
-    Math.max(scenarioA.targetYear, scenarioB.targetYear) + 1;
-  
-  const nextBaseYear = nextTargetYear - 1;
-  
-  // Referans senaryo: En yüksek yıla sahip pozitif senaryo
-  const referenceScenario = scenarioA.targetYear >= scenarioB.targetYear 
-    ? scenarioA 
-    : scenarioB;
-  
-  // ... mevcut kod devam eder
-  
-  const newScenario = {
-    name: `${nextTargetYear} Global Vizyon`,  // Doğru yıl
-    baseYear: nextBaseYear,
-    targetYear: nextTargetYear,
-    // ...
-  };
-}, [saveScenario, scenarios]);
-```
-
----
-
-### Değişiklik 4: ScenarioComparisonPage - handleCreateNextYear güncelle
-
-**Dosya:** `src/pages/finance/ScenarioComparisonPage.tsx` (satır 1155-1162)
-
-```typescript
-const handleCreateNextYear = async () => {
-  if (!unifiedAnalysis?.next_year_projection || !scenarioA || !scenarioB) return;
-  
-  // Her iki senaryoyu da geç
-  const newScenario = await createNextYearFromAI(
-    scenarioA,
-    scenarioB, 
-    unifiedAnalysis.next_year_projection
-  );
-  
-  if (newScenario) {
-    toast.success(`${newScenario.targetYear} yılı senaryosu oluşturuldu!`);
-    navigate(`/finance/simulation?scenario=${newScenario.id}`);
-  }
-};
-```
-
----
-
-### Değişiklik 5: AIAnalysisSummaryCard - Dinamik yıl gösterimi
-
-**Dosya:** `src/components/simulation/AIAnalysisSummaryCard.tsx`
-
-Mevcut kod (satır 318):
-```typescript
-<h4>{targetYear ? targetYear + 1 : 'Sonraki Yıl'}'e Geç</h4>
-```
-
-Güncellenmiş:
-```typescript
-// Props'a projectionYear ekle
-interface Props {
-  // ... mevcut props
-  projectionYear?: number;  // AI'dan gelen hedef yıl
-}
-
-// Kullanım
-const displayYear = projectionYear || (targetYear ? targetYear + 1 : null);
-<h4>{displayYear || 'Sonraki Yıl'}'e Geç</h4>
-```
-
----
-
-### Beklenen Sonuç
-
-| Karşılaştırma | Mevcut | Düzeltme Sonrası |
-|---------------|--------|------------------|
-| 2026 N vs 2026 Pozitif | 2027 | 2027 ✓ |
-| 2027 vs 2026 Pozitif | 2027 (hatalı) | 2028 ✓ |
-| 2027 vs 2028 | 2028 (hatalı) | 2029 ✓ |
+**InvestmentScenarioCard.tsx:** Props'a `scenarioYear` ekle ve dinamik label kullan
+**FutureImpactChart.tsx:** Props'a `scenarioYear` ekle ve "X. Yıl" yerine gerçek yıl göster
 
 ### Değiştirilecek Dosyalar
 
-| Dosya | Değişiklik |
-|-------|-----------|
-| `supabase/functions/unified-scenario-analysis/index.ts` | Response'a `projection_year` ekle |
-| `src/types/simulation.ts` | `NextYearProjection` tipine alan ekle |
-| `src/hooks/finance/useScenarios.ts` | `createNextYearFromAI` parametreleri ve hesaplama |
-| `src/pages/finance/ScenarioComparisonPage.tsx` | `handleCreateNextYear` fonksiyonu |
-| `src/components/simulation/AIAnalysisSummaryCard.tsx` | Dinamik yıl gösterimi |
+| Dosya | Değişiklik Türü |
+|-------|----------------|
+| `src/hooks/finance/useInvestorAnalysis.ts` | Fonksiyon imzaları + yıl hesaplama mantığı |
+| `src/components/simulation/InvestmentTab.tsx` | Fonksiyon çağrıları + scenarioTargetYear hesaplama |
+| `src/pages/finance/ScenarioComparisonPage.tsx` | Fonksiyon çağrıları |
+| `src/components/simulation/InvestmentScenarioCard.tsx` | Props + dinamik yıl label'ları |
+| `src/components/simulation/FutureImpactChart.tsx` | Props + dinamik yıl label'ları |
 
-### Teknik Detaylar
+### Beklenen Sonuç
 
-**Edge Function Mantığı (Mevcut - Doğru):**
-```typescript
-function detectScenarioRelationship(scenarioA, scenarioB) {
-  // Same year = pozitif vs negatif
-  if (targetYearA === targetYearB) {
-    return { projectionYear: targetYearA + 1 };  // 2026 + 1 = 2027
-  }
-  
-  // A is later = successor projection
-  if (targetYearA > targetYearB) {
-    return { projectionYear: targetYearA + 1 };  // 2027 + 1 = 2028
-  }
-  
-  // B is later
-  return { projectionYear: targetYearB + 1 };
-}
-```
+| Karşılaştırma | Önceki | Sonraki |
+|---------------|--------|---------|
+| 2026 N vs 2026 Pozitif | 5Y Değerleme: 2031 | 5Y Değerleme: 2031 ✓ |
+| 2027 vs 2026 | 5Y Değerleme: 2031 (hatalı) | 5Y Değerleme: 2032 ✓ |
+| 2028 vs 2027 | 5Y Değerleme: 2031 (hatalı) | 5Y Değerleme: 2033 ✓ |
 
-Bu mantık doğru çalışıyor, sadece frontend'e iletilmesi gerekiyor.
