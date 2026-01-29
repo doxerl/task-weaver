@@ -32,7 +32,7 @@ export function useBalanceSheetUpload(year: number) {
       if (!user?.id) return null;
       const { data } = await supabase
         .from('yearly_balance_sheets')
-        .select('source, file_name, file_url, raw_accounts, is_locked')
+        .select('source, file_name, file_url, raw_accounts, is_locked, total_assets, total_liabilities')
         .eq('user_id', user.id)
         .eq('year', year)
         .maybeSingle();
@@ -43,19 +43,35 @@ export function useBalanceSheetUpload(year: number) {
 
   // Sync existing data to upload state
   useEffect(() => {
-    if (existingUpload?.source === 'file_upload' && existingUpload.raw_accounts) {
-      const accounts = existingUpload.raw_accounts as unknown as BalanceSheetParsedAccount[];
-      const { totalAssets, totalLiabilities } = calculateBalanceSheetTotals(accounts);
+    if (existingUpload?.source === 'file_upload') {
+      if (existingUpload.raw_accounts) {
+        // Ham hesaplar varsa bunları göster
+        const accounts = existingUpload.raw_accounts as unknown as BalanceSheetParsedAccount[];
+        const { totalAssets, totalLiabilities } = calculateBalanceSheetTotals(accounts);
 
-      setUploadResult({
-        accounts,
-        summary: {
-          accountCount: accounts.length,
-          totalAssets: Math.round(totalAssets),
-          totalLiabilities: Math.round(totalLiabilities),
-          isBalanced: Math.abs(totalAssets - totalLiabilities) < 1,
-        },
-      });
+        setUploadResult({
+          accounts,
+          summary: {
+            accountCount: accounts.length,
+            totalAssets: Math.round(totalAssets),
+            totalLiabilities: Math.round(totalLiabilities),
+            isBalanced: Math.abs(totalAssets - totalLiabilities) < 1,
+          },
+        });
+      } else if (existingUpload.total_assets || existingUpload.total_liabilities) {
+        // raw_accounts yoksa veritabanından toplam değerleri kullan
+        const totalAssets = existingUpload.total_assets || 0;
+        const totalLiabilities = existingUpload.total_liabilities || 0;
+        setUploadResult({
+          accounts: [],
+          summary: {
+            accountCount: 0,
+            totalAssets,
+            totalLiabilities,
+            isBalanced: Math.abs(totalAssets - totalLiabilities) < 1,
+          },
+        });
+      }
       setFileName(existingUpload.file_name);
       setFileUrl(existingUpload.file_url);
     }
@@ -254,6 +270,7 @@ function calculateBalanceSheetTotals(accounts: BalanceSheetParsedAccount[]): { t
 
       queryClient.invalidateQueries({ queryKey: ['yearly-balance-sheet', user.id, year] });
       queryClient.invalidateQueries({ queryKey: ['balance-sheet-upload', year, user.id] });
+      queryClient.invalidateQueries({ queryKey: ['balance-sheet'] });
       toast.success('Bilanço kaydedildi ve kilitlendi');
 
     } catch (error) {
