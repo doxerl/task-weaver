@@ -34,6 +34,17 @@ interface TimelineMilestone {
   isCompleted: boolean;
 }
 
+// Helper function - defined outside component to avoid hoisting issues
+const getIconForType = (type: string) => {
+  switch (type) {
+    case 'revenue': return <DollarSign className="h-4 w-4" />;
+    case 'product': return <Rocket className="h-4 w-4" />;
+    case 'team': return <Users className="h-4 w-4" />;
+    case 'market': return <TrendingUp className="h-4 w-4" />;
+    default: return <Circle className="h-4 w-4" />;
+  }
+};
+
 export function MilestoneTimeline({
   baseScenario,
   growthScenario,
@@ -131,16 +142,6 @@ export function MilestoneTimeline({
     
     return defaultMilestones;
   }, [baseScenario, growthScenario, aiAnalysis]);
-  
-  const getIconForType = (type: string) => {
-    switch (type) {
-      case 'revenue': return <DollarSign className="h-4 w-4" />;
-      case 'product': return <Rocket className="h-4 w-4" />;
-      case 'team': return <Users className="h-4 w-4" />;
-      case 'market': return <TrendingUp className="h-4 w-4" />;
-      default: return <Circle className="h-4 w-4" />;
-    }
-  };
   
   const typeColors = {
     revenue: 'bg-emerald-500',
