@@ -1,145 +1,133 @@
 
 
-## Gemini 3 Pro Preview'a Geçiş ve Parse/Kaydetme Sorunları Düzeltme
+## Bilanço Yükleme State Korunma Sorunu Düzeltme
 
-### Tespit Edilen Sorunlar
+### Problem Özeti
 
-| Sorun | Mevcut Durum | Hedef |
-|-------|-------------|-------|
-| AI Modeli | `google/gemini-2.5-flash` | `google/gemini-3-pro-preview` |
-| Parse Farkı | ₺30,579 fark (Aktif ≠ Pasif) | ₺0 fark (Dengeli bilanço) |
-| Veritabanı Kaydı | Upload sonrası kayıt yok | Parse sonucu otomatik kayıt |
-| Veri Geri Çekme | Kaydedilen veriler UI'da görünmüyor | Sayfa yüklendiğinde veriler gösterilmeli |
+Kullanıcı bilanço dosyasını yükleyip parse ettikten sonra sekme değiştirdiğinde (örn. "Gelir Tablosu" sekmesine geçip geri geldiğinde), yüklenen veriler kayboluyor. Bunun nedeni:
 
----
-
-### Çözüm 1: Edge Function'da Model Güncelleme
-
-`supabase/functions/parse-balance-sheet/index.ts` - Model değişikliği:
-
-```typescript
-// Mevcut:
-model: 'google/gemini-2.5-flash',
-
-// Yeni:
-model: 'google/gemini-3-pro-preview',
-```
-
-**Gemini 3 Pro Preview avantajları:**
-- Daha güçlü görsel + metin işleme
-- Daha iyi negatif değer tanıma (parantez içi değerler)
-- Daha doğru Türk muhasebe formatı anlama
+1. **React Component Unmount**: Radix UI Tabs, aktif olmayan sekmelerin içeriğini DOM'dan kaldırır
+2. **Local State Kaybı**: Hook'taki `uploadResult`, `fileName`, `fileUrl` state'leri component unmount olunca sıfırlanır
+3. **Veritabanı Senkronizasyonu Yok**: Parse sonucu henüz veritabanına kaydedilmeden sekme değişince kaybolur
 
 ---
 
-### Çözüm 2: Gelir Tablosu Edge Function da Güncelleme
+### Çözüm Yaklaşımları
 
-`supabase/functions/parse-income-statement/index.ts` - Aynı model değişikliği:
+İki yaklaşım var, ben **Yaklaşım 2**'yi öneriyorum:
 
-```typescript
-// Mevcut:
-model: 'google/gemini-2.5-flash',
+#### Yaklaşım 1: Tabs'ı `forceMount` ile Kullanma
+- Tüm sekmeleri her zaman render etmek (ama gizli tutmak)
+- Dezavantaj: Gereksiz render ve performans maliyeti
 
-// Yeni:
-model: 'google/gemini-3-pro-preview',
-```
-
----
-
-### Çözüm 3: Veritabanı Kaydetme Mantığını Düzeltme
-
-`src/hooks/finance/useBalanceSheetUpload.ts` - Kaydetme sırasında:
-
-**Problem:** Parse sonrası veritabanına kayıt için mevcut kaydın `id`'si kontrol ediliyor ama `source` değeri dikkate alınmıyor.
-
-```typescript
-// Mevcut kod - yalnızca id kontrolü:
-const { data: existing } = await supabase
-  .from('yearly_balance_sheets')
-  .select('id')
-  .eq('user_id', user.id)
-  .eq('year', year)
-  .maybeSingle();
-
-// Düzeltilmiş - source kontrolü de ekle:
-const { data: existing } = await supabase
-  .from('yearly_balance_sheets')
-  .select('id, source')
-  .eq('user_id', user.id)
-  .eq('year', year)
-  .maybeSingle();
-```
+#### Yaklaşım 2: State'i Parent'a Taşıma (Önerilen)
+- Parse sonucunu `OfficialData` sayfasında tutma
+- Component unmount olsa bile state korunur
+- Daha temiz ve performanslı
 
 ---
 
-### Çözüm 4: Sayfa Yüklendiğinde Kayıtlı Veriyi Gösterme
+### Çözüm Detayları
 
-`useBalanceSheetUpload.ts` - Mevcut kayıt yüklenirken özet bilgileri de çek:
+#### 1. OfficialData Sayfasında State Tutma
+
+`src/pages/finance/OfficialData.tsx`:
 
 ```typescript
-// Query'ye özet alanları ekle:
-const { data: existingUpload } = useQuery({
-  queryKey: ['balance-sheet-upload', year, user?.id],
-  queryFn: async () => {
-    if (!user?.id) return null;
-    const { data } = await supabase
-      .from('yearly_balance_sheets')
-      .select('source, file_name, file_url, raw_accounts, is_locked, total_assets, total_liabilities')
-      .eq('user_id', user.id)
-      .eq('year', year)
-      .maybeSingle();
-    return data;
-  },
-  enabled: !!user?.id,
-});
+// Bilanço upload state'i parent'ta tut
+const [balanceUploadResult, setBalanceUploadResult] = useState<BalanceSheetUploadResult | null>(null);
+const [balanceFileName, setBalanceFileName] = useState<string | null>(null);
+const [balanceFileUrl, setBalanceFileUrl] = useState<string | null>(null);
+
+// BalanceSheetUploader'a prop olarak geçir
+<BalanceSheetUploader 
+  year={selectedYear}
+  externalState={{
+    uploadResult: balanceUploadResult,
+    setUploadResult: setBalanceUploadResult,
+    fileName: balanceFileName,
+    setFileName: setBalanceFileName,
+    fileUrl: balanceFileUrl,
+    setFileUrl: setBalanceFileUrl,
+  }}
+/>
 ```
 
-**useEffect'te savedSummary ekle:**
+#### 2. Hook'u Dış State'i Kabul Edecek Şekilde Güncelleme
+
+`src/hooks/finance/useBalanceSheetUpload.ts`:
+
 ```typescript
-useEffect(() => {
-  if (existingUpload?.source === 'file_upload') {
-    if (existingUpload.raw_accounts) {
-      // Ham hesaplar varsa bunları göster
-      const accounts = existingUpload.raw_accounts as unknown as BalanceSheetParsedAccount[];
-      const { totalAssets, totalLiabilities } = calculateBalanceSheetTotals(accounts);
-      setUploadResult({
-        accounts,
-        summary: {
-          accountCount: accounts.length,
-          totalAssets: Math.round(totalAssets),
-          totalLiabilities: Math.round(totalLiabilities),
-          isBalanced: Math.abs(totalAssets - totalLiabilities) < 1,
-        },
-      });
-    } else {
-      // raw_accounts yoksa veritabanından toplam değerleri kullan
-      setUploadResult({
-        accounts: [],
-        summary: {
-          accountCount: 0,
-          totalAssets: existingUpload.total_assets || 0,
-          totalLiabilities: existingUpload.total_liabilities || 0,
-          isBalanced: Math.abs((existingUpload.total_assets || 0) - (existingUpload.total_liabilities || 0)) < 1,
-        },
-      });
-    }
-    setFileName(existingUpload.file_name);
-    setFileUrl(existingUpload.file_url);
-  }
-}, [existingUpload]);
+interface ExternalState {
+  uploadResult: BalanceSheetUploadResult | null;
+  setUploadResult: (result: BalanceSheetUploadResult | null) => void;
+  fileName: string | null;
+  setFileName: (name: string | null) => void;
+  fileUrl: string | null;
+  setFileUrl: (url: string | null) => void;
+}
+
+export function useBalanceSheetUpload(year: number, externalState?: ExternalState) {
+  // Dış state varsa onu kullan, yoksa internal state kullan
+  const [internalUploadResult, setInternalUploadResult] = useState<BalanceSheetUploadResult | null>(null);
+  const [internalFileName, setInternalFileName] = useState<string | null>(null);
+  const [internalFileUrl, setInternalFileUrl] = useState<string | null>(null);
+
+  // State seçimi
+  const uploadResult = externalState?.uploadResult ?? internalUploadResult;
+  const setUploadResult = externalState?.setUploadResult ?? setInternalUploadResult;
+  const fileName = externalState?.fileName ?? internalFileName;
+  const setFileName = externalState?.setFileName ?? setInternalFileName;
+  const fileUrl = externalState?.fileUrl ?? internalFileUrl;
+  const setFileUrl = externalState?.setFileUrl ?? setInternalFileUrl;
+  
+  // ... rest of the hook uses these unified state variables
+}
+```
+
+#### 3. BalanceSheetUploader Component'i Güncelleme
+
+`src/components/finance/BalanceSheetUploader.tsx`:
+
+```typescript
+interface BalanceSheetUploaderProps {
+  year: number;
+  externalState?: {
+    uploadResult: BalanceSheetUploadResult | null;
+    setUploadResult: (result: BalanceSheetUploadResult | null) => void;
+    fileName: string | null;
+    setFileName: (name: string | null) => void;
+    fileUrl: string | null;
+    setFileUrl: (url: string | null) => void;
+  };
+}
+
+export function BalanceSheetUploader({ year, externalState }: BalanceSheetUploaderProps) {
+  // Hook'a external state'i geçir
+  const {
+    uploadBalanceSheet,
+    approveAndSave,
+    // ...
+  } = useBalanceSheetUpload(year, externalState);
+  // ...
+}
 ```
 
 ---
 
-### Çözüm 5: Kaydetme Sonrası Query Invalidate
+### Alternatif Basit Çözüm: Tabs forceMount
 
-Kaydetme işlemi sonrası tüm ilgili query'leri yenile:
+Eğer yukarıdaki çözüm çok karmaşık gelirse, daha basit bir çözüm:
+
+`src/pages/finance/OfficialData.tsx`:
 
 ```typescript
-queryClient.invalidateQueries({ queryKey: ['yearly-balance-sheet', user.id, year] });
-queryClient.invalidateQueries({ queryKey: ['balance-sheet-upload', year, user.id] });
-queryClient.invalidateQueries({ queryKey: ['balance-sheet'] }); // Genel bilanço query'si
+<TabsContent value="balance" className="mt-6" forceMount hidden={activeTab !== 'balance'}>
+  {/* ... */}
+</TabsContent>
 ```
+
+Bu yöntemle component her zaman mount kalır, sadece CSS ile gizlenir.
 
 ---
 
@@ -147,18 +135,34 @@ queryClient.invalidateQueries({ queryKey: ['balance-sheet'] }); // Genel bilanç
 
 | Dosya | Değişiklik |
 |-------|-----------|
-| `supabase/functions/parse-balance-sheet/index.ts` | Model: gemini-3-pro-preview |
-| `supabase/functions/parse-income-statement/index.ts` | Model: gemini-3-pro-preview |
-| `src/hooks/finance/useBalanceSheetUpload.ts` | Query'ye toplam alanları ekle, savedSummary mantığı |
+| `src/pages/finance/OfficialData.tsx` | State'i parent'a taşı veya forceMount ekle |
+| `src/hooks/finance/useBalanceSheetUpload.ts` | External state desteği ekle |
+| `src/components/finance/BalanceSheetUploader.tsx` | Props ile external state kabul et |
+
+---
+
+### Önerilen Çözüm
+
+**Basit çözüm için `forceMount` öneriyorum** - hızlı ve etkili. Tek satır değişiklik:
+
+```tsx
+<TabsContent value="balance" className="mt-6" forceMount hidden={activeTab !== 'balance'}>
+```
+
+Bu değişiklik ile:
+- Component unmount olmaz
+- State korunur
+- Minimum kod değişikliği gerekir
+
+Aynı değişiklik `income` sekmesi için de yapılabilir.
 
 ---
 
 ### Beklenen Sonuç
 
-| Metrik | Önceki | Sonraki |
-|--------|--------|---------|
-| AI Modeli | Gemini 2.5 Flash | Gemini 3 Pro Preview |
-| Parse Doğruluğu | %99 (₺30K fark) | %99.9+ (< ₺1 fark) |
-| Kayıt Durumu | Kaydedilmiyor | Otomatik kayıt |
-| Veri Geri Çekme | ₺0 gösteriyor | Gerçek değerler |
+| Senaryo | Önceki | Sonraki |
+|---------|--------|---------|
+| Dosya yükle → Sekme değiştir → Geri gel | Veri kaybolur | Veri korunur |
+| Parse sonucu | Sıfırlanır | State'te kalır |
+| Kullanıcı deneyimi | Frustrasyonlu | Sorunsuz |
 
