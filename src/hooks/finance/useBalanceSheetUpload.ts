@@ -45,27 +45,7 @@ export function useBalanceSheetUpload(year: number) {
   useEffect(() => {
     if (existingUpload?.source === 'file_upload' && existingUpload.raw_accounts) {
       const accounts = existingUpload.raw_accounts as unknown as BalanceSheetParsedAccount[];
-      
-      // Calculate summary from raw accounts
-      let totalAssets = 0;
-      let totalLiabilities = 0;
-      
-      for (const account of accounts) {
-        const mainCode = account.code.split('.')[0];
-        if (mainCode.startsWith('1') || mainCode.startsWith('2')) {
-          if (mainCode === '257') {
-            totalAssets -= Math.abs(account.creditBalance || account.credit || 0);
-          } else {
-            totalAssets += account.debitBalance || account.debit || 0;
-          }
-        } else {
-          if (mainCode === '501') {
-            totalLiabilities -= Math.abs(account.debitBalance || account.debit || 0);
-          } else {
-            totalLiabilities += account.creditBalance || account.credit || 0;
-          }
-        }
-      }
+      const { totalAssets, totalLiabilities } = calculateBalanceSheetTotals(accounts);
 
       setUploadResult({
         accounts,
@@ -80,6 +60,33 @@ export function useBalanceSheetUpload(year: number) {
       setFileUrl(existingUpload.file_url);
     }
   }, [existingUpload]);
+
+// Helper function to calculate balance sheet totals with correct negative value handling
+function calculateBalanceSheetTotals(accounts: BalanceSheetParsedAccount[]): { totalAssets: number; totalLiabilities: number } {
+  let totalAssets = 0;
+  let totalLiabilities = 0;
+
+  for (const account of accounts) {
+    const mainCode = account.code.split('.')[0];
+    
+    if (mainCode.startsWith('1') || mainCode.startsWith('2')) {
+      // AKTIF hesaplar: Net bakiye = debit - credit
+      if (mainCode === '257') {
+        // Birikmiş amortisman - her zaman düşürücü
+        totalAssets -= Math.abs(account.creditBalance || account.debitBalance || 0);
+      } else {
+        totalAssets += (account.debitBalance || 0) - (account.creditBalance || 0);
+      }
+    } else {
+      // PASİF + ÖZKAYNAKLAR: Net bakiye = credit - debit
+      // Negatif bakiyeli hesaplar (501, 591) otomatik olarak düşer
+      const netBalance = (account.creditBalance || 0) - (account.debitBalance || 0);
+      totalLiabilities += netBalance;
+    }
+  }
+
+  return { totalAssets, totalLiabilities };
+}
 
   const uploadBalanceSheet = async (file: File) => {
     if (!user?.id) {

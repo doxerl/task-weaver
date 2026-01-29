@@ -96,8 +96,33 @@ Her hesap için:
 
 Alt hesapları olan ana hesaplar için (örn: 320 Satıcılar altında 320.001 Firma A), subAccounts dizisi kullan.
 
-ÖNEMLİ: Aktif hesaplarda (1xx-2xx) değer genelde borç bakiyesinde, Pasif hesaplarda (3xx-5xx) alacak bakiyesinde olur.
-257 Birikmiş Amortisman ve 501 Ödenmemiş Sermaye negatif/düşürücü hesaplardır.`;
+ÖNEMLİ KURALLAR - NEGATİF BAKİYE İŞLEME:
+
+1. PARANTEZ İÇİNDEKİ DEĞERLER NEGATİFTİR:
+   - "(257.862,53)" şeklinde parantez içi değer = NEGATİF bakiye
+   - Türk muhasebe sisteminde parantez = negatif anlamına gelir
+
+2. AKTİF HESAPLARDA (1xx-2xx):
+   - Normal durum: debitBalance'ta pozitif değer
+   - 257 Birikmiş Amortisman: creditBalance'ta pozitif değer (aktiften düşer)
+
+3. PASİF HESAPLARDA (3xx-4xx) NEGATİF BAKİYE:
+   - Eğer parantez içinde veya negatif gösteriliyorsa = karşı taraf fazla
+   - Örnek: 331 Ortaklara Borçlar: (257.862,53) → Bu aslında ortaklardan ALACAK demek
+   - Bu durumda: debitBalance: 257862.53, creditBalance: 0 olarak kaydet
+
+4. ÖZKAYNAKLAR (5xx) ÖZEL KURALLAR:
+   - 500 Sermaye: creditBalance'ta pozitif
+   - 501 Ödenmemiş Sermaye: debitBalance'ta pozitif (sermayeden düşer)
+   - 540 Yasal Yedekler: creditBalance'ta pozitif
+   - 570 Geçmiş Yıllar Karları: creditBalance'ta pozitif
+   - 580 Geçmiş Yıllar Zararları: debitBalance'ta pozitif (parantez içinde yazılır)
+   - 590 Dönem Net Karı: creditBalance'ta pozitif
+   - 591 Dönem Net Zararı: debitBalance'ta pozitif (parantez içinde yazılır)
+
+5. BİLANÇO DENGESİ:
+   - Toplam Aktif = Toplam Pasif + Toplam Özkaynaklar
+   - Negatif bakiyeli hesapları doğru işlersen bilanço dengede olmalı`;
 
     const messages = [
       {
@@ -259,7 +284,7 @@ Alt hesapları olan ana hesaplar için (örn: 320 Satıcılar altında 320.001 F
 
     console.log(`Parsed ${allAccounts.length} balance sheet accounts`);
 
-    // Calculate totals for verification
+    // Calculate totals for verification with correct negative value handling
     let totalAssets = 0;
     let totalLiabilities = 0;
     
@@ -267,19 +292,19 @@ Alt hesapları olan ana hesaplar için (örn: 320 Satıcılar altında 320.001 F
       const code = account.code.split('.')[0];
       
       if (code.startsWith('1') || code.startsWith('2')) {
-        // Assets - use debit balance (except 257 which is contra)
+        // AKTIF hesaplar: Net bakiye = debit - credit
         if (code === '257') {
-          totalAssets -= Math.abs(account.debitBalance || account.creditBalance);
+          // Birikmiş amortisman - creditBalance'ta pozitif olarak gösterilir, aktiften düşer
+          totalAssets -= Math.abs(account.creditBalance || account.debitBalance || 0);
         } else {
-          totalAssets += account.debitBalance || 0;
+          // Normal aktif hesaplar
+          totalAssets += (account.debitBalance || 0) - (account.creditBalance || 0);
         }
       } else if (code.startsWith('3') || code.startsWith('4') || code.startsWith('5')) {
-        // Liabilities + Equity - use credit balance (except 501 which is contra)
-        if (code === '501') {
-          totalLiabilities -= Math.abs(account.creditBalance || account.debitBalance);
-        } else {
-          totalLiabilities += account.creditBalance || 0;
-        }
+        // PASİF + ÖZKAYNAKLAR: Net bakiye = credit - debit
+        // Negatif bakiyeli hesaplar (331 negatif, 501, 580, 591) otomatik olarak düşer
+        const netBalance = (account.creditBalance || 0) - (account.debitBalance || 0);
+        totalLiabilities += netBalance;
       }
     }
 

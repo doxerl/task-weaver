@@ -2073,6 +2073,7 @@ export type Database = {
           bank_loans: number | null
           cash_on_hand: number | null
           created_at: string | null
+          current_loss: number | null
           current_profit: number | null
           deferred_tax_liabilities: number | null
           equipment: number | null
@@ -2082,8 +2083,10 @@ export type Database = {
           id: string
           inventory: number | null
           is_locked: boolean | null
+          legal_reserves: number | null
           notes: string | null
           other_vat: number | null
+          overdue_tax_payables: number | null
           paid_capital: number | null
           partner_payables: number | null
           partner_receivables: number | null
@@ -2114,6 +2117,7 @@ export type Database = {
           bank_loans?: number | null
           cash_on_hand?: number | null
           created_at?: string | null
+          current_loss?: number | null
           current_profit?: number | null
           deferred_tax_liabilities?: number | null
           equipment?: number | null
@@ -2123,8 +2127,10 @@ export type Database = {
           id?: string
           inventory?: number | null
           is_locked?: boolean | null
+          legal_reserves?: number | null
           notes?: string | null
           other_vat?: number | null
+          overdue_tax_payables?: number | null
           paid_capital?: number | null
           partner_payables?: number | null
           partner_receivables?: number | null
@@ -2155,6 +2161,7 @@ export type Database = {
           bank_loans?: number | null
           cash_on_hand?: number | null
           created_at?: string | null
+          current_loss?: number | null
           current_profit?: number | null
           deferred_tax_liabilities?: number | null
           equipment?: number | null
@@ -2164,8 +2171,10 @@ export type Database = {
           id?: string
           inventory?: number | null
           is_locked?: boolean | null
+          legal_reserves?: number | null
           notes?: string | null
           other_vat?: number | null
+          overdue_tax_payables?: number | null
           paid_capital?: number | null
           partner_payables?: number | null
           partner_receivables?: number | null
