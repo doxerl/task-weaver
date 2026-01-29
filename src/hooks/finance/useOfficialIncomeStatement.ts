@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from '@/hooks/use-toast';
@@ -100,6 +101,9 @@ export function calculateStatementTotals(data: Partial<YearlyIncomeStatementForm
 export function useOfficialIncomeStatement(year: number) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
+  
+  // Memoize empty statement to prevent infinite re-renders
+  const emptyStatement = useMemo(() => getEmptyStatement(year), [year]);
 
   // Fetch official statement for the year
   const { data: officialStatement, isLoading } = useQuery({
@@ -208,7 +212,7 @@ export function useOfficialIncomeStatement(year: number) {
     officialStatement,
     isLoading,
     isLocked: officialStatement?.is_locked || false,
-    emptyStatement: getEmptyStatement(year),
+    emptyStatement,
     upsertStatement: upsertMutation.mutateAsync,
     lockStatement: lockMutation.mutateAsync,
     unlockStatement: unlockMutation.mutateAsync,

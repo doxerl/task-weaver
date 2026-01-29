@@ -216,3 +216,75 @@ export const INCOME_STATEMENT_GROUPS = [
     ],
   },
 ] as const;
+
+// Balance sheet account groups for display
+export interface BalanceSheetAccountDef {
+  code: string;
+  name: string;
+  field: string;
+  isNegative?: boolean;
+}
+
+export interface BalanceSheetGroup {
+  title: string;
+  type: 'asset' | 'liability' | 'equity';
+  accounts: BalanceSheetAccountDef[];
+}
+
+export const BALANCE_SHEET_GROUPS: BalanceSheetGroup[] = [
+  {
+    title: 'DÖNEN VARLIKLAR (1xx)',
+    type: 'asset',
+    accounts: [
+      { code: '100', name: 'Kasa', field: 'cash_on_hand' },
+      { code: '102', name: 'Bankalar', field: 'bank_balance' },
+      { code: '120', name: 'Alıcılar', field: 'trade_receivables' },
+      { code: '131', name: 'Ortaklardan Alacaklar', field: 'partner_receivables' },
+      { code: '190', name: 'Devreden KDV', field: 'vat_receivable' },
+      { code: '191', name: 'İndirilecek KDV', field: 'other_vat' },
+      { code: '150', name: 'Stoklar', field: 'inventory' },
+    ],
+  },
+  {
+    title: 'DURAN VARLIKLAR (2xx)',
+    type: 'asset',
+    accounts: [
+      { code: '254', name: 'Taşıtlar', field: 'vehicles' },
+      { code: '255', name: 'Demirbaşlar', field: 'fixtures' },
+      { code: '256', name: 'Makine ve Cihazlar', field: 'equipment' },
+      { code: '257', name: 'Birikmiş Amortisman (-)', field: 'accumulated_depreciation', isNegative: true },
+    ],
+  },
+  {
+    title: 'KISA VADELİ BORÇLAR (3xx)',
+    type: 'liability',
+    accounts: [
+      { code: '300', name: 'Banka Kredileri', field: 'short_term_loan_debt' },
+      { code: '320', name: 'Satıcılar', field: 'trade_payables' },
+      { code: '331', name: 'Ortaklara Borçlar', field: 'partner_payables' },
+      { code: '335', name: 'Personele Borçlar', field: 'personnel_payables' },
+      { code: '360', name: 'Ödenecek Vergi', field: 'tax_payables' },
+      { code: '361', name: 'Ödenecek SGK', field: 'social_security_payables' },
+      { code: '391', name: 'Hesaplanan KDV', field: 'vat_payable' },
+      { code: '370', name: 'Ertelenmiş Vergi Borcu', field: 'deferred_tax_liabilities' },
+      { code: '379', name: 'Vergi Karşılığı', field: 'tax_provision' },
+    ],
+  },
+  {
+    title: 'UZUN VADELİ BORÇLAR (4xx)',
+    type: 'liability',
+    accounts: [
+      { code: '400', name: 'Banka Kredileri', field: 'bank_loans' },
+    ],
+  },
+  {
+    title: 'ÖZKAYNAKLAR (5xx)',
+    type: 'equity',
+    accounts: [
+      { code: '500', name: 'Sermaye', field: 'paid_capital' },
+      { code: '501', name: 'Ödenmemiş Sermaye (-)', field: 'unpaid_capital', isNegative: true },
+      { code: '570', name: 'Geçmiş Yıllar Karları', field: 'retained_earnings' },
+      { code: '590', name: 'Dönem Net Karı', field: 'current_profit' },
+    ],
+  },
+];
