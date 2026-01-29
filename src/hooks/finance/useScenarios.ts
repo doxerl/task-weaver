@@ -268,10 +268,12 @@ export function useScenarios() {
 
   // Create next year simulation from AI projection with globalization vision
   // Accepts both scenarios to correctly calculate max(A.targetYear, B.targetYear) + 1
+  // focusProjects: Sadece bu projelere büyüme çarpanı uygulanır, diğerleri sabit kalır
   const createNextYearFromAI = useCallback(async (
     scenarioA: SimulationScenario,
     scenarioB: SimulationScenario,
-    aiProjection: NextYearProjection
+    aiProjection: NextYearProjection,
+    focusProjects: string[] = []  // YENİ: Seçici büyüme için odak projeler
   ): Promise<SimulationScenario | null> => {
     const generateId = () => Math.random().toString(36).substr(2, 9);
     
@@ -337,18 +339,82 @@ export function useScenarios() {
       q4: aiQuarterly.q4.expenses / aiQuarterlyExpenseTotal,
     } : { q1: 0.25, q2: 0.25, q3: 0.25, q4: 0.25 };
 
+    // Odak proje hesaplamaları (focusProjects varsa)
+    const hasFocusProjects = focusProjects.length > 0;
+    
+    // Odak olmayan projelerin toplam tutarı (sabit kalacaklar)
+    const nonFocusTotal = hasFocusProjects
+      ? referenceScenario.revenues
+          .filter(rv => !focusProjects.includes(rv.category))
+          .reduce((sum, rv) => sum + rv.projectedAmount, 0)
+      : 0;
+    
+    // Odak projelerin mevcut toplam tutarı
+    const focusProjectsCurrentTotal = hasFocusProjects
+      ? referenceScenario.revenues
+          .filter(rv => focusProjects.includes(rv.category))
+          .reduce((sum, rv) => sum + rv.projectedAmount, 0)
+      : 0;
+    
+    // Odak projelere düşen AI ciro hedefi
+    const focusProjectsTargetTotal = hasFocusProjects
+      ? Math.max(0, totalAIRevenue - nonFocusTotal)
+      : 0;
+    
+    console.log('[createNextYearFromAI] Focus Projects Logic:', {
+      focusProjects,
+      hasFocusProjects,
+      nonFocusTotal,
+      focusProjectsCurrentTotal,
+      focusProjectsTargetTotal,
+      totalAIRevenue
+    });
+
     // Referans senaryonun TÜM gelir kalemlerini miras al
     const newRevenues = referenceScenario.revenues.map(r => {
-      const ratio = currentTotalRevenue > 0 ? r.projectedAmount / currentTotalRevenue : 1 / referenceScenario.revenues.length;
-      const itemProjectedAmount = Math.round(totalAIRevenue * ratio);
+      const isFocusProject = focusProjects.includes(r.category);
       
-      // Çeyreklik dağılım: AI oranlarını kullan
-      const projectedQuarterly = {
-        q1: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q1),
-        q2: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q2),
-        q3: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q3),
-        q4: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q4),
-      };
+      let itemProjectedAmount: number;
+      let projectedQuarterly: { q1: number; q2: number; q3: number; q4: number };
+      
+      if (hasFocusProjects) {
+        if (isFocusProject) {
+          // ODAK PROJE: Toplam AI büyümesini odak projeler arasında paylaştır
+          const focusRatio = focusProjectsCurrentTotal > 0 
+            ? r.projectedAmount / focusProjectsCurrentTotal 
+            : 1 / focusProjects.length;
+          
+          itemProjectedAmount = Math.round(focusProjectsTargetTotal * focusRatio);
+          
+          // Çeyreklik dağılım: AI oranlarını kullan
+          projectedQuarterly = {
+            q1: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q1),
+            q2: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q2),
+            q3: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q3),
+            q4: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q4),
+          };
+          
+          console.log(`[createNextYearFromAI] 🎯 Focus: ${r.category} → $${r.projectedAmount} → $${itemProjectedAmount} (ratio: ${(focusRatio * 100).toFixed(1)}%)`);
+        } else {
+          // DİĞER PROJE: Sabit kal (projectedAmount = baseAmount)
+          itemProjectedAmount = r.projectedAmount;
+          projectedQuarterly = r.projectedQuarterly || { q1: 0, q2: 0, q3: 0, q4: 0 };
+          
+          console.log(`[createNextYearFromAI] 📌 Static: ${r.category} → $${itemProjectedAmount} (unchanged)`);
+        }
+      } else {
+        // focusProjects boş: Mevcut mantık - oransal dağılım
+        const ratio = currentTotalRevenue > 0 ? r.projectedAmount / currentTotalRevenue : 1 / referenceScenario.revenues.length;
+        itemProjectedAmount = Math.round(totalAIRevenue * ratio);
+        
+        // Çeyreklik dağılım: AI oranlarını kullan
+        projectedQuarterly = {
+          q1: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q1),
+          q2: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q2),
+          q3: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q3),
+          q4: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q4),
+        };
+      }
       
       // Yuvarlama farklarını Q4'e ekle
       const quarterlySum = projectedQuarterly.q1 + projectedQuarterly.q2 + projectedQuarterly.q3 + projectedQuarterly.q4;
@@ -401,6 +467,11 @@ export function useScenarios() {
 
     // Build enhanced notes with investor hook data
     const inheritedItemsNote = `📦 ${referenceScenario.name} senaryosundan ${newRevenues.length} gelir ve ${newExpenses.length} gider kalemi miras alındı.\n\n`;
+    
+    // Odak proje notu
+    const focusProjectNote = focusProjects.length > 0
+      ? `🎯 Odak Projeler: ${focusProjects.join(', ')}\n📌 Diğer projeler sabit tutuldu.\n\n`
+      : '';
 
     const investorHookNote = aiProjection.investor_hook 
       ? `\n\n🚀 Yatırımcı Vizyonu:\n• Büyüme: ${aiProjection.investor_hook.revenue_growth_yoy}\n• Marj İyileşmesi: ${aiProjection.investor_hook.margin_improvement}\n• Değerleme Hedefi: ${aiProjection.investor_hook.valuation_multiple_target}\n• Rekabet Avantajı: ${aiProjection.investor_hook.competitive_moat}`
@@ -418,7 +489,7 @@ export function useScenarios() {
       expenses: newExpenses,
       investments: [],
       assumedExchangeRate: referenceScenario.assumedExchangeRate,
-      notes: `🤖 AI tarafından oluşturuldu (Gemini Pro 3) - Globalleşme Odaklı\n\n${inheritedItemsNote}📊 Strateji: ${aiProjection.strategy_note}\n\n💰 Toplam Gelir: $${totalAIRevenue.toLocaleString()}\n💸 Toplam Gider: $${totalAIExpenses.toLocaleString()}\n📈 Net Kâr: $${aiProjection.summary.net_profit.toLocaleString()}${investorHookNote}${virtualBalanceNote}`,
+      notes: `🤖 AI tarafından oluşturuldu (Gemini Pro 3) - Globalleşme Odaklı\n\n${focusProjectNote}${inheritedItemsNote}📊 Strateji: ${aiProjection.strategy_note}\n\n💰 Toplam Gelir: $${totalAIRevenue.toLocaleString()}\n💸 Toplam Gider: $${totalAIExpenses.toLocaleString()}\n📈 Net Kâr: $${aiProjection.summary.net_profit.toLocaleString()}${investorHookNote}${virtualBalanceNote}`,
     };
 
     const savedId = await saveScenario(newScenario);
