@@ -3,11 +3,13 @@ import { useYear } from '@/contexts/YearContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft, PenLine, Building2, Receipt, Scale, Truck, BarChart3, Shield } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/finance/useFinancialCalculations';
 import { useVatCalculations } from '@/hooks/finance/useVatCalculations';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { useCostCenterAnalysis } from '@/hooks/finance/useCostCenterAnalysis';
+import { useIncomeStatement } from '@/hooks/finance/useIncomeStatement';
 import { BottomTabBar } from '@/components/BottomTabBar';
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
@@ -19,12 +21,21 @@ export default function FinanceDashboard() {
   const vat = useVatCalculations(year);
   const { balanceSheet, isLoading: balanceLoading } = useBalanceSheet(year);
   const costCenter = useCostCenterAnalysis(year);
+  const incomeStatement = useIncomeStatement(year);
 
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="p-4 space-y-6">
         <div className="flex items-center justify-between">
-          <h1 className="text-2xl font-bold">Finans</h1>
+          <div className="flex items-center gap-3">
+            <h1 className="text-2xl font-bold">Finans</h1>
+            {incomeStatement.isOfficial && (
+              <Badge variant="default" className="bg-green-600">
+                <Shield className="h-3 w-3 mr-1" />
+                Resmi Veri
+              </Badge>
+            )}
+          </div>
           <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
             <SelectTrigger className="w-24">
               <SelectValue />

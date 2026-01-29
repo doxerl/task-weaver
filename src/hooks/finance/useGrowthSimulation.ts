@@ -112,6 +112,7 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
   const [hasBaseScenario, setHasBaseScenario] = useState(false);
   
   // Veritabanından gerçek baz yıl toplamları (TRY)
+  // useIncomeStatement artık hibrit: resmi veri varsa onu, yoksa dinamik veriyi döndürür
   const realBaseData = useMemo(() => {
     if (baseYearStatement.isLoading || !baseYearStatement.statement) {
       return null;
@@ -132,8 +133,9 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
       totalExpenseUSD: Math.round(totalExpenseTRY / baseYearRate),
       totalRevenueUSD: Math.round(totalRevenueTRY / baseYearRate),
       exchangeRate: baseYearRate,
+      isOfficial: baseYearStatement.isOfficial || false, // Resmi veri badge'i için
     };
-  }, [baseYearStatement.isLoading, baseYearStatement.statement, baseYearExchangeRates.yearlyAverageRate]);
+  }, [baseYearStatement.isLoading, baseYearStatement.statement, baseYearStatement.isOfficial, baseYearExchangeRates.yearlyAverageRate]);
 
   // Calculate base data from hub when available
   const baseData = useMemo(() => {
