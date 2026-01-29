@@ -1,161 +1,109 @@
 
 
-## Hesap Kodlarını Tıklanabilir Yapma ve Satıcı/Alt Hesap Detayları Gösterme Planı
+## PDF Parse Hatası Düzeltme Planı
 
-### Mevcut Durum Analizi
+### Sorun Analizi
 
-| Durum | Açıklama |
-|-------|----------|
-| **Mizan verileri** | Sadece 3 haneli ana hesap kodları kaydediliyor (100, 320, 600, vb.) |
-| **Alt hesaplar** | Parse sırasında ana hesaba toplanıp siliniyor (100.01, 320.001 gibi) |
-| **Satıcı bilgileri** | Mizan dosyasında bulunsa bile kaydedilmiyor |
-| **UI** | Hesap kodları statik text olarak gösteriliyor (tıklanamaz) |
+| Detay | Değer |
+|-------|-------|
+| **Hata Kodu** | `MALFORMED_FUNCTION_CALL` |
+| **Model** | `google/gemini-2.5-flash` |
+| **Sebep** | `tool_choice` formatı Gemini ile uyumsuz |
+| **Sonuç** | PDF dosyaları 0 hesap döndürüyor |
 
-### İstenen Özellikler
+### Kök Neden
 
-1. **Hesap kodları tıklanabilir olmalı** - Tıklayınca alt hesaplar görünsün
-2. **Satıcı/müşteri isimleri görünmeli** - 320 (Satıcılar), 120 (Alıcılar) için firma isimleri
-3. **Alt hesap detayları** - Her alt hesabın tutarları ayrı ayrı görünsün
-
----
-
-### Teknik Uygulama Planı
-
-#### 1. Veritabanı Değişikliği
-
-Mevcut `accounts` JSONB alanına alt hesap desteği eklenecek:
+Gemini modeli için `tool_choice` yapılandırması farklı bir format gerektiriyor. Mevcut kod OpenAI formatını kullanıyor:
 
 ```typescript
-// MEVCUT YAPI
-{
-  "320": {
-    "name": "SATICILAR",
-    "debit": 120136.66,
-    "credit": 4199153.84,
-    ...
-  }
-}
-
-// YENİ YAPI (subAccounts eklendi)
-{
-  "320": {
-    "name": "SATICILAR",
-    "debit": 120136.66,
-    "credit": 4199153.84,
-    "subAccounts": [
-      { "code": "320.01", "name": "ABC Şirketi", "debit": 50000, "credit": 2000000, ... },
-      { "code": "320.02", "name": "XYZ Ltd.", "debit": 70136.66, "credit": 2199153.84, ... }
-    ]
-  }
-}
+// MEVCUT (OpenAI formatı - çalışmıyor)
+tool_choice: { type: 'function', function: { name: 'parse_mizan' } }
 ```
 
-#### 2. Edge Function Güncellemesi
+### Çözüm Seçenekleri
 
-**parse-trial-balance** edge function'ı alt hesapları koruyacak şekilde güncellenecek:
-
-**Değişiklikler:**
-- Alt hesap kodlarını (320.001, 100.01.001, vb.) parse et
-- Her ana hesap için `subAccounts` dizisi oluştur
-- Satıcı/müşteri isimlerini sakla
-
-**AI Prompt güncellemesi:**
-```
-## ALT HESAPLAR (Muavin)
-- 3+ haneli kodlar (320.01, 320.001, 120.01.001) alt hesaplardır
-- Alt hesap isimleri genellikle firma/kişi isimleridir
-- Alt hesapları ayrı ayrı parse et, ana hesaba toplama
-```
-
-#### 3. TypeScript Type Güncellemesi
-
-**src/types/officialFinance.ts:**
+#### Seçenek 1: tool_choice Kaldır (Önerilen)
+Gemini otomatik olarak uygun tool'u seçsin:
 ```typescript
-interface SubAccount {
-  code: string;
-  name: string;
-  debit: number;
-  credit: number;
-  debitBalance: number;
-  creditBalance: number;
+// tool_choice satırını tamamen kaldır
+// Gemini prompt'taki talimata göre fonksiyonu çağıracak
+```
+
+#### Seçenek 2: Gemini formatına çevir
+```typescript
+tool_choice: 'required'  // veya 'auto'
+```
+
+#### Seçenek 3: Hybrid yaklaşım
+Önce normal JSON yanıt al, sonra parse et (tool kullanma)
+
+---
+
+### Uygulama Planı
+
+#### 1. `parse-trial-balance/index.ts` Güncelle
+
+**Değişiklik 1**: `tool_choice` yapısını düzelt veya kaldır
+```typescript
+body: JSON.stringify({
+  model: 'google/gemini-2.5-flash',
+  messages: [...],
+  tools: [{ type: 'function', function: PARSE_FUNCTION_SCHEMA }],
+  // tool_choice kaldırıldı - Gemini otomatik seçecek
+  temperature: 0.1,
+  max_tokens: 8000,
+}),
+```
+
+**Değişiklik 2**: Fallback yanıt işleme ekle
+AI fonksiyon çağırmazsa, text yanıtı parse etmeyi dene:
+```typescript
+// Tool call yoksa, text content'i kontrol et
+if (!toolCall) {
+  const textContent = data.choices?.[0]?.message?.content;
+  // JSON parse etmeyi dene
 }
+```
 
-interface TrialBalanceAccount {
-  name: string;
-  debit: number;
-  credit: number;
-  debitBalance: number;
-  creditBalance: number;
-  subAccounts?: SubAccount[]; // Yeni alan
+#### 2. `parse-income-statement/index.ts` da Güncelle
+
+Aynı sorun orada da var, aynı düzeltme uygulanacak.
+
+---
+
+### Değiştirilecek Dosyalar
+
+| Dosya | Değişiklik |
+|-------|-----------|
+| `supabase/functions/parse-trial-balance/index.ts` | tool_choice kaldır, fallback ekle |
+| `supabase/functions/parse-income-statement/index.ts` | Aynı düzeltme |
+
+---
+
+### Alternatif Yaklaşım: JSON Mode
+
+Eğer tool calling hala sorunluysa, structured output için JSON mode kullan:
+
+```typescript
+response_format: { type: "json_object" },
+// tools kullanma, prompt'ta JSON formatı iste
+```
+
+Bu durumda prompt şöyle güncellenir:
+```
+Yanıtını şu JSON formatında ver:
+{
+  "accounts": [
+    { "code": "100", "name": "KASA", "debit": 1000, ... }
+  ]
 }
 ```
 
-#### 4. UI Bileşenleri Güncellemesi
-
-**TrialBalanceUploader.tsx ve IncomeStatementUploader.tsx:**
-
-```
-┌───────────────────────────────────────────────────────────────────────────────────┐
-│ Mizan Önizleme                                                                     │
-├─────────┬─────────────────────────┬───────────┬───────────┬───────────┬───────────┤
-│ Hesap   │ Hesap Adı               │ Borç      │ Alacak    │ Borç Bak. │ Alacak B. │
-├─────────┼─────────────────────────┼───────────┼───────────┼───────────┼───────────┤
-│ ▶ 320   │ SATICILAR               │ ₺120.136  │ ₺4.199.153│ ₺0        │ ₺4.079.017│
-│         │ (3 alt hesap)           │           │           │           │           │
-├─────────┼─────────────────────────┼───────────┼───────────┼───────────┼───────────┤
-│   320.01│   ABC Teknoloji A.Ş.    │ ₺50.000   │ ₺2.000.000│ ₺0        │ ₺1.950.000│ ← Açıldığında
-│   320.02│   XYZ Yazılım Ltd.      │ ₺70.136   │ ₺2.199.153│ ₺0        │ ₺2.129.017│    gösterilir
-├─────────┼─────────────────────────┼───────────┼───────────┼───────────┼───────────┤
-│ ▶ 600   │ YURTİÇİ SATIŞLAR        │ ₺0        │ ₺5.811.104│ ₺0        │ ₺5.811.104│
-│         │ (2 alt hesap)           │           │           │           │           │
-└─────────┴─────────────────────────┴───────────┴───────────┴───────────┴───────────┘
-```
-
-**Özellikler:**
-- ▶ ikonlu satırlar tıklanabilir (alt hesap varsa)
-- Tıklayınca alt hesaplar açılır/kapanır (Collapsible)
-- Alt hesap satırları girintili gösterilir
-- Alt hesap sayısı parantez içinde belirtilir
-
 ---
 
-### Değiştirilecek/Oluşturulacak Dosyalar
+### Beklenen Sonuç
 
-| Dosya | İşlem | Açıklama |
-|-------|-------|----------|
-| `supabase/functions/parse-trial-balance/index.ts` | Güncelle | Alt hesap parse desteği |
-| `supabase/functions/parse-income-statement/index.ts` | Güncelle | Alt hesap parse desteği |
-| `src/types/officialFinance.ts` | Güncelle | SubAccount interface |
-| `src/components/finance/TrialBalanceUploader.tsx` | Güncelle | Collapsible alt hesap UI |
-| `src/components/finance/IncomeStatementUploader.tsx` | Güncelle | Collapsible alt hesap UI |
-| `src/components/finance/AccountDetailRow.tsx` | Yeni | Tıklanabilir hesap satırı bileşeni |
-
----
-
-### Uygulama Sırası
-
-| Sıra | Görev | Açıklama |
-|------|-------|----------|
-| 1 | Types | `SubAccount` interface ekle |
-| 2 | Edge Functions | Alt hesap parse mantığı ekle |
-| 3 | AccountDetailRow | Yeni collapsible satır bileşeni |
-| 4 | TrialBalanceUploader | Önizleme tablosunu güncelle |
-| 5 | IncomeStatementUploader | Önizleme tablosunu güncelle |
-
----
-
-### Beklenen Sonuçlar
-
-- Hesap kodları tıklanabilir olacak
-- Alt hesaplar (muavin) görüntülenebilecek
-- Satıcı ve müşteri isimleri görünecek
-- Collapsible yapı ile temiz bir UI
-
----
-
-### Dikkat Edilecek Noktalar
-
-- **Mevcut verilere uyumluluk**: `subAccounts` opsiyonel olacak, eski veriler çalışmaya devam edecek
-- **PDF parse kalitesi**: AI'ın alt hesapları doğru parse etmesi için prompt optimize edilecek
-- **Performans**: Çok sayıda alt hesap olduğunda lazy loading düşünülebilir
+- PDF dosyaları başarıyla parse edilecek
+- Hesap kodları ve tutarlar doğru çıkarılacak
+- Alt hesaplar da görüntülenebilecek
 
