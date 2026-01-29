@@ -1,111 +1,227 @@
 
 
-## PDF Parse Sorunu - Kapsamlı Düzeltme Planı
+## Bilanço PDF Yükleme ve AI Parsing Özelliği Ekleme Planı
 
-### Tespit Edilen Sorunlar
+### Mevcut Durum
 
-| Sorun | Log Detayı | Etki |
-|-------|-----------|------|
-| **Fonksiyon adı uyumsuz** | AI `ParseMizanAccounts` döndürüyor, kod `parse_mizan` bekliyor | Tool call parse edilemiyor |
-| **Tek hesap döndürülüyor** | `{"code":"100","name":"KASA",...}` - array değil | Tüm hesaplar alınamıyor |
-| **MAX_TOKENS hatası** | Token limiti aşılıyor (aslında model çıktı formatı sorunu) | Yanıt kesiliyor |
+| Bileşen | Mizan | Gelir Tablosu | Bilanço |
+|---------|-------|---------------|---------|
+| Edge Function | ✅ parse-trial-balance | ✅ parse-income-statement | ❌ YOK |
+| Uploader Bileşeni | ✅ TrialBalanceUploader | ✅ IncomeStatementUploader | ❌ YOK |
+| Veritabanı Tablosu | ✅ official_trial_balances | ✅ yearly_income_statements | ✅ yearly_balance_sheets (sadece manuel) |
+| Hesap Kodu Mapping | ✅ INCOME_STATEMENT_ACCOUNT_MAP | ✅ (aynı) | ❌ YOK |
 
-### Token Limiti Açıklaması
+### Hedef
 
-`max_tokens: 8000` yeterli olmalı, ama log'da sadece 69 token üretilmiş. Sorun token limiti değil, **AI'ın yanlış format döndürmesi**. AI her hesap için ayrı tool call yapmaya çalışıyor, bu da soruna yol açıyor.
+Bilanço sekmesine de Mizan ve Gelir Tablosu gibi PDF/Excel yükleme + AI parsing özelliği eklemek.
 
 ---
 
-### Çözüm Planı
+### Teknik Uygulama Planı
 
-#### 1. Fonksiyon Adı Kontrolünü Kaldır
+#### 1. Veritabanı Değişikliği
 
-AI herhangi bir isimle döndürse de arguments'ı parse et:
+`yearly_balance_sheets` tablosuna dosya ve onay alanları eklenecek:
 
-```typescript
-// MEVCUT (çalışmıyor)
-if (toolCall && toolCall.function?.name === 'parse_mizan') {
-
-// YENİ (herhangi bir tool call'u kabul et)
-if (toolCall?.function?.arguments) {
+```sql
+ALTER TABLE yearly_balance_sheets 
+ADD COLUMN IF NOT EXISTS source text DEFAULT 'manual',
+ADD COLUMN IF NOT EXISTS file_name text,
+ADD COLUMN IF NOT EXISTS file_url text,
+ADD COLUMN IF NOT EXISTS uploaded_at timestamptz,
+ADD COLUMN IF NOT EXISTS raw_accounts jsonb;
 ```
 
-#### 2. Tek Hesap vs Array Desteği
+**Yeni Alanlar:**
+- `source`: 'manual' | 'file_upload'
+- `file_name`: Yüklenen dosya adı
+- `file_url`: Storage URL
+- `uploaded_at`: Yükleme tarihi
+- `raw_accounts`: AI'dan gelen ham hesap verileri (önizleme için)
 
-AI bazen tek hesap, bazen array döndürüyor - her ikisini de destekle:
+#### 2. Hesap Kodu Mapping Ekleme
+
+`src/types/officialFinance.ts` dosyasına:
 
 ```typescript
-const args = JSON.parse(toolCall.function.arguments);
+// Bilanço hesap kodu -> veritabanı alan mapping
+export const BALANCE_SHEET_ACCOUNT_MAP: Record<string, string> = {
+  '100': 'cash_on_hand',        // Kasa
+  '102': 'bank_balance',        // Bankalar
+  '120': 'trade_receivables',   // Alıcılar
+  '131': 'partner_receivables', // Ortaklardan Alacaklar
+  '190': 'vat_receivable',      // Devreden KDV
+  '191': 'other_vat',           // İndirilecek KDV
+  '150': 'inventory',           // Stoklar
+  '254': 'vehicles',            // Taşıtlar
+  '255': 'fixtures',            // Demirbaşlar
+  '256': 'equipment',           // Makine ve Cihazlar
+  '257': 'accumulated_depreciation', // Birikmiş Amortisman
+  '300': 'short_term_loan_debt', // Kısa Vadeli Krediler
+  '320': 'trade_payables',      // Satıcılar
+  '331': 'partner_payables',    // Ortaklara Borçlar
+  '335': 'personnel_payables',  // Personele Borçlar
+  '360': 'tax_payables',        // Ödenecek Vergi
+  '361': 'social_security_payables', // Ödenecek SGK
+  '391': 'vat_payable',         // Hesaplanan KDV
+  '370': 'deferred_tax_liabilities', // Ertelenmiş Vergi Borcu
+  '379': 'tax_provision',       // Vergi Karşılığı
+  '400': 'bank_loans',          // Banka Kredileri (Uzun Vadeli)
+  '500': 'paid_capital',        // Sermaye
+  '501': 'unpaid_capital',      // Ödenmemiş Sermaye
+  '570': 'retained_earnings',   // Geçmiş Yıllar Karları
+  '590': 'current_profit',      // Dönem Net Karı
+};
+```
 
-// Array mi tek hesap mı kontrol et
-if (Array.isArray(args)) {
-  parsedArgs = { accounts: args };
-} else if (args.accounts) {
-  parsedArgs = args;
-} else if (args.code) {
-  // Tek hesap döndü
-  parsedArgs = { accounts: [args] };
+#### 3. Edge Function Oluşturma
+
+**`supabase/functions/parse-balance-sheet/index.ts`**
+
+Mizan parse function'ına benzer yapıda:
+- PDF/Excel dosyası kabul et
+- AI ile hesapları parse et
+- Bilanço hesap kodlarını (1xx, 2xx, 3xx, 4xx, 5xx) çıkar
+- Borç/Alacak bakiyelerine göre değer ata
+
+```
+AI Prompt özeti:
+- 1xx-2xx: Aktif hesaplar (borç bakiyesi = değer)
+- 3xx-4xx: Pasif hesaplar (alacak bakiyesi = değer)
+- 5xx: Özkaynak hesapları (alacak bakiyesi = değer)
+```
+
+#### 4. Hook Oluşturma
+
+**`src/hooks/finance/useBalanceSheetUpload.ts`**
+
+```typescript
+export function useBalanceSheetUpload(year: number) {
+  // Dosya yükle ve parse et
+  const uploadBalanceSheet = async (file: File) => {
+    // 1. Storage'a yükle
+    // 2. parse-balance-sheet edge function çağır
+    // 3. yearly_balance_sheets tablosuna kaydet
+  };
+
+  // Önizle ve onayla
+  const approveBalanceSheet = async () => {
+    // raw_accounts'tan değerleri hesap alanlarına aktar
+    // is_locked = true yap
+  };
+
+  return { uploadBalanceSheet, approveBalanceSheet, ... };
 }
 ```
 
-#### 3. Token Limitini Artır
+#### 5. Uploader Bileşeni Oluşturma
 
-Güvenlik için token limitini artır:
-```typescript
-max_tokens: 16000,  // 8000'den artır
-```
+**`src/components/finance/BalanceSheetUploader.tsx`**
 
-#### 4. Çoklu Tool Call Desteği
+TrialBalanceUploader ile aynı yapıda:
+- Drag & drop dosya yükleme
+- PDF/Excel desteği
+- Hesap önizleme tablosu
+- Onayla ve Aktar butonu
+- Aktif = Pasif denge kontrolü
 
-AI her hesap için ayrı tool call yapabilir - hepsini topla:
+#### 6. Sayfa Güncellemesi
 
-```typescript
-const toolCalls = data.choices?.[0]?.message?.tool_calls || [];
-const allAccounts = [];
+**`src/pages/finance/OfficialData.tsx`**
 
-for (const tc of toolCalls) {
-  if (tc.function?.arguments) {
-    const args = JSON.parse(tc.function.arguments);
-    if (args.code) {
-      allAccounts.push(args);
-    } else if (args.accounts) {
-      allAccounts.push(...args.accounts);
-    }
-  }
-}
+Bilanço sekmesine mode seçici ekle:
 
-if (allAccounts.length > 0) {
-  parsedArgs = { accounts: allAccounts };
-}
-```
-
----
-
-### Değiştirilecek Dosyalar
-
-| Dosya | Değişiklik |
-|-------|-----------|
-| `supabase/functions/parse-trial-balance/index.ts` | Fonksiyon adı kontrolü kaldır, çoklu tool call desteği, tek hesap fallback, max_tokens artır |
-| `supabase/functions/parse-income-statement/index.ts` | Aynı düzeltmeler |
-
----
-
-### Uygulama Özeti
-
-```text
-1. max_tokens: 8000 → 16000
-2. Fonksiyon adı kontrolünü kaldır (herhangi bir tool call kabul)
-3. Çoklu tool_calls dizisini işle (her hesap ayrı call olabilir)
-4. Tek hesap vs array formatını destekle
-5. Text content fallback'i güçlendir
+```tsx
+<TabsContent value="balance">
+  <div className="flex gap-2 mb-4">
+    <Button variant={balanceMode === 'upload' ? 'default' : 'outline'}>
+      <Upload /> Dosya Yükle
+    </Button>
+    <Button variant={balanceMode === 'manual' ? 'default' : 'outline'}>
+      <Edit /> Manuel Giriş
+    </Button>
+  </div>
+  
+  {balanceMode === 'upload' ? (
+    <BalanceSheetUploader year={selectedYear} />
+  ) : (
+    <OfficialBalanceSheetForm year={selectedYear} />
+  )}
+</TabsContent>
 ```
 
 ---
 
-### Beklenen Sonuç
+### Oluşturulacak/Güncellenecek Dosyalar
 
-- PDF dosyaları başarıyla parse edilecek
-- AI hangi format döndürürse döndürsün çalışacak
-- Tüm hesaplar çıkarılacak
-- Alt hesaplar ve satıcı bilgileri görüntülenebilecek
+| Dosya | İşlem | Açıklama |
+|-------|-------|----------|
+| `supabase/functions/parse-balance-sheet/index.ts` | ✨ Yeni | AI PDF/Excel parsing |
+| `src/types/officialFinance.ts` | Güncelle | BALANCE_SHEET_ACCOUNT_MAP ekle |
+| `src/hooks/finance/useBalanceSheetUpload.ts` | ✨ Yeni | Yükleme ve onay hook'u |
+| `src/components/finance/BalanceSheetUploader.tsx` | ✨ Yeni | Yükleme UI bileşeni |
+| `src/pages/finance/OfficialData.tsx` | Güncelle | Mode seçici ekle |
+| Veritabanı migrasyonu | SQL | Yeni alanlar ekle |
+
+---
+
+### UI Tasarımı
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  Mizan  │  Gelir Tablosu  │  [Bilanço]                              │
+├─────────────────────────────────────────────────────────────────────┤
+│  [🔼 Dosya Yükle]  [✏️ Manuel Giriş]                                 │
+├─────────────────────────────────────────────────────────────────────┤
+│  ┌─────────────────────────────────────────────────────────────┐    │
+│  │                                                             │    │
+│  │    📄 Excel veya PDF dosyasını sürükleyip bırakın          │    │
+│  │                                                             │    │
+│  │                    [Dosya Seç]                              │    │
+│  │                                                             │    │
+│  └─────────────────────────────────────────────────────────────┘    │
+│                                                                      │
+│  Desteklenen formatlar: .xlsx, .xls, .pdf                           │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+**Dosya Yüklendikten Sonra:**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│  📊 bilanço_2025.pdf                            [Onay Bekliyor]     │
+│  28 hesap bulundu                                                    │
+├─────────────────────────────────────────────────────────────────────┤
+│  Toplam Aktif                    │  Toplam Pasif                     │
+│  ₺5.050.215                      │  ₺5.050.215                       │
+├─────────────────────────────────────────────────────────────────────┤
+│  ✅ Bilanço Dengeli (Aktif = Pasif)                                  │
+├─────────────────────────────────────────────────────────────────────┤
+│  [👁️ Önizle]  [✓ Onayla ve Aktar]  [🗑️ Sil]                         │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+### Uygulama Sırası
+
+| Sıra | Görev |
+|------|-------|
+| 1 | Veritabanı migrasyonu (yeni alanlar) |
+| 2 | BALANCE_SHEET_ACCOUNT_MAP type'a ekle |
+| 3 | parse-balance-sheet edge function oluştur |
+| 4 | useBalanceSheetUpload hook oluştur |
+| 5 | BalanceSheetUploader bileşeni oluştur |
+| 6 | OfficialData sayfasını güncelle |
+| 7 | Edge function deploy et |
+| 8 | Test et |
+
+---
+
+### Dikkat Edilecek Noktalar
+
+- **Aktif = Pasif kontrolü**: Bilanço dengesiz ise uyarı göster
+- **Mevcut verilerle uyumluluk**: Manuel girilmiş veriler korunacak
+- **İki mod**: Dosya yükleme ve manuel giriş seçenekleri
+- **Alt hesaplar**: Mizan'daki gibi satıcı/müşteri detayları gösterilebilir (320 için firmalar vb.)
 
