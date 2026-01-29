@@ -275,9 +275,10 @@ export const BALANCE_SHEET_GROUPS: BalanceSheetGroup[] = [
       { code: '335', name: 'Personele Borçlar', field: 'personnel_payables' },
       { code: '360', name: 'Ödenecek Vergi', field: 'tax_payables' },
       { code: '361', name: 'Ödenecek SGK', field: 'social_security_payables' },
-      { code: '391', name: 'Hesaplanan KDV', field: 'vat_payable' },
+      { code: '368', name: 'Vadesi Geçmiş Vergi', field: 'overdue_tax_payables' },
       { code: '370', name: 'Ertelenmiş Vergi Borcu', field: 'deferred_tax_liabilities' },
       { code: '379', name: 'Vergi Karşılığı', field: 'tax_provision' },
+      { code: '391', name: 'Hesaplanan KDV', field: 'vat_payable' },
     ],
   },
   {
@@ -293,40 +294,55 @@ export const BALANCE_SHEET_GROUPS: BalanceSheetGroup[] = [
     accounts: [
       { code: '500', name: 'Sermaye', field: 'paid_capital' },
       { code: '501', name: 'Ödenmemiş Sermaye (-)', field: 'unpaid_capital', isNegative: true },
+      { code: '540', name: 'Yasal Yedekler', field: 'legal_reserves' },
       { code: '570', name: 'Geçmiş Yıllar Karları', field: 'retained_earnings' },
+      { code: '580', name: 'Geçmiş Yıllar Zararları (-)', field: 'prior_year_losses', isNegative: true },
       { code: '590', name: 'Dönem Net Karı', field: 'current_profit' },
+      { code: '591', name: 'Dönem Net Zararı (-)', field: 'current_loss', isNegative: true },
     ],
   },
 ];
 
 // Bilanço hesap kodu -> veritabanı alan mapping
 export const BALANCE_SHEET_ACCOUNT_MAP: Record<string, string> = {
+  // Dönen Varlıklar (1xx)
   '100': 'cash_on_hand',
   '102': 'bank_balance',
   '120': 'trade_receivables',
   '131': 'partner_receivables',
+  '150': 'inventory',
   '190': 'vat_receivable',
   '191': 'other_vat',
-  '150': 'inventory',
+  // Duran Varlıklar (2xx)
   '254': 'vehicles',
   '255': 'fixtures',
   '256': 'equipment',
   '257': 'accumulated_depreciation',
+  // Kısa Vadeli Borçlar (3xx)
   '300': 'short_term_loan_debt',
   '320': 'trade_payables',
   '331': 'partner_payables',
   '335': 'personnel_payables',
   '360': 'tax_payables',
   '361': 'social_security_payables',
-  '391': 'vat_payable',
+  '368': 'overdue_tax_payables',
   '370': 'deferred_tax_liabilities',
   '379': 'tax_provision',
+  '391': 'vat_payable',
+  // Uzun Vadeli Borçlar (4xx)
   '400': 'bank_loans',
+  // Özkaynaklar (5xx)
   '500': 'paid_capital',
   '501': 'unpaid_capital',
+  '540': 'legal_reserves',
   '570': 'retained_earnings',
+  '580': 'prior_year_losses',
   '590': 'current_profit',
+  '591': 'current_loss',
 };
+
+// Negatif bakiyeli hesaplar (bu hesaplarda debitBalance önemli)
+export const NEGATIVE_BALANCE_ACCOUNTS = ['257', '501', '580', '591'];
 
 // Bilanço parsed account interface
 export interface BalanceSheetParsedAccount {
