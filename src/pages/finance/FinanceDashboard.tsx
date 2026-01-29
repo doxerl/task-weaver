@@ -3,7 +3,7 @@ import { useYear } from '@/contexts/YearContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
-import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft, PenLine, Building2, Receipt, Scale, Truck, BarChart3 } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft, PenLine, Building2, Receipt, Scale, Truck, BarChart3, Shield } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/finance/useFinancialCalculations';
 import { useVatCalculations } from '@/hooks/finance/useVatCalculations';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
@@ -36,7 +36,7 @@ export default function FinanceDashboard() {
         </div>
 
         {/* Quick Actions */}
-        <div className="grid grid-cols-5 gap-2">
+        <div className="grid grid-cols-6 gap-2">
           <Link to="/finance/bank-import">
             <Card className="hover:bg-accent transition-colors cursor-pointer">
               <CardContent className="p-3 flex flex-col items-center gap-1">
@@ -58,6 +58,14 @@ export default function FinanceDashboard() {
               <CardContent className="p-3 flex flex-col items-center gap-1">
                 <PenLine className="h-5 w-5 text-primary" />
                 <span className="text-xs font-medium text-center">Manuel</span>
+              </CardContent>
+            </Card>
+          </Link>
+          <Link to="/finance/official-data">
+            <Card className="hover:bg-accent transition-colors cursor-pointer border-green-500/50">
+              <CardContent className="p-3 flex flex-col items-center gap-1">
+                <Shield className="h-5 w-5 text-green-600" />
+                <span className="text-xs font-medium text-center">Resmi</span>
               </CardContent>
             </Card>
           </Link>

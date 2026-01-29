@@ -1044,6 +1044,54 @@ export type Database = {
         }
         Relationships: []
       }
+      official_trial_balances: {
+        Row: {
+          accounts: Json
+          approved_at: string | null
+          created_at: string | null
+          file_name: string | null
+          file_url: string | null
+          id: string
+          is_approved: boolean | null
+          month: number | null
+          notes: string | null
+          updated_at: string | null
+          uploaded_at: string | null
+          user_id: string
+          year: number
+        }
+        Insert: {
+          accounts?: Json
+          approved_at?: string | null
+          created_at?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          is_approved?: boolean | null
+          month?: number | null
+          notes?: string | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+          user_id: string
+          year: number
+        }
+        Update: {
+          accounts?: Json
+          approved_at?: string | null
+          created_at?: string | null
+          file_name?: string | null
+          file_url?: string | null
+          id?: string
+          is_approved?: boolean | null
+          month?: number | null
+          notes?: string | null
+          updated_at?: string | null
+          uploaded_at?: string | null
+          user_id?: string
+          year?: number
+        }
+        Relationships: []
+      }
       payroll_accruals: {
         Row: {
           created_at: string | null
@@ -2125,6 +2173,144 @@ export type Database = {
           vat_payable?: number | null
           vat_receivable?: number | null
           vehicles?: number | null
+          year?: number
+        }
+        Relationships: []
+      }
+      yearly_income_statements: {
+        Row: {
+          commission_expenses: number | null
+          commission_income: number | null
+          corporate_tax: number | null
+          cost_of_goods_sold: number | null
+          cost_of_merchandise_sold: number | null
+          cost_of_services_sold: number | null
+          created_at: string | null
+          deferred_tax_expense: number | null
+          dividend_income: number | null
+          file_url: string | null
+          fx_gain: number | null
+          fx_loss: number | null
+          general_admin_expenses: number | null
+          gross_profit: number | null
+          gross_sales_domestic: number | null
+          gross_sales_export: number | null
+          gross_sales_other: number | null
+          id: string
+          interest_income: number | null
+          is_locked: boolean | null
+          long_term_finance_exp: number | null
+          marketing_expenses: number | null
+          net_profit: number | null
+          net_sales: number | null
+          notes: string | null
+          operating_profit: number | null
+          other_expenses: number | null
+          other_extraordinary_exp: number | null
+          other_extraordinary_income: number | null
+          other_income: number | null
+          prior_period_expenses: number | null
+          prior_period_income: number | null
+          provisions_expense: number | null
+          rd_expenses: number | null
+          revaluation_gain: number | null
+          revaluation_loss: number | null
+          sales_discounts: number | null
+          sales_returns: number | null
+          short_term_finance_exp: number | null
+          source: string | null
+          updated_at: string | null
+          user_id: string
+          year: number
+        }
+        Insert: {
+          commission_expenses?: number | null
+          commission_income?: number | null
+          corporate_tax?: number | null
+          cost_of_goods_sold?: number | null
+          cost_of_merchandise_sold?: number | null
+          cost_of_services_sold?: number | null
+          created_at?: string | null
+          deferred_tax_expense?: number | null
+          dividend_income?: number | null
+          file_url?: string | null
+          fx_gain?: number | null
+          fx_loss?: number | null
+          general_admin_expenses?: number | null
+          gross_profit?: number | null
+          gross_sales_domestic?: number | null
+          gross_sales_export?: number | null
+          gross_sales_other?: number | null
+          id?: string
+          interest_income?: number | null
+          is_locked?: boolean | null
+          long_term_finance_exp?: number | null
+          marketing_expenses?: number | null
+          net_profit?: number | null
+          net_sales?: number | null
+          notes?: string | null
+          operating_profit?: number | null
+          other_expenses?: number | null
+          other_extraordinary_exp?: number | null
+          other_extraordinary_income?: number | null
+          other_income?: number | null
+          prior_period_expenses?: number | null
+          prior_period_income?: number | null
+          provisions_expense?: number | null
+          rd_expenses?: number | null
+          revaluation_gain?: number | null
+          revaluation_loss?: number | null
+          sales_discounts?: number | null
+          sales_returns?: number | null
+          short_term_finance_exp?: number | null
+          source?: string | null
+          updated_at?: string | null
+          user_id: string
+          year: number
+        }
+        Update: {
+          commission_expenses?: number | null
+          commission_income?: number | null
+          corporate_tax?: number | null
+          cost_of_goods_sold?: number | null
+          cost_of_merchandise_sold?: number | null
+          cost_of_services_sold?: number | null
+          created_at?: string | null
+          deferred_tax_expense?: number | null
+          dividend_income?: number | null
+          file_url?: string | null
+          fx_gain?: number | null
+          fx_loss?: number | null
+          general_admin_expenses?: number | null
+          gross_profit?: number | null
+          gross_sales_domestic?: number | null
+          gross_sales_export?: number | null
+          gross_sales_other?: number | null
+          id?: string
+          interest_income?: number | null
+          is_locked?: boolean | null
+          long_term_finance_exp?: number | null
+          marketing_expenses?: number | null
+          net_profit?: number | null
+          net_sales?: number | null
+          notes?: string | null
+          operating_profit?: number | null
+          other_expenses?: number | null
+          other_extraordinary_exp?: number | null
+          other_extraordinary_income?: number | null
+          other_income?: number | null
+          prior_period_expenses?: number | null
+          prior_period_income?: number | null
+          provisions_expense?: number | null
+          rd_expenses?: number | null
+          revaluation_gain?: number | null
+          revaluation_loss?: number | null
+          sales_discounts?: number | null
+          sales_returns?: number | null
+          short_term_finance_exp?: number | null
+          source?: string | null
+          updated_at?: string | null
+          user_id?: string
           year?: number
         }
         Relationships: []

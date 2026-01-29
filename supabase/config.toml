@@ -47,3 +47,6 @@ verify_jwt = false
 
 [functions.analyze-growth-scenario]
 verify_jwt = false
+
+[functions.parse-trial-balance]
+verify_jwt = false
