@@ -452,7 +452,7 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
         tools: [{ type: 'function', function: PARSE_FUNCTION_SCHEMA }],
         // tool_choice removed - Gemini will auto-select based on prompt
         temperature: 0.1,
-        max_tokens: 8000,
+        max_tokens: 16000,
       }),
     });
 
@@ -492,30 +492,68 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
     const data = await response.json();
     console.log('AI response received for income statement');
 
-    // Extract accounts from AI response - check for tool calls first
+    // Extract accounts from AI response - support multiple tool calls and various formats
     let parsedArgs: { accounts: any[]; metadata?: { period?: string; company?: string } } | null = null;
     
-    const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
+    const toolCalls = data.choices?.[0]?.message?.tool_calls || [];
+    const allAccounts: any[] = [];
     
-    if (toolCall && toolCall.function?.name === 'parse_income_statement') {
-      // Tool call worked - parse the arguments
-      try {
-        parsedArgs = JSON.parse(toolCall.function.arguments);
-      } catch (e) {
-        console.error('Failed to parse tool call arguments:', e);
+    // Process ALL tool calls (AI might call once per account)
+    for (const tc of toolCalls) {
+      if (tc.function?.arguments) {
+        try {
+          const args = JSON.parse(tc.function.arguments);
+          
+          // Handle different response formats
+          if (Array.isArray(args)) {
+            // Direct array of accounts
+            allAccounts.push(...args);
+          } else if (args.accounts && Array.isArray(args.accounts)) {
+            // Standard format with accounts array
+            allAccounts.push(...args.accounts);
+            // Capture metadata from first valid response
+            if (!parsedArgs?.metadata && args.metadata) {
+              parsedArgs = { accounts: [], metadata: args.metadata };
+            }
+          } else if (args.code) {
+            // Single account object
+            allAccounts.push(args);
+          }
+        } catch (e) {
+          console.error('Failed to parse tool call arguments:', e);
+        }
       }
     }
     
+    if (allAccounts.length > 0) {
+      parsedArgs = { 
+        accounts: allAccounts, 
+        metadata: parsedArgs?.metadata 
+      };
+    }
+    
     // Fallback: try to extract JSON from text content if tool call failed
-    if (!parsedArgs) {
+    if (!parsedArgs || parsedArgs.accounts.length === 0) {
       const textContent = data.choices?.[0]?.message?.content;
       if (textContent) {
-        console.log('Tool call failed, trying to parse text content as JSON');
+        console.log('Tool calls empty or failed, trying to parse text content as JSON');
         try {
-          // Try to find JSON in the response
+          // Try to find JSON array or object with accounts in the response
           const jsonMatch = textContent.match(/\{[\s\S]*"accounts"[\s\S]*\}/);
           if (jsonMatch) {
-            parsedArgs = JSON.parse(jsonMatch[0]);
+            const parsed = JSON.parse(jsonMatch[0]);
+            if (parsed.accounts) {
+              parsedArgs = parsed;
+            }
+          } else {
+            // Try to find a direct array
+            const arrayMatch = textContent.match(/\[[\s\S]*\]/);
+            if (arrayMatch) {
+              const parsed = JSON.parse(arrayMatch[0]);
+              if (Array.isArray(parsed) && parsed.length > 0 && parsed[0].code) {
+                parsedArgs = { accounts: parsed };
+              }
+            }
           }
         } catch (e) {
           console.error('Failed to parse text content as JSON:', e);
@@ -523,7 +561,7 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
       }
     }
     
-    if (!parsedArgs || !parsedArgs.accounts) {
+    if (!parsedArgs || !parsedArgs.accounts || parsedArgs.accounts.length === 0) {
       console.error('Could not extract accounts from AI response:', JSON.stringify(data));
       return {
         accounts: [],
@@ -533,7 +571,9 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
         warnings: ['AI yanıtı beklenmedik formatta. Lütfen Excel formatını kullanın.'],
       };
     }
-    const aiAccounts = parsedArgs.accounts || [];
+    
+    console.log(`Successfully extracted ${parsedArgs.accounts.length} accounts from AI response`);
+    const aiAccounts = parsedArgs.accounts;
 
     // Convert AI response to our format with sub-account support
     const accountAggregator: Record<string, IncomeStatementAccount> = {};
