@@ -1,286 +1,116 @@
 
-## Hibrit Finansal Veri Sistemi - Resmi Veri Önceliği ve Entegrasyonu
+## Kilitli Bilanço Denklik Farkı Sorunu
 
-### Mevcut Durum Analizi
+### Problem Analizi
 
-Sistemde iki tip veri kaynagi var:
+Veritabanındaki 2025 kilitli bilanço verilerini analiz ettim:
+
+| Alan | Değer |
+|------|-------|
+| `total_assets` (Kayıtlı) | 5,125,062 |
+| `total_liabilities` (Kayıtlı) | 6,343,250 |
+| **Denklik Farkı** | -1,218,188 |
+
+Bu fark ekranda görüntüleniyor ve hesaplama `useBalanceSheet.ts` satır 130'da yapılıyor:
+```typescript
+difference: yearlyBalance.total_assets - yearlyBalance.total_liabilities,
+```
+
+### Sorunun Kaynağı
+
+Sorun **veritabanındaki kayıtlı değerlerde**. PDF/Excel'den yüklenen bilançoda:
 
 ```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    VERİ KAYNAKLARI                              │
-├─────────────────────────────────────────────────────────────────┤
-│ 1. DİNAMİK VERİLER (Mevcut)                                    │
-│    - bank_transactions tablosundan gelir/gider                 │
-│    - receipts tablosundan faturalar                            │
-│    - payroll_accruals tablosundan bordro                       │
-│    → useFinancialDataHub, useIncomeStatement                   │
-├─────────────────────────────────────────────────────────────────┤
-│ 2. RESMİ VERİLER (Yeni - /finance/official-data)              │
-│    - yearly_income_statements (is_locked + source)             │
-│    - yearly_balance_sheets (is_locked)                         │
-│    - official_trial_balances (mizan)                           │
-│    → useOfficialIncomeStatement, useYearlyBalanceSheet         │
-└─────────────────────────────────────────────────────────────────┘
+Kayıtlı total_assets:      5,125,062
+Kayıtlı total_liabilities: 6,343,250
+Fark:                     -1,218,188
 ```
 
-### Hedef: Hibrit Veri Akışı
+Bu tutarsızlık şu nedenlerden kaynaklanıyor olabilir:
 
-**Koşul:** Resmi veri kilitliyse (is_locked = true), tüm raporlar ve sayfalar resmi verileri kullanacak.
+1. **Parse edilen PDF'deki orijinal denklik farkı**: Yüklenen dosyada zaten bu fark varsa, olduğu gibi kaydedilmiş
+2. **Kısmi hesap eksikliği**: raw_accounts verisinde bazı hesaplar parse edilememiş olabilir
+3. **Hesap kodu eşleştirme sorunu**: 131 (Ortaklardan Alacaklar), 331 (Ortaklara Borçlar) gibi hesapların yanlış eşleşmesi
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│                    VERİ AKIŞ HİYERARŞİSİ                        │
-├─────────────────────────────────────────────────────────────────┤
-│ Öncelik 1: Kilitli Resmi Veri (is_locked = true)               │
-│ Öncelik 2: Onaylanmış Yükleme (source = 'mizan_upload')        │
-│ Öncelik 3: Dinamik Hesaplama (bank_transactions + receipts)    │
-└─────────────────────────────────────────────────────────────────┘
-```
+### raw_accounts Verisi Analizi
 
----
+Veritabanındaki `raw_accounts` dizisinde şu hesaplar var:
 
-### 1. Yeni Merkezi Hibrit Hook: useHybridFinancialData
+**Aktif (Borç Bakiyeli):**
+- 100 Kasa: 33,118.55
+- 102 Bankalar: 68,194.77
+- 120 Alıcılar: 2,610,664.11
+- 190 Diğer KDV: 361.81
+- 191 İndirilecek KDV: 83,804.09
+- 254 Taşıtlar: 2,689,470.20
+- 255 Demirbaşlar: 362,880.04
+- 501 Ödenmemiş Sermaye: 100,000 (BORÇ - düşürücü)
+- 331 Ortaklara Borçlar: 257,862.53 (BORÇ bakiyeli - bu anormal!)
+- 591 Dönem Net Zararı: 1,025,196.63 (BORÇ)
 
-Tum finansal verileri tek bir noktadan yoneten, kilit durumunu kontrol eden merkezi hook:
+**Pasif (Alacak Bakiyeli):**
+- 257 Birikmiş Amortisman: 723,431.37
+- 300 Banka Kredileri: 941,494.81
+- 320 Satıcılar: 4,661,542.37
+- 335 Personele Borçlar: 66,314.01
+- 360 Ödenecek Vergi: 284,888.68
+- 361 Ödenecek SGK: 26,330.58
+- 368 Vadesi Geçmiş Vergi: 47,392.79
+- 391 Hesaplanan KDV: 30,578.94
+- 500 Sermaye: 100,000
+- 540 Yasal Yedekler: 17,478.96
+- 570 Geçmiş Yıllar Karları: 332,100.22
 
-**Dosya:** `src/hooks/finance/useHybridFinancialData.ts`
+### Tespit Edilen Problemler
+
+1. **partner_receivables (131 hesabı)**: 3,817,823 olarak kaydedilmiş ama `raw_accounts`'ta yok
+2. **331 Ortaklara Borçlar**: raw_accounts'ta 257,862.53 BORÇ bakiyeli (normalde ALACAK olmalı)
+3. **current_profit**: 1,091,168 kaydedilmiş ama raw_accounts'ta 591 hesabı -1,025,196.63 ZARAR gösteriyor
+
+### Çözüm Önerileri
+
+#### Seçenek 1: Hesap Yeniden Parse Et
+
+PDF'i tekrar yükleyip parse işlemini düzeltmek. Balance sheet parser'da şu hesapların kontrol edilmesi gerekiyor:
+- 131 Ortaklardan Alacaklar
+- 331 Ortaklara Borçlar (borç/alacak bakiye yönü)
+- 590/591 Dönem Karı/Zararı
+
+#### Seçenek 2: shortTermLiabilities.total Hesaplamasını Düzelt
+
+`useBalanceSheet.ts` satır 111-114'te `vat_payable` eksik:
 
 ```typescript
-export function useHybridFinancialData(year: number) {
-  // Resmi veri hook'lari
-  const { officialStatement, isLocked: isIncomeLocked } = useOfficialIncomeStatement(year);
-  const { yearlyBalance, isLocked: isBalanceLocked } = useYearlyBalanceSheet(year);
-  
-  // Dinamik veri hook'lari
-  const dynamicIncomeStatement = useIncomeStatement(year);
-  const dynamicHub = useFinancialDataHub(year);
-  
-  // Hibrit veri secimi
-  const incomeStatement = useMemo(() => {
-    if (isIncomeLocked && officialStatement) {
-      // Resmi verileri dinamik format'a donustur
-      return convertOfficialToStatement(officialStatement);
-    }
-    return dynamicIncomeStatement.statement;
-  }, [isIncomeLocked, officialStatement, dynamicIncomeStatement.statement]);
-  
-  return {
-    incomeStatement,
-    balanceSheet: isBalanceLocked ? yearlyBalance : dynamicHub.balanceData,
-    isOfficialData: isIncomeLocked || isBalanceLocked,
-    officialBadge: { income: isIncomeLocked, balance: isBalanceLocked },
-    // ... diger veriler
-  };
-}
+// Mevcut (HATALI):
+total: yearlyBalance.trade_payables + yearlyBalance.partner_payables + 
+       yearlyBalance.tax_payables + yearlyBalance.social_security_payables +
+       yearlyBalance.deferred_tax_liabilities + yearlyBalance.tax_provision +
+       yearlyBalance.personnel_payables + yearlyBalance.short_term_loan_debt,
+
+// Düzeltilmiş:
+total: yearlyBalance.trade_payables + yearlyBalance.partner_payables + 
+       yearlyBalance.tax_payables + yearlyBalance.social_security_payables +
+       yearlyBalance.deferred_tax_liabilities + yearlyBalance.tax_provision +
+       yearlyBalance.personnel_payables + yearlyBalance.short_term_loan_debt +
+       yearlyBalance.vat_payable,  // EKLENMELİ
 ```
 
----
+#### Seçenek 3: Kayıtlı Toplamları Kullan (Önerilen)
 
-### 2. Etkilenen Sayfalar ve Hook Guncellemeleri
+Kilitli veri için alt hesapları yeniden toplamak yerine, kaydedilmiş `total_assets` ve `total_liabilities` değerlerini olduğu gibi kullanmak ve UI'da tutarsızlık varsa uyarı göstermek.
 
-| Sayfa/Hook | Mevcut Veri Kaynagi | Guncellenecek | Islem |
-|------------|---------------------|---------------|-------|
-| `/finance` (Dashboard) | useFinancialCalculations | Evet | Hibrit hook kullan |
-| `/finance/reports` | useIncomeStatement | Evet | Hibrit hook kullan |
-| `/finance/balance-sheet` | useBalanceSheet | Zaten is_locked kontrolu var | Kontrol et |
-| `/finance/simulation` | useGrowthSimulation | Evet | Baz yil verisi hibrit olacak |
-| `/finance/cost-center` | useCostCenterAnalysis | Hayir | Dinamik kalabilir |
-| `/finance/vat-report` | useVatCalculations | Hayir | Dinamik kalabilir (KDV farkli) |
+Mevcut kod zaten bunu yapıyor - sorun orijinal verideki tutarsızlık.
 
 ---
 
-### 3. useIncomeStatement Hook Guncellemesi
+### Önerilen Düzeltmeler
 
-Mevcut hook dinamik hesaplama yapiyor. Yeni versiyon:
+| Dosya | Değişiklik |
+|-------|-----------|
+| `src/hooks/finance/useBalanceSheet.ts` | shortTermLiabilities.total hesaplamasına `vat_payable` ekle |
+| Balance Sheet Parser | 131/331/590/591 hesap eşleştirmelerini düzelt |
+| UI | Kilitli veride bile tutarsızlık varsa "Orijinal veride denklik farkı var" uyarısı göster |
 
-```typescript
-export function useIncomeStatement(year: number) {
-  const { officialStatement, isLocked } = useOfficialIncomeStatement(year);
-  const hub = useFinancialDataHub(year);
-  const { summary: payrollSummary } = usePayrollAccruals(year);
+### Kısa Vadeli Çözüm
 
-  const statement = useMemo((): IncomeStatementData => {
-    // RESMI VERI ONCELIK!
-    if (isLocked && officialStatement) {
-      return {
-        grossSales: {
-          yurtici: officialStatement.gross_sales_domestic || 0,
-          yurtdisi: officialStatement.gross_sales_export || 0,
-          diger: officialStatement.gross_sales_other || 0,
-          total: (officialStatement.gross_sales_domestic || 0) + 
-                 (officialStatement.gross_sales_export || 0) + 
-                 (officialStatement.gross_sales_other || 0),
-          // Legacy alanlar
-          sbt: 0, ls: 0, zdhc: 0, danis: 0,
-        },
-        salesReturns: officialStatement.sales_returns || 0,
-        netSales: officialStatement.net_sales || 0,
-        costOfSales: (officialStatement.cost_of_goods_sold || 0) + 
-                     (officialStatement.cost_of_merchandise_sold || 0) + 
-                     (officialStatement.cost_of_services_sold || 0),
-        grossProfit: officialStatement.gross_profit || 0,
-        operatingExpenses: {
-          pazarlama: officialStatement.marketing_expenses || 0,
-          genelYonetim: officialStatement.general_admin_expenses || 0,
-          total: (officialStatement.rd_expenses || 0) + 
-                 (officialStatement.marketing_expenses || 0) + 
-                 (officialStatement.general_admin_expenses || 0),
-          // Alt kategoriler bos
-          personel: 0, kira: 0, ulasim: 0, telekom: 0, 
-          sigorta: 0, ofis: 0, muhasebe: 0, yazilim: 0, banka: 0, diger: 0,
-        },
-        operatingProfit: officialStatement.operating_profit || 0,
-        // ... diger alanlar
-        netProfit: officialStatement.net_profit || 0,
-        profitMargin: officialStatement.net_sales > 0 
-          ? (officialStatement.net_profit / officialStatement.net_sales) * 100 
-          : 0,
-      };
-    }
-    
-    // Dinamik hesaplama (mevcut kod)
-    // ...
-  }, [isLocked, officialStatement, hub, payrollSummary]);
-
-  return {
-    statement,
-    isLoading: hub.isLoading,
-    isOfficial: isLocked, // UI'da badge gostermek icin
-  };
-}
-```
-
----
-
-### 4. useGrowthSimulation Baz Yil Verisi Guncellemesi
-
-Simulasyon, baz yil (targetYear - 1) verilerini resmi kaynaklardan almali:
-
-```typescript
-// Gercek baz yil verilerini veritabanindan cek
-const actualBaseYear = targetYear - 1;
-const { statement: baseYearStatement, isOfficial } = useIncomeStatement(actualBaseYear);
-
-// Summary hesaplamasinda resmi veri kullan
-const realBaseData = useMemo(() => {
-  if (!baseYearStatement) return null;
-  
-  const stmt = baseYearStatement;
-  const totalExpenseTRY = (stmt.costOfSales || 0) + (stmt.operatingExpenses?.total || 0);
-  const totalRevenueTRY = stmt.netSales || 0;
-  
-  // Kur donusumu
-  const baseYearRate = baseYearExchangeRates.yearlyAverageRate;
-  
-  return {
-    totalExpenseUSD: Math.round(totalExpenseTRY / baseYearRate),
-    totalRevenueUSD: Math.round(totalRevenueTRY / baseYearRate),
-    isOfficial, // UI'da badge goster
-  };
-}, [baseYearStatement, isOfficial, baseYearExchangeRates]);
-```
-
----
-
-### 5. OfficialData Sayfasina Kilit Ozelliği Ekleme
-
-Her sekmeye kilitleme/kilidi acma butonu:
-
-```typescript
-// Gelir Tablosu sekmesi
-<TabsContent value="income">
-  <div className="flex justify-between items-center mb-4">
-    <h3>Gelir Tablosu</h3>
-    {existingData && (
-      <Button
-        variant={isIncomeLocked ? "destructive" : "default"}
-        size="sm"
-        onClick={() => isIncomeLocked ? unlockStatement() : lockStatement()}
-      >
-        <Lock className="h-4 w-4 mr-2" />
-        {isIncomeLocked ? 'Kilidi Aç' : 'Kilitle (Resmi)'}
-      </Button>
-    )}
-  </div>
-  {/* Uploader veya Form */}
-</TabsContent>
-```
-
----
-
-### 6. UI'da "Resmi Veri" Badge'i Gosterme
-
-Tum finansal sayfalarda resmi veri kullanildiginda badge goster:
-
-```typescript
-// FinanceDashboard, Reports, BalanceSheet sayfalarinda
-{isOfficial && (
-  <Badge variant="default" className="bg-green-600">
-    <Shield className="h-3 w-3 mr-1" />
-    Resmi Veri
-  </Badge>
-)}
-```
-
----
-
-### 7. Route Navigasyonu Kontrolu
-
-Dashboard'dan resmi veri sayfasina yonlendirme zaten mevcut:
-
-```typescript
-<Link to="/finance/official-data">
-  <Card className="border-green-500/50">
-    <Shield className="h-5 w-5 text-green-600" />
-    <span>Resmi</span>
-  </Card>
-</Link>
-```
-
----
-
-### Degistirilecek Dosyalar
-
-| Dosya | Degisiklik Turu | Oncelik |
-|-------|-----------------|---------|
-| `src/hooks/finance/useIncomeStatement.ts` | Resmi veri onceligi ekle | Yuksek |
-| `src/hooks/finance/useBalanceSheet.ts` | Mevcut is_locked kontrolunu dogrula | Orta |
-| `src/hooks/finance/useGrowthSimulation.ts` | Baz yil verisini hibrit yap | Yuksek |
-| `src/hooks/finance/useFinancialCalculations.ts` | Hibrit veri desteği | Orta |
-| `src/pages/finance/OfficialData.tsx` | Kilit butonlari ekle | Yuksek |
-| `src/pages/finance/FinanceDashboard.tsx` | Resmi veri badge'i | Dusuk |
-| `src/pages/finance/Reports.tsx` | Resmi veri badge'i | Dusuk |
-| `src/components/finance/OfficialIncomeStatementForm.tsx` | Kilit butonu | Orta |
-| `src/components/finance/OfficialBalanceSheetForm.tsx` | Kilit butonu | Orta |
-
----
-
-### Teknik Detaylar
-
-**Veritabani Kontrolu:**
-- `yearly_income_statements.is_locked` - Gelir tablosu kilidi
-- `yearly_balance_sheets.is_locked` - Bilanco kilidi
-- Her iki tabloda da `source` alani mevcut ('manual', 'mizan_upload', 'file_upload')
-
-**Mevcut Kilit Mekanizmasi:**
-- `useOfficialIncomeStatement` hook'unda `lockStatement()` ve `unlockStatement()` fonksiyonlari mevcut
-- `useYearlyBalanceSheet` hook'unda `lockBalance(true/false)` fonksiyonu mevcut
-
-**Eksik Olan:**
-- `useIncomeStatement` hook'u resmi verileri kontrol etmiyor
-- `useGrowthSimulation` baz yil icin resmi verileri kullanmiyor
-- UI'da kilit durumu gosterilmiyor
-
----
-
-### Beklenen Sonuc
-
-| Senaryo | Onceki | Sonraki |
-|---------|--------|---------|
-| Resmi gelir tablosu kilitli | Dinamik veri | Resmi veri |
-| Resmi bilanco kilitli | Zaten calisiyor | Kontrol edildi |
-| Simulasyon baz yili | Dinamik | Resmi varsa resmi |
-| Dashboard ozet | Dinamik | Resmi varsa resmi |
-| Reports sayfasi | Dinamik | Resmi varsa resmi |
-| UI'da gosterim | Belirsiz | "Resmi Veri" badge'i |
-
+En hızlı çözüm olarak `useBalanceSheet.ts`'deki eksik `vat_payable` alanını eklemek ve kısa vadeli borçlar toplamını düzeltmek. Ancak asıl sorun orijinal veritabanı kaydındaki tutarsızlık - bu, ya manuel düzeltme ya da dosyanın yeniden yüklenmesiyle çözülebilir.
