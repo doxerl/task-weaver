@@ -183,24 +183,41 @@ export function useIncomeStatementUpload(year: number) {
       // Calculate totals
       const totals = calculateStatementTotals(formData);
 
+      // Check if record exists - like balance sheet pattern
+      const { data: existing } = await supabase
+        .from('yearly_income_statements')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('year', year)
+        .maybeSingle();
+
+      // Convert accounts to JSON-compatible format
+      const rawAccountsJson = JSON.parse(JSON.stringify(uploadState.accounts));
+
       const payload = {
         ...formData,
         ...totals,
         user_id: userId,
         year,
         source: 'mizan_upload',
-        file_name: uploadState.fileName, // Save file name
-        raw_accounts: uploadState.accounts, // Save raw accounts for preview
+        file_name: uploadState.fileName,
+        raw_accounts: rawAccountsJson, // JSONB - serialized
         updated_at: new Date().toISOString(),
       };
 
-      const { error } = await supabase
-        .from('yearly_income_statements')
-        .upsert(payload as any, { onConflict: 'user_id,year' })
-        .select()
-        .single();
-
-      if (error) throw error;
+      // UPDATE or INSERT - like balance sheet pattern
+      if (existing?.id) {
+        const { error } = await supabase
+          .from('yearly_income_statements')
+          .update(payload)
+          .eq('id', existing.id);
+        if (error) throw error;
+      } else {
+        const { error } = await supabase
+          .from('yearly_income_statements')
+          .insert(payload);
+        if (error) throw error;
+      }
 
       // Update state to approved
       setUploadState(prev => prev ? { ...prev, isApproved: true } : null);
@@ -231,7 +248,12 @@ export function useIncomeStatementUpload(year: number) {
       // Clear the file info from database
       await supabase
         .from('yearly_income_statements')
-        .update({ source: 'manual', file_name: null, file_url: null })
+        .update({ 
+          source: 'manual', 
+          file_name: null, 
+          file_url: null,
+          raw_accounts: null 
+        })
         .eq('user_id', userId)
         .eq('year', year);
       
