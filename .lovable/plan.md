@@ -1,133 +1,100 @@
 
-
-## Bilanço Yükleme State Korunma Sorunu Düzeltme
+## Gelir Tablosu Önizleme Düzeltme Planı
 
 ### Problem Özeti
 
-Kullanıcı bilanço dosyasını yükleyip parse ettikten sonra sekme değiştirdiğinde (örn. "Gelir Tablosu" sekmesine geçip geri geldiğinde), yüklenen veriler kayboluyor. Bunun nedeni:
+Gelir tablosu önizleme dialogu açıldığında tablo boş görünüyor çünkü:
 
-1. **React Component Unmount**: Radix UI Tabs, aktif olmayan sekmelerin içeriğini DOM'dan kaldırır
-2. **Local State Kaybı**: Hook'taki `uploadResult`, `fileName`, `fileUrl` state'leri component unmount olunca sıfırlanır
-3. **Veritabanı Senkronizasyonu Yok**: Parse sonucu henüz veritabanına kaydedilmeden sekme değişince kaybolur
+| Sorun | Detay |
+|-------|-------|
+| Eksik Kolon | `yearly_income_statements` tablosunda `raw_accounts` kolonu yok |
+| Veri Kaybı | Parse edilen hesaplar veritabanına kaydedilmiyor |
+| Önizleme Boş | Veritabanından geri yüklendiğinde `accounts: []` set ediliyor |
 
----
-
-### Çözüm Yaklaşımları
-
-İki yaklaşım var, ben **Yaklaşım 2**'yi öneriyorum:
-
-#### Yaklaşım 1: Tabs'ı `forceMount` ile Kullanma
-- Tüm sekmeleri her zaman render etmek (ama gizli tutmak)
-- Dezavantaj: Gereksiz render ve performans maliyeti
-
-#### Yaklaşım 2: State'i Parent'a Taşıma (Önerilen)
-- Parse sonucunu `OfficialData` sayfasında tutma
-- Component unmount olsa bile state korunur
-- Daha temiz ve performanslı
+Bilanço için aynı işlem düzgün çalışıyor çünkü `yearly_balance_sheets` tablosunda `raw_accounts` kolonu mevcut.
 
 ---
 
-### Çözüm Detayları
+### Çözüm 1: Veritabanı Migration
 
-#### 1. OfficialData Sayfasında State Tutma
-
-`src/pages/finance/OfficialData.tsx`:
-
-```typescript
-// Bilanço upload state'i parent'ta tut
-const [balanceUploadResult, setBalanceUploadResult] = useState<BalanceSheetUploadResult | null>(null);
-const [balanceFileName, setBalanceFileName] = useState<string | null>(null);
-const [balanceFileUrl, setBalanceFileUrl] = useState<string | null>(null);
-
-// BalanceSheetUploader'a prop olarak geçir
-<BalanceSheetUploader 
-  year={selectedYear}
-  externalState={{
-    uploadResult: balanceUploadResult,
-    setUploadResult: setBalanceUploadResult,
-    fileName: balanceFileName,
-    setFileName: setBalanceFileName,
-    fileUrl: balanceFileUrl,
-    setFileUrl: setBalanceFileUrl,
-  }}
-/>
+```sql
+ALTER TABLE yearly_income_statements
+ADD COLUMN IF NOT EXISTS raw_accounts JSONB DEFAULT NULL;
 ```
 
-#### 2. Hook'u Dış State'i Kabul Edecek Şekilde Güncelleme
+Bu kolon parse edilen hesapları JSON olarak saklayacak.
 
-`src/hooks/finance/useBalanceSheetUpload.ts`:
+---
+
+### Çözüm 2: Hook Güncellemesi
+
+`src/hooks/finance/useIncomeStatementUpload.ts` dosyasında değişiklikler:
+
+#### 2a. Query'ye `raw_accounts` ekle
 
 ```typescript
-interface ExternalState {
-  uploadResult: BalanceSheetUploadResult | null;
-  setUploadResult: (result: BalanceSheetUploadResult | null) => void;
-  fileName: string | null;
-  setFileName: (name: string | null) => void;
-  fileUrl: string | null;
-  setFileUrl: (url: string | null) => void;
-}
-
-export function useBalanceSheetUpload(year: number, externalState?: ExternalState) {
-  // Dış state varsa onu kullan, yoksa internal state kullan
-  const [internalUploadResult, setInternalUploadResult] = useState<BalanceSheetUploadResult | null>(null);
-  const [internalFileName, setInternalFileName] = useState<string | null>(null);
-  const [internalFileUrl, setInternalFileUrl] = useState<string | null>(null);
-
-  // State seçimi
-  const uploadResult = externalState?.uploadResult ?? internalUploadResult;
-  const setUploadResult = externalState?.setUploadResult ?? setInternalUploadResult;
-  const fileName = externalState?.fileName ?? internalFileName;
-  const setFileName = externalState?.setFileName ?? setInternalFileName;
-  const fileUrl = externalState?.fileUrl ?? internalFileUrl;
-  const setFileUrl = externalState?.setFileUrl ?? setInternalFileUrl;
-  
-  // ... rest of the hook uses these unified state variables
-}
+const { data: existingData } = useQuery({
+  queryKey: ['income-statement-upload', year, userId],
+  queryFn: async () => {
+    if (!userId) return null;
+    const { data } = await supabase
+      .from('yearly_income_statements')
+      .select('source, file_url, file_name, net_sales, gross_profit, operating_profit, raw_accounts')
+      .eq('user_id', userId)
+      .eq('year', year)
+      .maybeSingle();
+    return data;
+  },
+  enabled: !!userId,
+});
 ```
 
-#### 3. BalanceSheetUploader Component'i Güncelleme
-
-`src/components/finance/BalanceSheetUploader.tsx`:
+#### 2b. useEffect'te raw_accounts'ı kullan
 
 ```typescript
-interface BalanceSheetUploaderProps {
-  year: number;
-  externalState?: {
-    uploadResult: BalanceSheetUploadResult | null;
-    setUploadResult: (result: BalanceSheetUploadResult | null) => void;
-    fileName: string | null;
-    setFileName: (name: string | null) => void;
-    fileUrl: string | null;
-    setFileUrl: (url: string | null) => void;
-  };
-}
+useEffect(() => {
+  if (existingData?.source === 'mizan_upload' && existingData.file_name) {
+    // raw_accounts varsa önizleme için kullan
+    const accounts = existingData.raw_accounts 
+      ? (existingData.raw_accounts as unknown as IncomeStatementAccount[])
+      : [];
+    
+    setUploadState({
+      fileName: existingData.file_name,
+      accounts, // Artık boş değil!
+      mappedData: {},
+      warnings: [],
+      isApproved: true,
+      savedSummary: {
+        netSales: existingData.net_sales || 0,
+        grossProfit: existingData.gross_profit || 0,
+        operatingProfit: existingData.operating_profit || 0,
+      },
+    });
+  }
+}, [existingData]);
+```
 
-export function BalanceSheetUploader({ year, externalState }: BalanceSheetUploaderProps) {
-  // Hook'a external state'i geçir
-  const {
-    uploadBalanceSheet,
-    approveAndSave,
-    // ...
-  } = useBalanceSheetUpload(year, externalState);
+#### 2c. Kaydetme sırasında raw_accounts'ı ekle
+
+```typescript
+const approveIncomeStatement = useCallback(async () => {
   // ...
-}
+  
+  const payload = {
+    ...formData,
+    ...totals,
+    user_id: userId,
+    year,
+    source: 'mizan_upload',
+    file_name: uploadState.fileName,
+    raw_accounts: JSON.stringify(uploadState.accounts), // YENİ
+    updated_at: new Date().toISOString(),
+  };
+  
+  // ...
+}, [userId, uploadState, year, queryClient]);
 ```
-
----
-
-### Alternatif Basit Çözüm: Tabs forceMount
-
-Eğer yukarıdaki çözüm çok karmaşık gelirse, daha basit bir çözüm:
-
-`src/pages/finance/OfficialData.tsx`:
-
-```typescript
-<TabsContent value="balance" className="mt-6" forceMount hidden={activeTab !== 'balance'}>
-  {/* ... */}
-</TabsContent>
-```
-
-Bu yöntemle component her zaman mount kalır, sadece CSS ile gizlenir.
 
 ---
 
@@ -135,26 +102,8 @@ Bu yöntemle component her zaman mount kalır, sadece CSS ile gizlenir.
 
 | Dosya | Değişiklik |
 |-------|-----------|
-| `src/pages/finance/OfficialData.tsx` | State'i parent'a taşı veya forceMount ekle |
-| `src/hooks/finance/useBalanceSheetUpload.ts` | External state desteği ekle |
-| `src/components/finance/BalanceSheetUploader.tsx` | Props ile external state kabul et |
-
----
-
-### Önerilen Çözüm
-
-**Basit çözüm için `forceMount` öneriyorum** - hızlı ve etkili. Tek satır değişiklik:
-
-```tsx
-<TabsContent value="balance" className="mt-6" forceMount hidden={activeTab !== 'balance'}>
-```
-
-Bu değişiklik ile:
-- Component unmount olmaz
-- State korunur
-- Minimum kod değişikliği gerekir
-
-Aynı değişiklik `income` sekmesi için de yapılabilir.
+| Veritabanı Migration | `raw_accounts JSONB` kolonu ekle |
+| `src/hooks/finance/useIncomeStatementUpload.ts` | raw_accounts kaydet ve yükle |
 
 ---
 
@@ -162,7 +111,22 @@ Aynı değişiklik `income` sekmesi için de yapılabilir.
 
 | Senaryo | Önceki | Sonraki |
 |---------|--------|---------|
-| Dosya yükle → Sekme değiştir → Geri gel | Veri kaybolur | Veri korunur |
-| Parse sonucu | Sıfırlanır | State'te kalır |
-| Kullanıcı deneyimi | Frustrasyonlu | Sorunsuz |
+| Önizleme açıldığında | Boş tablo | Hesaplar görünür |
+| Sekme değişince | Veri kaybolur | Veri korunur |
+| Sayfa yenilenince | Veri kaybolur | Veritabanından yüklenir |
 
+---
+
+### Teknik Detaylar
+
+Bilanço yüklemede aynı pattern kullanılıyor ve düzgün çalışıyor:
+
+```typescript
+// useBalanceSheetUpload.ts (ÇALIŞAN)
+.select('source, file_name, file_url, raw_accounts, is_locked, total_assets, total_liabilities')
+
+// Kaydetme:
+raw_accounts: rawAccountsJson,
+```
+
+Aynı pattern gelir tablosu için de uygulanacak.
