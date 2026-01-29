@@ -1,109 +1,179 @@
 
-## Gelir Tablosu Önizleme Düzeltme Planı
 
-### Problem Özeti
+## Gelir Tablosu Parse ve Kaydetme Sorunu Düzeltme
 
-Gelir tablosu önizleme dialogu açıldığında tablo boş görünüyor çünkü:
+### Problem Analizi
 
-| Sorun | Detay |
-|-------|-------|
-| Eksik Kolon | `yearly_income_statements` tablosunda `raw_accounts` kolonu yok |
-| Veri Kaybı | Parse edilen hesaplar veritabanına kaydedilmiyor |
-| Önizleme Boş | Veritabanından geri yüklendiğinde `accounts: []` set ediliyor |
+Veritabanı sorgusu ve network requestlerden tespit edilen sorunlar:
 
-Bilanço için aynı işlem düzgün çalışıyor çünkü `yearly_balance_sheets` tablosunda `raw_accounts` kolonu mevcut.
+| Alan | Mevcut Değer | Beklenen |
+|------|-------------|----------|
+| `source` | `"manual"` | `"mizan_upload"` |
+| `raw_accounts` | `null` | Parsed hesaplar |
+| `file_name` | `null` | Dosya adı |
 
----
-
-### Çözüm 1: Veritabanı Migration
-
-```sql
-ALTER TABLE yearly_income_statements
-ADD COLUMN IF NOT EXISTS raw_accounts JSONB DEFAULT NULL;
-```
-
-Bu kolon parse edilen hesapları JSON olarak saklayacak.
+**Temel Sorun:** `approveIncomeStatement` fonksiyonunda `upsert` çağrısı düzgün çalışmıyor. Bilanço hook'u (`useBalanceSheetUpload`) ise manuel olarak `existing` kontrolü yapıp `update` veya `insert` çağırıyor.
 
 ---
 
-### Çözüm 2: Hook Güncellemesi
+### Karşılaştırma: Bilanço vs Gelir Tablosu
 
-`src/hooks/finance/useIncomeStatementUpload.ts` dosyasında değişiklikler:
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│                    ÇALIŞAN (Bilanço)                           │
+├─────────────────────────────────────────────────────────────────┤
+│ 1. const { data: existing } = await supabase                   │
+│      .select('id')                                              │
+│      .eq('user_id', user.id)                                    │
+│      .eq('year', year)                                          │
+│      .maybeSingle();                                            │
+│                                                                 │
+│ 2. if (existing?.id) {                                          │
+│      await supabase.update(payload).eq('id', existing.id);     │
+│    } else {                                                     │
+│      await supabase.insert(payload);                            │
+│    }                                                            │
+└─────────────────────────────────────────────────────────────────┘
 
-#### 2a. Query'ye `raw_accounts` ekle
-
-```typescript
-const { data: existingData } = useQuery({
-  queryKey: ['income-statement-upload', year, userId],
-  queryFn: async () => {
-    if (!userId) return null;
-    const { data } = await supabase
-      .from('yearly_income_statements')
-      .select('source, file_url, file_name, net_sales, gross_profit, operating_profit, raw_accounts')
-      .eq('user_id', userId)
-      .eq('year', year)
-      .maybeSingle();
-    return data;
-  },
-  enabled: !!userId,
-});
+┌─────────────────────────────────────────────────────────────────┐
+│               ÇALIŞMAYAN (Gelir Tablosu)                        │
+├─────────────────────────────────────────────────────────────────┤
+│ await supabase                                                  │
+│   .upsert(payload, { onConflict: 'user_id,year' })             │
+│   .select()                                                     │
+│   .single();                                                    │
+│                                                                 │
+│ Problem: onConflict constraint tanımlı değilse veya             │
+│ payload'da tüm unique alanlar yoksa çalışmaz                   │
+└─────────────────────────────────────────────────────────────────┘
 ```
 
-#### 2b. useEffect'te raw_accounts'ı kullan
+---
 
-```typescript
-useEffect(() => {
-  if (existingData?.source === 'mizan_upload' && existingData.file_name) {
-    // raw_accounts varsa önizleme için kullan
-    const accounts = existingData.raw_accounts 
-      ? (existingData.raw_accounts as unknown as IncomeStatementAccount[])
-      : [];
-    
-    setUploadState({
-      fileName: existingData.file_name,
-      accounts, // Artık boş değil!
-      mappedData: {},
-      warnings: [],
-      isApproved: true,
-      savedSummary: {
-        netSales: existingData.net_sales || 0,
-        grossProfit: existingData.gross_profit || 0,
-        operatingProfit: existingData.operating_profit || 0,
-      },
-    });
-  }
-}, [existingData]);
-```
+### Çözüm 1: Hook'u Bilanço Gibi Güncelle
 
-#### 2c. Kaydetme sırasında raw_accounts'ı ekle
+`src/hooks/finance/useIncomeStatementUpload.ts` dosyasında `approveIncomeStatement` fonksiyonunu güncelle:
 
 ```typescript
 const approveIncomeStatement = useCallback(async () => {
-  // ...
-  
-  const payload = {
-    ...formData,
-    ...totals,
-    user_id: userId,
-    year,
-    source: 'mizan_upload',
-    file_name: uploadState.fileName,
-    raw_accounts: JSON.stringify(uploadState.accounts), // YENİ
-    updated_at: new Date().toISOString(),
-  };
-  
-  // ...
+  if (!userId || !uploadState) {
+    toast({
+      title: 'Hata',
+      description: 'Veri bulunamadı',
+      variant: 'destructive',
+    });
+    return;
+  }
+
+  setIsApproving(true);
+
+  try {
+    // Build the form data from mapped data
+    const formData: Partial<YearlyIncomeStatementFormData> = {
+      year,
+      source: 'mizan_upload',
+      ...uploadState.mappedData,
+    };
+
+    // Calculate totals
+    const totals = calculateStatementTotals(formData);
+
+    // Check if record exists - BİLANÇO GİBİ
+    const { data: existing } = await supabase
+      .from('yearly_income_statements')
+      .select('id')
+      .eq('user_id', userId)
+      .eq('year', year)
+      .maybeSingle();
+
+    const payload = {
+      ...formData,
+      ...totals,
+      user_id: userId,
+      year,
+      source: 'mizan_upload',
+      file_name: uploadState.fileName,
+      raw_accounts: uploadState.accounts, // JSONB - direkt array
+      updated_at: new Date().toISOString(),
+    };
+
+    // UPDATE veya INSERT - BİLANÇO GİBİ
+    if (existing?.id) {
+      const { error } = await supabase
+        .from('yearly_income_statements')
+        .update(payload)
+        .eq('id', existing.id);
+      if (error) throw error;
+    } else {
+      const { error } = await supabase
+        .from('yearly_income_statements')
+        .insert(payload);
+      if (error) throw error;
+    }
+
+    // Update state to approved
+    setUploadState(prev => prev ? { ...prev, isApproved: true } : null);
+
+    // Invalidate queries
+    queryClient.invalidateQueries({ queryKey: ['official-income-statement', year] });
+    queryClient.invalidateQueries({ queryKey: ['income-statement-upload', year, userId] });
+
+    toast({
+      title: 'Onaylandı',
+      description: `${year} yılı gelir tablosu verileri kaydedildi`,
+    });
+
+  } catch (error) {
+    console.error('Approve error:', error);
+    toast({
+      title: 'Hata',
+      description: error instanceof Error ? error.message : 'Veriler kaydedilemedi',
+      variant: 'destructive',
+    });
+  } finally {
+    setIsApproving(false);
+  }
 }, [userId, uploadState, year, queryClient]);
 ```
 
 ---
 
-### Değiştirilecek Dosyalar
+### Çözüm 2: `deleteUpload` da Güncelle
+
+Silme işleminde de `raw_accounts` null yapılmalı:
+
+```typescript
+const deleteUpload = useCallback(async () => {
+  if (uploadState?.isApproved && userId) {
+    await supabase
+      .from('yearly_income_statements')
+      .update({ 
+        source: 'manual', 
+        file_name: null, 
+        file_url: null,
+        raw_accounts: null  // EKLENMELİ
+      })
+      .eq('user_id', userId)
+      .eq('year', year);
+    
+    queryClient.invalidateQueries({ queryKey: ['income-statement-upload', year, userId] });
+  }
+  
+  setUploadState(null);
+  toast({
+    title: 'Silindi',
+    description: 'Yüklenen veriler silindi',
+  });
+}, [uploadState, userId, year, queryClient]);
+```
+
+---
+
+### Değiştirilecek Dosya
 
 | Dosya | Değişiklik |
 |-------|-----------|
-| Veritabanı Migration | `raw_accounts JSONB` kolonu ekle |
-| `src/hooks/finance/useIncomeStatementUpload.ts` | raw_accounts kaydet ve yükle |
+| `src/hooks/finance/useIncomeStatementUpload.ts` | `upsert` yerine `update/insert` pattern kullan |
 
 ---
 
@@ -111,22 +181,9 @@ const approveIncomeStatement = useCallback(async () => {
 
 | Senaryo | Önceki | Sonraki |
 |---------|--------|---------|
-| Önizleme açıldığında | Boş tablo | Hesaplar görünür |
-| Sekme değişince | Veri kaybolur | Veri korunur |
-| Sayfa yenilenince | Veri kaybolur | Veritabanından yüklenir |
+| "Onayla ve Aktar" tıklandığında | Kayıt güncellenmez | Kayıt güncellenir |
+| `source` değeri | `"manual"` kalır | `"mizan_upload"` olur |
+| `raw_accounts` | `null` | Parsed hesaplar |
+| Sayfa yenilenince | Boş görünür | Veriler yüklenir |
+| Önizleme | Boş tablo | Hesaplar görünür |
 
----
-
-### Teknik Detaylar
-
-Bilanço yüklemede aynı pattern kullanılıyor ve düzgün çalışıyor:
-
-```typescript
-// useBalanceSheetUpload.ts (ÇALIŞAN)
-.select('source, file_name, file_url, raw_accounts, is_locked, total_assets, total_liabilities')
-
-// Kaydetme:
-raw_accounts: rawAccountsJson,
-```
-
-Aynı pattern gelir tablosu için de uygulanacak.
