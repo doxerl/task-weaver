@@ -1099,8 +1099,15 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
       try {
         const analysisResult = JSON.parse(toolCall.function.arguments);
         console.log("Successfully parsed tool call arguments");
+        
+        // Add projection_year from scenarioRelationship to the response
+        const responseWithProjectionYear = {
+          ...analysisResult,
+          projection_year: scenarioRelationship.projectionYear
+        };
+        
         return new Response(
-          JSON.stringify(analysisResult),
+          JSON.stringify(responseWithProjectionYear),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (parseError) {
