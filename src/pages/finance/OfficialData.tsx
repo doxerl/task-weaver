@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { ArrowLeft, FileSpreadsheet, BarChart3, Shield, Calculator } from 'lucide-react';
 import { TrialBalanceUploader } from '@/components/finance/TrialBalanceUploader';
 import { OfficialIncomeStatementForm } from '@/components/finance/OfficialIncomeStatementForm';
+import { OfficialBalanceSheetForm } from '@/components/finance/OfficialBalanceSheetForm';
 import { useYear } from '@/contexts/YearContext';
 import { useOfficialIncomeStatement } from '@/hooks/finance/useOfficialIncomeStatement';
 
@@ -117,19 +118,7 @@ export default function OfficialData() {
           </TabsContent>
 
           <TabsContent value="balance" className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Bilanço Yönetimi</CardTitle>
-                <CardDescription>
-                  Bilanço verileri için mevcut Bilanço sayfasını kullanın
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Button onClick={() => navigate('/finance/balance-sheet')}>
-                  Bilanço Sayfasına Git
-                </Button>
-              </CardContent>
-            </Card>
+            <OfficialBalanceSheetForm year={selectedYear} />
           </TabsContent>
         </Tabs>
       </div>

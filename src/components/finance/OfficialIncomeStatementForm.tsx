@@ -29,7 +29,7 @@ export function OfficialIncomeStatementForm({ year }: OfficialIncomeStatementFor
 
   const [formData, setFormData] = useState<Partial<YearlyIncomeStatementFormData>>(emptyStatement);
 
-  // Initialize form with existing data
+  // Initialize form with existing data - emptyStatement is now stable via useMemo
   useEffect(() => {
     if (officialStatement) {
       setFormData(officialStatement);
