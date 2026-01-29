@@ -1160,10 +1160,19 @@ function ScenarioComparisonContent() {
   const handleCreateNextYear = async () => {
     if (!unifiedAnalysis?.next_year_projection || !scenarioA || !scenarioB) return;
     
-    // Pass both scenarios to correctly calculate max(A.targetYear, B.targetYear) + 1
-    const newScenario = await createNextYearFromAI(scenarioA, scenarioB, unifiedAnalysis.next_year_projection);
+    // Pass both scenarios + focusProjects for selective growth
+    // Only focus projects get growth multiplier, others stay static
+    const newScenario = await createNextYearFromAI(
+      scenarioA, 
+      scenarioB, 
+      unifiedAnalysis.next_year_projection,
+      focusProjects  // Seçili odak projeler - sadece bunlara büyüme uygulanır
+    );
     if (newScenario) {
-      toast.success(`${newScenario.targetYear} yılı senaryosu oluşturuldu!`);
+      const focusNote = focusProjects.length > 0 
+        ? ` (Odak: ${focusProjects.join(', ')})`
+        : '';
+      toast.success(`${newScenario.targetYear} yılı senaryosu oluşturuldu!${focusNote}`);
       navigate(`/finance/simulation?scenario=${newScenario.id}`);
     }
   };
