@@ -27,6 +27,7 @@ import CostCenterAnalysis from "./pages/finance/CostCenterAnalysis";
 import GrowthSimulation from "./pages/finance/GrowthSimulation";
 import ScenarioComparisonPage from "./pages/finance/ScenarioComparisonPage";
 import GrowthComparisonPage from "./pages/finance/GrowthComparisonPage";
+import OfficialData from "./pages/finance/OfficialData";
 
 const queryClient = new QueryClient();
 
@@ -60,6 +61,7 @@ const App = () => (
               <Route path="/finance/simulation" element={<ProtectedRoute><GrowthSimulation /></ProtectedRoute>} />
               <Route path="/finance/simulation/compare" element={<ProtectedRoute><ScenarioComparisonPage /></ProtectedRoute>} />
               <Route path="/finance/simulation/growth" element={<ProtectedRoute><GrowthComparisonPage /></ProtectedRoute>} />
+              <Route path="/finance/official-data" element={<ProtectedRoute><OfficialData /></ProtectedRoute>} />
               <Route path="*" element={<NotFound />} />
             </Routes>
             </BrowserRouter>
