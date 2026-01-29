@@ -1,4 +1,4 @@
-// Parse balance sheet PDF/Excel files using OpenAI
+// Parse balance sheet PDF/Excel files using Lovable AI Gateway (Gemini)
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -51,9 +51,9 @@ Deno.serve(async (req) => {
       new Uint8Array(arrayBuffer).reduce((data, byte) => data + String.fromCharCode(byte), '')
     );
 
-    const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openaiApiKey) {
-      throw new Error('OPENAI_API_KEY not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      throw new Error('LOVABLE_API_KEY not configured');
     }
 
     // Prepare content based on file type
@@ -63,26 +63,19 @@ Deno.serve(async (req) => {
                     file.name.toLowerCase().endsWith('.xlsx') || 
                     file.name.toLowerCase().endsWith('.xls');
 
-    let messages: any[] = [];
-    
-    if (isPDF) {
-      // For PDF, use vision model
-      messages = [
-        {
-          role: 'user',
-          content: [
-            {
-              type: 'image_url',
-              image_url: {
-                url: `data:application/pdf;base64,${base64Content}`,
-                detail: 'high'
-              }
-            },
-            {
-              type: 'text',
-              text: `Bu Türkiye Tekdüzen Hesap Planı'na göre hazırlanmış bir BİLANÇO (Balance Sheet) belgesidir.
+    // Determine MIME type for Gemini
+    let mimeType = 'application/pdf';
+    if (isExcel) {
+      if (file.name.toLowerCase().endsWith('.xlsx')) {
+        mimeType = 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet';
+      } else {
+        mimeType = 'application/vnd.ms-excel';
+      }
+    }
 
-Lütfen bu belgeden tüm bilanço hesaplarını çıkar:
+    const systemPrompt = `Sen bir Türk muhasebe uzmanısın. Bilanço belgelerini analiz edip hesap bilgilerini çıkarıyorsun.
+
+Türkiye Tekdüzen Hesap Planı'na göre bilanço hesaplarını parse et:
 
 1. AKTİF (VARLIKLAR) - 1xx ve 2xx kodları:
    - 1xx: Dönen Varlıklar (Kasa, Banka, Alacaklar, KDV, Stok vb.)
@@ -104,40 +97,43 @@ Her hesap için:
 Alt hesapları olan ana hesaplar için (örn: 320 Satıcılar altında 320.001 Firma A), subAccounts dizisi kullan.
 
 ÖNEMLİ: Aktif hesaplarda (1xx-2xx) değer genelde borç bakiyesinde, Pasif hesaplarda (3xx-5xx) alacak bakiyesinde olur.
-257 Birikmiş Amortisman ve 501 Ödenmemiş Sermaye negatif/düşürücü hesaplardır.`
+257 Birikmiş Amortisman ve 501 Ödenmemiş Sermaye negatif/düşürücü hesaplardır.`;
+
+    const messages = [
+      {
+        role: 'user',
+        content: [
+          {
+            type: 'file',
+            file: {
+              filename: file.name,
+              file_data: `data:${mimeType};base64,${base64Content}`
             }
-          ]
-        }
-      ];
-    } else if (isExcel) {
-      // For Excel, we need to send as text
-      messages = [
-        {
-          role: 'user',
-          content: `Bu bir Excel formatında BİLANÇO belgesidir. Base64 içeriği: ${base64Content.substring(0, 5000)}...
+          },
+          {
+            type: 'text',
+            text: 'Bu bilanço belgesindeki tüm hesapları parse_balance_sheet fonksiyonunu kullanarak çıkar.'
+          }
+        ]
+      }
+    ];
 
-Lütfen bu belgeden bilanço hesaplarını çıkar. Her hesap için code, name, debit, credit, debitBalance, creditBalance değerlerini ver.`
-        }
-      ];
-    } else {
-      return new Response(
-        JSON.stringify({ error: 'Desteklenmeyen dosya formatı. PDF veya Excel dosyası yükleyin.' }),
-        { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
-      );
-    }
+    console.log('Calling Lovable AI Gateway for balance sheet parsing...');
 
-    console.log('Calling OpenAI API for balance sheet parsing...');
-
-    // Call OpenAI API with function calling
-    const response = await fetch('https://api.openai.com/v1/chat/completions', {
+    // Call Lovable AI Gateway with Gemini
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openaiApiKey}`,
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
-        messages,
+        model: 'google/gemini-2.5-flash',
+        temperature: 0.1,
+        messages: [
+          { role: 'system', content: systemPrompt },
+          ...messages
+        ],
         max_tokens: 16000,
         tools: [
           {
@@ -185,19 +181,33 @@ Lütfen bu belgeden bilanço hesaplarını çıkar. Her hesap için code, name, 
               }
             }
           }
-        ],
-        tool_choice: { type: 'function', function: { name: 'parse_balance_sheet' } }
+        ]
       }),
     });
 
+    // Handle rate limits and errors
+    if (response.status === 429) {
+      return new Response(
+        JSON.stringify({ error: 'AI servisi şu an yoğun. Lütfen birkaç dakika sonra tekrar deneyin.' }),
+        { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
+    if (response.status === 402) {
+      return new Response(
+        JSON.stringify({ error: 'AI kredisi yetersiz. Lütfen hesabınıza kredi ekleyin.' }),
+        { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+      );
+    }
+
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', errorText);
-      throw new Error(`OpenAI API error: ${response.status} - ${errorText}`);
+      console.error('AI Gateway error:', errorText);
+      throw new Error(`AI Gateway error: ${response.status} - ${errorText}`);
     }
 
     const data = await response.json();
-    console.log('OpenAI response received, processing tool calls...');
+    console.log('AI response received, processing tool calls...');
 
     // Process tool calls - support multiple formats
     const toolCalls = data.choices?.[0]?.message?.tool_calls || [];
@@ -206,7 +216,9 @@ Lütfen bu belgeden bilanço hesaplarını çıkar. Her hesap için code, name, 
     for (const tc of toolCalls) {
       if (tc.function?.arguments) {
         try {
-          const args = JSON.parse(tc.function.arguments);
+          const args = typeof tc.function.arguments === 'string' 
+            ? JSON.parse(tc.function.arguments) 
+            : tc.function.arguments;
           
           // Handle different response formats
           if (Array.isArray(args)) {
@@ -253,7 +265,6 @@ Lütfen bu belgeden bilanço hesaplarını çıkar. Her hesap için code, name, 
     
     for (const account of allAccounts) {
       const code = account.code.split('.')[0];
-      const value = account.debitBalance - account.creditBalance;
       
       if (code.startsWith('1') || code.startsWith('2')) {
         // Assets - use debit balance (except 257 which is contra)
