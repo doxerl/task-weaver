@@ -88,10 +88,15 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
     return calculateInternalGrowthRate(baseRevenue, summaryA.totalRevenue, 0.10);
   }, [scenarioA.revenues, summaryA.totalRevenue]);
 
+  // Senaryo yılını hesapla - max(A.targetYear, B.targetYear)
+  const scenarioTargetYear = useMemo(() => {
+    return Math.max(scenarioA.targetYear || 2026, scenarioB.targetYear || 2026);
+  }, [scenarioA.targetYear, scenarioB.targetYear]);
+
   // Calculate exit plan - POZİTİF SENARYO (A) verileriyle
   const exitPlan = useMemo(() => {
-    return calculateExitPlan(dealConfig, summaryA.totalRevenue, summaryA.totalExpenses, growthRate);
-  }, [dealConfig, summaryA.totalRevenue, summaryA.totalExpenses, growthRate]);
+    return calculateExitPlan(dealConfig, summaryA.totalRevenue, summaryA.totalExpenses, growthRate, 'default', scenarioTargetYear);
+  }, [dealConfig, summaryA.totalRevenue, summaryA.totalExpenses, growthRate, scenarioTargetYear]);
 
   // Calculate runway data for chart - CORRECTED LOGIC
   // Yatırımlı = Pozitif Senaryo (A) + Yatırım ile başla
@@ -149,9 +154,10 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
         baseRevenue: baseRevenueB,
       },
       exitPlan,
-      dealConfig.sectorMultiple
+      dealConfig.sectorMultiple,
+      scenarioTargetYear
     );
-  }, [summaryA, summaryB, exitPlan, dealConfig.sectorMultiple, scenarioA.revenues, scenarioB.revenues]);
+  }, [summaryA, summaryB, exitPlan, dealConfig.sectorMultiple, scenarioA.revenues, scenarioB.revenues, scenarioTargetYear]);
 
   // Updated chart config - corrected labels
   const chartConfig: ChartConfig = {
@@ -302,10 +308,11 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
         comparison={scenarioComparison}
         scenarioAName={`${scenarioA.targetYear} ${scenarioA.name}`}
         scenarioBName={`${scenarioB.targetYear} ${scenarioB.name}`}
+        scenarioYear={scenarioTargetYear}
       />
 
       {/* 5 Year Future Impact Chart */}
-      <FutureImpactChart comparison={scenarioComparison} />
+      <FutureImpactChart comparison={scenarioComparison} scenarioYear={scenarioTargetYear} />
 
       {/* Capital Needs Comparison */}
       <div className="grid grid-cols-3 gap-4">

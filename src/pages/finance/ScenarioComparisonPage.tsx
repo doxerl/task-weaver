@@ -1066,12 +1066,17 @@ function ScenarioComparisonContent() {
     const projectedRevenue = summaryA.totalRevenue;
     const growthRate = calculateInternalGrowthRate(baseRevenue, projectedRevenue, 0.10);
     
+    // Senaryo yılını hesapla - max(A.targetYear, B.targetYear)
+    const scenarioTargetYear = Math.max(scenarioA.targetYear || 2026, scenarioB.targetYear || 2026);
+    
     // Exit Plan uses POSITIVE SCENARIO (A) data - this is what investors see
     const exitPlan = calculateExitPlan(
       dealConfig, 
       summaryA.totalRevenue,   // Positive scenario revenue
       summaryA.totalExpense,   // Positive scenario expenses
-      growthRate
+      growthRate,
+      'default',
+      scenarioTargetYear
     );
     
     // Prepare focus project info if projects are selected
