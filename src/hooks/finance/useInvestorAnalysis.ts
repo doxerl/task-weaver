@@ -15,7 +15,9 @@ import {
   ExtendedRunwayInfo,
   InvestmentTier,
   ValuationConfiguration,
-  ValuationBreakdown
+  ValuationBreakdown,
+  MultiYearCapitalPlan,
+  YearCapitalRequirement
 } from '@/types/simulation';
 import { toast } from 'sonner';
 import { generateScenarioHash, checkDataChanged } from '@/lib/scenarioHash';
@@ -160,6 +162,113 @@ export const calculateCapitalNeeds = (
     calculationBasis,
     extendedRunway,
     investmentTiers
+  };
+};
+
+// =====================================================
+// MULTI-YEAR CAPITAL NEEDS CALCULATION
+// =====================================================
+
+/**
+ * Calculate multi-year capital needs with year-dependent carry-forward logic.
+ * This function simulates quarterly cash flow for each year in the 5-year projection,
+ * calculating opening balance from previous year's ending cash.
+ */
+export const calculateMultiYearCapitalNeeds = (
+  exitPlan: ExitPlan,
+  year1Investment: number,      // 1. yıl alınan yatırım
+  year1NetProfit: number,       // 1. yıl net kar (senaryo net profit)
+  safetyMargin: number = 0.20   // Güvenlik marjı %
+): MultiYearCapitalPlan => {
+  const years: YearCapitalRequirement[] = [];
+  let carryForwardCash = year1NetProfit;  // Devir nakit
+  let totalRequiredInvestment = year1Investment;
+  let selfSustainingFromYear: number | null = null;
+  
+  // Revenue quarterly distribution (back-loaded)
+  const revenueQuarterlyRatios = { q1: 0.15, q2: 0.20, q3: 0.30, q4: 0.35 };
+  // Expense quarterly distribution (evenly distributed)
+  const expenseQuarterlyRatios = { q1: 0.25, q2: 0.25, q3: 0.25, q4: 0.25 };
+  
+  exitPlan.allYears?.forEach((yearProjection, index) => {
+    const year = yearProjection.actualYear;
+    const openingCash = index === 0 ? year1NetProfit : carryForwardCash;
+    
+    // Çeyreklik nakit akışı simülasyonu
+    const quarterlyRevenue = {
+      q1: yearProjection.revenue * revenueQuarterlyRatios.q1,
+      q2: yearProjection.revenue * revenueQuarterlyRatios.q2,
+      q3: yearProjection.revenue * revenueQuarterlyRatios.q3,
+      q4: yearProjection.revenue * revenueQuarterlyRatios.q4,
+    };
+    
+    const quarterlyExpense = {
+      q1: yearProjection.expenses * expenseQuarterlyRatios.q1,
+      q2: yearProjection.expenses * expenseQuarterlyRatios.q2,
+      q3: yearProjection.expenses * expenseQuarterlyRatios.q3,
+      q4: yearProjection.expenses * expenseQuarterlyRatios.q4,
+    };
+    
+    // Çeyreklik kümülatif nakit akışı
+    let cumulative = openingCash;
+    let peakDeficit = openingCash; // Start from opening
+    let peakDeficitQuarter = 'Q0';
+    const quarterlyDeficit = { q1: 0, q2: 0, q3: 0, q4: 0 };
+    
+    const quarters = ['q1', 'q2', 'q3', 'q4'] as const;
+    quarters.forEach((q, i) => {
+      const netFlow = quarterlyRevenue[q] - quarterlyExpense[q];
+      cumulative += netFlow;
+      
+      if (cumulative < peakDeficit) {
+        peakDeficit = cumulative;
+        peakDeficitQuarter = `Q${i + 1}`;
+      }
+      
+      quarterlyDeficit[q] = cumulative < 0 ? Math.abs(cumulative) : 0;
+    });
+    
+    // Bu yıl gereken ek sermaye
+    const requiredCapital = peakDeficit < 0 
+      ? Math.abs(peakDeficit) * (1 + safetyMargin)  // Güvenlik marjı ile
+      : 0;
+    
+    // Yıl sonu bakiye
+    const endingCash = openingCash + yearProjection.netProfit;
+    
+    // Kendi kendini finanse ediyor mu?
+    const isSelfSustaining = peakDeficit >= 0;
+    if (isSelfSustaining && selfSustainingFromYear === null) {
+      selfSustainingFromYear = year;
+    }
+    
+    years.push({
+      year,
+      openingCash,
+      projectedRevenue: yearProjection.revenue,
+      projectedExpenses: yearProjection.expenses,
+      projectedNetProfit: yearProjection.netProfit,
+      quarterlyDeficit,
+      peakDeficit,
+      peakDeficitQuarter: peakDeficitQuarter === 'Q0' ? 'N/A' : peakDeficitQuarter,
+      requiredCapital,
+      endingCash,
+      isSelfSustaining,
+      weightedValuation: yearProjection.valuations?.weighted || yearProjection.companyValuation,
+    });
+    
+    // Bir sonraki yıla devir (yıl sonu bakiyesi + gerekli ek sermaye)
+    carryForwardCash = endingCash + requiredCapital;
+    if (requiredCapital > 0) {
+      totalRequiredInvestment += requiredCapital;
+    }
+  });
+  
+  return {
+    years,
+    totalRequiredInvestment,
+    cumulativeEndingCash: carryForwardCash,
+    selfSustainingFromYear,
   };
 };
 
