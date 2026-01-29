@@ -1,207 +1,176 @@
 
 
-## Resmi Gelir Tablosu ve Bilanço Yükleme Sorunu - Düzeltme Planı
+## Gelir Tablosu Sekmesine Dosya Yükleme + AI Parsing Ekleme
 
-### Tespit Edilen Sorunlar
+### Mevcut Durum
 
-#### 1. "Maximum update depth exceeded" Hatası
-**Dosya:** `src/components/finance/OfficialIncomeStatementForm.tsx`
+| Sekme | Mevcut Özellikler |
+|-------|-------------------|
+| **Mizan** | Dosya yükleme + AI parsing + önizleme + onaylama |
+| **Gelir Tablosu** | Sadece manuel form (dosya yükleme yok) |
+| **Bilanço** | Sadece manuel form |
 
-**Sorun:** `useEffect` dependency array'indeki `emptyStatement` her render'da yeni bir obje oluşturuyor ve bu sonsuz döngüye neden oluyor.
+### Hedef
 
-```typescript
-// SORUNLU KOD (satır 33-39)
-useEffect(() => {
-  if (officialStatement) {
-    setFormData(officialStatement);
-  } else {
-    setFormData(emptyStatement);  // emptyStatement her render'da yeni obje
-  }
-}, [officialStatement, emptyStatement]);  // ← Sonsuz döngü!
-```
-
-#### 2. Bilanço Sekmesi Eksik Form
-**Dosya:** `src/pages/finance/OfficialData.tsx`
-
-**Sorun:** "Bilanço" sekmesi (satır 119-133) sadece `/finance/balance-sheet` sayfasına yönlendirme butonu içeriyor. Resmi bilanço verisi girişi için ayrı bir form yok.
+Gelir Tablosu sekmesini Mizan sekmesi gibi yapılandırarak:
+- Excel/PDF dosya yükleme
+- AI ile 6xx hesap kodlarını parse etme
+- Önizleme tablosu ile kontrol
+- "Onayla ve Aktar" ile verileri kaydetme
 
 ---
 
-### Çözüm Planı
-
-#### 1. useOfficialIncomeStatement Hook Düzeltmesi
-**Dosya:** `src/hooks/finance/useOfficialIncomeStatement.ts`
-
-`emptyStatement`'ı `useMemo` ile sabit tutarak referans değişimini önle:
-
-```typescript
-// MEVCUT (satır 211)
-emptyStatement: getEmptyStatement(year),
-
-// YENİ
-const emptyStatement = useMemo(() => getEmptyStatement(year), [year]);
-// ...
-return { ..., emptyStatement };
-```
-
-#### 2. OfficialIncomeStatementForm useEffect Düzeltmesi
-**Dosya:** `src/components/finance/OfficialIncomeStatementForm.tsx`
-
-Dependency array'i düzelt ve referans karşılaştırması kullan:
-
-```typescript
-// Referans karşılaştırması için stringify kullan veya emptyStatement'ı kaldır
-useEffect(() => {
-  if (officialStatement) {
-    setFormData(officialStatement);
-  } else {
-    setFormData(emptyStatement);
-  }
-}, [officialStatement]); // emptyStatement kaldırıldı - artık useMemo ile stabil
-```
-
-#### 3. Yeni Bileşen: OfficialBalanceSheetForm
-**Dosya:** `src/components/finance/OfficialBalanceSheetForm.tsx` (YENİ)
-
-Resmi bilanço verisi girişi için form bileşeni:
+### Kullanıcı Arayüzü Tasarımı
 
 ```
-┌─────────────────────────────────────────────────────────┐
-│ 2025 Yılı Resmi Bilanço                      [Kaydet]  │
-│ Tekdüzen hesap planına göre bilanço verilerini girin   │
-├─────────────────────────────────────────────────────────┤
-│                                                         │
-│ DÖNEN VARLIKLAR (1xx)                                   │
-│ ─────────────────────────────────────────────           │
-│ 100  Kasa                            [____________] ₺   │
-│ 102  Bankalar                        [____________] ₺   │
-│ 120  Alıcılar                        [____________] ₺   │
-│ 190  Devreden KDV                    [____________] ₺   │
-│                                                         │
-│ DURAN VARLIKLAR (2xx)                                   │
-│ ─────────────────────────────────────────────           │
-│ 254  Taşıtlar                        [____________] ₺   │
-│ 255  Demirbaşlar                     [____________] ₺   │
-│ 257  Birikmiş Amortisman (-)         [____________] ₺   │
-│                                                         │
-│ KISA VADELİ BORÇLAR (3xx)                              │
-│ ─────────────────────────────────────────────           │
-│ 300  Banka Kredileri                 [____________] ₺   │
-│ 320  Satıcılar                       [____________] ₺   │
-│ 335  Personele Borçlar               [____________] ₺   │
-│ 360  Ödenecek Vergi                  [____________] ₺   │
-│                                                         │
-│ ÖZKAYNAKLAR (5xx)                                       │
-│ ─────────────────────────────────────────────           │
-│ 500  Sermaye                         [____________] ₺   │
-│ 540  Yasal Yedekler                  [____________] ₺   │
-│ 570  Geçmiş Yıl Karları             [____________] ₺   │
-│                                                         │
-│ ═══════════════════════════════════════════════════     │
-│ Toplam Aktif:     ₺ 5,733,551.90                       │
-│ Toplam Pasif:     ₺ 5,733,551.90                       │
-│ Denge:            ✓ Dengeli                             │
-│ ═══════════════════════════════════════════════════     │
-│                     [Kaydet]  [Kaydet ve Kilitle]       │
-└─────────────────────────────────────────────────────────┘
+┌────────────────────────────────────────────────────────────┐
+│ Gelir Tablosu Sekmesi                                      │
+├────────────────────────────────────────────────────────────┤
+│                                                            │
+│  [📤 Dosya Yükle]  [📝 Manuel Giriş]   ← Mod seçimi       │
+│                                                            │
+├────────────────────────────────────────────────────────────┤
+│ "Dosya Yükle" seçili ise:                                 │
+│ ┌────────────────────────────────────────────────────────┐ │
+│ │      📤 Excel/PDF sürükle veya dosya seç              │ │
+│ │                                                        │ │
+│ │      Desteklenen: .xlsx, .xls, .pdf                   │ │
+│ └────────────────────────────────────────────────────────┘ │
+│                                                            │
+│ Dosya yüklendikten sonra:                                  │
+│ ┌────────────────────────────────────────────────────────┐ │
+│ │ 📄 mizan-2025.xlsx                    [Onay Bekliyor]  │ │
+│ │ 15 hesap parse edildi                                  │ │
+│ ├────────────────────────────────────────────────────────┤ │
+│ │ Net Satışlar:      ₺ 2.850.000                        │ │
+│ │ Satışların Maliyeti: ₺ 1.200.000                      │ │
+│ │ Faaliyet Giderleri:  ₺ 450.000                        │ │
+│ │ Net Kâr:           ₺ 1.200.000                        │ │
+│ ├────────────────────────────────────────────────────────┤ │
+│ │ [👁 Önizle]  [✓ Onayla ve Aktar]  [🗑 Sil]           │ │
+│ └────────────────────────────────────────────────────────┘ │
+│                                                            │
+├────────────────────────────────────────────────────────────┤
+│ "Manuel Giriş" seçili ise:                                │
+│ (Mevcut OfficialIncomeStatementForm gösterilir)           │
+└────────────────────────────────────────────────────────────┘
 ```
+
+---
+
+### Teknik Uygulama Planı
+
+#### 1. Yeni Edge Function: `parse-income-statement`
+
+Gelir tablosu dosyalarını AI ile parse etmek için yeni edge function.
+
+**Dosya:** `supabase/functions/parse-income-statement/index.ts`
 
 **Özellikler:**
-- Tekdüzen hesap planı grupları (Dönen/Duran Varlık, Kısa/Uzun Vadeli Borç, Özkaynak)
-- Aktif = Pasif denge kontrolü
-- Kaydet ve Kilitle fonksiyonları
-- Mevcut `useYearlyBalanceSheet` hook'unu kullanır
+- Excel parsing (XLSX kütüphanesi ile)
+- PDF parsing (Lovable AI Gateway ile)
+- 6xx hesap kodlarını tanıma
+- Türk sayı formatı desteği (1.234.567,89)
+- Yapılandırılmış JSON çıktısı
 
-#### 4. OfficialData Sayfa Güncellemesi
-**Dosya:** `src/pages/finance/OfficialData.tsx`
+**AI Prompt:**
+```
+Türk Tekdüzen Hesap Planı gelir tablosu hesaplarını parse et.
 
-"Bilanço" sekmesine (satır 119-133) yeni form bileşenini ekle:
+HESAP KODLARI:
+- 600-602: Brüt Satışlar (Alacak = Gelir)
+- 610-611: Satış İndirimleri (Borç = Gider)
+- 620-622: Satışların Maliyeti (Borç = Gider)
+- 630-632: Faaliyet Giderleri (Borç = Gider)
+- 640-649: Diğer Faaliyet Gelirleri (Alacak = Gelir)
+- 650-659: Diğer Faaliyet Giderleri (Borç = Gider)
+- 660-661: Finansman Giderleri (Borç = Gider)
+- 671-679: Olağandışı Gelirler (Alacak = Gelir)
+- 681-689: Olağandışı Giderler (Borç = Gider)
+- 691-692: Vergi Karşılıkları (Borç = Gider)
+```
 
+#### 2. Yeni Bileşen: `IncomeStatementUploader`
+
+`TrialBalanceUploader` benzeri dosya yükleme bileşeni.
+
+**Dosya:** `src/components/finance/IncomeStatementUploader.tsx`
+
+**Özellikler:**
+- Drag & drop dosya yükleme alanı
+- Excel ve PDF desteği
+- Yükleme sırasında loading durumu
+- Parse edilen verilerin özet gösterimi
+- Önizleme dialog'u (hesap bazında tablo)
+- "Onayla ve Aktar" butonu
+- Silme işlemi
+
+#### 3. Yeni Hook: `useIncomeStatementUpload`
+
+Upload ve approval işlemlerini yönetecek hook.
+
+**Dosya:** `src/hooks/finance/useIncomeStatementUpload.ts`
+
+**İşlevler:**
+- `uploadIncomeStatement(file)`: Dosya yükle ve parse et
+- `approveIncomeStatement()`: Verileri kaydet
+- `deleteUpload()`: Yüklenen veriyi sil
+- Geçici veri durumu yönetimi
+
+#### 4. `OfficialData.tsx` Güncellemesi
+
+Gelir Tablosu sekmesine mod seçici ekle.
+
+**Değişiklikler:**
 ```typescript
-// MEVCUT
-<TabsContent value="balance" className="mt-6">
-  <Card>
-    <CardContent>
-      <Button onClick={() => navigate('/finance/balance-sheet')}>
-        Bilanço Sayfasına Git
-      </Button>
-    </CardContent>
-  </Card>
-</TabsContent>
+const [incomeMode, setIncomeMode] = useState<'upload' | 'manual'>('upload');
 
-// YENİ
-<TabsContent value="balance" className="mt-6">
-  <OfficialBalanceSheetForm year={selectedYear} />
+// Gelir Tablosu sekmesinde:
+<TabsContent value="income">
+  <div className="flex gap-2 mb-4">
+    <Button 
+      variant={incomeMode === 'upload' ? 'default' : 'outline'}
+      onClick={() => setIncomeMode('upload')}
+    >
+      <Upload className="h-4 w-4 mr-2" />
+      Dosya Yükle
+    </Button>
+    <Button 
+      variant={incomeMode === 'manual' ? 'default' : 'outline'}
+      onClick={() => setIncomeMode('manual')}
+    >
+      <Edit className="h-4 w-4 mr-2" />
+      Manuel Giriş
+    </Button>
+  </div>
+  
+  {incomeMode === 'upload' ? (
+    <IncomeStatementUploader year={selectedYear} />
+  ) : (
+    <OfficialIncomeStatementForm year={selectedYear} />
+  )}
 </TabsContent>
 ```
 
 ---
 
-### Değiştirilecek Dosyalar
+### Veritabanı Değişikliği
+
+Yeni bir tablo oluşturulmayacak. Mevcut `yearly_income_statements` tablosu kullanılacak. Parse edilen veriler geçici olarak state'te tutulup, onaylandığında bu tabloya kaydedilecek.
+
+Alternatif olarak, geçici veriyi tutmak için `official_income_statement_uploads` tablosu eklenebilir (Mizan'daki `official_trial_balances` gibi).
+
+---
+
+### Değiştirilecek/Oluşturulacak Dosyalar
 
 | Dosya | İşlem | Açıklama |
 |-------|-------|----------|
-| `src/hooks/finance/useOfficialIncomeStatement.ts` | Güncelle | `useMemo` ile `emptyStatement` stabil yap |
-| `src/components/finance/OfficialIncomeStatementForm.tsx` | Güncelle | `useEffect` dependency düzelt |
-| `src/components/finance/OfficialBalanceSheetForm.tsx` | Yeni | Resmi bilanço giriş formu |
-| `src/pages/finance/OfficialData.tsx` | Güncelle | Bilanço sekmesine form ekle |
-| `src/types/officialFinance.ts` | Güncelle | `BALANCE_SHEET_GROUPS` sabiti ekle |
-
----
-
-### Bilanço Hesap Grupları (types/officialFinance.ts)
-
-```typescript
-export const BALANCE_SHEET_GROUPS = [
-  {
-    title: 'DÖNEN VARLIKLAR (1xx)',
-    accounts: [
-      { code: '100', name: 'Kasa', field: 'cash_on_hand' },
-      { code: '102', name: 'Bankalar', field: 'bank_balance' },
-      { code: '120', name: 'Alıcılar', field: 'trade_receivables' },
-      { code: '131', name: 'Ortaklardan Alacaklar', field: 'partner_receivables' },
-      { code: '190', name: 'Devreden KDV', field: 'vat_receivable' },
-      { code: '191', name: 'İndirilecek KDV', field: 'other_vat' },
-    ],
-  },
-  {
-    title: 'DURAN VARLIKLAR (2xx)',
-    accounts: [
-      { code: '254', name: 'Taşıtlar', field: 'vehicles' },
-      { code: '255', name: 'Demirbaşlar', field: 'fixtures' },
-      { code: '257', name: 'Birikmiş Amortisman (-)', field: 'accumulated_depreciation', isNegative: true },
-    ],
-  },
-  {
-    title: 'KISA VADELİ BORÇLAR (3xx)',
-    accounts: [
-      { code: '300', name: 'Banka Kredileri', field: 'short_term_loan_debt' },
-      { code: '320', name: 'Satıcılar', field: 'trade_payables' },
-      { code: '331', name: 'Ortaklara Borçlar', field: 'partner_payables' },
-      { code: '335', name: 'Personele Borçlar', field: 'personnel_payables' },
-      { code: '360', name: 'Ödenecek Vergi', field: 'tax_payables' },
-      { code: '361', name: 'Ödenecek SGK', field: 'social_security_payables' },
-      { code: '391', name: 'Hesaplanan KDV', field: 'vat_payable' },
-    ],
-  },
-  {
-    title: 'UZUN VADELİ BORÇLAR (4xx)',
-    accounts: [
-      { code: '400', name: 'Banka Kredileri', field: 'bank_loans' },
-    ],
-  },
-  {
-    title: 'ÖZKAYNAKLAR (5xx)',
-    accounts: [
-      { code: '500', name: 'Sermaye', field: 'paid_capital' },
-      { code: '501', name: 'Ödenmemiş Sermaye (-)', field: 'unpaid_capital', isNegative: true },
-      { code: '540', name: 'Yasal Yedekler', field: 'retained_earnings' },
-      { code: '570', name: 'Geçmiş Yıllar Karları', field: 'retained_earnings' },
-      { code: '590', name: 'Dönem Net Karı', field: 'current_profit' },
-    ],
-  },
-] as const;
-```
+| `supabase/functions/parse-income-statement/index.ts` | Yeni | AI ile gelir tablosu parsing |
+| `src/components/finance/IncomeStatementUploader.tsx` | Yeni | Dosya yükleme bileşeni |
+| `src/hooks/finance/useIncomeStatementUpload.ts` | Yeni | Upload hook |
+| `src/pages/finance/OfficialData.tsx` | Güncelle | Mod seçici ve uploader ekle |
+| `supabase/config.toml` | Güncelle | Yeni edge function config |
 
 ---
 
@@ -209,19 +178,20 @@ export const BALANCE_SHEET_GROUPS = [
 
 | Sıra | Görev | Açıklama |
 |------|-------|----------|
-| 1 | useOfficialIncomeStatement düzelt | useMemo ekle |
-| 2 | OfficialIncomeStatementForm düzelt | useEffect dependency düzelt |
-| 3 | officialFinance.ts güncelle | BALANCE_SHEET_GROUPS ekle |
-| 4 | OfficialBalanceSheetForm oluştur | Yeni form bileşeni |
-| 5 | OfficialData.tsx güncelle | Bilanço sekmesine form ekle |
+| 1 | Edge Function | `parse-income-statement` oluştur |
+| 2 | Hook | `useIncomeStatementUpload` oluştur |
+| 3 | Bileşen | `IncomeStatementUploader` oluştur |
+| 4 | Sayfa | `OfficialData.tsx` güncelle |
+| 5 | Config | `supabase/config.toml` güncelle |
 
 ---
 
 ### Beklenen Sonuçlar
 
-- "Maximum update depth exceeded" hatası düzelir
-- Gelir Tablosu sekmesi doğru çalışır
-- Bilanço sekmesinde doğrudan veri girişi yapılabilir
-- Her iki tablo için kaydetme ve kilitleme çalışır
-- Aktif = Pasif denge kontrolü gösterilir
+- Gelir Tablosu sekmesinde dosya yükleme seçeneği
+- Muhasebeciden gelen Excel/PDF dosyaları AI ile parse edilir
+- 6xx hesap kodları otomatik tanınır ve field'lara eşlenir
+- Önizleme tablosu ile verileri kontrol edebilme
+- "Onayla ve Aktar" ile verileri kalıcı olarak kaydetme
+- Manuel giriş seçeneği korunur
 
