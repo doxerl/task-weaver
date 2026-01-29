@@ -174,45 +174,62 @@ export const calculateCapitalNeeds = (
  * This function simulates quarterly cash flow for each year in the 5-year projection,
  * calculating opening balance from previous year's ending cash.
  */
+/**
+ * Calculate multi-year capital needs with year-dependent carry-forward logic.
+ * This function simulates quarterly cash flow for each year in the 5-year projection,
+ * calculating opening balance from previous year's ending cash.
+ * 
+ * NOW SUPPORTS AI quarterly data override for Year 1
+ */
 export const calculateMultiYearCapitalNeeds = (
   exitPlan: ExitPlan,
   year1Investment: number,      // 1. yıl alınan yatırım
   year1NetProfit: number,       // 1. yıl net kar (senaryo net profit)
-  safetyMargin: number = 0.20   // Güvenlik marjı %
+  safetyMargin: number = 0.20,  // Güvenlik marjı %
+  // NEW: AI çeyreklik verileri (Year 1 için)
+  aiQuarterlyData?: {
+    revenues: { q1: number; q2: number; q3: number; q4: number };
+    expenses: { q1: number; q2: number; q3: number; q4: number };
+  }
 ): MultiYearCapitalPlan => {
   const years: YearCapitalRequirement[] = [];
   let carryForwardCash = year1NetProfit;  // Devir nakit
   let totalRequiredInvestment = year1Investment;
   let selfSustainingFromYear: number | null = null;
   
-  // Revenue quarterly distribution (back-loaded)
-  const revenueQuarterlyRatios = { q1: 0.15, q2: 0.20, q3: 0.30, q4: 0.35 };
+  // Daha gerçekçi arka-yüklü gelir dağılımı (AI yoksa fallback)
+  const revenueQuarterlyRatios = { q1: 0.10, q2: 0.18, q3: 0.32, q4: 0.40 };
   // Expense quarterly distribution (evenly distributed)
   const expenseQuarterlyRatios = { q1: 0.25, q2: 0.25, q3: 0.25, q4: 0.25 };
   
   exitPlan.allYears?.forEach((yearProjection, index) => {
     const year = yearProjection.actualYear;
     const openingCash = index === 0 ? year1NetProfit : carryForwardCash;
+    const isFirstYear = index === 0;
     
-    // Çeyreklik nakit akışı simülasyonu
-    const quarterlyRevenue = {
-      q1: yearProjection.revenue * revenueQuarterlyRatios.q1,
-      q2: yearProjection.revenue * revenueQuarterlyRatios.q2,
-      q3: yearProjection.revenue * revenueQuarterlyRatios.q3,
-      q4: yearProjection.revenue * revenueQuarterlyRatios.q4,
-    };
+    // İlk yıl için AI çeyreklik verileri, yoksa ratio ile hesapla
+    const quarterlyRevenue = (isFirstYear && aiQuarterlyData)
+      ? aiQuarterlyData.revenues
+      : {
+          q1: yearProjection.revenue * revenueQuarterlyRatios.q1,
+          q2: yearProjection.revenue * revenueQuarterlyRatios.q2,
+          q3: yearProjection.revenue * revenueQuarterlyRatios.q3,
+          q4: yearProjection.revenue * revenueQuarterlyRatios.q4,
+        };
     
-    const quarterlyExpense = {
-      q1: yearProjection.expenses * expenseQuarterlyRatios.q1,
-      q2: yearProjection.expenses * expenseQuarterlyRatios.q2,
-      q3: yearProjection.expenses * expenseQuarterlyRatios.q3,
-      q4: yearProjection.expenses * expenseQuarterlyRatios.q4,
-    };
+    const quarterlyExpense = (isFirstYear && aiQuarterlyData)
+      ? aiQuarterlyData.expenses
+      : {
+          q1: yearProjection.expenses * expenseQuarterlyRatios.q1,
+          q2: yearProjection.expenses * expenseQuarterlyRatios.q2,
+          q3: yearProjection.expenses * expenseQuarterlyRatios.q3,
+          q4: yearProjection.expenses * expenseQuarterlyRatios.q4,
+        };
     
-    // Çeyreklik kümülatif nakit akışı
+    // Çeyreklik kümülatif nakit akışı - DÜZELTİLMİŞ: Mutlak minimum takibi
     let cumulative = openingCash;
-    let peakDeficit = openingCash; // Start from opening
-    let peakDeficitQuarter = 'Q0';
+    let minBalance = openingCash;  // Mutlak minimum bakiye (pozitif veya negatif)
+    let peakDeficitQuarter = 'N/A';
     const quarterlyDeficit = { q1: 0, q2: 0, q3: 0, q4: 0 };
     
     const quarters = ['q1', 'q2', 'q3', 'q4'] as const;
@@ -220,17 +237,19 @@ export const calculateMultiYearCapitalNeeds = (
       const netFlow = quarterlyRevenue[q] - quarterlyExpense[q];
       cumulative += netFlow;
       
-      if (cumulative < peakDeficit) {
-        peakDeficit = cumulative;
+      // Minimum bakiyeyi takip et (pozitif veya negatif)
+      if (cumulative < minBalance) {
+        minBalance = cumulative;
         peakDeficitQuarter = `Q${i + 1}`;
       }
       
       quarterlyDeficit[q] = cumulative < 0 ? Math.abs(cumulative) : 0;
     });
     
-    // Bu yıl gereken ek sermaye
-    const requiredCapital = peakDeficit < 0 
-      ? Math.abs(peakDeficit) * (1 + safetyMargin)  // Güvenlik marjı ile
+    // Sermaye ihtiyacı: Minimum negatifse gerekli
+    const peakDeficit = minBalance < 0 ? minBalance : 0;
+    const requiredCapital = minBalance < 0 
+      ? Math.abs(minBalance) * (1 + safetyMargin)
       : 0;
     
     // Yıl sonu bakiye
@@ -411,30 +430,49 @@ export const projectFutureRevenue = (
   };
 };
 
+// AI Projection type for Exit Plan override
+export interface AIProjectionForExitPlan {
+  year1Revenue: number;
+  year1Expenses: number;
+  year1NetProfit: number;
+  quarterlyData: {
+    revenues: { q1: number; q2: number; q3: number; q4: number };
+    expenses: { q1: number; q2: number; q3: number; q4: number };
+  };
+  growthRateHint?: number;  // AI'ın önerdiği büyüme oranı
+}
+
 // Calculate Exit Plan for investors with Two-Stage Growth Model
+// Now supports AI projection override for Year 1
 export const calculateExitPlan = (
   deal: DealConfiguration,
   year1Revenue: number,
   year1Expenses: number,
   userGrowthRate: number,
   sector: string = 'default',
-  scenarioTargetYear?: number  // Optional: senaryo yılı, verilmezse getProjectionYears() kullanılır
+  scenarioTargetYear?: number,  // Optional: senaryo yılı, verilmezse getProjectionYears() kullanılır
+  aiProjection?: AIProjectionForExitPlan  // NEW: AI projection override for Year 1
 ): ExitPlan => {
   const { year1: defaultYear1, year3: defaultYear3, year5: defaultYear5 } = getProjectionYears();
   const year1 = scenarioTargetYear || defaultYear1;
   const year3 = year1 + 3;
   const year5 = year1 + 5;
   
-  // İki aşamalı konfigürasyon oluştur
+  // AI projeksiyonu varsa Year 1 verilerini override et
+  const baseYear1Revenue = aiProjection?.year1Revenue ?? year1Revenue;
+  const baseYear1Expenses = aiProjection?.year1Expenses ?? year1Expenses;
+  const effectiveGrowthRate = aiProjection?.growthRateHint ?? userGrowthRate;
+  
+  // İki aşamalı konfigürasyon oluştur - AI'dan gelen büyüme oranıyla
   const growthConfig: GrowthConfiguration = {
-    aggressiveGrowthRate: Math.min(Math.max(userGrowthRate, 0.10), 1.0), // Min %10, Max %100
+    aggressiveGrowthRate: Math.min(Math.max(effectiveGrowthRate, 0.10), 1.0), // Min %10, Max %100
     normalizedGrowthRate: SECTOR_NORMALIZED_GROWTH[sector] || SECTOR_NORMALIZED_GROWTH['default'],
     transitionYear: 2,
-    rawUserGrowthRate: userGrowthRate
+    rawUserGrowthRate: effectiveGrowthRate
   };
   
   const postMoney = deal.investmentAmount / (deal.equityPercentage / 100);
-  const projections = projectFutureRevenue(year1Revenue, year1Expenses, growthConfig, deal.sectorMultiple, year1);
+  const projections = projectFutureRevenue(baseYear1Revenue, baseYear1Expenses, growthConfig, deal.sectorMultiple, year1);
   
   const investorShare3 = projections.year3.companyValuation * (deal.equityPercentage / 100);
   const investorShare5 = projections.year5.companyValuation * (deal.equityPercentage / 100);
