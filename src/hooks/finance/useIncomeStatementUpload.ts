@@ -6,6 +6,15 @@ import { toast } from '@/hooks/use-toast';
 import { calculateStatementTotals } from './useOfficialIncomeStatement';
 import type { YearlyIncomeStatementFormData } from '@/types/officialFinance';
 
+interface SubAccount {
+  code: string;
+  name: string;
+  debit: number;
+  credit: number;
+  debitBalance: number;
+  creditBalance: number;
+}
+
 interface IncomeStatementAccount {
   code: string;
   name: string;
@@ -13,6 +22,7 @@ interface IncomeStatementAccount {
   credit: number;
   debitBalance: number;
   creditBalance: number;
+  subAccounts?: SubAccount[];
 }
 
 interface ParseResult {

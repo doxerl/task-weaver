@@ -6,6 +6,15 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-supabase-client-platform, x-supabase-client-platform-version, x-supabase-client-runtime, x-supabase-client-runtime-version',
 };
 
+interface SubAccount {
+  code: string;
+  name: string;
+  debit: number;
+  credit: number;
+  debitBalance: number;
+  creditBalance: number;
+}
+
 interface IncomeStatementAccount {
   code: string;
   name: string;
@@ -13,6 +22,7 @@ interface IncomeStatementAccount {
   credit: number;
   debitBalance: number;
   creditBalance: number;
+  subAccounts?: SubAccount[];
 }
 
 interface ParseResult {
@@ -63,6 +73,7 @@ PDF formatındaki gelir tablosu veya mizan dosyalarından 6xx hesaplarını pars
 
 ## GÖREV
 Dosyadaki 6xx serisi hesapları (gelir/gider hesapları) çıkar ve parse_income_statement fonksiyonunu çağır.
+ALT HESAPLARI DA AYRI AYRI ÇIKAR!
 
 ## HESAP KODLARI VE ANLAMI
 - 600: Yurtiçi Satışlar (Alacak = Gelir)
@@ -96,6 +107,12 @@ Dosyadaki 6xx serisi hesapları (gelir/gider hesapları) çıkar ve parse_income
 - 691: Dönem Karı Vergi Karşılığı (Borç = Gider)
 - 692: Ertelenmiş Vergi Gideri (Borç = Gider)
 
+## ALT HESAPLAR (Muavin) - ÇOK ÖNEMLİ!
+- 3+ haneli kodlar alt hesaplardır (600.01, 632.001, 621.01.001)
+- Alt hesap isimleri genellikle firma/kişi isimleridir
+- HER ALT HESABI AYRI AYRI PARSE ET, ANA HESABA TOPLAMA!
+- parentCode alanına ana hesap kodunu yaz (örn: 632.01 için parentCode: "632")
+
 ## SAYISAL FORMAT
 Türk formatı: 1.234.567,89 (nokta binlik, virgül ondalık)
 Tüm sayıları standart ondalık formata çevir (1234567.89)
@@ -106,8 +123,8 @@ Boş/eksik değerler = 0
 - Alacak > Borç ise: debitBalance = 0, creditBalance = Alacak - Borç
 
 ## ÖNEMLİ
-- Sadece 3 haneli 6xx hesap kodlarını al
-- Alt hesapları (600.01, 632.001 gibi) ana hesaba topla
+- Hem 3 haneli ana hesapları hem de alt hesapları parse et
+- Alt hesaplar için parentCode belirt
 - Toplam satırlarını ATLAMA`;
 
 // Function schema for structured output
@@ -122,12 +139,13 @@ const PARSE_FUNCTION_SCHEMA = {
         items: {
           type: 'object',
           properties: {
-            code: { type: 'string', description: '3 haneli hesap kodu (örn: 600, 632)' },
-            name: { type: 'string', description: 'Hesap adı' },
+            code: { type: 'string', description: 'Hesap kodu (örn: 600, 632.01, 621.001)' },
+            name: { type: 'string', description: 'Hesap adı veya firma/kişi adı' },
             debit: { type: 'number', description: 'Borç tutarı (standart ondalık format)' },
             credit: { type: 'number', description: 'Alacak tutarı (standart ondalık format)' },
             debitBalance: { type: 'number', description: 'Borç bakiyesi (Borç > Alacak ise: Borç - Alacak, değilse 0)' },
-            creditBalance: { type: 'number', description: 'Alacak bakiyesi (Alacak > Borç ise: Alacak - Borç, değilse 0)' }
+            creditBalance: { type: 'number', description: 'Alacak bakiyesi (Alacak > Borç ise: Alacak - Borç, değilse 0)' },
+            parentCode: { type: 'string', description: 'Ana hesap kodu (alt hesaplar için, örn: 632.01 için "632")' }
           },
           required: ['code', 'name', 'debit', 'credit', 'debitBalance', 'creditBalance']
         }
@@ -160,12 +178,16 @@ function parseNumber(value: any): number {
 
 function isIncomeStatementAccount(code: string): boolean {
   const trimmed = code.trim();
-  // Check if it's a 6xx account (income statement accounts)
-  return /^6\d{2}(\.\d+)?$/.test(trimmed);
+  // Check if it's a 6xx account (income statement accounts), including sub-accounts
+  return /^6\d{2}(\.\d+)*$/.test(trimmed);
 }
 
 function getBaseAccountCode(code: string): string {
   return code.split('.')[0].substring(0, 3);
+}
+
+function isSubAccount(code: string): boolean {
+  return code.includes('.');
 }
 
 function mapAccountsToFields(accounts: IncomeStatementAccount[]): Record<string, number> {
@@ -255,8 +277,69 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
   const headers = data[headerRowIdx];
   const columns = detectColumnIndices(headers);
 
-  // Temporary storage to aggregate sub-accounts
+  // Storage for main accounts and sub-accounts
   const accountAggregator: Record<string, IncomeStatementAccount> = {};
+  const subAccountsTemp: Record<string, SubAccount[]> = {};
+
+  const processRow = (code: string, name: string, debit: number, credit: number) => {
+    if (!isIncomeStatementAccount(code)) return;
+
+    const baseCode = getBaseAccountCode(code);
+    let debitBalance = 0;
+    let creditBalance = 0;
+    
+    if (debit > credit) {
+      debitBalance = debit - credit;
+    } else {
+      creditBalance = credit - debit;
+    }
+
+    if (isSubAccount(code)) {
+      // This is a sub-account
+      if (!subAccountsTemp[baseCode]) {
+        subAccountsTemp[baseCode] = [];
+      }
+      subAccountsTemp[baseCode].push({
+        code,
+        name,
+        debit,
+        credit,
+        debitBalance,
+        creditBalance,
+      });
+
+      // Also aggregate to main account
+      if (accountAggregator[baseCode]) {
+        accountAggregator[baseCode].debit += debit;
+        accountAggregator[baseCode].credit += credit;
+      } else {
+        accountAggregator[baseCode] = {
+          code: baseCode,
+          name: '',
+          debit,
+          credit,
+          debitBalance: 0,
+          creditBalance: 0,
+        };
+      }
+    } else {
+      // This is a main account
+      if (accountAggregator[baseCode]) {
+        accountAggregator[baseCode].name = name;
+        accountAggregator[baseCode].debit += debit;
+        accountAggregator[baseCode].credit += credit;
+      } else {
+        accountAggregator[baseCode] = {
+          code: baseCode,
+          name,
+          debit,
+          credit,
+          debitBalance: 0,
+          creditBalance: 0,
+        };
+      }
+    }
+  };
 
   if (!columns) {
     detectedFormat = 'assumed_standard';
@@ -267,25 +350,11 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
       if (!row || row.length < 4) continue;
 
       const code = String(row[0] || '').trim();
-      if (!isIncomeStatementAccount(code)) continue;
-
-      const baseCode = getBaseAccountCode(code);
+      const name = String(row[1] || '');
       const debit = parseNumber(row[2]);
       const credit = parseNumber(row[3]);
       
-      if (accountAggregator[baseCode]) {
-        accountAggregator[baseCode].debit += debit;
-        accountAggregator[baseCode].credit += credit;
-      } else {
-        accountAggregator[baseCode] = {
-          code: baseCode,
-          name: String(row[1] || ''),
-          debit,
-          credit,
-          debitBalance: 0,
-          creditBalance: 0,
-        };
-      }
+      processRow(code, name, debit, credit);
     }
   } else {
     detectedFormat = 'detected_columns';
@@ -295,33 +364,17 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
       if (!row || row.length < 4) continue;
 
       const code = String(row[columns.code] || '').trim();
-      if (!isIncomeStatementAccount(code)) continue;
-
-      const baseCode = getBaseAccountCode(code);
+      const name = String(row[columns.name] || '');
       const debit = parseNumber(row[columns.debit]);
       const credit = parseNumber(row[columns.credit]);
 
-      if (accountAggregator[baseCode]) {
-        accountAggregator[baseCode].debit += debit;
-        accountAggregator[baseCode].credit += credit;
-      } else {
-        accountAggregator[baseCode] = {
-          code: baseCode,
-          name: String(row[columns.name] || ''),
-          debit,
-          credit,
-          debitBalance: 0,
-          creditBalance: 0,
-        };
-      }
+      processRow(code, name, debit, credit);
     }
   }
 
   // Calculate balances and convert to array
   for (const baseCode of Object.keys(accountAggregator)) {
     const acc = accountAggregator[baseCode];
-    // Borç > Alacak ise: debitBalance = Borç - Alacak, creditBalance = 0
-    // Alacak > Borç ise: debitBalance = 0, creditBalance = Alacak - Borç
     if (acc.debit > acc.credit) {
       acc.debitBalance = acc.debit - acc.credit;
       acc.creditBalance = 0;
@@ -329,6 +382,12 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
       acc.debitBalance = 0;
       acc.creditBalance = acc.credit - acc.debit;
     }
+    
+    // Attach sub-accounts if any
+    if (subAccountsTemp[baseCode]) {
+      acc.subAccounts = subAccountsTemp[baseCode];
+    }
+    
     accounts.push(acc);
   }
 
@@ -450,36 +509,77 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
     const parsedArgs = JSON.parse(toolCall.function.arguments);
     const aiAccounts = parsedArgs.accounts || [];
 
-    // Convert AI response to our format and aggregate
+    // Convert AI response to our format with sub-account support
     const accountAggregator: Record<string, IncomeStatementAccount> = {};
+    const subAccountsTemp: Record<string, SubAccount[]> = {};
     
     for (const acc of aiAccounts) {
       const code = String(acc.code || '').trim();
       if (!isIncomeStatementAccount(code)) continue;
       
       const baseCode = getBaseAccountCode(code);
-
-      if (accountAggregator[baseCode]) {
-        accountAggregator[baseCode].debit += acc.debit || 0;
-        accountAggregator[baseCode].credit += acc.credit || 0;
+      const debit = acc.debit || 0;
+      const credit = acc.credit || 0;
+      let debitBalance = 0;
+      let creditBalance = 0;
+      
+      if (debit > credit) {
+        debitBalance = debit - credit;
       } else {
-        accountAggregator[baseCode] = {
-          code: baseCode,
+        creditBalance = credit - debit;
+      }
+
+      if (isSubAccount(code)) {
+        // This is a sub-account
+        if (!subAccountsTemp[baseCode]) {
+          subAccountsTemp[baseCode] = [];
+        }
+        subAccountsTemp[baseCode].push({
+          code,
           name: acc.name || '',
-          debit: acc.debit || 0,
-          credit: acc.credit || 0,
-          debitBalance: 0,
-          creditBalance: 0,
-        };
+          debit,
+          credit,
+          debitBalance,
+          creditBalance,
+        });
+        
+        // Aggregate to main account
+        if (accountAggregator[baseCode]) {
+          accountAggregator[baseCode].debit += debit;
+          accountAggregator[baseCode].credit += credit;
+        } else {
+          accountAggregator[baseCode] = {
+            code: baseCode,
+            name: '',
+            debit,
+            credit,
+            debitBalance: 0,
+            creditBalance: 0,
+          };
+        }
+      } else {
+        // Main account
+        if (accountAggregator[baseCode]) {
+          accountAggregator[baseCode].name = acc.name || accountAggregator[baseCode].name;
+          accountAggregator[baseCode].debit += debit;
+          accountAggregator[baseCode].credit += credit;
+        } else {
+          accountAggregator[baseCode] = {
+            code: baseCode,
+            name: acc.name || '',
+            debit,
+            credit,
+            debitBalance: 0,
+            creditBalance: 0,
+          };
+        }
       }
     }
 
-    // Recalculate balances
+    // Recalculate balances and attach sub-accounts
     const accounts: IncomeStatementAccount[] = [];
     for (const baseCode of Object.keys(accountAggregator)) {
       const acc = accountAggregator[baseCode];
-      // Borç > Alacak ise: debitBalance = Borç - Alacak, creditBalance = 0
-      // Alacak > Borç ise: debitBalance = 0, creditBalance = Alacak - Borç
       if (acc.debit > acc.credit) {
         acc.debitBalance = acc.debit - acc.credit;
         acc.creditBalance = 0;
@@ -487,6 +587,12 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
         acc.debitBalance = 0;
         acc.creditBalance = acc.credit - acc.debit;
       }
+      
+      // Attach sub-accounts if any
+      if (subAccountsTemp[baseCode]) {
+        acc.subAccounts = subAccountsTemp[baseCode];
+      }
+      
       accounts.push(acc);
     }
 

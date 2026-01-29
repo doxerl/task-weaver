@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Upload, FileSpreadsheet, FileText, Check, Trash2, Eye, Loader2, AlertCircle } from 'lucide-react';
+import { Upload, FileSpreadsheet, FileText, Check, Trash2, Eye, Loader2, AlertCircle, ChevronRight, ChevronDown } from 'lucide-react';
 import { useTrialBalance } from '@/hooks/finance/useTrialBalance';
 import { formatFullTRY } from '@/lib/formatters';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,10 +26,75 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import type { SubAccount } from '@/types/officialFinance';
 
 interface TrialBalanceUploaderProps {
   year: number;
   month?: number | null;
+}
+
+// Collapsible row component for accounts with sub-accounts
+function CollapsibleAccountRow({ code, account, subAccounts, hasSubAccounts }: { 
+  code: string; 
+  account: any; 
+  subAccounts?: SubAccount[];
+  hasSubAccounts?: boolean;
+}) {
+  const [isOpen, setIsOpen] = React.useState(false);
+  
+  if (!hasSubAccounts) {
+    return (
+      <TableRow>
+        <TableCell className="font-mono pl-6">{code}</TableCell>
+        <TableCell>{account.name}</TableCell>
+        <TableCell className="text-right">{formatFullTRY(account.debit)}</TableCell>
+        <TableCell className="text-right">{formatFullTRY(account.credit)}</TableCell>
+        <TableCell className="text-right">{formatFullTRY(account.debitBalance)}</TableCell>
+        <TableCell className="text-right">{formatFullTRY(account.creditBalance)}</TableCell>
+      </TableRow>
+    );
+  }
+
+  return (
+    <>
+      <TableRow 
+        className="cursor-pointer hover:bg-muted/50" 
+        onClick={() => setIsOpen(!isOpen)}
+      >
+        <TableCell className="font-mono">
+          <div className="flex items-center gap-1">
+            {isOpen ? (
+              <ChevronDown className="h-4 w-4 text-muted-foreground" />
+            ) : (
+              <ChevronRight className="h-4 w-4 text-muted-foreground" />
+            )}
+            {code}
+          </div>
+        </TableCell>
+        <TableCell>
+          {account.name}
+          <span className="text-xs text-muted-foreground ml-2">
+            ({subAccounts?.length} alt hesap)
+          </span>
+        </TableCell>
+        <TableCell className="text-right font-medium">{formatFullTRY(account.debit)}</TableCell>
+        <TableCell className="text-right font-medium">{formatFullTRY(account.credit)}</TableCell>
+        <TableCell className="text-right font-medium">{formatFullTRY(account.debitBalance)}</TableCell>
+        <TableCell className="text-right font-medium">{formatFullTRY(account.creditBalance)}</TableCell>
+      </TableRow>
+      {isOpen && subAccounts?.map((sub) => (
+        <TableRow key={sub.code} className="bg-muted/30">
+          <TableCell className="font-mono pl-8 text-sm text-muted-foreground">{sub.code}</TableCell>
+          <TableCell className="text-sm pl-4">{sub.name}</TableCell>
+          <TableCell className="text-right text-sm">{formatFullTRY(sub.debit)}</TableCell>
+          <TableCell className="text-right text-sm">{formatFullTRY(sub.credit)}</TableCell>
+          <TableCell className="text-right text-sm">{formatFullTRY(sub.debitBalance)}</TableCell>
+          <TableCell className="text-right text-sm">{formatFullTRY(sub.creditBalance)}</TableCell>
+        </TableRow>
+      ))}
+    </>
+  );
 }
 
 export function TrialBalanceUploader({ year, month = null }: TrialBalanceUploaderProps) {
@@ -225,16 +290,20 @@ export function TrialBalanceUploader({ year, month = null }: TrialBalanceUploade
                       <TableBody>
                         {accountsArray
                           .sort(([a], [b]) => a.localeCompare(b))
-                          .map(([code, account]) => (
-                            <TableRow key={code}>
-                              <TableCell className="font-mono">{code}</TableCell>
-                              <TableCell>{account.name}</TableCell>
-                              <TableCell className="text-right">{formatFullTRY(account.debit)}</TableCell>
-                              <TableCell className="text-right">{formatFullTRY(account.credit)}</TableCell>
-                              <TableCell className="text-right">{formatFullTRY(account.debitBalance)}</TableCell>
-                              <TableCell className="text-right">{formatFullTRY(account.creditBalance)}</TableCell>
-                            </TableRow>
-                          ))}
+                          .map(([code, account]) => {
+                            const subAccounts = (account as any).subAccounts as SubAccount[] | undefined;
+                            const hasSubAccounts = subAccounts && subAccounts.length > 0;
+                            
+                            return (
+                              <CollapsibleAccountRow 
+                                key={code}
+                                code={code}
+                                account={account}
+                                subAccounts={subAccounts}
+                                hasSubAccounts={hasSubAccounts}
+                              />
+                            );
+                          })}
                       </TableBody>
                     </Table>
                   </ScrollArea>

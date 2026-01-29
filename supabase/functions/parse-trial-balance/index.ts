@@ -6,12 +6,22 @@ const corsHeaders = {
   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
 };
 
+interface SubAccount {
+  code: string;
+  name: string;
+  debit: number;
+  credit: number;
+  debitBalance: number;
+  creditBalance: number;
+}
+
 interface TrialBalanceAccount {
   name: string;
   debit: number;
   credit: number;
   debitBalance: number;
   creditBalance: number;
+  subAccounts?: SubAccount[];
 }
 
 interface ParseResult {
@@ -26,15 +36,23 @@ const MIZAN_PARSE_PROMPT = `Sen bir Türk muhasebe uzmanısın.
 PDF formatındaki mizan (trial balance) dosyalarını parse ediyorsun.
 
 ## GÖREV
-Mizan dosyasındaki tüm hesapları çıkar ve parse_mizan fonksiyonunu çağır.
+Mizan dosyasındaki TÜM hesapları çıkar ve parse_mizan fonksiyonunu çağır.
+ALT HESAPLARI DA AYRI AYRI ÇIKAR!
 
 ## MİZAN YAPISI
-- Hesap Kodu: 3 haneli (100, 102, 600, 632, vb.)
-- Hesap Adı: Türkçe (Kasa, Bankalar, Yurtiçi Satışlar, vb.)
+- Ana Hesap Kodu: 3 haneli (100, 102, 600, 632, vb.)
+- Alt Hesap Kodu: 3+ haneli (100.01, 320.001, 120.01.001, vb.)
+- Hesap Adı: Türkçe (Kasa, Bankalar, ABC Şirketi, vb.)
 - Borç: Dönem içi borç toplamı
 - Alacak: Dönem içi alacak toplamı  
 - Borç Bakiye: Borç - Alacak (pozitifse)
 - Alacak Bakiye: Alacak - Borç (pozitifse)
+
+## ALT HESAPLAR (Muavin) - ÇOK ÖNEMLİ!
+- 3+ haneli kodlar alt hesaplardır (320.01, 320.001, 120.01.001)
+- Alt hesap isimleri genellikle firma/kişi isimleridir
+- HER ALT HESABI AYRI AYRI PARSE ET, ANA HESABA TOPLAMA!
+- parentCode alanına ana hesap kodunu yaz (örn: 320.01 için parentCode: "320")
 
 ## SAYISAL FORMAT
 Türk formatı: 1.234.567,89 (nokta binlik, virgül ondalık)
@@ -48,8 +66,8 @@ Boş/eksik değerler = 0
 - 6xx: Gelir/Gider hesapları
 
 ## ÖNEMLİ
-- Sadece 3 haneli hesap kodlarını al (100, 102, 320, 600, vb.)
-- Alt hesapları (100.01, 102.001 gibi) ana hesaba topla
+- Hem 3 haneli ana hesapları hem de alt hesapları parse et
+- Alt hesaplar için parentCode belirt
 - Toplam satırlarını ATLAMA`;
 
 // Function schema for structured output
@@ -64,12 +82,13 @@ const PARSE_FUNCTION_SCHEMA = {
         items: {
           type: 'object',
           properties: {
-            code: { type: 'string', description: '3 haneli hesap kodu (örn: 100, 600)' },
-            name: { type: 'string', description: 'Hesap adı' },
+            code: { type: 'string', description: 'Hesap kodu (örn: 100, 320.01, 120.001.001)' },
+            name: { type: 'string', description: 'Hesap adı veya firma/kişi adı' },
             debit: { type: 'number', description: 'Borç tutarı (standart ondalık format)' },
             credit: { type: 'number', description: 'Alacak tutarı (standart ondalık format)' },
             debitBalance: { type: 'number', description: 'Borç bakiyesi' },
-            creditBalance: { type: 'number', description: 'Alacak bakiyesi' }
+            creditBalance: { type: 'number', description: 'Alacak bakiyesi' },
+            parentCode: { type: 'string', description: 'Ana hesap kodu (alt hesaplar için, örn: 320.01 için "320")' }
           },
           required: ['code', 'name', 'debit', 'credit', 'debitBalance', 'creditBalance']
         }
@@ -153,7 +172,16 @@ function detectColumnIndices(headers: any[]): { code: number; name: number; debi
 
 function isValidAccountCode(code: string): boolean {
   const trimmed = code.trim();
-  return /^\d{3}(\.\d{2})?$/.test(trimmed) || /^\d{3}$/.test(trimmed);
+  // Accept 3-digit codes and sub-account codes with dots
+  return /^\d{3}(\.\d+)*$/.test(trimmed);
+}
+
+function getBaseAccountCode(code: string): string {
+  return code.split('.')[0].substring(0, 3);
+}
+
+function isSubAccount(code: string): boolean {
+  return code.includes('.');
 }
 
 async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
@@ -163,6 +191,7 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
   const data = XLSX.utils.sheet_to_json(sheet, { header: 1 }) as any[][];
 
   const accounts: Record<string, TrialBalanceAccount> = {};
+  const subAccountsTemp: Record<string, SubAccount[]> = {};
   const warnings: string[] = [];
   let detectedFormat = 'unknown';
 
@@ -192,15 +221,69 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
       const code = String(row[0] || '').trim();
       if (!isValidAccountCode(code)) continue;
 
-      const baseCode = code.split('.')[0];
+      const baseCode = getBaseAccountCode(code);
+      const name = String(row[1] || '');
+      const debit = parseNumber(row[2]);
+      const credit = parseNumber(row[3]);
+      let debitBalance = parseNumber(row[4] || 0);
+      let creditBalance = parseNumber(row[5] || 0);
       
-      accounts[baseCode] = {
-        name: String(row[1] || ''),
-        debit: parseNumber(row[2]),
-        credit: parseNumber(row[3]),
-        debitBalance: parseNumber(row[4] || row[2]),
-        creditBalance: parseNumber(row[5] || row[3]),
-      };
+      if (debitBalance === 0 && creditBalance === 0) {
+        if (debit > credit) {
+          debitBalance = debit - credit;
+        } else {
+          creditBalance = credit - debit;
+        }
+      }
+      
+      if (isSubAccount(code)) {
+        // This is a sub-account
+        if (!subAccountsTemp[baseCode]) {
+          subAccountsTemp[baseCode] = [];
+        }
+        subAccountsTemp[baseCode].push({
+          code,
+          name,
+          debit,
+          credit,
+          debitBalance,
+          creditBalance,
+        });
+        
+        // Also aggregate to main account
+        if (accounts[baseCode]) {
+          accounts[baseCode].debit += debit;
+          accounts[baseCode].credit += credit;
+          accounts[baseCode].debitBalance += debitBalance;
+          accounts[baseCode].creditBalance += creditBalance;
+        } else {
+          accounts[baseCode] = {
+            name: '', // Will be filled when we find the main account
+            debit,
+            credit,
+            debitBalance,
+            creditBalance,
+          };
+        }
+      } else {
+        // This is a main account
+        if (accounts[baseCode]) {
+          // Already exists from sub-accounts, just update name
+          accounts[baseCode].name = name;
+          accounts[baseCode].debit += debit;
+          accounts[baseCode].credit += credit;
+          accounts[baseCode].debitBalance += debitBalance;
+          accounts[baseCode].creditBalance += creditBalance;
+        } else {
+          accounts[baseCode] = {
+            name,
+            debit,
+            credit,
+            debitBalance,
+            creditBalance,
+          };
+        }
+      }
     }
   } else {
     detectedFormat = 'detected_columns';
@@ -212,7 +295,8 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
       const code = String(row[columns.code] || '').trim();
       if (!isValidAccountCode(code)) continue;
 
-      const baseCode = code.split('.')[0];
+      const baseCode = getBaseAccountCode(code);
+      const name = String(row[columns.name] || '');
       const debit = parseNumber(row[columns.debit]);
       const credit = parseNumber(row[columns.credit]);
       
@@ -229,20 +313,60 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
         }
       }
 
-      if (accounts[baseCode]) {
-        accounts[baseCode].debit += debit;
-        accounts[baseCode].credit += credit;
-        accounts[baseCode].debitBalance += debitBalance;
-        accounts[baseCode].creditBalance += creditBalance;
-      } else {
-        accounts[baseCode] = {
-          name: String(row[columns.name] || ''),
+      if (isSubAccount(code)) {
+        // This is a sub-account
+        if (!subAccountsTemp[baseCode]) {
+          subAccountsTemp[baseCode] = [];
+        }
+        subAccountsTemp[baseCode].push({
+          code,
+          name,
           debit,
           credit,
           debitBalance,
           creditBalance,
-        };
+        });
+        
+        // Also aggregate to main account
+        if (accounts[baseCode]) {
+          accounts[baseCode].debit += debit;
+          accounts[baseCode].credit += credit;
+          accounts[baseCode].debitBalance += debitBalance;
+          accounts[baseCode].creditBalance += creditBalance;
+        } else {
+          accounts[baseCode] = {
+            name: '',
+            debit,
+            credit,
+            debitBalance,
+            creditBalance,
+          };
+        }
+      } else {
+        // This is a main account
+        if (accounts[baseCode]) {
+          accounts[baseCode].name = name;
+          accounts[baseCode].debit += debit;
+          accounts[baseCode].credit += credit;
+          accounts[baseCode].debitBalance += debitBalance;
+          accounts[baseCode].creditBalance += creditBalance;
+        } else {
+          accounts[baseCode] = {
+            name,
+            debit,
+            credit,
+            debitBalance,
+            creditBalance,
+          };
+        }
       }
+    }
+  }
+
+  // Attach sub-accounts to main accounts
+  for (const baseCode of Object.keys(subAccountsTemp)) {
+    if (accounts[baseCode]) {
+      accounts[baseCode].subAccounts = subAccountsTemp[baseCode];
     }
   }
 
@@ -347,28 +471,73 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
     const parsedArgs = JSON.parse(toolCall.function.arguments);
     const aiAccounts = parsedArgs.accounts || [];
 
-    // Convert AI response to our format
+    // Convert AI response to our format with sub-account support
     const accounts: Record<string, TrialBalanceAccount> = {};
+    const subAccountsTemp: Record<string, SubAccount[]> = {};
     
     for (const acc of aiAccounts) {
       const code = String(acc.code || '').trim();
-      // Only accept 3-digit codes
-      if (!/^\d{3}$/.test(code)) continue;
+      if (!isValidAccountCode(code)) continue;
+      
+      const baseCode = getBaseAccountCode(code);
+      const debit = acc.debit || 0;
+      const credit = acc.credit || 0;
+      const debitBalance = acc.debitBalance || 0;
+      const creditBalance = acc.creditBalance || 0;
 
-      if (accounts[code]) {
-        // Merge if duplicate
-        accounts[code].debit += acc.debit || 0;
-        accounts[code].credit += acc.credit || 0;
-        accounts[code].debitBalance += acc.debitBalance || 0;
-        accounts[code].creditBalance += acc.creditBalance || 0;
-      } else {
-        accounts[code] = {
+      if (isSubAccount(code)) {
+        // This is a sub-account
+        if (!subAccountsTemp[baseCode]) {
+          subAccountsTemp[baseCode] = [];
+        }
+        subAccountsTemp[baseCode].push({
+          code,
           name: acc.name || '',
-          debit: acc.debit || 0,
-          credit: acc.credit || 0,
-          debitBalance: acc.debitBalance || 0,
-          creditBalance: acc.creditBalance || 0,
-        };
+          debit,
+          credit,
+          debitBalance,
+          creditBalance,
+        });
+        
+        // Aggregate to main account
+        if (accounts[baseCode]) {
+          accounts[baseCode].debit += debit;
+          accounts[baseCode].credit += credit;
+          accounts[baseCode].debitBalance += debitBalance;
+          accounts[baseCode].creditBalance += creditBalance;
+        } else {
+          accounts[baseCode] = {
+            name: '',
+            debit,
+            credit,
+            debitBalance,
+            creditBalance,
+          };
+        }
+      } else {
+        // This is a main account (3-digit code)
+        if (accounts[baseCode]) {
+          accounts[baseCode].name = acc.name || accounts[baseCode].name;
+          accounts[baseCode].debit += debit;
+          accounts[baseCode].credit += credit;
+          accounts[baseCode].debitBalance += debitBalance;
+          accounts[baseCode].creditBalance += creditBalance;
+        } else {
+          accounts[baseCode] = {
+            name: acc.name || '',
+            debit,
+            credit,
+            debitBalance,
+            creditBalance,
+          };
+        }
+      }
+    }
+
+    // Attach sub-accounts to main accounts
+    for (const baseCode of Object.keys(subAccountsTemp)) {
+      if (accounts[baseCode]) {
+        accounts[baseCode].subAccounts = subAccountsTemp[baseCode];
       }
     }
 
