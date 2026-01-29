@@ -450,7 +450,7 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
           }
         ],
         tools: [{ type: 'function', function: PARSE_FUNCTION_SCHEMA }],
-        tool_choice: { type: 'function', function: { name: 'parse_income_statement' } },
+        // tool_choice removed - Gemini will auto-select based on prompt
         temperature: 0.1,
         max_tokens: 8000,
       }),
@@ -492,11 +492,39 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
     const data = await response.json();
     console.log('AI response received for income statement');
 
-    // Extract accounts from AI response
+    // Extract accounts from AI response - check for tool calls first
+    let parsedArgs: { accounts: any[]; metadata?: { period?: string; company?: string } } | null = null;
+    
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     
-    if (!toolCall || toolCall.function?.name !== 'parse_income_statement') {
-      console.error('Unexpected AI response format:', JSON.stringify(data));
+    if (toolCall && toolCall.function?.name === 'parse_income_statement') {
+      // Tool call worked - parse the arguments
+      try {
+        parsedArgs = JSON.parse(toolCall.function.arguments);
+      } catch (e) {
+        console.error('Failed to parse tool call arguments:', e);
+      }
+    }
+    
+    // Fallback: try to extract JSON from text content if tool call failed
+    if (!parsedArgs) {
+      const textContent = data.choices?.[0]?.message?.content;
+      if (textContent) {
+        console.log('Tool call failed, trying to parse text content as JSON');
+        try {
+          // Try to find JSON in the response
+          const jsonMatch = textContent.match(/\{[\s\S]*"accounts"[\s\S]*\}/);
+          if (jsonMatch) {
+            parsedArgs = JSON.parse(jsonMatch[0]);
+          }
+        } catch (e) {
+          console.error('Failed to parse text content as JSON:', e);
+        }
+      }
+    }
+    
+    if (!parsedArgs || !parsedArgs.accounts) {
+      console.error('Could not extract accounts from AI response:', JSON.stringify(data));
       return {
         accounts: [],
         mappedData: {},
@@ -505,8 +533,6 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
         warnings: ['AI yanıtı beklenmedik formatta. Lütfen Excel formatını kullanın.'],
       };
     }
-
-    const parsedArgs = JSON.parse(toolCall.function.arguments);
     const aiAccounts = parsedArgs.accounts || [];
 
     // Convert AI response to our format with sub-account support
