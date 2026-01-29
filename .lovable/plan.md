@@ -1,166 +1,128 @@
 
-## 5 Yıllık Projeksiyon - AI Veri Tutarlılığı Düzeltme Planı
 
-### Temel Problemler
+## Veri Tutarsızlığı Analizi: İki Tablo Neden Eşleşmiyor
 
-Console loglarından görülen durum:
+### Temel Problem
 
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  MEVCUT DURUM (HATALI)                                         │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  [projectFutureRevenue] Inputs:                                 │
-│  - year1Revenue: $446,616 ← SENARYO VERİSİ (AI değil!)         │
-│  - aggressiveGrowthRate: 1.0 (100%)                            │
-│                                                                 │
-│  projectFutureRevenue Loop (i=1 to 5):                         │
-│  ├── i=1: $446K × 2.0 = $893K    ← HATALI: Year 1 de büyütülüyor│
-│  ├── i=2: $893K × 1.7 = $1.52M                                 │
-│  ├── i=3: $1.52M × 1.25 = $1.9M                                │
-│  ├── i=4: $1.9M × 1.19 = $2.26M                                │
-│  └── i=5: $2.26M × 1.14 = $2.58M                               │
-│                                                                 │
-│  EKRANDA GÖRÜNEN (2027): $1.4M gelir ← Year 1 zaten büyütülmüş │
-│  AI TABLOSUNDA (2027): $580K gelir ← Doğru değer               │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+Ekranda görünen iki tablo **tamamen farklı veri kaynaklarından** besleniyor:
 
-### İki Kritik Hata
-
-1. **AI Projeksiyonu Kullanılmıyor:** `aiNextYearProjection` ya `undefined` ya da değerler doğru geçirilmiyor
-2. **Year 1 İçin Büyüme Uygulanıyor:** `projectFutureRevenue` fonksiyonu gelen değeri Year 1 olarak kullanmak yerine, onu da büyütüyor
-
-### Çözüm Yaklaşımı
-
-```text
-┌─────────────────────────────────────────────────────────────────┐
-│  DÜZELTİLMİŞ AKIŞ                                              │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                 │
-│  AI next_year_projection:                                       │
-│  └── summary.total_revenue: $580.6K                            │
-│                                                                 │
-│  ↓                                                              │
-│                                                                 │
-│  calculateExitPlan(..., aiProjection):                         │
-│  └── baseYear1Revenue = $580.6K (AI'dan)                       │
-│                                                                 │
-│  ↓                                                              │
-│                                                                 │
-│  projectFutureRevenue (DÜZELTİLMİŞ):                           │
-│  ├── Year 1 (i=1): $580.6K (OLDUĞU GİBİ, büyüme yok!)          │
-│  ├── Year 2 (i=2): $580.6K × 1.57 = $911.5K                    │
-│  ├── Year 3 (i=3): $911.5K × 1.30 = $1.18M                     │
-│  ├── Year 4 (i=4): $1.18M × 1.24 = $1.46M                      │
-│  └── Year 5 (i=5): $1.46M × 1.19 = $1.74M                      │
-│                                                                 │
-└─────────────────────────────────────────────────────────────────┘
-```
+| Tablo | Dosya/Satır | Veri Kaynağı | 2027 Toplam Gelir |
+|-------|-------------|--------------|-------------------|
+| "2027 Gelir Projeksiyonu" | ScenarioComparisonPage.tsx (satır 876-926) | `scenarioA.revenues × 1.30` (Varsayılan %30 büyüme) | ~$580K |
+| "5 Yıllık Projeksiyon Detayı" | InvestmentTab.tsx → calculateExitPlan() | `aiNextYearProjection.summary.total_revenue` | $580.6K (AI'dan) |
 
 ---
 
-### Teknik Değişiklikler
+### Problem 1: Düzenlenebilir Tablo AI Verilerini Kullanmıyor
 
-#### 1. projectFutureRevenue - Year 1 Büyüme Düzeltmesi
-
-**Dosya:** `src/hooks/finance/useInvestorAnalysis.ts`
-
-**Problem:** Mevcut kod Year 1 dahil tüm yıllar için büyüme uyguluyor
-
+**Mevcut kod (ScenarioComparisonPage.tsx satır 882-888):**
 ```typescript
-// MEVCUT (HATALI)
-for (let i = 1; i <= 5; i++) {
-  // ...
-  revenue = revenue * (1 + effectiveGrowthRate);  // HER YIL büyütülüyor
+const growthMultiplier = 1.3; // Varsayılan %30 büyüme
+const baseQ = r.projectedQuarterly || { q1: r.projectedAmount / 4, ... };
+const q1 = Math.round((baseQ.q1 || r.projectedAmount / 4) * growthMultiplier);
+```
+
+Bu kod, AI'ın `next_year_projection.quarterly` içindeki **kategori bazlı gelir/gider verilerini tamamen yok sayıyor**.
+
+**AI'ın ürettiği veri (next_year_projection.quarterly):**
+```typescript
+quarterly: {
+  q1: { revenue: $53.7K, expenses: $89.6K },
+  q2: { revenue: $98.9K, expenses: $111.4K },
+  q3: { revenue: $189.9K, expenses: $148.0K },
+  q4: { revenue: $238.0K, expenses: $154.3K }
 }
 ```
 
-**Düzeltme:** Year 1 için büyüme uygulanmamalı, gelen değer direkt kullanılmalı
+**Kullanılması gereken:** AI'ın ürettiği çeyreklik veriler, ancak bunlar toplam değerler. Kategori bazlı dağılım yok.
+
+---
+
+### Problem 2: Kategori Bazlı Projeksiyon Eksik
+
+AI'ın `NextYearProjection` tipi sadece **toplam** çeyreklik gelir/gider içeriyor:
+```typescript
+interface NextYearProjection {
+  quarterly: {
+    q1: { revenue: number; expenses: number; ... };
+    // Kategori bazlı breakdown YOK!
+  };
+  summary: { total_revenue, total_expenses, net_profit };
+}
+```
+
+Ancak "2027 Gelir Projeksiyonu" tablosu **kategori bazlı** (SBT Tracker, Leadership Denetim, vb.) gösteriyor.
+
+---
+
+### Çözüm Planı
+
+#### 1. AI Promptunu Güncelle - Kategori Bazlı Projeksiyon İste
+
+Edge function `unified-scenario-analysis`'a kategori bazlı projeksiyon ekle:
 
 ```typescript
-// DÜZELTİLMİŞ
-for (let i = 1; i <= 5; i++) {
-  let effectiveGrowthRate: number;
-  let growthStage: 'aggressive' | 'normalized';
-  
-  if (i === 1) {
-    // Year 1: Büyüme YOK - gelen değer olduğu gibi kullanılır
-    // (AI veya senaryo verisi zaten hedef yılın değeri)
-    effectiveGrowthRate = 0;
-    growthStage = 'aggressive';
-  } else if (i <= growthConfig.transitionYear) {
-    // Year 2: Agresif büyüme
-    const aggressiveDecay = Math.max(0.7, 1 - (i * 0.15));
-    effectiveGrowthRate = growthConfig.aggressiveGrowthRate * aggressiveDecay;
-    growthStage = 'aggressive';
-  } else {
-    // Year 3-5: Normalize büyüme
-    const normalDecay = Math.max(0.8, 1 - ((i - growthConfig.transitionYear) * 0.05));
-    effectiveGrowthRate = growthConfig.normalizedGrowthRate * normalDecay;
-    growthStage = 'normalized';
+// NextYearProjection tipine eklenecek:
+interface CategoryProjection {
+  category: string;
+  q1: number;
+  q2: number;
+  q3: number;
+  q4: number;
+  total: number;
+  growth_rate: number;  // Baz yıla göre büyüme
+}
+
+interface NextYearProjection {
+  // ... mevcut alanlar
+  itemized_revenues?: CategoryProjection[];  // YENİ
+  itemized_expenses?: CategoryProjection[];  // YENİ
+}
+```
+
+#### 2. Düzenlenebilir Tabloyu AI Verileriyle Besle
+
+ScenarioComparisonPage.tsx'deki `useEffect`'i güncelle:
+
+```typescript
+useEffect(() => {
+  if (unifiedAnalysis?.next_year_projection && scenarioA) {
+    const projection = unifiedAnalysis.next_year_projection;
+    
+    // YENİ: AI'dan gelen itemized veriler varsa kullan
+    if (projection.itemized_revenues?.length) {
+      const revenueItems: EditableProjectionItem[] = projection.itemized_revenues.map(item => ({
+        category: item.category,
+        q1: item.q1,
+        q2: item.q2,
+        q3: item.q3,
+        q4: item.q4,
+        total: item.total,
+        aiGenerated: true,
+        userEdited: false
+      }));
+      setEditableRevenueProjection(revenueItems);
+    } else {
+      // Fallback: Mevcut mantık (senaryo × 1.30)
+    }
   }
-  
-  revenue = revenue * (1 + effectiveGrowthRate);
-  expenses = expenses * (1 + (effectiveGrowthRate * 0.6));
-  // ... rest
-}
+}, [unifiedAnalysis?.next_year_projection, scenarioA]);
 ```
 
-#### 2. Debug Log Ekleme - AI Projeksiyonu Kontrolü
+#### 3. 5 Yıllık Tabloyu Düzenlenebilir Verilerle Senkronize Et
 
-**Dosya:** `src/hooks/finance/useInvestorAnalysis.ts`
-
-```typescript
-export const calculateExitPlan = (
-  // ... params
-  aiProjection?: AIProjectionForExitPlan
-): ExitPlan => {
-  // DEBUG: AI projeksiyonunun alınıp alınmadığını kontrol et
-  console.log('[calculateExitPlan] AI Projection:', {
-    hasAIProjection: !!aiProjection,
-    aiRevenue: aiProjection?.year1Revenue,
-    aiExpenses: aiProjection?.year1Expenses,
-    aiGrowthHint: aiProjection?.growthRateHint,
-    fallbackRevenue: year1Revenue,
-    fallbackExpenses: year1Expenses,
-    userGrowthRate,
-  });
-  
-  // AI projeksiyonu varsa Year 1 verilerini override et
-  const baseYear1Revenue = aiProjection?.year1Revenue ?? year1Revenue;
-  const baseYear1Expenses = aiProjection?.year1Expenses ?? year1Expenses;
-  const effectiveGrowthRate = aiProjection?.growthRateHint ?? userGrowthRate;
-  
-  console.log('[calculateExitPlan] Effective Values:', {
-    baseYear1Revenue,
-    baseYear1Expenses,
-    effectiveGrowthRate,
-  });
-  
-  // ... rest
-};
-```
-
-#### 3. InvestmentTab - AI Projeksiyonu Geçirme Kontrolü
-
-**Dosya:** `src/components/simulation/InvestmentTab.tsx`
+InvestmentTab'ın `aiProjectionForExitPlan`'ı **düzenlenmiş** verileri kullanmalı:
 
 ```typescript
-// AI projeksiyonunu Exit Plan formatına dönüştür
-const aiProjectionForExitPlan = useMemo<AIProjectionForExitPlan | undefined>(() => {
-  // DEBUG: AI projeksiyonunun gelip gelmediğini kontrol et
-  console.log('[InvestmentTab] AI Next Year Projection:', {
-    hasProjection: !!aiNextYearProjection,
-    summary: aiNextYearProjection?.summary,
-    investorHook: aiNextYearProjection?.investor_hook,
-  });
-  
-  if (!aiNextYearProjection) return undefined;
-  
-  // ... existing code
-}, [aiNextYearProjection]);
+// ScenarioComparisonPage'den InvestmentTab'a geçirilecek:
+<InvestmentTab
+  // ... mevcut props
+  aiNextYearProjection={unifiedAnalysis?.next_year_projection}
+  editedProjectionOverride={{
+    totalRevenue: editableRevenueProjection.reduce((sum, r) => sum + r.total, 0),
+    totalExpenses: editableExpenseProjection.reduce((sum, e) => sum + e.total, 0),
+  }}
+/>
 ```
 
 ---
@@ -169,35 +131,57 @@ const aiProjectionForExitPlan = useMemo<AIProjectionForExitPlan | undefined>(() 
 
 | Dosya | Değişiklik |
 |-------|------------|
-| `src/hooks/finance/useInvestorAnalysis.ts` | `projectFutureRevenue` - Year 1 için büyüme kaldırma (i === 1 → effectiveGrowthRate = 0) |
-| `src/hooks/finance/useInvestorAnalysis.ts` | `calculateExitPlan` - Debug logları ekleme |
-| `src/components/simulation/InvestmentTab.tsx` | `aiProjectionForExitPlan` - Debug logları ekleme |
+| `src/types/simulation.ts` | `NextYearProjection` tipine `itemized_revenues` ve `itemized_expenses` ekle |
+| `supabase/functions/unified-scenario-analysis/index.ts` | AI promptuna kategori bazlı projeksiyon talimatı ekle |
+| `src/pages/finance/ScenarioComparisonPage.tsx` | Düzenlenebilir tabloyu AI itemized verileriyle besle |
+| `src/components/simulation/InvestmentTab.tsx` | `editedProjectionOverride` prop'u ile kullanıcı düzenlemelerini al |
 
 ---
 
-### Düzeltilmiş Hesaplama Örneği
+### Beklenen Sonuç
 
-**Girdi:**
-- AI 2027 Gelir: $580.6K
-- AI 2027 Gider: $503.4K
-- AI Büyüme Oranı: %57
+| Metrik | Önceki | Sonraki |
+|--------|--------|---------|
+| 2027 Gelir Tablosu Kaynağı | Senaryo × 1.30 (hardcoded) | AI itemized verileri |
+| 5 Yıllık Tablo Kaynağı | AI summary.total_revenue | Düzenlenebilir tablo toplamları |
+| Veri Tutarlılığı | ❌ Farklı kaynaklar | ✅ Tek kaynak (AI → Düzenlenebilir → 5 Yıllık) |
+| Kullanıcı Düzenlemeleri | 5 Yıllık tabloya yansımıyor | ✅ Otomatik senkronize |
 
-**5 Yıllık Projeksiyon (DÜZELTİLMİŞ):**
+---
 
-| Yıl | Büyüme | Gelir | Gider | Net Kar |
-|-----|--------|-------|-------|---------|
-| 2027 | 0% (Year 1) | $580.6K | $503.4K | $77.2K |
-| 2028 | 48.5% (57%×0.85) | $862.3K | $667.9K | $194.4K |
-| 2029 | 25% (normalize) | $1.08M | $792.7K | $284.7K |
-| 2030 | 23.8% | $1.33M | $918.5K | $413.2K |
-| 2031 | 22.5% | $1.63M | $1.05M | $581.3K |
+### Veri Akışı (Düzeltilmiş)
 
-**Beklenen Sonuç:**
+```text
+┌─────────────────────────────────────────────────────────────────┐
+│  DÜZELTİLMİŞ VERİ AKIŞI                                        │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  AI unified-scenario-analysis →                                 │
+│  └── next_year_projection: {                                   │
+│        itemized_revenues: [                                     │
+│          { category: "SBT Tracker", q1: 26K, q2: 45.5K, ... }  │
+│          { category: "Leadership Denetim", ... }               │
+│        ],                                                       │
+│        itemized_expenses: [...],                                │
+│        summary: { total_revenue: 580.6K, ... }                 │
+│      }                                                          │
+│                                                                 │
+│  ↓                                                              │
+│                                                                 │
+│  "2027 Gelir Projeksiyonu" Tablosu (Düzenlenebilir)            │
+│  └── editableRevenueProjection = itemized_revenues             │
+│                                                                 │
+│  ↓ (Kullanıcı düzenleyebilir)                                  │
+│                                                                 │
+│  InvestmentTab (editedProjectionOverride prop)                 │
+│  └── Year 1 = editedTotal ($580.6K veya kullanıcı değeri)      │
+│                                                                 │
+│  ↓                                                              │
+│                                                                 │
+│  "5 Yıllık Projeksiyon Detayı" Tablosu                         │
+│  └── 2027: $580.6K (senkronize!)                               │
+│  └── 2028+: Büyüme formülü ile                                 │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+```
 
-| Metrik | Önceki (Hatalı) | Sonraki (Doğru) |
-|--------|----------------|-----------------|
-| 2027 Gelir | $1.4M | $580.6K |
-| 2027 Gider | $893K | $503.4K |
-| AI Tablosu ile Uyum | ❌ | ✅ |
-| Year 1 Büyüme | %100 | %0 |
-| 5Y Toplam Gelir | $14.1M | ~$5.5M |
