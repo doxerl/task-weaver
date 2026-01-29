@@ -1,5 +1,7 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 import * as XLSX from "https://esm.sh/xlsx@0.18.5";
+import pdfParse from "https://esm.sh/pdf-parse@1.1.1";
+import { Buffer } from "https://deno.land/std@0.168.0/node/buffer.ts";
 
 const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
@@ -200,6 +202,107 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
   };
 }
 
+async function parsePDF(buffer: ArrayBuffer): Promise<ParseResult> {
+  const accounts: Record<string, TrialBalanceAccount> = {};
+  const warnings: string[] = [];
+
+  try {
+    // Use pdf-parse to extract text from PDF
+    const pdfData = await pdfParse(Buffer.from(new Uint8Array(buffer)));
+    const fullText = pdfData.text || '';
+
+    // Parse text to extract account data
+    // Pattern: 3-digit code, account name, numeric values
+    // Example: "100 Kasa 5.000,00 3.000,00 2.000,00 0,00"
+    const lines = fullText.split('\n');
+    
+    // Turkish number regex: matches formats like 1.234,56 or 1234,56 or 0,00
+    const numberPattern = /[\d.,]+/g;
+    
+    for (const line of lines) {
+      // Look for lines starting with 3-digit account code
+      const match = line.match(/^\s*(\d{3})\s+(.+)/);
+      if (!match) continue;
+
+      const code = match[1];
+      const rest = match[2];
+
+      // Extract all numbers from the rest of the line
+      const numbers: number[] = [];
+      const numberMatches = rest.match(numberPattern) || [];
+      
+      for (const numStr of numberMatches) {
+        // Check if it looks like a Turkish formatted number
+        if (numStr.includes(',') || numStr.includes('.')) {
+          const parsed = parseNumber(numStr);
+          if (!isNaN(parsed)) {
+            numbers.push(parsed);
+          }
+        }
+      }
+
+      // We need at least 2 numbers (debit, credit)
+      if (numbers.length < 2) continue;
+
+      // Extract account name (text before the first number)
+      const nameMatch = rest.match(/^([^\d]+)/);
+      const name = nameMatch ? nameMatch[1].trim() : '';
+
+      // Determine debit, credit, and balances based on number count
+      let debit = 0, credit = 0, debitBalance = 0, creditBalance = 0;
+      
+      if (numbers.length >= 4) {
+        // Full format: Debit, Credit, DebitBalance, CreditBalance
+        debit = numbers[0];
+        credit = numbers[1];
+        debitBalance = numbers[2];
+        creditBalance = numbers[3];
+      } else if (numbers.length >= 2) {
+        // Minimal format: Debit, Credit
+        debit = numbers[0];
+        credit = numbers[1];
+        // Calculate balances
+        if (debit > credit) {
+          debitBalance = debit - credit;
+        } else {
+          creditBalance = credit - debit;
+        }
+      }
+
+      // Merge with existing if same code
+      if (accounts[code]) {
+        accounts[code].debit += debit;
+        accounts[code].credit += credit;
+        accounts[code].debitBalance += debitBalance;
+        accounts[code].creditBalance += creditBalance;
+      } else {
+        accounts[code] = {
+          name,
+          debit,
+          credit,
+          debitBalance,
+          creditBalance,
+        };
+      }
+    }
+
+    if (Object.keys(accounts).length === 0) {
+      warnings.push('PDF dosyasından hesap verisi çıkarılamadı. Lütfen Excel formatını deneyin.');
+    }
+
+  } catch (error) {
+    console.error('PDF parsing error:', error);
+    warnings.push('PDF okuma hatası: ' + (error instanceof Error ? error.message : 'Bilinmeyen hata'));
+  }
+
+  return {
+    accounts,
+    detectedFormat: 'pdf_text_extraction',
+    totalRows: Object.keys(accounts).length,
+    warnings,
+  };
+}
+
 serve(async (req) => {
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
@@ -220,12 +323,15 @@ serve(async (req) => {
     }
 
     const fileName = file.name.toLowerCase();
-    if (!fileName.endsWith('.xlsx') && !fileName.endsWith('.xls')) {
-      throw new Error('Only Excel files (.xlsx, .xls) are supported');
+    const isPDF = fileName.endsWith('.pdf');
+    const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
+
+    if (!isPDF && !isExcel) {
+      throw new Error('Desteklenen formatlar: Excel (.xlsx, .xls) veya PDF');
     }
 
     const buffer = await file.arrayBuffer();
-    const result = await parseExcel(buffer);
+    const result = isPDF ? await parsePDF(buffer) : await parseExcel(buffer);
 
     return new Response(JSON.stringify(result), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },

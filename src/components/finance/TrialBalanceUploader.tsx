@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Upload, FileSpreadsheet, Check, Trash2, Eye, Loader2, AlertCircle } from 'lucide-react';
+import { Upload, FileSpreadsheet, FileText, Check, Trash2, Eye, Loader2, AlertCircle } from 'lucide-react';
 import { useTrialBalance } from '@/hooks/finance/useTrialBalance';
 import { formatFullTRY } from '@/lib/formatters';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -101,7 +101,7 @@ export function TrialBalanceUploader({ year, month = null }: TrialBalanceUploade
           {year} Yılı Mizan {month ? `(${month}. Ay)` : '(Yıllık)'}
         </CardTitle>
         <CardDescription>
-          Muhasebeciden gelen mizan dosyasını yükleyin (Excel formatı)
+          Muhasebeciden gelen mizan dosyasını yükleyin (Excel veya PDF formatı)
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -127,7 +127,7 @@ export function TrialBalanceUploader({ year, month = null }: TrialBalanceUploade
               <>
                 <Upload className="h-10 w-10 mx-auto mb-4 text-muted-foreground" />
                 <p className="text-sm text-muted-foreground mb-2">
-                  Excel dosyasını sürükleyip bırakın
+                  Excel veya PDF dosyasını sürükleyip bırakın
                 </p>
                 <p className="text-xs text-muted-foreground mb-4">veya</p>
                 <Button variant="outline" asChild>
@@ -136,13 +136,13 @@ export function TrialBalanceUploader({ year, month = null }: TrialBalanceUploade
                     <input
                       type="file"
                       className="hidden"
-                      accept=".xlsx,.xls"
+                      accept=".xlsx,.xls,.pdf"
                       onChange={handleFileSelect}
                     />
                   </label>
                 </Button>
                 <p className="text-xs text-muted-foreground mt-4">
-                  Desteklenen formatlar: .xlsx, .xls
+                  Desteklenen formatlar: .xlsx, .xls, .pdf
                 </p>
               </>
             )}
@@ -152,7 +152,11 @@ export function TrialBalanceUploader({ year, month = null }: TrialBalanceUploade
           <div className="space-y-4">
             <div className="flex items-center justify-between p-4 bg-muted/50 rounded-lg">
               <div className="flex items-center gap-3">
-                <FileSpreadsheet className="h-8 w-8 text-green-600" />
+                {trialBalance.file_name?.toLowerCase().endsWith('.pdf') ? (
+                  <FileText className="h-8 w-8 text-red-600" />
+                ) : (
+                  <FileSpreadsheet className="h-8 w-8 text-green-600" />
+                )}
                 <div>
                   <p className="font-medium">{trialBalance.file_name}</p>
                   <p className="text-sm text-muted-foreground">
