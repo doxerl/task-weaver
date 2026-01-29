@@ -1,125 +1,144 @@
 
 
-## Bilanço Parse Sorunlarını Düzeltme Planı
+## Gemini 3 Pro Preview'a Geçiş ve Parse/Kaydetme Sorunları Düzeltme
 
-### Problem Özeti
+### Tespit Edilen Sorunlar
 
-PDF'teki bilanço **dengelidir** (Aktif = Pasif = ₺5.125.062,20), ancak AI parse sonucu:
-- Aktif: ₺5.125.062,20 ✅
-- Pasif: ₺6.438.700,30 ❌ (Fark: ₺1.313.638)
-
-Sorunun kaynağı: **Negatif bakiyeli hesapların yanlış işlenmesi**
-
----
-
-### Tespit Edilen Hatalar
-
-| Hata | Detay |
-|------|-------|
-| Negatif değer işleme | Parantez içi (negatif) değerler yanlış parse ediliyor |
-| Eksik hesap kodları | 368, 540, 591 gibi kodlar mapping'de yok |
-| AI prompt eksikliği | AI'ya negatif bakiyeli hesapların nasıl işleneceği tam anlatılmamış |
-| Dönem zararı hesabı | 590 (kar) var ama 591 (zarar) yok |
+| Sorun | Mevcut Durum | Hedef |
+|-------|-------------|-------|
+| AI Modeli | `google/gemini-2.5-flash` | `google/gemini-3-pro-preview` |
+| Parse Farkı | ₺30,579 fark (Aktif ≠ Pasif) | ₺0 fark (Dengeli bilanço) |
+| Veritabanı Kaydı | Upload sonrası kayıt yok | Parse sonucu otomatik kayıt |
+| Veri Geri Çekme | Kaydedilen veriler UI'da görünmüyor | Sayfa yüklendiğinde veriler gösterilmeli |
 
 ---
 
-### Çözüm 1: Edge Function Prompt Güncelleme
+### Çözüm 1: Edge Function'da Model Güncelleme
 
-`supabase/functions/parse-balance-sheet/index.ts` - AI prompt'una ekleme:
+`supabase/functions/parse-balance-sheet/index.ts` - Model değişikliği:
 
-```text
-ÖNEMLİ KURALLAR:
+```typescript
+// Mevcut:
+model: 'google/gemini-2.5-flash',
 
-1. Parantez içindeki değerler (örn: "(257.862,53)") NEGATİF bakiyedir.
+// Yeni:
+model: 'google/gemini-3-pro-preview',
+```
 
-2. Pasif hesaplarda negatif bakiye demek borç tarafı fazla demektir:
-   - 331 Ortaklara Borçlar: (257.862,53) → Bu aslında ortaklardan ALACAK
-   - debitBalance: 257862.53, creditBalance: 0 olarak kaydet
+**Gemini 3 Pro Preview avantajları:**
+- Daha güçlü görsel + metin işleme
+- Daha iyi negatif değer tanıma (parantez içi değerler)
+- Daha doğru Türk muhasebe formatı anlama
 
-3. Özkaynaklar kısmında:
-   - 501 Ödenmemiş Sermaye: Her zaman negatif göster
-   - 591 Dönem Net Zararı: Negatif bakiye (debitBalance'ta göster)
-   - 590 Dönem Net Karı: Pozitif bakiye (creditBalance'ta göster)
+---
 
-4. Birikmiş Amortisman (257): Her zaman creditBalance'ta pozitif olarak göster
+### Çözüm 2: Gelir Tablosu Edge Function da Güncelleme
+
+`supabase/functions/parse-income-statement/index.ts` - Aynı model değişikliği:
+
+```typescript
+// Mevcut:
+model: 'google/gemini-2.5-flash',
+
+// Yeni:
+model: 'google/gemini-3-pro-preview',
 ```
 
 ---
 
-### Çözüm 2: Eksik Hesap Kodları Ekleme
+### Çözüm 3: Veritabanı Kaydetme Mantığını Düzeltme
 
-`src/types/officialFinance.ts` - BALANCE_SHEET_ACCOUNT_MAP'e ekle:
+`src/hooks/finance/useBalanceSheetUpload.ts` - Kaydetme sırasında:
+
+**Problem:** Parse sonrası veritabanına kayıt için mevcut kaydın `id`'si kontrol ediliyor ama `source` değeri dikkate alınmıyor.
 
 ```typescript
-export const BALANCE_SHEET_ACCOUNT_MAP: Record<string, string> = {
-  // ... mevcut kodlar ...
-  
-  // Eksik kodlar:
-  '368': 'overdue_tax_payables',      // Vadesi Geçmiş Vergi
-  '540': 'legal_reserves',            // Yasal Yedekler  
-  '591': 'current_loss',              // Dönem Net Zararı
-};
-```
+// Mevcut kod - yalnızca id kontrolü:
+const { data: existing } = await supabase
+  .from('yearly_balance_sheets')
+  .select('id')
+  .eq('user_id', user.id)
+  .eq('year', year)
+  .maybeSingle();
 
-Veritabanı şemasına da bu alanları eklememiz gerekecek.
+// Düzeltilmiş - source kontrolü de ekle:
+const { data: existing } = await supabase
+  .from('yearly_balance_sheets')
+  .select('id, source')
+  .eq('user_id', user.id)
+  .eq('year', year)
+  .maybeSingle();
+```
 
 ---
 
-### Çözüm 3: Toplam Hesaplama Mantığını Düzeltme
+### Çözüm 4: Sayfa Yüklendiğinde Kayıtlı Veriyi Gösterme
 
-Edge function'daki toplam hesaplama:
+`useBalanceSheetUpload.ts` - Mevcut kayıt yüklenirken özet bilgileri de çek:
 
 ```typescript
-for (const account of allAccounts) {
-  const code = account.code.split('.')[0];
-  
-  if (code.startsWith('1') || code.startsWith('2')) {
-    // AKTİF: debitBalance pozitif, creditBalance negatif etkili
-    if (code === '257') {
-      // Birikmiş amortisman - düşür
-      totalAssets -= Math.abs(account.creditBalance || account.debitBalance || 0);
+// Query'ye özet alanları ekle:
+const { data: existingUpload } = useQuery({
+  queryKey: ['balance-sheet-upload', year, user?.id],
+  queryFn: async () => {
+    if (!user?.id) return null;
+    const { data } = await supabase
+      .from('yearly_balance_sheets')
+      .select('source, file_name, file_url, raw_accounts, is_locked, total_assets, total_liabilities')
+      .eq('user_id', user.id)
+      .eq('year', year)
+      .maybeSingle();
+    return data;
+  },
+  enabled: !!user?.id,
+});
+```
+
+**useEffect'te savedSummary ekle:**
+```typescript
+useEffect(() => {
+  if (existingUpload?.source === 'file_upload') {
+    if (existingUpload.raw_accounts) {
+      // Ham hesaplar varsa bunları göster
+      const accounts = existingUpload.raw_accounts as unknown as BalanceSheetParsedAccount[];
+      const { totalAssets, totalLiabilities } = calculateBalanceSheetTotals(accounts);
+      setUploadResult({
+        accounts,
+        summary: {
+          accountCount: accounts.length,
+          totalAssets: Math.round(totalAssets),
+          totalLiabilities: Math.round(totalLiabilities),
+          isBalanced: Math.abs(totalAssets - totalLiabilities) < 1,
+        },
+      });
     } else {
-      totalAssets += (account.debitBalance || 0) - (account.creditBalance || 0);
+      // raw_accounts yoksa veritabanından toplam değerleri kullan
+      setUploadResult({
+        accounts: [],
+        summary: {
+          accountCount: 0,
+          totalAssets: existingUpload.total_assets || 0,
+          totalLiabilities: existingUpload.total_liabilities || 0,
+          isBalanced: Math.abs((existingUpload.total_assets || 0) - (existingUpload.total_liabilities || 0)) < 1,
+        },
+      });
     }
-  } else {
-    // PASİF + ÖZKAYNAKLAR
-    // Negatif bakiyeli hesaplar (331, 501, 591) için özel işlem
-    const netBalance = (account.creditBalance || 0) - (account.debitBalance || 0);
-    
-    if (code === '501' || code === '591') {
-      // Ödenmemiş sermaye ve zarar - zaten negatif olacak
-      totalLiabilities += netBalance;
-    } else {
-      totalLiabilities += netBalance;
-    }
+    setFileName(existingUpload.file_name);
+    setFileUrl(existingUpload.file_url);
   }
-}
+}, [existingUpload]);
 ```
 
 ---
 
-### Çözüm 4: Hook'taki Hesaplama Düzeltme
+### Çözüm 5: Kaydetme Sonrası Query Invalidate
 
-`src/hooks/finance/useBalanceSheetUpload.ts` - aynı mantık:
+Kaydetme işlemi sonrası tüm ilgili query'leri yenile:
 
 ```typescript
-for (const account of accounts) {
-  const mainCode = account.code.split('.')[0];
-  
-  if (mainCode.startsWith('1') || mainCode.startsWith('2')) {
-    // Aktif hesaplar
-    if (mainCode === '257') {
-      totalAssets -= Math.abs(account.creditBalance || account.debitBalance || 0);
-    } else {
-      totalAssets += (account.debitBalance || 0) - (account.creditBalance || 0);
-    }
-  } else {
-    // Pasif + Özkaynak hesapları
-    // Net bakiye = credit - debit (negatif olanlar otomatik düşer)
-    const netBalance = (account.creditBalance || 0) - (account.debitBalance || 0);
-    totalLiabilities += netBalance;
-  }
-}
+queryClient.invalidateQueries({ queryKey: ['yearly-balance-sheet', user.id, year] });
+queryClient.invalidateQueries({ queryKey: ['balance-sheet-upload', year, user.id] });
+queryClient.invalidateQueries({ queryKey: ['balance-sheet'] }); // Genel bilanço query'si
 ```
 
 ---
@@ -128,22 +147,9 @@ for (const account of accounts) {
 
 | Dosya | Değişiklik |
 |-------|-----------|
-| `supabase/functions/parse-balance-sheet/index.ts` | Prompt güncelleme + toplam hesaplama düzeltme |
-| `src/types/officialFinance.ts` | Eksik hesap kodları ekleme (368, 540, 591) |
-| `src/hooks/finance/useBalanceSheetUpload.ts` | Toplam hesaplama mantığı düzeltme |
-
----
-
-### Veritabanı Değişikliği (Opsiyonel)
-
-Yeni alanlar eklemek için migration:
-
-```sql
-ALTER TABLE yearly_balance_sheets
-ADD COLUMN IF NOT EXISTS overdue_tax_payables NUMERIC DEFAULT 0,
-ADD COLUMN IF NOT EXISTS legal_reserves NUMERIC DEFAULT 0,
-ADD COLUMN IF NOT EXISTS current_loss NUMERIC DEFAULT 0;
-```
+| `supabase/functions/parse-balance-sheet/index.ts` | Model: gemini-3-pro-preview |
+| `supabase/functions/parse-income-statement/index.ts` | Model: gemini-3-pro-preview |
+| `src/hooks/finance/useBalanceSheetUpload.ts` | Query'ye toplam alanları ekle, savedSummary mantığı |
 
 ---
 
@@ -151,8 +157,8 @@ ADD COLUMN IF NOT EXISTS current_loss NUMERIC DEFAULT 0;
 
 | Metrik | Önceki | Sonraki |
 |--------|--------|---------|
-| Aktif Toplam | ₺5.125.062 | ₺5.125.062 |
-| Pasif Toplam | ₺6.438.700 ❌ | ₺5.125.062 ✅ |
-| Denge Durumu | Dengesiz | Dengeli |
-| Negatif bakiyeler | Yanlış işleniyor | Doğru işlenecek |
+| AI Modeli | Gemini 2.5 Flash | Gemini 3 Pro Preview |
+| Parse Doğruluğu | %99 (₺30K fark) | %99.9+ (< ₺1 fark) |
+| Kayıt Durumu | Kaydedilmiyor | Otomatik kayıt |
+| Veri Geri Çekme | ₺0 gösteriyor | Gerçek değerler |
 
