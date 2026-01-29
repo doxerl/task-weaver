@@ -2237,6 +2237,7 @@ export type Database = {
           prior_period_expenses: number | null
           prior_period_income: number | null
           provisions_expense: number | null
+          raw_accounts: Json | null
           rd_expenses: number | null
           revaluation_gain: number | null
           revaluation_loss: number | null
@@ -2283,6 +2284,7 @@ export type Database = {
           prior_period_expenses?: number | null
           prior_period_income?: number | null
           provisions_expense?: number | null
+          raw_accounts?: Json | null
           rd_expenses?: number | null
           revaluation_gain?: number | null
           revaluation_loss?: number | null
@@ -2329,6 +2331,7 @@ export type Database = {
           prior_period_expenses?: number | null
           prior_period_income?: number | null
           provisions_expense?: number | null
+          raw_accounts?: Json | null
           rd_expenses?: number | null
           revaluation_gain?: number | null
           revaluation_loss?: number | null

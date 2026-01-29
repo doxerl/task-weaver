@@ -56,14 +56,14 @@ export function useIncomeStatementUpload(year: number) {
   const [isUploading, setIsUploading] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
 
-  // Load existing upload from database (including summary fields)
+  // Load existing upload from database (including summary fields and raw accounts)
   const { data: existingData, isLoading: isLoadingExisting } = useQuery({
     queryKey: ['income-statement-upload', year, userId],
     queryFn: async () => {
       if (!userId) return null;
       const { data } = await supabase
         .from('yearly_income_statements')
-        .select('source, file_url, file_name, net_sales, gross_profit, operating_profit')
+        .select('source, file_url, file_name, net_sales, gross_profit, operating_profit, raw_accounts')
         .eq('user_id', userId)
         .eq('year', year)
         .maybeSingle();
@@ -72,12 +72,17 @@ export function useIncomeStatementUpload(year: number) {
     enabled: !!userId,
   });
 
-  // Sync existing data to upload state (including saved summary values)
+  // Sync existing data to upload state (including saved summary values and raw accounts)
   useEffect(() => {
     if (existingData?.source === 'mizan_upload' && existingData.file_name) {
+      // Parse raw_accounts from database if available
+      const accounts = existingData.raw_accounts 
+        ? (existingData.raw_accounts as unknown as IncomeStatementAccount[])
+        : [];
+      
       setUploadState({
         fileName: existingData.file_name,
-        accounts: [], // Already parsed and saved
+        accounts, // Now loaded from database for preview
         mappedData: {},
         warnings: [],
         isApproved: true, // Already saved to database
@@ -185,6 +190,7 @@ export function useIncomeStatementUpload(year: number) {
         year,
         source: 'mizan_upload',
         file_name: uploadState.fileName, // Save file name
+        raw_accounts: uploadState.accounts, // Save raw accounts for preview
         updated_at: new Date().toISOString(),
       };
 
