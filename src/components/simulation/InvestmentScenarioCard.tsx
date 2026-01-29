@@ -18,6 +18,7 @@ interface InvestmentScenarioCardProps {
   comparison: InvestmentScenarioComparison;
   scenarioAName: string;
   scenarioBName: string;
+  scenarioYear?: number; // Senaryo yılı - dinamik yıl label'ları için
 }
 
 const getRiskBadgeVariant = (level: string) => {
@@ -42,8 +43,12 @@ export const InvestmentScenarioCard: React.FC<InvestmentScenarioCardProps> = ({
   comparison,
   scenarioAName,
   scenarioBName,
+  scenarioYear,
 }) => {
   const { withInvestment, withoutInvestment, opportunityCost } = comparison;
+  
+  // Dinamik yıl hesaplama - 5Y = scenarioYear + 5
+  const year5Label = scenarioYear ? `${scenarioYear + 5} Değerlemesi` : '5Y Değerleme';
 
   return (
     <Card className="border-2 border-primary/20">
@@ -90,13 +95,13 @@ export const InvestmentScenarioCard: React.FC<InvestmentScenarioCardProps> = ({
                 </span>
               </div>
               <div className="flex justify-between items-center pt-2 border-t border-emerald-500/20">
-                <span className="text-xs text-muted-foreground">5Y Değerleme:</span>
+                <span className="text-xs text-muted-foreground">{year5Label}:</span>
                 <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
                   {formatCompactUSD(withInvestment.exitValuation)}
                 </span>
               </div>
               <div className="flex justify-between items-center">
-                <span className="text-xs text-muted-foreground">MOIC (5Y):</span>
+                <span className="text-xs text-muted-foreground">MOIC ({scenarioYear ? `${scenarioYear + 5}` : '5Y'}):</span>
                 <Badge className="bg-emerald-500/20 text-emerald-600 border-emerald-500/30">
                   {withInvestment.moic5Year > 100 
                     ? `${(withInvestment.moic5Year / 1000).toFixed(1)}Kx` 
@@ -184,7 +189,7 @@ export const InvestmentScenarioCard: React.FC<InvestmentScenarioCardProps> = ({
                 </p>
               </div>
               <div className="text-center p-2 rounded bg-background/50">
-                <span className="text-xs text-muted-foreground block">5Y Değerleme Kaybı</span>
+                <span className="text-xs text-muted-foreground block">{year5Label} Kaybı</span>
                 <p className="text-lg font-bold text-red-600 dark:text-red-400 flex items-center justify-center gap-1">
                   <DollarSign className="h-4 w-4" />
                   {formatCompactUSD(opportunityCost.valuationLoss)}
@@ -193,7 +198,7 @@ export const InvestmentScenarioCard: React.FC<InvestmentScenarioCardProps> = ({
             </div>
             <p className="text-xs text-amber-700 dark:text-amber-400 mt-3">
               Yatırım almazsanız, potansiyel gelirinizin <strong>%{opportunityCost.percentageLoss.toFixed(0)}'ini</strong> kaybedebilir
-              ve 5 yıl sonunda şirket değerlemesi <strong>{formatCompactUSD(opportunityCost.valuationLoss)}</strong> daha düşük olabilir.
+              ve {scenarioYear ? `${scenarioYear + 5}` : '5 yıl sonunda'} şirket değerlemesi <strong>{formatCompactUSD(opportunityCost.valuationLoss)}</strong> daha düşük olabilir.
             </p>
           </AlertDescription>
         </Alert>

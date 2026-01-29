@@ -156,9 +156,11 @@ export const projectFutureRevenue = (
   year1Revenue: number, 
   year1Expenses: number,
   growthConfig: GrowthConfiguration, 
-  sectorMultiple: number
+  sectorMultiple: number,
+  scenarioTargetYear?: number  // Optional: senaryo yılı, verilmezse getProjectionYears() kullanılır
 ): { year3: MultiYearProjection; year5: MultiYearProjection; allYears: MultiYearProjection[] } => {
-  const { year1: scenarioYear } = getProjectionYears();
+  const { year1: defaultYear } = getProjectionYears();
+  const scenarioYear = scenarioTargetYear || defaultYear;
   const years: MultiYearProjection[] = [];
   let revenue = year1Revenue;
   let expenses = year1Expenses;
@@ -227,9 +229,13 @@ export const calculateExitPlan = (
   year1Revenue: number,
   year1Expenses: number,
   userGrowthRate: number,
-  sector: string = 'default'
+  sector: string = 'default',
+  scenarioTargetYear?: number  // Optional: senaryo yılı, verilmezse getProjectionYears() kullanılır
 ): ExitPlan => {
-  const { year1, year3, year5 } = getProjectionYears();
+  const { year1: defaultYear1, year3: defaultYear3, year5: defaultYear5 } = getProjectionYears();
+  const year1 = scenarioTargetYear || defaultYear1;
+  const year3 = year1 + 3;
+  const year5 = year1 + 5;
   
   // İki aşamalı konfigürasyon oluştur
   const growthConfig: GrowthConfiguration = {
@@ -240,7 +246,7 @@ export const calculateExitPlan = (
   };
   
   const postMoney = deal.investmentAmount / (deal.equityPercentage / 100);
-  const projections = projectFutureRevenue(year1Revenue, year1Expenses, growthConfig, deal.sectorMultiple);
+  const projections = projectFutureRevenue(year1Revenue, year1Expenses, growthConfig, deal.sectorMultiple, year1);
   
   const investorShare3 = projections.year3.companyValuation * (deal.equityPercentage / 100);
   const investorShare5 = projections.year5.companyValuation * (deal.equityPercentage / 100);
@@ -314,9 +320,11 @@ export const calculateInvestmentScenarioComparison = (
   scenarioA: ScenarioInputs, // Positive - Yatırım alırsak
   scenarioB: ScenarioInputs, // Negative - Yatırım alamazsak
   exitPlan: ExitPlan,
-  sectorMultiple: number
+  sectorMultiple: number,
+  scenarioTargetYear?: number  // Optional: senaryo yılı, verilmezse getProjectionYears() kullanılır
 ): InvestmentScenarioComparison => {
-  const { year1 } = getProjectionYears();
+  const { year1: defaultYear } = getProjectionYears();
+  const year1 = scenarioTargetYear || defaultYear;
   
   // Growth rates
   const growthRateA = scenarioA.baseRevenue > 0 

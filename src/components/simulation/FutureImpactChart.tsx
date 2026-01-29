@@ -26,10 +26,19 @@ import { formatCompactUSD } from '@/lib/formatters';
 
 interface FutureImpactChartProps {
   comparison: InvestmentScenarioComparison;
+  scenarioYear?: number; // Senaryo yılı - dinamik yıl label'ları için
 }
 
-export const FutureImpactChart: React.FC<FutureImpactChartProps> = ({ comparison }) => {
+export const FutureImpactChart: React.FC<FutureImpactChartProps> = ({ comparison, scenarioYear }) => {
   const { futureImpact } = comparison;
+  
+  // Dinamik yıl hesaplama
+  const year1Label = scenarioYear ? `${scenarioYear + 1}` : '1. Yıl';
+  const year3Label = scenarioYear ? `${scenarioYear + 3}` : '3. Yıl';
+  const year5Label = scenarioYear ? `${scenarioYear + 5}` : '5. Yıl';
+  const projectionTitle = scenarioYear 
+    ? `${scenarioYear} - ${scenarioYear + 5} Değerleme Projeksiyonu` 
+    : '5 Yıllık Değerleme Projeksiyonu';
 
   const chartConfig: ChartConfig = {
     withInvestment: { 
@@ -47,7 +56,7 @@ export const FutureImpactChart: React.FC<FutureImpactChartProps> = ({ comparison
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           <Rocket className="h-4 w-4 text-primary" />
-          5 Yıllık Değerleme Projeksiyonu
+          {projectionTitle}
         </CardTitle>
         <CardDescription className="text-xs">
           Yatırım alırsak vs alamazsak şirket değeri karşılaştırması
@@ -103,19 +112,19 @@ export const FutureImpactChart: React.FC<FutureImpactChartProps> = ({ comparison
         {/* Summary Cards */}
         <div className="grid grid-cols-3 gap-3">
           <div className="p-3 rounded-lg bg-muted/50 border text-center">
-            <p className="text-xs text-muted-foreground mb-1">1. Yıl Farkı</p>
+            <p className="text-xs text-muted-foreground mb-1">{year1Label} Farkı</p>
             <p className="font-mono font-bold text-primary">
               +{formatCompactUSD(futureImpact.year1WithInvestment - futureImpact.year1WithoutInvestment)}
             </p>
           </div>
           <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
-            <p className="text-xs text-muted-foreground mb-1">3. Yıl Farkı</p>
+            <p className="text-xs text-muted-foreground mb-1">{year3Label} Farkı</p>
             <p className="font-mono font-bold text-blue-600 dark:text-blue-400">
               +{formatCompactUSD(futureImpact.year3WithInvestment - futureImpact.year3WithoutInvestment)}
             </p>
           </div>
           <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
-            <p className="text-xs text-muted-foreground mb-1">5. Yıl Farkı</p>
+            <p className="text-xs text-muted-foreground mb-1">{year5Label} Farkı</p>
             <p className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
               +{formatCompactUSD(futureImpact.year5WithInvestment - futureImpact.year5WithoutInvestment)}
             </p>
@@ -127,7 +136,7 @@ export const FutureImpactChart: React.FC<FutureImpactChartProps> = ({ comparison
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">Toplam Değerleme Farkı (5Y)</span>
+              <span className="text-sm font-medium">Toplam Değerleme Farkı ({year5Label})</span>
             </div>
             <div className="flex items-center gap-2">
               <Badge className="bg-primary/20 text-primary border-primary/30 font-mono text-base px-3">
