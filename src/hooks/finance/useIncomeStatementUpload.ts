@@ -39,6 +39,12 @@ interface UploadState {
   mappedData: Record<string, number>;
   warnings: string[];
   isApproved: boolean;
+  // Veritabanından gelen özet değerler (onaylı kayıtlar için)
+  savedSummary?: {
+    netSales: number;
+    grossProfit: number;
+    operatingProfit: number;
+  };
 }
 
 export function useIncomeStatementUpload(year: number) {
@@ -50,14 +56,14 @@ export function useIncomeStatementUpload(year: number) {
   const [isUploading, setIsUploading] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
 
-  // Load existing upload from database
+  // Load existing upload from database (including summary fields)
   const { data: existingData, isLoading: isLoadingExisting } = useQuery({
     queryKey: ['income-statement-upload', year, userId],
     queryFn: async () => {
       if (!userId) return null;
       const { data } = await supabase
         .from('yearly_income_statements')
-        .select('source, file_url, file_name')
+        .select('source, file_url, file_name, net_sales, gross_profit, operating_profit')
         .eq('user_id', userId)
         .eq('year', year)
         .maybeSingle();
@@ -66,7 +72,7 @@ export function useIncomeStatementUpload(year: number) {
     enabled: !!userId,
   });
 
-  // Sync existing data to upload state
+  // Sync existing data to upload state (including saved summary values)
   useEffect(() => {
     if (existingData?.source === 'mizan_upload' && existingData.file_name) {
       setUploadState({
@@ -75,6 +81,11 @@ export function useIncomeStatementUpload(year: number) {
         mappedData: {},
         warnings: [],
         isApproved: true, // Already saved to database
+        savedSummary: {
+          netSales: existingData.net_sales || 0,
+          grossProfit: existingData.gross_profit || 0,
+          operatingProfit: existingData.operating_profit || 0,
+        },
       });
     }
   }, [existingData]);

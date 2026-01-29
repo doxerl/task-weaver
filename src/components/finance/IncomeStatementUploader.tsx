@@ -115,9 +115,9 @@ export function IncomeStatementUploader({ year }: IncomeStatementUploaderProps) 
     e.target.value = '';
   }, [uploadIncomeStatement]);
 
-  // Calculate summary from accounts
-  const calculateSummary = () => {
-    if (!uploadState?.accounts) return null;
+  // Calculate summary from accounts (for new uploads before approval)
+  const calculateSummaryFromAccounts = () => {
+    if (!uploadState?.accounts || uploadState.accounts.length === 0) return null;
 
     const accounts = uploadState.accounts;
     
@@ -150,7 +150,12 @@ export function IncomeStatementUploader({ year }: IncomeStatementUploaderProps) 
     return { netSales, grossProfit, operatingProfit };
   };
 
-  const summary = uploadState ? calculateSummary() : null;
+  // Use saved summary for approved records, otherwise calculate from accounts
+  const summary = uploadState 
+    ? (uploadState.isApproved && uploadState.savedSummary 
+        ? uploadState.savedSummary 
+        : calculateSummaryFromAccounts())
+    : null;
 
   return (
     <Card>
@@ -222,7 +227,9 @@ export function IncomeStatementUploader({ year }: IncomeStatementUploaderProps) 
                 <div>
                   <p className="font-medium">{uploadState.fileName}</p>
                   <p className="text-sm text-muted-foreground">
-                    {uploadState.accounts.length} hesap parse edildi
+                    {uploadState.isApproved 
+                      ? 'Veriler veritabanına kaydedildi'
+                      : `${uploadState.accounts.length} hesap parse edildi`}
                   </p>
                 </div>
               </div>
