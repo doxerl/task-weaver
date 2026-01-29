@@ -104,12 +104,16 @@ Alt hesapları olan ana hesaplar için (örn: 320 Satıcılar altında 320.001 F
 
 2. AKTİF HESAPLARDA (1xx-2xx):
    - Normal durum: debitBalance'ta pozitif değer
+   - 131 Ortaklardan Alacaklar: debitBalance'ta pozitif değer (AKTİF hesaptır!)
    - 257 Birikmiş Amortisman: creditBalance'ta pozitif değer (aktiften düşer)
 
-3. PASİF HESAPLARDA (3xx-4xx) NEGATİF BAKİYE:
-   - Eğer parantez içinde veya negatif gösteriliyorsa = karşı taraf fazla
-   - Örnek: 331 Ortaklara Borçlar: (257.862,53) → Bu aslında ortaklardan ALACAK demek
-   - Bu durumda: debitBalance: 257862.53, creditBalance: 0 olarak kaydet
+3. PASİF HESAPLARDA (3xx-4xx) - BORÇ/ALACAK BAKIYE YÖNÜ:
+   - 331 Ortaklara Borçlar: Normalde creditBalance'ta pozitif olmalı
+   - ANCAK parantez içindeyse veya BORÇ bakiyeli gösteriliyorsa:
+     → Bu aslında ortaklarDAN ALACAK demektir (ters bakiye)
+     → debitBalance: değer, creditBalance: 0 olarak kaydet
+     → Yorum: "Ters bakiye - ortaklardan alacak olarak değerlendirilmeli"
+   - 391 Hesaplanan KDV: creditBalance'ta pozitif
 
 4. ÖZKAYNAKLAR (5xx) ÖZEL KURALLAR:
    - 500 Sermaye: creditBalance'ta pozitif
@@ -122,7 +126,13 @@ Alt hesapları olan ana hesaplar için (örn: 320 Satıcılar altında 320.001 F
 
 5. BİLANÇO DENGESİ:
    - Toplam Aktif = Toplam Pasif + Toplam Özkaynaklar
-   - Negatif bakiyeli hesapları doğru işlersen bilanço dengede olmalı`;
+   - Negatif bakiyeli hesapları doğru işlersen bilanço dengede olmalı
+   
+6. KRİTİK HESAPLAR - ÖZEL DİKKAT:
+   - 131: Ortaklardan Alacaklar - AKTİF, debitBalance'ta
+   - 331: Ortaklara Borçlar - PASİF, creditBalance'ta (ters bakiye varsa dikkat!)
+   - 391: Hesaplanan KDV - PASİF, creditBalance'ta
+   - 590/591: Dönem Karı/Zararı - işareti doğru al!`;
 
     const messages = [
       {
