@@ -686,6 +686,46 @@ HESAPLANMIŞ EXIT PLANI (${scenarioYear} bazlı, POZİTİF SENARYO):
 - MOIC (${year5}): ${exitPlan.moic5Year.toFixed(2)}x
 - Break-Even Yılı: ${exitPlan.breakEvenYear || 'Belirsiz'}
 
+${exitPlan.allYears && exitPlan.allYears.length > 0 ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 5 YILLIK FİNANSAL PROJEKSİYON DETAYLARI (HESAPLANMIŞ):
+
+${exitPlan.allYears.map((year: any, i: number) => {
+  const valuations = year.valuations || {};
+  return `
+🗓️ ${year.actualYear || (scenarioYear + i + 1)} (${year.growthStage === 'aggressive' ? 'Agresif Büyüme' : 'Normalize Büyüme'} Aşaması):
+- Gelir: $${(year.revenue || 0).toLocaleString()}
+- Gider: $${(year.expenses || 0).toLocaleString()}
+- Net Kâr: $${(year.netProfit || 0).toLocaleString()}
+- EBITDA: $${(year.ebitda || 0).toLocaleString()} (Marj: %${(year.ebitdaMargin || 0).toFixed(1)})
+- Serbest Nakit Akışı (FCF): $${(year.freeCashFlow || 0).toLocaleString()}
+- Uygulanan Büyüme Oranı: %${((year.appliedGrowthRate || 0) * 100).toFixed(1)}
+
+DEĞERLEME METODLARI:
+├─ Ciro Çarpanı (${dealConfig.sectorMultiple}x): $${(valuations.revenueMultiple || 0).toLocaleString()}
+├─ EBITDA Çarpanı: $${(valuations.ebitdaMultiple || 0).toLocaleString()}
+├─ DCF (%30 iskonto): $${(valuations.dcf || 0).toLocaleString()}
+├─ VC Metodu (10x ROI): $${(valuations.vcMethod || 0).toLocaleString()}
+└─ ⭐ AĞIRLIKLI DEĞERLEME: $${(valuations.weighted || year.companyValuation || 0).toLocaleString()}
+`;
+}).join('\n')}
+
+💰 DEĞERLEME METODOLOJİSİ:
+1. CİRO ÇARPANI (%30 Ağırlık): Gelir × Sektör Çarpanı
+2. EBITDA ÇARPANI (%25 Ağırlık): EBITDA × EBITDA Çarpanı (SaaS:15x, E-ticaret:8x)
+3. DCF (%30 Ağırlık): 5 yıllık FCF NPV + Terminal Value (%30 iskonto, %3 terminal)
+4. VC METODU (%15 Ağırlık): 5. Yıl Değerleme ÷ 10x ROI
+
+🔍 DEĞERLEME ANALİZ TALİMATLARI:
+1. AĞIRLIKLI değerleme = (Ciro×0.30) + (EBITDA×0.25) + (DCF×0.30) + (VC×0.15)
+2. Pitch deck'te 5. yıl ağırlıklı değerlemeyi kullan - UYDURMA değil HESAPLANMIŞ
+3. EBITDA marjı trendi: İlk yıllardan son yıllara nasıl değişiyor?
+4. DCF vs Revenue Multiple farkını yorumla - hangisi daha güvenilir?
+5. VC metodunun gerçekçiliğini değerlendir (10x ROI makul mü?)
+6. HER değerleme rakamını bu bölümden al, UYDURMA
+` : ''}
+
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 DEATH VALLEY ANALİZİ (POZİTİF SENARYO BAZLI):
