@@ -13,11 +13,23 @@ import {
   SECTOR_NORMALIZED_GROWTH,
   InvestmentScenarioComparison,
   ExtendedRunwayInfo,
-  InvestmentTier
+  InvestmentTier,
+  ValuationConfiguration,
+  ValuationBreakdown
 } from '@/types/simulation';
 import { toast } from 'sonner';
 import { generateScenarioHash, checkDataChanged } from '@/lib/scenarioHash';
 import { getProjectionYears } from '@/utils/yearCalculations';
+import {
+  calculateEBITDA,
+  calculateEBITDAMargin,
+  calculateFCF,
+  calculateDCFValuation,
+  calculateVCValuation,
+  calculateWeightedValuation,
+  getEBITDAMultiple,
+  DEFAULT_VALUATION_CONFIG
+} from '@/lib/valuationCalculator';
 
 interface QuarterlyData {
   q1: number;
@@ -152,12 +164,15 @@ export const calculateCapitalNeeds = (
 };
 
 // İki Aşamalı Büyüme Modeli ile 3-5 yıllık finansal projeksiyon
+// Enhanced with EBITDA, DCF, VC valuations
 export const projectFutureRevenue = (
   year1Revenue: number, 
   year1Expenses: number,
   growthConfig: GrowthConfiguration, 
   sectorMultiple: number,
-  scenarioTargetYear?: number  // Optional: senaryo yılı, verilmezse getProjectionYears() kullanılır
+  scenarioTargetYear?: number,  // Optional: senaryo yılı, verilmezse getProjectionYears() kullanılır
+  valuationConfig: ValuationConfiguration = DEFAULT_VALUATION_CONFIG,
+  sector: string = 'default'
 ): { year3: MultiYearProjection; year5: MultiYearProjection; allYears: MultiYearProjection[] } => {
   const { year1: defaultYear } = getProjectionYears();
   const scenarioYear = scenarioTargetYear || defaultYear;
@@ -166,13 +181,22 @@ export const projectFutureRevenue = (
   let expenses = year1Expenses;
   let cumulativeProfit = 0;
   
+  // Get EBITDA multiple for sector
+  const ebitdaMultiple = getEBITDAMultiple(sector);
+  
+  // First pass: Calculate basic projections and collect FCF data
+  const fcfProjections: number[] = [];
+  const yearlyData: Array<{ revenue: number; expenses: number }> = [];
+  
   // Debug: Log inputs
   console.log('[projectFutureRevenue] Inputs:', {
     year1Revenue,
     year1Expenses,
     aggressiveGrowthRate: growthConfig.aggressiveGrowthRate,
     normalizedGrowthRate: growthConfig.normalizedGrowthRate,
-    sectorMultiple
+    sectorMultiple,
+    ebitdaMultiple,
+    valuationConfig
   });
   
   for (let i = 1; i <= 5; i++) {
@@ -196,6 +220,17 @@ export const projectFutureRevenue = (
     const netProfit = revenue - expenses;
     cumulativeProfit += netProfit;
     
+    // Calculate EBITDA and FCF for this year
+    const ebitda = calculateEBITDA(revenue, expenses);
+    const ebitdaMargin = calculateEBITDAMargin(ebitda, revenue);
+    const fcf = calculateFCF(ebitda, revenue, valuationConfig.capexRatio, valuationConfig.taxRate);
+    fcfProjections.push(fcf);
+    yearlyData.push({ revenue, expenses });
+    
+    // Calculate individual valuations (DCF and VC will be added in second pass)
+    const revenueMultipleVal = revenue * sectorMultiple;
+    const ebitdaMultipleVal = ebitda * ebitdaMultiple;
+    
     years.push({
       year: i,
       actualYear: scenarioYear + i,  // 2027, 2028, 2029, 2030, 2031
@@ -203,17 +238,61 @@ export const projectFutureRevenue = (
       expenses,
       netProfit,
       cumulativeProfit,
-      companyValuation: revenue * sectorMultiple,
+      companyValuation: revenueMultipleVal, // Temporary, will be updated
       appliedGrowthRate: effectiveGrowthRate,
-      growthStage
+      growthStage,
+      // NEW fields
+      ebitda,
+      ebitdaMargin,
+      freeCashFlow: fcf,
+      valuations: {
+        revenueMultiple: revenueMultipleVal,
+        ebitdaMultiple: ebitdaMultipleVal,
+        dcf: 0, // Will be calculated after loop
+        vcMethod: 0, // Will be calculated after loop
+        weighted: 0 // Will be calculated after loop
+      }
     });
   }
+  
+  // Second pass: Calculate DCF and VC valuations
+  const dcfValue = calculateDCFValuation(
+    fcfProjections,
+    valuationConfig.discountRate,
+    valuationConfig.terminalGrowthRate
+  );
+  
+  // Year 5 exit value for VC method
+  const year5RevenueMultiple = years[4]?.valuations?.revenueMultiple || 0;
+  const vcValue = calculateVCValuation(year5RevenueMultiple, valuationConfig.expectedROI);
+  
+  // Update each year with DCF, VC, and weighted valuations
+  years.forEach((year, i) => {
+    if (year.valuations) {
+      // Distribute DCF and VC values proportionally across years
+      const yearRatio = (i + 1) / 5;
+      year.valuations.dcf = dcfValue * yearRatio;
+      year.valuations.vcMethod = vcValue * yearRatio;
+      
+      // Calculate weighted valuation
+      year.valuations.weighted = calculateWeightedValuation(
+        year.valuations,
+        valuationConfig.weights
+      );
+      
+      // Update company valuation to use weighted value
+      year.companyValuation = year.valuations.weighted;
+    }
+  });
   
   // Debug: Log results
   console.log('[projectFutureRevenue] Results:', {
     year3Valuation: years[2]?.companyValuation,
     year5Valuation: years[4]?.companyValuation,
-    year5Revenue: years[4]?.revenue
+    year5Revenue: years[4]?.revenue,
+    dcfValue,
+    vcValue,
+    year5Valuations: years[4]?.valuations
   });
   
   return { 
