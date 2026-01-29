@@ -102,6 +102,13 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
 
   // AI projeksiyonunu Exit Plan formatına dönüştür
   const aiProjectionForExitPlan = useMemo<AIProjectionForExitPlan | undefined>(() => {
+    // DEBUG: AI projeksiyonunun gelip gelmediğini kontrol et
+    console.log('[InvestmentTab] AI Next Year Projection:', {
+      hasProjection: !!aiNextYearProjection,
+      summary: aiNextYearProjection?.summary,
+      investorHook: aiNextYearProjection?.investor_hook,
+    });
+    
     if (!aiNextYearProjection) return undefined;
     
     // AI'ın önerdiği büyüme oranını parse et (e.g. "%65 YoY" → 0.65 veya "65% YoY" → 0.65)
@@ -113,7 +120,7 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
       }
     }
     
-    return {
+    const result = {
       year1Revenue: aiNextYearProjection.summary.total_revenue,
       year1Expenses: aiNextYearProjection.summary.total_expenses,
       year1NetProfit: aiNextYearProjection.summary.net_profit,
@@ -133,6 +140,10 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
       },
       growthRateHint,
     };
+    
+    console.log('[InvestmentTab] AI Projection for Exit Plan:', result);
+    
+    return result;
   }, [aiNextYearProjection]);
 
   // Calculate exit plan - AI DESTEKLİ
