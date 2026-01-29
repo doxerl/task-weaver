@@ -1,96 +1,129 @@
 
 
-## Bilanço Edge Function'ı Gemini'ye Geçirme
+## Gelir Tablosu Onaylandıktan Sonra ₺0 Gösterme Sorunu
 
-### Sorunun Kaynağı
+### Problem Analizi
 
-`parse-balance-sheet` edge function şu anda:
-- ❌ OpenAI API kullanıyor (`OPENAI_API_KEY`)
-- ❌ PDF'i `data:application/pdf;base64,...` olarak gönderiyor
-- ❌ OpenAI Vision sadece görüntü formatlarını destekliyor (jpeg, png, gif, webp)
+Veritabanı incelemesinde veriler **doğru kaydedilmiş**:
+- `net_sales: 5,276,940`
+- `gross_profit: 2,309,151.95`
+- `operating_profit: -517,015.08`
 
-**Hata mesajı:**
-```
-Invalid MIME type. Only image types are supported.
-```
+Ancak UI'da ₺0 gösteriyor çünkü:
+
+| Sorun | Detay |
+|-------|-------|
+| Hook sadece 3 alan çekiyor | `select('source, file_url, file_name')` |
+| Accounts boş set ediliyor | `accounts: []` - onaylı kayıtlar için boş |
+| Summary accounts'tan hesaplanıyor | `calculateSummary()` boş array'den 0 buluyor |
+| DB'deki değerler kullanılmıyor | `net_sales, gross_profit, operating_profit` hiç okunmuyor |
+
+---
 
 ### Çözüm
 
-`parse-trial-balance` ile aynı yapıya geçiş:
-- ✅ Lovable AI Gateway kullan (`LOVABLE_API_KEY`)
-- ✅ `google/gemini-2.5-flash` modeli (PDF desteği var)
-- ✅ Aynı prompt yapısı ve function calling
+#### 1. Hook'ta Veritabanından Tüm Özet Alanlarını Çek
 
----
+`useIncomeStatementUpload.ts` - Query güncellemesi:
 
-### Teknik Değişiklikler
-
-**Dosya:** `supabase/functions/parse-balance-sheet/index.ts`
-
-| Önceki (OpenAI) | Yeni (Gemini) |
-|-----------------|---------------|
-| `OPENAI_API_KEY` | `LOVABLE_API_KEY` |
-| `api.openai.com/v1/chat/completions` | `ai.gateway.lovable.dev/v1/chat/completions` |
-| `model: 'gpt-4o'` | `model: 'google/gemini-2.5-flash'` |
-| `tool_choice: { type: 'function', ... }` | Kaldır (Gemini otomatik seçer) |
-
----
-
-### Güncellenecek Kod Bölümleri
-
-**1. API Anahtarı Değişikliği:**
 ```typescript
-// Öncesi
-const openaiApiKey = Deno.env.get('OPENAI_API_KEY');
-
-// Sonrası
-const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+const { data: existingData, isLoading: isLoadingExisting } = useQuery({
+  queryKey: ['income-statement-upload', year, userId],
+  queryFn: async () => {
+    if (!userId) return null;
+    const { data } = await supabase
+      .from('yearly_income_statements')
+      .select('source, file_url, file_name, net_sales, gross_profit, operating_profit')
+      .eq('user_id', userId)
+      .eq('year', year)
+      .maybeSingle();
+    return data;
+  },
+  enabled: !!userId,
+});
 ```
 
-**2. API Endpoint Değişikliği:**
+#### 2. UploadState Interface'ine Özet Alanları Ekle
+
 ```typescript
-// Öncesi
-const response = await fetch('https://api.openai.com/v1/chat/completions', {
-
-// Sonrası
-const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-```
-
-**3. Model ve Tool Choice:**
-```typescript
-// Öncesi
-model: 'gpt-4o',
-tool_choice: { type: 'function', function: { name: 'parse_balance_sheet' } }
-
-// Sonrası
-model: 'google/gemini-2.5-flash',
-temperature: 0.1,
-// tool_choice kaldırıldı - Gemini prompt'a göre otomatik seçer
-```
-
-**4. Hata Mesajları Türkçeleştirme:**
-```typescript
-// Rate limit hatası için
-if (response.status === 429) {
-  return new Response(JSON.stringify({
-    error: 'AI servisi şu an yoğun. Lütfen birkaç dakika sonra tekrar deneyin.'
-  }), ...);
+interface UploadState {
+  fileName: string | null;
+  accounts: IncomeStatementAccount[];
+  mappedData: Record<string, number>;
+  warnings: string[];
+  isApproved: boolean;
+  // Yeni: Veritabanından gelen özet değerler
+  savedSummary?: {
+    netSales: number;
+    grossProfit: number;
+    operatingProfit: number;
+  };
 }
 ```
 
+#### 3. Mevcut Veri Yüklenirken Özet Değerleri Set Et
+
+```typescript
+useEffect(() => {
+  if (existingData?.source === 'mizan_upload' && existingData.file_name) {
+    setUploadState({
+      fileName: existingData.file_name,
+      accounts: [], // Accounts parse'lanmış ve kaydedilmiş
+      mappedData: {},
+      warnings: [],
+      isApproved: true,
+      savedSummary: {
+        netSales: existingData.net_sales || 0,
+        grossProfit: existingData.gross_profit || 0,
+        operatingProfit: existingData.operating_profit || 0,
+      },
+    });
+  }
+}, [existingData]);
+```
+
+#### 4. UI Bileşeninde Özet Değerleri Kullan
+
+`IncomeStatementUploader.tsx` - Summary hesaplama güncellemesi:
+
+```typescript
+// Onaylı kayıtlar için veritabanından gelen değerleri kullan
+// Onaylanmamış dosyalar için accounts'tan hesapla
+const summary = uploadState?.isApproved && uploadState?.savedSummary
+  ? uploadState.savedSummary  // DB'den gelen değerler
+  : calculateSummary();        // Accounts'tan hesaplanan değerler
+```
+
+#### 5. Hesap Sayısı Gösterimi Düzelt
+
+Onaylı kayıtlar için "0 hesap parse edildi" yerine daha anlamlı bir mesaj:
+
+```typescript
+<p className="text-sm text-muted-foreground">
+  {uploadState.isApproved 
+    ? 'Veriler veritabanına kaydedildi'
+    : `${uploadState.accounts.length} hesap parse edildi`
+  }
+</p>
+```
+
 ---
 
-### Değiştirilecek Dosya
+### Değiştirilecek Dosyalar
 
-| Dosya | İşlem |
-|-------|-------|
-| `supabase/functions/parse-balance-sheet/index.ts` | OpenAI → Gemini geçişi |
+| Dosya | Değişiklik |
+|-------|-----------|
+| `src/hooks/finance/useIncomeStatementUpload.ts` | Query'ye özet alanları ekle, state'e savedSummary ekle |
+| `src/components/finance/IncomeStatementUploader.tsx` | Özet gösterimini savedSummary'den al |
 
 ---
 
 ### Beklenen Sonuç
 
-- PDF dosyaları başarıyla parse edilecek
-- Gemini'nin PDF desteği sayesinde görüntü dönüşümüne gerek kalmayacak
-- `parse-trial-balance` ile aynı güvenilirlik
+| Senaryo | Önceki | Sonraki |
+|---------|--------|---------|
+| Sayfa yenilemesi sonrası | ₺0 gösteriyor | ₺5,276,940 gösterir |
+| Sekme değişimi sonrası | ₺0 gösteriyor | Gerçek değerler görünür |
+| Hesap sayısı | "0 hesap parse edildi" | "Veriler veritabanına kaydedildi" |
+| Önizle butonu | Boş tablo | Onaylı kayıtlar için gizlenebilir veya bilgi gösterilebilir |
 
