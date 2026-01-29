@@ -331,13 +331,18 @@ export const projectFutureRevenue = (
     let effectiveGrowthRate: number;
     let growthStage: 'aggressive' | 'normalized';
     
-    if (i <= growthConfig.transitionYear) {
-      // Agresif Aşama (Year 1-2): Kullanıcı hedefi, hafif decay ile
+    if (i === 1) {
+      // Year 1: Büyüme YOK - gelen değer olduğu gibi kullanılır
+      // (AI veya senaryo verisi zaten hedef yılın değeri)
+      effectiveGrowthRate = 0;
+      growthStage = 'aggressive';
+    } else if (i <= growthConfig.transitionYear) {
+      // Year 2: Agresif Aşama - Kullanıcı hedefi, hafif decay ile
       const aggressiveDecay = Math.max(0.7, 1 - (i * 0.15));
       effectiveGrowthRate = growthConfig.aggressiveGrowthRate * aggressiveDecay;
       growthStage = 'aggressive';
     } else {
-      // Normalize Aşama (Year 3-5): Sektör ortalaması, stabil
+      // Year 3-5: Normalize Aşama - Sektör ortalaması, stabil
       const normalDecay = Math.max(0.8, 1 - ((i - growthConfig.transitionYear) * 0.05));
       effectiveGrowthRate = growthConfig.normalizedGrowthRate * normalDecay;
       growthStage = 'normalized';
@@ -458,10 +463,28 @@ export const calculateExitPlan = (
   const year3 = year1 + 3;
   const year5 = year1 + 5;
   
+  // DEBUG: AI projeksiyonunun alınıp alınmadığını kontrol et
+  console.log('[calculateExitPlan] AI Projection:', {
+    hasAIProjection: !!aiProjection,
+    aiRevenue: aiProjection?.year1Revenue,
+    aiExpenses: aiProjection?.year1Expenses,
+    aiGrowthHint: aiProjection?.growthRateHint,
+    fallbackRevenue: year1Revenue,
+    fallbackExpenses: year1Expenses,
+    userGrowthRate,
+  });
+  
   // AI projeksiyonu varsa Year 1 verilerini override et
   const baseYear1Revenue = aiProjection?.year1Revenue ?? year1Revenue;
   const baseYear1Expenses = aiProjection?.year1Expenses ?? year1Expenses;
   const effectiveGrowthRate = aiProjection?.growthRateHint ?? userGrowthRate;
+  
+  console.log('[calculateExitPlan] Effective Values:', {
+    baseYear1Revenue,
+    baseYear1Expenses,
+    effectiveGrowthRate,
+    scenarioYear: year1,
+  });
   
   // İki aşamalı konfigürasyon oluştur - AI'dan gelen büyüme oranıyla
   const growthConfig: GrowthConfiguration = {
