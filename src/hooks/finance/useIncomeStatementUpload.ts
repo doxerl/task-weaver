@@ -11,7 +11,8 @@ interface IncomeStatementAccount {
   name: string;
   debit: number;
   credit: number;
-  balance: number;
+  debitBalance: number;
+  creditBalance: number;
 }
 
 interface ParseResult {
