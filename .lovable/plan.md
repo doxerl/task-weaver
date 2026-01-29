@@ -1,156 +1,138 @@
 
 
-## AI ile PDF Mizan Parse Çözümü
+## Resmi Gelir Tablosu ve Bilanço Yükleme Sorunu - Düzeltme Planı
 
-### Sorunun Kaynağı
+### Tespit Edilen Sorunlar
 
-`pdf-parse` kütüphanesi Node.js'in `fs.readFileSync` API'sini kullanıyor ve bu Deno/Edge Functions ortamında desteklenmiyor:
+#### 1. "Maximum update depth exceeded" Hatası
+**Dosya:** `src/components/finance/OfficialIncomeStatementForm.tsx`
 
-```
-Error: [unenv] fs.readFileSync is not implemented yet!
-```
-
----
-
-### Çözüm: AI Destekli PDF Parsing
-
-Lovable AI Gateway (`LOVABLE_API_KEY`) kullanarak PDF içeriğini AI ile parse edeceğiz. Bu yaklaşım:
-
-1. **Daha Akıllı**: Farklı mizan formatlarını otomatik tanır
-2. **Daha Esnek**: OCR benzeri sorunları aşar
-3. **Daha Güvenilir**: Regex yerine semantik anlama
-
----
-
-### Teknik Uygulama Planı
-
-#### 1. Edge Function Değişiklikleri
-
-**Dosya:** `supabase/functions/parse-trial-balance/index.ts`
-
-**Değişiklikler:**
-- `pdf-parse` kütüphanesini kaldır (Deno uyumsuz)
-- PDF dosyasını Base64'e çevir
-- Lovable AI Gateway'e gönder (vision destekli model)
-- AI'dan yapılandırılmış JSON çıktısı al
+**Sorun:** `useEffect` dependency array'indeki `emptyStatement` her render'da yeni bir obje oluşturuyor ve bu sonsuz döngüye neden oluyor.
 
 ```typescript
-// YENİ: AI ile PDF parsing
-async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
-  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
-  
-  // PDF'i base64'e çevir
-  const base64PDF = btoa(String.fromCharCode(...new Uint8Array(buffer)));
-  
-  // Vision destekli model ile gönder
-  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model: 'google/gemini-2.5-flash', // Vision destekli
-      messages: [
-        { role: 'system', content: MIZAN_PARSE_PROMPT },
-        { 
-          role: 'user', 
-          content: [
-            { type: 'text', text: 'Bu PDF mizan dosyasını parse et.' },
-            { 
-              type: 'image_url', 
-              image_url: { url: `data:application/pdf;base64,${base64PDF}` }
-            }
-          ]
-        }
-      ],
-      tools: [{ type: 'function', function: PARSE_FUNCTION_SCHEMA }],
-      tool_choice: { type: 'function', function: { name: 'parse_mizan' } },
-      temperature: 0.1
-    })
-  });
-  
-  // Sonucu işle
-  const data = await response.json();
-  return extractAccountsFromAIResponse(data);
-}
-```
-
-#### 2. AI Prompt Tasarımı
-
-```typescript
-const MIZAN_PARSE_PROMPT = `Sen bir Türk muhasebe uzmanısın. 
-PDF formatındaki mizan (trial balance) dosyalarını parse ediyorsun.
-
-## GÖREV
-Mizan dosyasındaki tüm hesapları çıkar ve yapılandırılmış JSON olarak döndür.
-
-## MİZAN YAPISI
-- Hesap Kodu: 3 haneli (100, 102, 600, 632, vb.)
-- Hesap Adı: Türkçe (Kasa, Bankalar, Yurtiçi Satışlar, vb.)
-- Borç: Dönem içi borç toplamı
-- Alacak: Dönem içi alacak toplamı  
-- Borç Bakiye: Borç - Alacak (pozitifse)
-- Alacak Bakiye: Alacak - Borç (pozitifse)
-
-## SAYISAL FORMAT
-Türk formatı: 1.234.567,89 (nokta binlik, virgül ondalık)
-Boş/eksik değerler = 0
-
-## ÖNEMLİ HESAP KODLARI
-- 1xx-2xx: Aktifler (varlıklar)
-- 3xx-4xx: Pasifler (borçlar)
-- 5xx: Özkaynaklar
-- 6xx: Gelir/Gider hesapları
-
-## ÇIKTI
-Her hesap için:
-{
-  "code": "600",
-  "name": "Yurtiçi Satışlar", 
-  "debit": 0,
-  "credit": 2500000,
-  "debitBalance": 0,
-  "creditBalance": 2500000
-}`;
-```
-
-#### 3. Function Schema (Tool Call)
-
-```typescript
-const PARSE_FUNCTION_SCHEMA = {
-  name: 'parse_mizan',
-  description: 'Mizan hesaplarını parse et',
-  parameters: {
-    type: 'object',
-    properties: {
-      accounts: {
-        type: 'array',
-        items: {
-          type: 'object',
-          properties: {
-            code: { type: 'string', description: '3 haneli hesap kodu' },
-            name: { type: 'string', description: 'Hesap adı' },
-            debit: { type: 'number', description: 'Borç tutarı' },
-            credit: { type: 'number', description: 'Alacak tutarı' },
-            debitBalance: { type: 'number', description: 'Borç bakiyesi' },
-            creditBalance: { type: 'number', description: 'Alacak bakiyesi' }
-          },
-          required: ['code', 'name', 'debit', 'credit', 'debitBalance', 'creditBalance']
-        }
-      },
-      metadata: {
-        type: 'object',
-        properties: {
-          period: { type: 'string', description: 'Dönem (Ocak-Aralık 2025)' },
-          company: { type: 'string', description: 'Şirket adı' },
-          totalAccounts: { type: 'number' }
-        }
-      }
-    },
-    required: ['accounts']
+// SORUNLU KOD (satır 33-39)
+useEffect(() => {
+  if (officialStatement) {
+    setFormData(officialStatement);
+  } else {
+    setFormData(emptyStatement);  // emptyStatement her render'da yeni obje
   }
-};
+}, [officialStatement, emptyStatement]);  // ← Sonsuz döngü!
+```
+
+#### 2. Bilanço Sekmesi Eksik Form
+**Dosya:** `src/pages/finance/OfficialData.tsx`
+
+**Sorun:** "Bilanço" sekmesi (satır 119-133) sadece `/finance/balance-sheet` sayfasına yönlendirme butonu içeriyor. Resmi bilanço verisi girişi için ayrı bir form yok.
+
+---
+
+### Çözüm Planı
+
+#### 1. useOfficialIncomeStatement Hook Düzeltmesi
+**Dosya:** `src/hooks/finance/useOfficialIncomeStatement.ts`
+
+`emptyStatement`'ı `useMemo` ile sabit tutarak referans değişimini önle:
+
+```typescript
+// MEVCUT (satır 211)
+emptyStatement: getEmptyStatement(year),
+
+// YENİ
+const emptyStatement = useMemo(() => getEmptyStatement(year), [year]);
+// ...
+return { ..., emptyStatement };
+```
+
+#### 2. OfficialIncomeStatementForm useEffect Düzeltmesi
+**Dosya:** `src/components/finance/OfficialIncomeStatementForm.tsx`
+
+Dependency array'i düzelt ve referans karşılaştırması kullan:
+
+```typescript
+// Referans karşılaştırması için stringify kullan veya emptyStatement'ı kaldır
+useEffect(() => {
+  if (officialStatement) {
+    setFormData(officialStatement);
+  } else {
+    setFormData(emptyStatement);
+  }
+}, [officialStatement]); // emptyStatement kaldırıldı - artık useMemo ile stabil
+```
+
+#### 3. Yeni Bileşen: OfficialBalanceSheetForm
+**Dosya:** `src/components/finance/OfficialBalanceSheetForm.tsx` (YENİ)
+
+Resmi bilanço verisi girişi için form bileşeni:
+
+```
+┌─────────────────────────────────────────────────────────┐
+│ 2025 Yılı Resmi Bilanço                      [Kaydet]  │
+│ Tekdüzen hesap planına göre bilanço verilerini girin   │
+├─────────────────────────────────────────────────────────┤
+│                                                         │
+│ DÖNEN VARLIKLAR (1xx)                                   │
+│ ─────────────────────────────────────────────           │
+│ 100  Kasa                            [____________] ₺   │
+│ 102  Bankalar                        [____________] ₺   │
+│ 120  Alıcılar                        [____________] ₺   │
+│ 190  Devreden KDV                    [____________] ₺   │
+│                                                         │
+│ DURAN VARLIKLAR (2xx)                                   │
+│ ─────────────────────────────────────────────           │
+│ 254  Taşıtlar                        [____________] ₺   │
+│ 255  Demirbaşlar                     [____________] ₺   │
+│ 257  Birikmiş Amortisman (-)         [____________] ₺   │
+│                                                         │
+│ KISA VADELİ BORÇLAR (3xx)                              │
+│ ─────────────────────────────────────────────           │
+│ 300  Banka Kredileri                 [____________] ₺   │
+│ 320  Satıcılar                       [____________] ₺   │
+│ 335  Personele Borçlar               [____________] ₺   │
+│ 360  Ödenecek Vergi                  [____________] ₺   │
+│                                                         │
+│ ÖZKAYNAKLAR (5xx)                                       │
+│ ─────────────────────────────────────────────           │
+│ 500  Sermaye                         [____________] ₺   │
+│ 540  Yasal Yedekler                  [____________] ₺   │
+│ 570  Geçmiş Yıl Karları             [____________] ₺   │
+│                                                         │
+│ ═══════════════════════════════════════════════════     │
+│ Toplam Aktif:     ₺ 5,733,551.90                       │
+│ Toplam Pasif:     ₺ 5,733,551.90                       │
+│ Denge:            ✓ Dengeli                             │
+│ ═══════════════════════════════════════════════════     │
+│                     [Kaydet]  [Kaydet ve Kilitle]       │
+└─────────────────────────────────────────────────────────┘
+```
+
+**Özellikler:**
+- Tekdüzen hesap planı grupları (Dönen/Duran Varlık, Kısa/Uzun Vadeli Borç, Özkaynak)
+- Aktif = Pasif denge kontrolü
+- Kaydet ve Kilitle fonksiyonları
+- Mevcut `useYearlyBalanceSheet` hook'unu kullanır
+
+#### 4. OfficialData Sayfa Güncellemesi
+**Dosya:** `src/pages/finance/OfficialData.tsx`
+
+"Bilanço" sekmesine (satır 119-133) yeni form bileşenini ekle:
+
+```typescript
+// MEVCUT
+<TabsContent value="balance" className="mt-6">
+  <Card>
+    <CardContent>
+      <Button onClick={() => navigate('/finance/balance-sheet')}>
+        Bilanço Sayfasına Git
+      </Button>
+    </CardContent>
+  </Card>
+</TabsContent>
+
+// YENİ
+<TabsContent value="balance" className="mt-6">
+  <OfficialBalanceSheetForm year={selectedYear} />
+</TabsContent>
 ```
 
 ---
@@ -159,34 +141,87 @@ const PARSE_FUNCTION_SCHEMA = {
 
 | Dosya | İşlem | Açıklama |
 |-------|-------|----------|
-| `supabase/functions/parse-trial-balance/index.ts` | Güncelle | AI ile PDF parsing ekle, pdf-parse kaldır |
+| `src/hooks/finance/useOfficialIncomeStatement.ts` | Güncelle | `useMemo` ile `emptyStatement` stabil yap |
+| `src/components/finance/OfficialIncomeStatementForm.tsx` | Güncelle | `useEffect` dependency düzelt |
+| `src/components/finance/OfficialBalanceSheetForm.tsx` | Yeni | Resmi bilanço giriş formu |
+| `src/pages/finance/OfficialData.tsx` | Güncelle | Bilanço sekmesine form ekle |
+| `src/types/officialFinance.ts` | Güncelle | `BALANCE_SHEET_GROUPS` sabiti ekle |
 
 ---
 
-### Alternatif Yaklaşım (Fallback)
-
-PDF vision desteği çalışmazsa, text extraction için Deno-uyumlu bir kütüphane kullanılabilir:
+### Bilanço Hesap Grupları (types/officialFinance.ts)
 
 ```typescript
-// pdfjs-dist Deno uyumlu wrapper
-import * as pdfjsLib from 'https://esm.sh/pdfjs-dist@4.0.379/build/pdf.min.mjs';
+export const BALANCE_SHEET_GROUPS = [
+  {
+    title: 'DÖNEN VARLIKLAR (1xx)',
+    accounts: [
+      { code: '100', name: 'Kasa', field: 'cash_on_hand' },
+      { code: '102', name: 'Bankalar', field: 'bank_balance' },
+      { code: '120', name: 'Alıcılar', field: 'trade_receivables' },
+      { code: '131', name: 'Ortaklardan Alacaklar', field: 'partner_receivables' },
+      { code: '190', name: 'Devreden KDV', field: 'vat_receivable' },
+      { code: '191', name: 'İndirilecek KDV', field: 'other_vat' },
+    ],
+  },
+  {
+    title: 'DURAN VARLIKLAR (2xx)',
+    accounts: [
+      { code: '254', name: 'Taşıtlar', field: 'vehicles' },
+      { code: '255', name: 'Demirbaşlar', field: 'fixtures' },
+      { code: '257', name: 'Birikmiş Amortisman (-)', field: 'accumulated_depreciation', isNegative: true },
+    ],
+  },
+  {
+    title: 'KISA VADELİ BORÇLAR (3xx)',
+    accounts: [
+      { code: '300', name: 'Banka Kredileri', field: 'short_term_loan_debt' },
+      { code: '320', name: 'Satıcılar', field: 'trade_payables' },
+      { code: '331', name: 'Ortaklara Borçlar', field: 'partner_payables' },
+      { code: '335', name: 'Personele Borçlar', field: 'personnel_payables' },
+      { code: '360', name: 'Ödenecek Vergi', field: 'tax_payables' },
+      { code: '361', name: 'Ödenecek SGK', field: 'social_security_payables' },
+      { code: '391', name: 'Hesaplanan KDV', field: 'vat_payable' },
+    ],
+  },
+  {
+    title: 'UZUN VADELİ BORÇLAR (4xx)',
+    accounts: [
+      { code: '400', name: 'Banka Kredileri', field: 'bank_loans' },
+    ],
+  },
+  {
+    title: 'ÖZKAYNAKLAR (5xx)',
+    accounts: [
+      { code: '500', name: 'Sermaye', field: 'paid_capital' },
+      { code: '501', name: 'Ödenmemiş Sermaye (-)', field: 'unpaid_capital', isNegative: true },
+      { code: '540', name: 'Yasal Yedekler', field: 'retained_earnings' },
+      { code: '570', name: 'Geçmiş Yıllar Karları', field: 'retained_earnings' },
+      { code: '590', name: 'Dönem Net Karı', field: 'current_profit' },
+    ],
+  },
+] as const;
 ```
+
+---
+
+### Uygulama Sırası
+
+| Sıra | Görev | Açıklama |
+|------|-------|----------|
+| 1 | useOfficialIncomeStatement düzelt | useMemo ekle |
+| 2 | OfficialIncomeStatementForm düzelt | useEffect dependency düzelt |
+| 3 | officialFinance.ts güncelle | BALANCE_SHEET_GROUPS ekle |
+| 4 | OfficialBalanceSheetForm oluştur | Yeni form bileşeni |
+| 5 | OfficialData.tsx güncelle | Bilanço sekmesine form ekle |
 
 ---
 
 ### Beklenen Sonuçlar
 
-- PDF dosyaları AI tarafından akıllıca parse edilir
-- Farklı mizan formatları (dikey/yatay tablo) desteklenir
-- Türk sayı formatı doğru çevrilir
-- Hata durumunda açıklayıcı mesajlar döner
-
----
-
-### Test Senaryoları
-
-1. Standart mizan PDF'i yükle → Hesaplar çıkarılmalı
-2. Farklı formatta PDF yükle → AI adapte olmalı
-3. Bozuk PDF yükle → Anlamlı hata mesajı
-4. Excel dosyası yükle → Mevcut XLSX parser çalışmalı
+- "Maximum update depth exceeded" hatası düzelir
+- Gelir Tablosu sekmesi doğru çalışır
+- Bilanço sekmesinde doğrudan veri girişi yapılabilir
+- Her iki tablo için kaydetme ve kilitleme çalışır
+- Aktif = Pasif denge kontrolü gösterilir
 
