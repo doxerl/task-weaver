@@ -1,55 +1,77 @@
 
 
-## Gelir Tablosu Önizlemesine Borç Bak. / Alacak Bak. Kolonları Ekleme
+## Hesap Kodlarını Tıklanabilir Yapma ve Satıcı/Alt Hesap Detayları Gösterme Planı
 
-### Mevcut Durum
+### Mevcut Durum Analizi
 
-| Bileşen | Kolon Yapısı |
-|---------|--------------|
-| **Mizan (TrialBalanceUploader)** | Hesap, Hesap Adı, Borç, Alacak, **Borç Bak.**, **Alacak Bak.** (6 kolon) |
-| **Gelir Tablosu (IncomeStatementUploader)** | Hesap, Hesap Adı, Borç, Alacak, Bakiye (5 kolon) |
+| Durum | Açıklama |
+|-------|----------|
+| **Mizan verileri** | Sadece 3 haneli ana hesap kodları kaydediliyor (100, 320, 600, vb.) |
+| **Alt hesaplar** | Parse sırasında ana hesaba toplanıp siliniyor (100.01, 320.001 gibi) |
+| **Satıcı bilgileri** | Mizan dosyasında bulunsa bile kaydedilmiyor |
+| **UI** | Hesap kodları statik text olarak gösteriliyor (tıklanamaz) |
 
-Kullanıcı, Gelir Tablosu önizlemesinin de Mizan ile aynı formatta olmasını istiyor.
+### İstenen Özellikler
+
+1. **Hesap kodları tıklanabilir olmalı** - Tıklayınca alt hesaplar görünsün
+2. **Satıcı/müşteri isimleri görünmeli** - 320 (Satıcılar), 120 (Alıcılar) için firma isimleri
+3. **Alt hesap detayları** - Her alt hesabın tutarları ayrı ayrı görünsün
 
 ---
 
-### Değişiklik Planı
+### Teknik Uygulama Planı
 
-#### 1. Edge Function Güncellemesi
-**Dosya:** `supabase/functions/parse-income-statement/index.ts`
+#### 1. Veritabanı Değişikliği
 
-Veri yapısını değiştir:
+Mevcut `accounts` JSONB alanına alt hesap desteği eklenecek:
+
 ```typescript
-// MEVCUT
-interface IncomeStatementAccount {
-  code: string;
-  name: string;
-  debit: number;
-  credit: number;
-  balance: number;  // Tek bakiye
+// MEVCUT YAPI
+{
+  "320": {
+    "name": "SATICILAR",
+    "debit": 120136.66,
+    "credit": 4199153.84,
+    ...
+  }
 }
 
-// YENİ
-interface IncomeStatementAccount {
-  code: string;
-  name: string;
-  debit: number;
-  credit: number;
-  debitBalance: number;   // Borç bakiyesi
-  creditBalance: number;  // Alacak bakiyesi
+// YENİ YAPI (subAccounts eklendi)
+{
+  "320": {
+    "name": "SATICILAR",
+    "debit": 120136.66,
+    "credit": 4199153.84,
+    "subAccounts": [
+      { "code": "320.01", "name": "ABC Şirketi", "debit": 50000, "credit": 2000000, ... },
+      { "code": "320.02", "name": "XYZ Ltd.", "debit": 70136.66, "credit": 2199153.84, ... }
+    ]
+  }
 }
 ```
 
-Bakiye hesaplama mantığı:
-- Eğer Borç > Alacak ise: debitBalance = Borç - Alacak, creditBalance = 0
-- Eğer Alacak > Borç ise: debitBalance = 0, creditBalance = Alacak - Borç
+#### 2. Edge Function Güncellemesi
 
-#### 2. Hook Güncellemesi
-**Dosya:** `src/hooks/finance/useIncomeStatementUpload.ts`
+**parse-trial-balance** edge function'ı alt hesapları koruyacak şekilde güncellenecek:
 
-Interface'i güncelle:
+**Değişiklikler:**
+- Alt hesap kodlarını (320.001, 100.01.001, vb.) parse et
+- Her ana hesap için `subAccounts` dizisi oluştur
+- Satıcı/müşteri isimlerini sakla
+
+**AI Prompt güncellemesi:**
+```
+## ALT HESAPLAR (Muavin)
+- 3+ haneli kodlar (320.01, 320.001, 120.01.001) alt hesaplardır
+- Alt hesap isimleri genellikle firma/kişi isimleridir
+- Alt hesapları ayrı ayrı parse et, ana hesaba toplama
+```
+
+#### 3. TypeScript Type Güncellemesi
+
+**src/types/officialFinance.ts:**
 ```typescript
-interface IncomeStatementAccount {
+interface SubAccount {
   code: string;
   name: string;
   debit: number;
@@ -57,52 +79,83 @@ interface IncomeStatementAccount {
   debitBalance: number;
   creditBalance: number;
 }
+
+interface TrialBalanceAccount {
+  name: string;
+  debit: number;
+  credit: number;
+  debitBalance: number;
+  creditBalance: number;
+  subAccounts?: SubAccount[]; // Yeni alan
+}
 ```
 
-#### 3. Uploader Bileşeni Güncellemesi
-**Dosya:** `src/components/finance/IncomeStatementUploader.tsx`
+#### 4. UI Bileşenleri Güncellemesi
 
-Önizleme tablosunu Mizan ile aynı yapıya getir:
-```typescript
-<TableHeader>
-  <TableRow>
-    <TableHead className="w-20">Hesap</TableHead>
-    <TableHead>Hesap Adı</TableHead>
-    <TableHead className="text-right">Borç</TableHead>
-    <TableHead className="text-right">Alacak</TableHead>
-    <TableHead className="text-right">Borç Bak.</TableHead>
-    <TableHead className="text-right">Alacak Bak.</TableHead>
-  </TableRow>
-</TableHeader>
+**TrialBalanceUploader.tsx ve IncomeStatementUploader.tsx:**
+
 ```
+┌───────────────────────────────────────────────────────────────────────────────────┐
+│ Mizan Önizleme                                                                     │
+├─────────┬─────────────────────────┬───────────┬───────────┬───────────┬───────────┤
+│ Hesap   │ Hesap Adı               │ Borç      │ Alacak    │ Borç Bak. │ Alacak B. │
+├─────────┼─────────────────────────┼───────────┼───────────┼───────────┼───────────┤
+│ ▶ 320   │ SATICILAR               │ ₺120.136  │ ₺4.199.153│ ₺0        │ ₺4.079.017│
+│         │ (3 alt hesap)           │           │           │           │           │
+├─────────┼─────────────────────────┼───────────┼───────────┼───────────┼───────────┤
+│   320.01│   ABC Teknoloji A.Ş.    │ ₺50.000   │ ₺2.000.000│ ₺0        │ ₺1.950.000│ ← Açıldığında
+│   320.02│   XYZ Yazılım Ltd.      │ ₺70.136   │ ₺2.199.153│ ₺0        │ ₺2.129.017│    gösterilir
+├─────────┼─────────────────────────┼───────────┼───────────┼───────────┼───────────┤
+│ ▶ 600   │ YURTİÇİ SATIŞLAR        │ ₺0        │ ₺5.811.104│ ₺0        │ ₺5.811.104│
+│         │ (2 alt hesap)           │           │           │           │           │
+└─────────┴─────────────────────────┴───────────┴───────────┴───────────┴───────────┘
+```
+
+**Özellikler:**
+- ▶ ikonlu satırlar tıklanabilir (alt hesap varsa)
+- Tıklayınca alt hesaplar açılır/kapanır (Collapsible)
+- Alt hesap satırları girintili gösterilir
+- Alt hesap sayısı parantez içinde belirtilir
 
 ---
 
-### Değiştirilecek Dosyalar
+### Değiştirilecek/Oluşturulacak Dosyalar
 
-| Dosya | Değişiklik |
-|-------|-----------|
-| `supabase/functions/parse-income-statement/index.ts` | debitBalance/creditBalance ekle |
-| `src/hooks/finance/useIncomeStatementUpload.ts` | Interface güncelle |
-| `src/components/finance/IncomeStatementUploader.tsx` | Tablo kolonlarını güncelle |
+| Dosya | İşlem | Açıklama |
+|-------|-------|----------|
+| `supabase/functions/parse-trial-balance/index.ts` | Güncelle | Alt hesap parse desteği |
+| `supabase/functions/parse-income-statement/index.ts` | Güncelle | Alt hesap parse desteği |
+| `src/types/officialFinance.ts` | Güncelle | SubAccount interface |
+| `src/components/finance/TrialBalanceUploader.tsx` | Güncelle | Collapsible alt hesap UI |
+| `src/components/finance/IncomeStatementUploader.tsx` | Güncelle | Collapsible alt hesap UI |
+| `src/components/finance/AccountDetailRow.tsx` | Yeni | Tıklanabilir hesap satırı bileşeni |
 
 ---
 
-### Beklenen Sonuç
+### Uygulama Sırası
 
-Gelir Tablosu önizlemesi Mizan ile aynı formatta görünecek:
+| Sıra | Görev | Açıklama |
+|------|-------|----------|
+| 1 | Types | `SubAccount` interface ekle |
+| 2 | Edge Functions | Alt hesap parse mantığı ekle |
+| 3 | AccountDetailRow | Yeni collapsible satır bileşeni |
+| 4 | TrialBalanceUploader | Önizleme tablosunu güncelle |
+| 5 | IncomeStatementUploader | Önizleme tablosunu güncelle |
 
-```
-┌─────────────────────────────────────────────────────────────────────────────────┐
-│ Gelir Tablosu Önizleme                                                          │
-├─────────┬─────────────────────────┬───────────┬───────────┬───────────┬──────────┤
-│ Hesap   │ Hesap Adı               │ Borç      │ Alacak    │ Borç Bak. │ Alacak B.│
-├─────────┼─────────────────────────┼───────────┼───────────┼───────────┼──────────┤
-│ 600     │ YURTİÇİ SATIŞLAR        │ ₺0        │ ₺2.850.000│ ₺0        │₺2.850.000│
-│ 621     │ SATILAN TİCARİ MAL MAL. │ ₺1.200.000│ ₺0        │ ₺1.200.000│ ₺0       │
-│ 632     │ GENEL YÖNETİM GİDERLERİ │ ₺450.000  │ ₺0        │ ₺450.000  │ ₺0       │
-│ 646     │ KAMBİYO KARLARI         │ ₺0        │ ₺125.000  │ ₺0        │ ₺125.000 │
-│ 656     │ KAMBİYO ZARARLARI       │ ₺85.000   │ ₺0        │ ₺85.000   │ ₺0       │
-└─────────┴─────────────────────────┴───────────┴───────────┴───────────┴──────────┘
-```
+---
+
+### Beklenen Sonuçlar
+
+- Hesap kodları tıklanabilir olacak
+- Alt hesaplar (muavin) görüntülenebilecek
+- Satıcı ve müşteri isimleri görünecek
+- Collapsible yapı ile temiz bir UI
+
+---
+
+### Dikkat Edilecek Noktalar
+
+- **Mevcut verilere uyumluluk**: `subAccounts` opsiyonel olacak, eski veriler çalışmaya devam edecek
+- **PDF parse kalitesi**: AI'ın alt hesapları doğru parse etmesi için prompt optimize edilecek
+- **Performans**: Çok sayıda alt hesap olduğunda lazy loading düşünülebilir
 
