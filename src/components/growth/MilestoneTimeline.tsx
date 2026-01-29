@@ -196,7 +196,7 @@ export function MilestoneTimeline({
                   {milestone.isCompleted ? (
                     <CheckCircle2 className="h-4 w-4" />
                   ) : (
-                    <span className={typeColors[milestone.type].replace('bg-', 'text-')}>
+                <span className={(typeColors[milestone.type] || 'bg-muted').replace('bg-', 'text-')}>
                       {milestone.icon}
                     </span>
                   )}
