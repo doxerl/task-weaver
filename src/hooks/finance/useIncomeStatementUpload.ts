@@ -1,7 +1,7 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
-import { useQueryClient } from '@tanstack/react-query';
+import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
 import { calculateStatementTotals } from './useOfficialIncomeStatement';
 import type { YearlyIncomeStatementFormData } from '@/types/officialFinance';
@@ -49,6 +49,35 @@ export function useIncomeStatementUpload(year: number) {
   const [uploadState, setUploadState] = useState<UploadState | null>(null);
   const [isUploading, setIsUploading] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
+
+  // Load existing upload from database
+  const { data: existingData, isLoading: isLoadingExisting } = useQuery({
+    queryKey: ['income-statement-upload', year, userId],
+    queryFn: async () => {
+      if (!userId) return null;
+      const { data } = await supabase
+        .from('yearly_income_statements')
+        .select('source, file_url, file_name')
+        .eq('user_id', userId)
+        .eq('year', year)
+        .maybeSingle();
+      return data;
+    },
+    enabled: !!userId,
+  });
+
+  // Sync existing data to upload state
+  useEffect(() => {
+    if (existingData?.source === 'mizan_upload' && existingData.file_name) {
+      setUploadState({
+        fileName: existingData.file_name,
+        accounts: [], // Already parsed and saved
+        mappedData: {},
+        warnings: [],
+        isApproved: true, // Already saved to database
+      });
+    }
+  }, [existingData]);
 
   const uploadIncomeStatement = useCallback(async (file: File) => {
     if (!userId) {
@@ -143,6 +172,8 @@ export function useIncomeStatementUpload(year: number) {
         ...totals,
         user_id: userId,
         year,
+        source: 'mizan_upload',
+        file_name: uploadState.fileName, // Save file name
         updated_at: new Date().toISOString(),
       };
 
@@ -159,6 +190,7 @@ export function useIncomeStatementUpload(year: number) {
 
       // Invalidate queries
       queryClient.invalidateQueries({ queryKey: ['official-income-statement', year] });
+      queryClient.invalidateQueries({ queryKey: ['income-statement-upload', year, userId] });
 
       toast({
         title: 'Onaylandı',
@@ -177,18 +209,30 @@ export function useIncomeStatementUpload(year: number) {
     }
   }, [userId, uploadState, year, queryClient]);
 
-  const deleteUpload = useCallback(() => {
+  const deleteUpload = useCallback(async () => {
+    if (uploadState?.isApproved && userId) {
+      // Clear the file info from database
+      await supabase
+        .from('yearly_income_statements')
+        .update({ source: 'manual', file_name: null, file_url: null })
+        .eq('user_id', userId)
+        .eq('year', year);
+      
+      queryClient.invalidateQueries({ queryKey: ['income-statement-upload', year, userId] });
+    }
+    
     setUploadState(null);
     toast({
       title: 'Silindi',
       description: 'Yüklenen veriler silindi',
     });
-  }, []);
+  }, [uploadState, userId, year, queryClient]);
 
   return {
     uploadState,
     isUploading,
     isApproving,
+    isLoadingExisting,
     uploadIncomeStatement,
     approveIncomeStatement,
     deleteUpload,
