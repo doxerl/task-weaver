@@ -209,27 +209,56 @@ Bu, "${scenarioB.name}" (${scenarioB.targetYear}) BAŞARILI olursa
 const FOCUS_PROJECT_RULES = `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🎯 ODAK PROJE ANALİZİ KURALLARI:
+🎯 ODAK PROJE ANALİZİ - BİLİMSEL FİNANSAL MODEL:
 
-Kullanıcı bir "odak proje" belirttiyse, analizi bu projeye odakla:
+📊 1. INVESTMENT → REVENUE PIPELINE (Yatırımın Gelire Dönüşümü):
 
-1. **ODAK PROJE = Ana Büyüme Motoru:**
-   - Bu proje yatırımın ana kullanım alanı
-   - Büyüme projeksiyonlarının merkezi
-   - Pitch deck'in ana hikayesi
+FORMÜL:
+┌─────────────────────────────────────────────────────────────────┐
+│ Product_Investment = Total_Investment × Product_Ratio          │
+│ Revenue_Uplift = Product_Investment × Revenue_Multiplier       │
+│ Growth_Rate = Revenue_Uplift / Current_Revenue                 │
+└─────────────────────────────────────────────────────────────────┘
 
-2. **ANALİZ İÇERİĞİ:**
-   - Mevcut gelir vs hedef gelir karşılaştırması
-   - Büyüme için gerekli aksiyonlar (kullanıcı planından)
-   - Yatırım dağılımı etkisi (ürün, pazarlama, personel, operasyon)
-   - Riskler ve mitigasyon stratejileri
+REVENUE MULTIPLIER (Sektöre Göre):
+├── SaaS/Yazılım (ölçeklenebilir): 2.0x - 2.5x
+├── Danışmanlık (insan bağımlı): 1.2x - 1.5x
+└── Ürün/Lisans: 1.8x - 2.2x
 
-3. **PROJEKSİYON KURALI:**
-   - Odak projenin büyümesi = Yatırımın ana kullanım alanı
-   - Diğer projelerin büyümesi = Normal trend
-   - Gider artışı = Yatırım dağılımına göre
+ÖRNEK HESAPLAMA:
+$200K Yatırım × %40 Ürün = $80K → Ürün Geliştirme
+$80K × 2.0 (SaaS) = $160K Ek Gelir
+Büyüme = $160K ÷ $243K (mevcut) = %65.8
 
-4. **VERİ YOKSA:**
+📉 2. NON-FOCUS İZOLASYON KURALI (KRİTİK!):
+
+⚠️ Yatırım odak projelere yönlendirildiğinden:
+- ODAK PROJELER: Yukarıdaki formülle hesaplanan büyüme
+- DİĞER TÜM PROJELER: %0 BÜYÜME - BAZ YIL DEĞERLERİ AYNEN KORUNUR!
+
+NEDEN?
+1. Yatırımın spesifik etkisini NET gösterir
+2. Yatırımcı sorusu: "Bu para tam olarak nereye gidiyor?"
+3. Cevap: Sadece odak projelerdeki büyüme farkı!
+
+📈 3. J-CURVE EFFECT (Zamanlama):
+
+Büyümeyi çeyreklere lineer dağıtma! Yatırım önce "yakar", sonra "kazandırır":
+- Q1: %10 etki (yatırım harcanıyor, organizasyonel hazırlık)
+- Q2: %25 etki (müşteri kazanımı başlıyor)
+- Q3: %65 etki (momentum, ağızdan ağıza)
+- Q4: %100 etki (tam ölçekleme)
+
+📊 4. OPERATING LEVERAGE (Gider Modeli):
+
+Gelir %50 artarsa, giderler %50 artmamalı!
+- SABİT GİDERLER (Kira, Sunucu, Lisans): %5-10 artış (enflasyon)
+- DEĞİŞKEN GİDERLER (Personel, Pazarlama): Gelir artışı × 0.4-0.6
+- HEDEF: Kâr marjının iyileşmesi (Margin Expansion)
+
+NOT: Margin expansion olmayan büyüme, yatırımcı için değersizdir.
+
+5. **VERİ YOKSA:**
    - Kullanıcı odak proje belirtmediyse, en yüksek büyüme potansiyeli olan gelir kalemini seç
    - Senaryo A vs B arasındaki en büyük farkı yaratan kalemi belirle
 `;
@@ -428,11 +457,27 @@ Key Message: "$X yatırım, 5 yılda $Y'ye dönüşüyor - Xx MOIC"
 4. Q3-Q4'te nakit akışı POZİTİFE dönmeli
 5. Net kâr pozitif veya break-even yakını olmalı
 
-📊 KALEM BAZLI PROJEKSİYON (YENİ):
-Odak proje varsa, onun büyümesi ön planda:
-- Odak proje: +50-100% büyüme (yatırım kullanılacak)
-- Diğer gelir kalemleri: +10-30% normal büyüme
-- Giderler: Yatırım dağılımına göre artış
+📊 KALEM BAZLI PROJEKSİYON (BİLİMSEL MODEL):
+
+🎯 ODAK PROJE HESAPLAMASI:
+Adım 1: Investment_Product = Total_Investment × Product_Ratio (genellikle %40)
+Adım 2: Revenue_Uplift = Investment_Product × Multiplier (SaaS:2.0, Service:1.3, Ürün:1.8)
+Adım 3: Growth = Revenue_Uplift / Current_Revenue
+
+📉 NON-FOCUS KURALI (ZORUNLU):
+- Odak OLMAYAN projeler: %0 büyüme, BAZ YIL DEĞERLERİ AYNEN KORUNUR
+- Yatırımın spesifik etkisini göstermek için KRİTİK
+
+⏱️ J-CURVE (Çeyreklik Dağılım):
+- Q1: Yıllık büyümenin %10'u (hazırlık dönemi)
+- Q2: Yıllık büyümenin %25'i (ilk traction)
+- Q3: Yıllık büyümenin %65'i (momentum)
+- Q4: Yıllık büyümenin %100'ü (tam ölçek)
+
+📊 GİDER MODELİ (Operating Leverage):
+- Sabit giderler: %5-10 artış (enflasyon etkisi)
+- Değişken giderler: Gelir artışı × 0.5 (margin expansion)
+- Yatırım doğrudan etkisi: Personel + Pazarlama budgets
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
@@ -1090,34 +1135,34 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
                       },
                       itemized_revenues: {
                         type: "array",
-                        description: "REQUIRED: Category-based revenue projections. Use EXACT category names from input data (e.g., 'SBT Tracker', 'Leadership Denetim'). Sum of totals MUST match summary.total_revenue. Apply 30-65% growth per category.",
+                        description: "SCIENTIFIC PROJECTION MODEL - REQUIRED: (1) FOCUS PROJECTS: Calculate growth = (Investment × Product_Ratio × Multiplier) / Current_Revenue. Multipliers: SaaS=2.0, Services=1.3, Product=1.8. Result typically 50-120%. (2) NON-FOCUS PROJECTS: EXACTLY 0% growth - use base scenario values unchanged! This isolates investment impact. (3) J-CURVE: Q1=10%, Q2=25%, Q3=65%, Q4=100% of annual growth. (4) Sum of totals MUST match summary.total_revenue.",
                         items: {
                           type: "object",
                           properties: {
                             category: { type: "string", description: "EXACT category name from scenario revenues" },
-                            q1: { type: "number", description: "Q1 projected revenue for this category" },
-                            q2: { type: "number", description: "Q2 projected revenue for this category" },
-                            q3: { type: "number", description: "Q3 projected revenue for this category" },
-                            q4: { type: "number", description: "Q4 projected revenue for this category" },
+                            q1: { type: "number", description: "Q1: Base + (Annual_Growth × 0.10) for FOCUS, exact base value for NON-FOCUS" },
+                            q2: { type: "number", description: "Q2: Base + (Annual_Growth × 0.25) for FOCUS, exact base value for NON-FOCUS" },
+                            q3: { type: "number", description: "Q3: Base + (Annual_Growth × 0.65) for FOCUS, exact base value for NON-FOCUS" },
+                            q4: { type: "number", description: "Q4: Base + (Annual_Growth × 1.00) for FOCUS, exact base value for NON-FOCUS" },
                             total: { type: "number", description: "Sum of q1+q2+q3+q4" },
-                            growth_rate: { type: "number", description: "Growth rate vs base scenario (e.g., 0.45 for 45%)" }
+                            growth_rate: { type: "number", description: "Investment-calculated growth. FOCUS projects: 0.5-1.2 (formula result). NON-FOCUS: MUST be exactly 0.0 to isolate investment impact." }
                           },
                           required: ["category", "q1", "q2", "q3", "q4", "total", "growth_rate"]
                         }
                       },
                       itemized_expenses: {
                         type: "array",
-                        description: "REQUIRED: Category-based expense projections. Use EXACT category names from input data. Sum of totals MUST match summary.total_expenses. Apply 10-25% growth per category.",
+                        description: "OPERATING LEVERAGE MODEL - REQUIRED: (1) FIXED COSTS (Rent, Insurance, Licenses, Depreciation): 5-10% growth only (inflation). (2) VARIABLE COSTS (Personnel, Marketing, Operations): Revenue_Growth × 0.4-0.6 - expenses must grow SLOWER than revenue for margin expansion! (3) INVESTMENT DIRECT IMPACT: Add allocated amounts for hiring + marketing from Use of Funds. (4) GOAL: If revenue grows 60%, expenses should grow only 25-35%. Sum MUST match summary.total_expenses.",
                         items: {
                           type: "object",
                           properties: {
                             category: { type: "string", description: "EXACT category name from scenario expenses" },
-                            q1: { type: "number", description: "Q1 projected expense for this category" },
-                            q2: { type: "number", description: "Q2 projected expense for this category" },
-                            q3: { type: "number", description: "Q3 projected expense for this category" },
-                            q4: { type: "number", description: "Q4 projected expense for this category" },
+                            q1: { type: "number", description: "Q1 expense - higher due to investment spending (hiring, setup)" },
+                            q2: { type: "number", description: "Q2 expense - stabilizing as operations scale" },
+                            q3: { type: "number", description: "Q3 expense - efficiency gains visible" },
+                            q4: { type: "number", description: "Q4 expense - optimized run-rate" },
                             total: { type: "number", description: "Sum of q1+q2+q3+q4" },
-                            growth_rate: { type: "number", description: "Growth rate vs base scenario (e.g., 0.15 for 15%)" }
+                            growth_rate: { type: "number", description: "FIXED costs: 0.05-0.10. VARIABLE costs: Revenue_Growth × 0.5. Must be LOWER than revenue growth for margin expansion." }
                           },
                           required: ["category", "q1", "q2", "q3", "q4", "total", "growth_rate"]
                         }
