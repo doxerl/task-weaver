@@ -1,73 +1,83 @@
 
 
-## PDF Parse Hatası Düzeltme Planı
+## PDF Parse Sorunu - Kapsamlı Düzeltme Planı
 
-### Sorun Analizi
+### Tespit Edilen Sorunlar
 
-| Detay | Değer |
-|-------|-------|
-| **Hata Kodu** | `MALFORMED_FUNCTION_CALL` |
-| **Model** | `google/gemini-2.5-flash` |
-| **Sebep** | `tool_choice` formatı Gemini ile uyumsuz |
-| **Sonuç** | PDF dosyaları 0 hesap döndürüyor |
+| Sorun | Log Detayı | Etki |
+|-------|-----------|------|
+| **Fonksiyon adı uyumsuz** | AI `ParseMizanAccounts` döndürüyor, kod `parse_mizan` bekliyor | Tool call parse edilemiyor |
+| **Tek hesap döndürülüyor** | `{"code":"100","name":"KASA",...}` - array değil | Tüm hesaplar alınamıyor |
+| **MAX_TOKENS hatası** | Token limiti aşılıyor (aslında model çıktı formatı sorunu) | Yanıt kesiliyor |
 
-### Kök Neden
+### Token Limiti Açıklaması
 
-Gemini modeli için `tool_choice` yapılandırması farklı bir format gerektiriyor. Mevcut kod OpenAI formatını kullanıyor:
-
-```typescript
-// MEVCUT (OpenAI formatı - çalışmıyor)
-tool_choice: { type: 'function', function: { name: 'parse_mizan' } }
-```
-
-### Çözüm Seçenekleri
-
-#### Seçenek 1: tool_choice Kaldır (Önerilen)
-Gemini otomatik olarak uygun tool'u seçsin:
-```typescript
-// tool_choice satırını tamamen kaldır
-// Gemini prompt'taki talimata göre fonksiyonu çağıracak
-```
-
-#### Seçenek 2: Gemini formatına çevir
-```typescript
-tool_choice: 'required'  // veya 'auto'
-```
-
-#### Seçenek 3: Hybrid yaklaşım
-Önce normal JSON yanıt al, sonra parse et (tool kullanma)
+`max_tokens: 8000` yeterli olmalı, ama log'da sadece 69 token üretilmiş. Sorun token limiti değil, **AI'ın yanlış format döndürmesi**. AI her hesap için ayrı tool call yapmaya çalışıyor, bu da soruna yol açıyor.
 
 ---
 
-### Uygulama Planı
+### Çözüm Planı
 
-#### 1. `parse-trial-balance/index.ts` Güncelle
+#### 1. Fonksiyon Adı Kontrolünü Kaldır
 
-**Değişiklik 1**: `tool_choice` yapısını düzelt veya kaldır
+AI herhangi bir isimle döndürse de arguments'ı parse et:
+
 ```typescript
-body: JSON.stringify({
-  model: 'google/gemini-2.5-flash',
-  messages: [...],
-  tools: [{ type: 'function', function: PARSE_FUNCTION_SCHEMA }],
-  // tool_choice kaldırıldı - Gemini otomatik seçecek
-  temperature: 0.1,
-  max_tokens: 8000,
-}),
+// MEVCUT (çalışmıyor)
+if (toolCall && toolCall.function?.name === 'parse_mizan') {
+
+// YENİ (herhangi bir tool call'u kabul et)
+if (toolCall?.function?.arguments) {
 ```
 
-**Değişiklik 2**: Fallback yanıt işleme ekle
-AI fonksiyon çağırmazsa, text yanıtı parse etmeyi dene:
+#### 2. Tek Hesap vs Array Desteği
+
+AI bazen tek hesap, bazen array döndürüyor - her ikisini de destekle:
+
 ```typescript
-// Tool call yoksa, text content'i kontrol et
-if (!toolCall) {
-  const textContent = data.choices?.[0]?.message?.content;
-  // JSON parse etmeyi dene
+const args = JSON.parse(toolCall.function.arguments);
+
+// Array mi tek hesap mı kontrol et
+if (Array.isArray(args)) {
+  parsedArgs = { accounts: args };
+} else if (args.accounts) {
+  parsedArgs = args;
+} else if (args.code) {
+  // Tek hesap döndü
+  parsedArgs = { accounts: [args] };
 }
 ```
 
-#### 2. `parse-income-statement/index.ts` da Güncelle
+#### 3. Token Limitini Artır
 
-Aynı sorun orada da var, aynı düzeltme uygulanacak.
+Güvenlik için token limitini artır:
+```typescript
+max_tokens: 16000,  // 8000'den artır
+```
+
+#### 4. Çoklu Tool Call Desteği
+
+AI her hesap için ayrı tool call yapabilir - hepsini topla:
+
+```typescript
+const toolCalls = data.choices?.[0]?.message?.tool_calls || [];
+const allAccounts = [];
+
+for (const tc of toolCalls) {
+  if (tc.function?.arguments) {
+    const args = JSON.parse(tc.function.arguments);
+    if (args.code) {
+      allAccounts.push(args);
+    } else if (args.accounts) {
+      allAccounts.push(...args.accounts);
+    }
+  }
+}
+
+if (allAccounts.length > 0) {
+  parsedArgs = { accounts: allAccounts };
+}
+```
 
 ---
 
@@ -75,28 +85,19 @@ Aynı sorun orada da var, aynı düzeltme uygulanacak.
 
 | Dosya | Değişiklik |
 |-------|-----------|
-| `supabase/functions/parse-trial-balance/index.ts` | tool_choice kaldır, fallback ekle |
-| `supabase/functions/parse-income-statement/index.ts` | Aynı düzeltme |
+| `supabase/functions/parse-trial-balance/index.ts` | Fonksiyon adı kontrolü kaldır, çoklu tool call desteği, tek hesap fallback, max_tokens artır |
+| `supabase/functions/parse-income-statement/index.ts` | Aynı düzeltmeler |
 
 ---
 
-### Alternatif Yaklaşım: JSON Mode
+### Uygulama Özeti
 
-Eğer tool calling hala sorunluysa, structured output için JSON mode kullan:
-
-```typescript
-response_format: { type: "json_object" },
-// tools kullanma, prompt'ta JSON formatı iste
-```
-
-Bu durumda prompt şöyle güncellenir:
-```
-Yanıtını şu JSON formatında ver:
-{
-  "accounts": [
-    { "code": "100", "name": "KASA", "debit": 1000, ... }
-  ]
-}
+```text
+1. max_tokens: 8000 → 16000
+2. Fonksiyon adı kontrolünü kaldır (herhangi bir tool call kabul)
+3. Çoklu tool_calls dizisini işle (her hesap ayrı call olabilir)
+4. Tek hesap vs array formatını destekle
+5. Text content fallback'i güçlendir
 ```
 
 ---
@@ -104,6 +105,7 @@ Yanıtını şu JSON formatında ver:
 ### Beklenen Sonuç
 
 - PDF dosyaları başarıyla parse edilecek
-- Hesap kodları ve tutarlar doğru çıkarılacak
-- Alt hesaplar da görüntülenebilecek
+- AI hangi format döndürürse döndürsün çalışacak
+- Tüm hesaplar çıkarılacak
+- Alt hesaplar ve satıcı bilgileri görüntülenebilecek
 
