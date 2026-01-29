@@ -5,6 +5,7 @@ import { toast } from '@/hooks/use-toast';
 import type { OfficialTrialBalance, TrialBalanceAccount, YearlyIncomeStatementFormData } from '@/types/officialFinance';
 import { INCOME_STATEMENT_ACCOUNT_MAP } from '@/types/officialFinance';
 import { calculateStatementTotals } from './useOfficialIncomeStatement';
+import { sanitizeFileName } from '@/lib/fileUtils';
 
 export function useTrialBalance(year: number, month: number | null = null) {
   const { user } = useAuth();
@@ -49,18 +50,19 @@ export function useTrialBalance(year: number, month: number | null = null) {
     mutationFn: async (file: File) => {
       if (!user?.id) throw new Error('User not authenticated');
 
-      // Upload file to storage
-      const fileName = `${user.id}/mizan/${year}${month ? `-${month}` : ''}-${Date.now()}-${file.name}`;
+      // Upload file to storage with sanitized file name
+      const sanitizedName = sanitizeFileName(file.name);
+      const storagePath = `${user.id}/mizan/${year}${month ? `-${month}` : ''}-${Date.now()}-${sanitizedName}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('finance-files')
-        .upload(fileName, file);
+        .upload(storagePath, file);
 
       if (uploadError) throw uploadError;
 
       // Get public URL
       const { data: urlData } = supabase.storage
         .from('finance-files')
-        .getPublicUrl(fileName);
+        .getPublicUrl(storagePath);
 
       // Parse the file using edge function
       const formData = new FormData();

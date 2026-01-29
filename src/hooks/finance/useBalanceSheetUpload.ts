@@ -4,6 +4,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { useAuth } from '@/hooks/useAuth';
 import { toast } from 'sonner';
 import { BALANCE_SHEET_ACCOUNT_MAP, BalanceSheetParsedAccount } from '@/types/officialFinance';
+import { sanitizeFileName } from '@/lib/fileUtils';
 
 export interface BalanceSheetUploadResult {
   accounts: BalanceSheetParsedAccount[];
@@ -88,8 +89,9 @@ export function useBalanceSheetUpload(year: number) {
 
     setIsUploading(true);
     try {
-      // 1. Upload to storage
-      const filePath = `${user.id}/balance-sheets/${year}/${file.name}`;
+      // 1. Upload to storage with sanitized file name
+      const sanitizedName = sanitizeFileName(file.name);
+      const filePath = `${user.id}/balance-sheets/${year}/${Date.now()}-${sanitizedName}`;
       const { error: uploadError } = await supabase.storage
         .from('finance-files')
         .upload(filePath, file, { upsert: true });
