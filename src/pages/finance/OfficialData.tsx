@@ -10,16 +10,20 @@ import { TrialBalanceUploader } from '@/components/finance/TrialBalanceUploader'
 import { IncomeStatementUploader } from '@/components/finance/IncomeStatementUploader';
 import { OfficialIncomeStatementForm } from '@/components/finance/OfficialIncomeStatementForm';
 import { OfficialBalanceSheetForm } from '@/components/finance/OfficialBalanceSheetForm';
+import { BalanceSheetUploader } from '@/components/finance/BalanceSheetUploader';
 import { useYear } from '@/contexts/YearContext';
 import { useOfficialIncomeStatement } from '@/hooks/finance/useOfficialIncomeStatement';
+import { useYearlyBalanceSheet } from '@/hooks/finance/useYearlyBalanceSheet';
 
 export default function OfficialData() {
   const navigate = useNavigate();
   const { selectedYear, setSelectedYear } = useYear();
   const [activeTab, setActiveTab] = useState('mizan');
   const [incomeMode, setIncomeMode] = useState<'upload' | 'manual'>('upload');
+  const [balanceMode, setBalanceMode] = useState<'upload' | 'manual'>('upload');
   
-  const { isLocked } = useOfficialIncomeStatement(selectedYear);
+  const { isLocked: isIncomeLocked } = useOfficialIncomeStatement(selectedYear);
+  const { isLocked: isBalanceLocked } = useYearlyBalanceSheet(selectedYear);
 
   const years = [2024, 2025, 2026];
 
@@ -53,7 +57,7 @@ export default function OfficialData() {
                 ))}
               </SelectContent>
             </Select>
-            {isLocked && (
+            {(isIncomeLocked || isBalanceLocked) && (
               <Badge variant="default" className="bg-green-600">
                 <Shield className="h-3 w-3 mr-1" />
                 Resmi Veri Aktif
@@ -146,7 +150,33 @@ export default function OfficialData() {
           </TabsContent>
 
           <TabsContent value="balance" className="mt-6">
-            <OfficialBalanceSheetForm year={selectedYear} />
+            <div className="space-y-4">
+              {/* Mode selector */}
+              <div className="flex gap-2">
+                <Button 
+                  variant={balanceMode === 'upload' ? 'default' : 'outline'}
+                  onClick={() => setBalanceMode('upload')}
+                  size="sm"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Dosya Yükle
+                </Button>
+                <Button 
+                  variant={balanceMode === 'manual' ? 'default' : 'outline'}
+                  onClick={() => setBalanceMode('manual')}
+                  size="sm"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Manuel Giriş
+                </Button>
+              </div>
+              
+              {balanceMode === 'upload' ? (
+                <BalanceSheetUploader year={selectedYear} />
+              ) : (
+                <OfficialBalanceSheetForm year={selectedYear} />
+              )}
+            </div>
           </TabsContent>
         </Tabs>
       </div>

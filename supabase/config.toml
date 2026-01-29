@@ -53,3 +53,6 @@ verify_jwt = false
 
 [functions.parse-income-statement]
 verify_jwt = false
+
+[functions.parse-balance-sheet]
+verify_jwt = false

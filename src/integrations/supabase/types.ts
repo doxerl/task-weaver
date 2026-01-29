@@ -2076,6 +2076,8 @@ export type Database = {
           current_profit: number | null
           deferred_tax_liabilities: number | null
           equipment: number | null
+          file_name: string | null
+          file_url: string | null
           fixtures: number | null
           id: string
           inventory: number | null
@@ -2086,9 +2088,11 @@ export type Database = {
           partner_payables: number | null
           partner_receivables: number | null
           personnel_payables: number | null
+          raw_accounts: Json | null
           retained_earnings: number | null
           short_term_loan_debt: number | null
           social_security_payables: number | null
+          source: string | null
           tax_payables: number | null
           tax_provision: number | null
           total_assets: number | null
@@ -2097,6 +2101,7 @@ export type Database = {
           trade_receivables: number | null
           unpaid_capital: number | null
           updated_at: string | null
+          uploaded_at: string | null
           user_id: string
           vat_payable: number | null
           vat_receivable: number | null
@@ -2112,6 +2117,8 @@ export type Database = {
           current_profit?: number | null
           deferred_tax_liabilities?: number | null
           equipment?: number | null
+          file_name?: string | null
+          file_url?: string | null
           fixtures?: number | null
           id?: string
           inventory?: number | null
@@ -2122,9 +2129,11 @@ export type Database = {
           partner_payables?: number | null
           partner_receivables?: number | null
           personnel_payables?: number | null
+          raw_accounts?: Json | null
           retained_earnings?: number | null
           short_term_loan_debt?: number | null
           social_security_payables?: number | null
+          source?: string | null
           tax_payables?: number | null
           tax_provision?: number | null
           total_assets?: number | null
@@ -2133,6 +2142,7 @@ export type Database = {
           trade_receivables?: number | null
           unpaid_capital?: number | null
           updated_at?: string | null
+          uploaded_at?: string | null
           user_id: string
           vat_payable?: number | null
           vat_receivable?: number | null
@@ -2148,6 +2158,8 @@ export type Database = {
           current_profit?: number | null
           deferred_tax_liabilities?: number | null
           equipment?: number | null
+          file_name?: string | null
+          file_url?: string | null
           fixtures?: number | null
           id?: string
           inventory?: number | null
@@ -2158,9 +2170,11 @@ export type Database = {
           partner_payables?: number | null
           partner_receivables?: number | null
           personnel_payables?: number | null
+          raw_accounts?: Json | null
           retained_earnings?: number | null
           short_term_loan_debt?: number | null
           social_security_payables?: number | null
+          source?: string | null
           tax_payables?: number | null
           tax_provision?: number | null
           total_assets?: number | null
@@ -2169,6 +2183,7 @@ export type Database = {
           trade_receivables?: number | null
           unpaid_capital?: number | null
           updated_at?: string | null
+          uploaded_at?: string | null
           user_id?: string
           vat_payable?: number | null
           vat_receivable?: number | null
