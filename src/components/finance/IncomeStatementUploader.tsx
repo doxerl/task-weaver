@@ -2,7 +2,7 @@ import React, { useCallback, useState } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { Upload, FileSpreadsheet, FileText, Check, Trash2, Eye, Loader2, AlertCircle, BarChart3 } from 'lucide-react';
+import { Upload, FileSpreadsheet, FileText, Check, Trash2, Eye, Loader2, AlertCircle, BarChart3, ChevronRight, ChevronDown } from 'lucide-react';
 import { useIncomeStatementUpload } from '@/hooks/finance/useIncomeStatementUpload';
 import { formatFullTRY } from '@/lib/formatters';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -26,6 +26,15 @@ import {
 } from '@/components/ui/dialog';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+
+interface SubAccount {
+  code: string;
+  name: string;
+  debit: number;
+  credit: number;
+  debitBalance: number;
+  creditBalance: number;
+}
 
 interface IncomeStatementUploaderProps {
   year: number;
@@ -288,20 +297,41 @@ export function IncomeStatementUploader({ year }: IncomeStatementUploaderProps) 
                       <TableBody>
                         {uploadState.accounts
                           .sort((a, b) => a.code.localeCompare(b.code))
-                          .map((account) => (
-                            <TableRow key={account.code}>
-                              <TableCell className="font-mono">{account.code}</TableCell>
-                              <TableCell>{account.name || ACCOUNT_LABELS[account.code] || '-'}</TableCell>
-                              <TableCell className="text-right">{formatFullTRY(account.debit)}</TableCell>
-                              <TableCell className="text-right">{formatFullTRY(account.credit)}</TableCell>
-                              <TableCell className="text-right font-medium">
-                                {formatFullTRY(account.debitBalance)}
-                              </TableCell>
-                              <TableCell className="text-right font-medium">
-                                {formatFullTRY(account.creditBalance)}
-                              </TableCell>
-                            </TableRow>
-                          ))}
+                          .map((account) => {
+                            const hasSubAccounts = account.subAccounts && account.subAccounts.length > 0;
+                            return (
+                              <React.Fragment key={account.code}>
+                                <TableRow className={hasSubAccounts ? 'cursor-pointer hover:bg-muted/50' : ''}>
+                                  <TableCell className="font-mono">
+                                    {hasSubAccounts && <ChevronRight className="h-3 w-3 inline mr-1" />}
+                                    {account.code}
+                                  </TableCell>
+                                  <TableCell>
+                                    {account.name || ACCOUNT_LABELS[account.code] || '-'}
+                                    {hasSubAccounts && (
+                                      <span className="text-xs text-muted-foreground ml-2">
+                                        ({account.subAccounts?.length} alt hesap)
+                                      </span>
+                                    )}
+                                  </TableCell>
+                                  <TableCell className="text-right">{formatFullTRY(account.debit)}</TableCell>
+                                  <TableCell className="text-right">{formatFullTRY(account.credit)}</TableCell>
+                                  <TableCell className="text-right font-medium">{formatFullTRY(account.debitBalance)}</TableCell>
+                                  <TableCell className="text-right font-medium">{formatFullTRY(account.creditBalance)}</TableCell>
+                                </TableRow>
+                                {account.subAccounts?.map((sub: SubAccount) => (
+                                  <TableRow key={sub.code} className="bg-muted/30">
+                                    <TableCell className="font-mono pl-8 text-sm text-muted-foreground">{sub.code}</TableCell>
+                                    <TableCell className="text-sm pl-4">{sub.name}</TableCell>
+                                    <TableCell className="text-right text-sm">{formatFullTRY(sub.debit)}</TableCell>
+                                    <TableCell className="text-right text-sm">{formatFullTRY(sub.credit)}</TableCell>
+                                    <TableCell className="text-right text-sm">{formatFullTRY(sub.debitBalance)}</TableCell>
+                                    <TableCell className="text-right text-sm">{formatFullTRY(sub.creditBalance)}</TableCell>
+                                  </TableRow>
+                                ))}
+                              </React.Fragment>
+                            );
+                          })}
                       </TableBody>
                     </Table>
                   </ScrollArea>

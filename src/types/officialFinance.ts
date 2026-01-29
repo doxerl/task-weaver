@@ -69,12 +69,22 @@ export interface YearlyIncomeStatement {
   updated_at: string;
 }
 
+export interface SubAccount {
+  code: string;
+  name: string;
+  debit: number;
+  credit: number;
+  debitBalance: number;
+  creditBalance: number;
+}
+
 export interface TrialBalanceAccount {
   name: string;
   debit: number;
   credit: number;
   debitBalance: number;
   creditBalance: number;
+  subAccounts?: SubAccount[];
 }
 
 export interface OfficialTrialBalance {
