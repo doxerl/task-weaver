@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useFinancialDataHub, ProcessedTransaction } from './useFinancialDataHub';
 import { IncomeStatementData, IncomeStatementLine } from '@/types/reports';
 import { usePayrollAccruals } from './usePayrollAccruals';
+import { useOfficialIncomeStatement } from './useOfficialIncomeStatement';
 
 // Tekdüzen Hesap Planı - Account Code Groups
 const ACCOUNT_GROUPS = {
@@ -59,11 +60,90 @@ const matchesLegacyCode = (categoryCode: string | undefined | null, codes: strin
   return codes.some(c => categoryCode.toUpperCase().includes(c));
 };
 
+// Convert official statement to IncomeStatementData format
+function convertOfficialToStatement(official: any): IncomeStatementData {
+  const grossSalesTotal = (official.gross_sales_domestic || 0) + 
+                         (official.gross_sales_export || 0) + 
+                         (official.gross_sales_other || 0);
+  
+  const operatingExpensesTotal = (official.rd_expenses || 0) + 
+                                 (official.marketing_expenses || 0) + 
+                                 (official.general_admin_expenses || 0);
+  
+  const otherIncomeTotal = (official.interest_income || 0) + 
+                           (official.fx_gain || 0) + 
+                           (official.other_income || 0);
+  
+  const otherExpensesTotal = (official.commission_expenses || 0) + 
+                             (official.fx_loss || 0) + 
+                             (official.other_expenses || 0);
+  
+  const financeExpenses = (official.short_term_finance_exp || 0) + 
+                          (official.long_term_finance_exp || 0);
+  
+  return {
+    grossSales: {
+      yurtici: official.gross_sales_domestic || 0,
+      yurtdisi: official.gross_sales_export || 0,
+      diger: official.gross_sales_other || 0,
+      total: grossSalesTotal,
+      sbt: 0, ls: 0, zdhc: 0, danis: 0, // Legacy fields
+    },
+    salesReturns: official.sales_returns || 0,
+    netSales: official.net_sales || 0,
+    costOfSales: (official.cost_of_goods_sold || 0) + 
+                 (official.cost_of_merchandise_sold || 0) + 
+                 (official.cost_of_services_sold || 0),
+    grossProfit: official.gross_profit || 0,
+    operatingExpenses: {
+      pazarlama: official.marketing_expenses || 0,
+      genelYonetim: official.general_admin_expenses || 0,
+      total: operatingExpensesTotal,
+      personel: 0, kira: 0, ulasim: 0, telekom: 0, sigorta: 0,
+      ofis: 0, muhasebe: 0, yazilim: 0, banka: 0, diger: 0,
+    },
+    operatingProfit: official.operating_profit || 0,
+    otherIncome: {
+      faiz: official.interest_income || 0,
+      kurFarki: official.fx_gain || 0,
+      diger: official.other_income || 0,
+      total: otherIncomeTotal,
+    },
+    otherExpenses: {
+      komisyon: official.commission_expenses || 0,
+      kurFarki: official.fx_loss || 0,
+      diger: official.other_expenses || 0,
+      faiz: financeExpenses, // Legacy
+      total: otherExpensesTotal,
+    },
+    financeExpenses,
+    ordinaryProfit: official.operating_profit + otherIncomeTotal - otherExpensesTotal - financeExpenses,
+    extraordinaryIncome: (official.prior_period_income || 0) + (official.other_extraordinary_income || 0),
+    extraordinaryExpenses: (official.prior_period_expenses || 0) + (official.other_extraordinary_exp || 0),
+    preTaxProfit: official.net_profit + (official.corporate_tax || 0) + (official.deferred_tax_expense || 0),
+    taxExpense: (official.corporate_tax || 0) + (official.deferred_tax_expense || 0),
+    netProfit: official.net_profit || 0,
+    profitMargin: official.net_sales > 0 ? (official.net_profit / official.net_sales) * 100 : 0,
+    ebitMargin: official.net_sales > 0 ? (official.operating_profit / official.net_sales) * 100 : 0,
+    grossMargin: official.net_sales > 0 ? (official.gross_profit / official.net_sales) * 100 : 0,
+    kkegTotal: 0,
+  };
+}
+
 export function useIncomeStatement(year: number) {
+  // RESMİ VERİ KONTROLÜ - Öncelik resmi veride!
+  const { officialStatement, isLocked, isLoading: isOfficialLoading } = useOfficialIncomeStatement(year);
+  
   const hub = useFinancialDataHub(year);
   const { summary: payrollSummary } = usePayrollAccruals(year);
 
   const statement = useMemo((): IncomeStatementData => {
+    // ÖNCELİK 1: Kilitli resmi veri varsa onu kullan!
+    if (isLocked && officialStatement) {
+      console.log(`[useIncomeStatement] ${year} yılı için RESMİ VERİ kullanılıyor (is_locked=true)`);
+      return convertOfficialToStatement(officialStatement);
+    }
+    
     const empty: IncomeStatementData = {
       grossSales: { yurtici: 0, yurtdisi: 0, diger: 0, total: 0, sbt: 0, ls: 0, zdhc: 0, danis: 0 },
       salesReturns: 0,
@@ -349,6 +429,7 @@ export function useIncomeStatement(year: number) {
   return {
     statement,
     lines,
-    isLoading: hub.isLoading,
+    isLoading: hub.isLoading || isOfficialLoading,
+    isOfficial: isLocked, // UI'da "Resmi Veri" badge'i göstermek için
   };
 }

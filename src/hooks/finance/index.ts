@@ -28,3 +28,4 @@ export type { FullReportPdfParams } from './usePdfEngine';
 // Official financial data hooks
 export { useOfficialIncomeStatement, calculateStatementTotals } from './useOfficialIncomeStatement';
 export { useTrialBalance } from './useTrialBalance';
+export { useYearlyBalanceSheet } from './useYearlyBalanceSheet';

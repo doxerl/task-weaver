@@ -6,7 +6,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
-import { ArrowLeft, TrendingUp, TrendingDown, Wallet, FileDown, BarChart3, FileText, Users, Loader2, Receipt, CreditCard, Car, Building, AlertTriangle, Info } from 'lucide-react';
+import { Badge } from '@/components/ui/badge';
+import { ArrowLeft, TrendingUp, TrendingDown, Wallet, FileDown, BarChart3, FileText, Users, Loader2, Receipt, CreditCard, Car, Building, AlertTriangle, Info, Shield } from 'lucide-react';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { useFinancialDataHub } from '@/hooks/finance/useFinancialDataHub';
 import { useIncomeAnalysis } from '@/hooks/finance/useIncomeAnalysis';
@@ -311,6 +312,12 @@ export default function Reports() {
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold flex-1">Finansal Rapor</h1>
+          {incomeStatement.isOfficial && (
+            <Badge variant="default" className="bg-green-600">
+              <Shield className="h-3 w-3 mr-1" />
+              Resmi Veri
+            </Badge>
+          )}
           <CurrencyToggle year={year} />
           <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
             <SelectTrigger className="w-20"><SelectValue /></SelectTrigger>
