@@ -1,138 +1,223 @@
 
-## AI Analiz Motoru Değerleme Entegrasyonu Planı
+## Yatırım Odak Projeleri - Seçici Büyüme Çarpanı Planı
 
 ### Problem Özeti
 
-Yeni eklenen **EBITDA**, **DCF**, **VC Method** ve **ağırlıklı değerleme** verileri frontend'de hesaplanıp `ExitPlan.allYears` array'inde saklanıyor. Ancak `unified-scenario-analysis` Edge Function bu verileri AI prompt'una **dahil etmiyor**.
+"2027'e Geç" butonu ile yeni yıl senaryosu oluşturulurken, **tüm gelir kalemlerine** aynı büyüme oranı uygulanıyor. Kullanıcının istediği:
 
-### Eksik Veri Akışı
+- **Seçili odak projeler** → AI projeksiyonuna göre büyüme çarpanı
+- **Diğer projeler** → Sabit kalmalı (projectedAmount = baseAmount, yani %0 büyüme)
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│  VERİ AKIŞI ANALİZİ                                            │
+│  MEVCUT MANTIK                                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  ✅ useInvestorAnalysis.ts                                      │
-│  │   projectFutureRevenue() →                                   │
-│  │   allYears[i] = {                                            │
-│  │     ebitda, ebitdaMargin, freeCashFlow,                      │
-│  │     valuations: { revenueMultiple, ebitdaMultiple,           │
-│  │                   dcf, vcMethod, weighted }                  │
-│  │   }                                                          │
-│  │                                                              │
-│  ▼                                                              │
-│  ✅ useUnifiedAnalysis.ts (line 417)                            │
-│  │   exitPlan: trimmedExitPlan (ilk 5 yıl gönderiliyor)        │
-│  │                                                              │
-│  ▼                                                              │
-│  ❌ unified-scenario-analysis/index.ts                          │
-│     userPrompt içinde:                                          │
-│     - exitPlan.postMoneyValuation ✅                            │
-│     - exitPlan.investorShare3Year ✅                            │
-│     - exitPlan.moic3Year/5Year ✅                               │
-│     - exitPlan.allYears[*].ebitda ❌ (KULLANILMIYOR)           │
-│     - exitPlan.allYears[*].valuations ❌ (KULLANILMIYOR)       │
+│  createNextYearFromAI(scenarioA, scenarioB, aiProjection)      │
+│                                                                 │
+│  TÜM gelir kalemleri:                                          │
+│  ├── SBT Tracker      $205K → $321K (+57%)                     │
+│  ├── Leadership       $68K  → $107K (+57%)                     │
+│  ├── Danışmanlık      $21K  → $33K  (+57%)                     │
+│  └── ZDHC InCheck     $13K  → $21K  (+57%)                     │
+│                                                                 │
+│  SORUN: Tüm kalemler aynı çarpanla büyüyor!                    │
+│                                                                 │
+└─────────────────────────────────────────────────────────────────┘
+
+┌─────────────────────────────────────────────────────────────────┐
+│  OLMASI GEREKEN MANTIK                                         │
+├─────────────────────────────────────────────────────────────────┤
+│                                                                 │
+│  createNextYearFromAI(..., focusProjects: ['SBT Tracker'])     │
+│                                                                 │
+│  Odak projeler (büyüme uygulanır):                             │
+│  └── SBT Tracker      $205K → $321K (+57%)  ✅                 │
+│                                                                 │
+│  Diğer projeler (sabit kalır):                                 │
+│  ├── Leadership       $68K  → $68K  (%0)    📌                 │
+│  ├── Danışmanlık      $21K  → $21K  (%0)    📌                 │
+│  └── ZDHC InCheck     $13K  → $13K  (%0)    📌                 │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
-### Çözüm: Edge Function Prompt Güncelleme
+---
 
-**Dosya:** `supabase/functions/unified-scenario-analysis/index.ts`
+### Çözüm Yaklaşımı
 
-"HESAPLANMIŞ EXIT PLANI" bölümünden sonra yeni bir bölüm eklenecek:
+**Temel Mantık:**
+1. `focusProjects` array'i fonksiyona parametre olarak gönderilecek
+2. Her gelir kalemi için:
+   - Eğer `focusProjects.includes(r.category)` → AI büyüme oranı uygulanır
+   - Değilse → `projectedAmount = baseAmount` (değişmez)
+3. Toplam büyüme sadece odak projelerden gelecek
 
-```typescript
-// Lines 687-688 arasına eklenecek
-const projectionDetailSection = exitPlan.allYears && exitPlan.allYears.length > 0 ? `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+---
 
-📊 5 YILLIK FİNANSAL PROJEKSİYON DETAYLARI (HESAPLANMIŞ):
+### Değişiklikler
 
-${exitPlan.allYears.map((year: any, i: number) => {
-  const valuations = year.valuations || {};
-  return `
-🗓️ ${year.actualYear || (scenarioYear + i + 1)} (${year.growthStage === 'aggressive' ? 'Agresif' : 'Normalize'} Aşama):
-- Gelir: $${(year.revenue || 0).toLocaleString()}
-- Gider: $${(year.expenses || 0).toLocaleString()}
-- Net Kâr: $${(year.netProfit || 0).toLocaleString()}
-- EBITDA: $${(year.ebitda || 0).toLocaleString()} (Marj: %${(year.ebitdaMargin || 0).toFixed(1)})
-- Serbest Nakit Akışı (FCF): $${(year.freeCashFlow || 0).toLocaleString()}
-- Büyüme Oranı: %${((year.appliedGrowthRate || 0) * 100).toFixed(1)}
+#### 1. useScenarios.ts - Fonksiyon İmzası Güncelleme
 
-DEĞERLEME METODLARI:
-├─ Ciro Çarpanı (${dealConfig.sectorMultiple}x): $${(valuations.revenueMultiple || 0).toLocaleString()}
-├─ EBITDA Çarpanı: $${(valuations.ebitdaMultiple || 0).toLocaleString()}
-├─ DCF (%30 iskonto): $${(valuations.dcf || 0).toLocaleString()}
-├─ VC Metodu (10x ROI): $${(valuations.vcMethod || 0).toLocaleString()}
-└─ Ağırlıklı Değerleme: $${(valuations.weighted || year.companyValuation || 0).toLocaleString()}
-`;
-}).join('\n')}
-
-🔍 DEĞERLEME ANALİZ TALİMATLARI:
-1. Ağırlıklı değerleme hesabı: Ciro (%30) + EBITDA (%25) + DCF (%30) + VC (%15)
-2. Yatırımcı sunumunda 5. yıl ağırlıklı değerlemeyi kullan
-3. EBITDA marjı trendi: İlk yıllardan son yıllara nasıl değişiyor?
-4. DCF değerlemesi vs Revenue Multiple farkını yorumla
-5. VC metodunun gerçekçiliğini değerlendir (10x ROI makul mü?)
-` : '';
-```
-
-### Ek Olarak: AI Prompt'a Değerleme Rehberi Ekleme
-
-System prompt'una (`getUnifiedMasterPrompt` fonksiyonu) değerleme metodları açıklaması eklenmeli:
+`createNextYearFromAI` fonksiyonuna `focusProjects` parametresi eklenecek:
 
 ```typescript
-const VALUATION_METHODOLOGY_RULES = `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-💰 DEĞERLEME METODOLOJİSİ (4 METOT + AĞIRLIKLI):
-
-1. CİRO ÇARPANI (%30 Ağırlık):
-   Formül: Yıllık Gelir × Sektör Çarpanı (SaaS: 8x, E-ticaret: 2.5x, Fintech: 6x)
-   Kullanım: En yaygın early-stage değerleme metodu
-
-2. EBITDA ÇARPANI (%25 Ağırlık):
-   Formül: EBITDA × EBITDA Çarpanı (SaaS: 15x, E-ticaret: 8x, Fintech: 12x)
-   Kullanım: Kârlı şirketler için daha güvenilir
-
-3. DCF - İNDİRGENMİŞ NAKİT AKIŞI (%30 Ağırlık):
-   Formül: 5 yıllık FCF NPV + Terminal Value (Gordon Growth)
-   Parametreler: %30 iskonto oranı, %3 terminal büyüme
-   Kullanım: Uzun vadeli değer için en sofistike metot
-
-4. VC METODU (%15 Ağırlık):
-   Formül: 5. Yıl Çıkış Değeri ÷ Beklenen ROI (10x)
-   Kullanım: Yatırımcı perspektifinden bugünkü değer
-
-📊 AĞIRLIKLI ORTALAMA:
-Final = (Ciro × 0.30) + (EBITDA × 0.25) + (DCF × 0.30) + (VC × 0.15)
-
-⚠️ ANALİZ KURALLARI:
-- Tüm değerleme rakamlarını HESAPLANMIŞ veriden al, UYDURMA
-- Farklı metodlar arasındaki farkı yorumla
-- En güvenilir metodu şirketin durumuna göre belirt
-- Pitch deck'te ağırlıklı değerlemeyi kullan
-`;
+const createNextYearFromAI = useCallback(async (
+  scenarioA: SimulationScenario,
+  scenarioB: SimulationScenario,
+  aiProjection: NextYearProjection,
+  focusProjects: string[] = []  // YENİ PARAMETRE
+): Promise<SimulationScenario | null> => {
 ```
+
+#### 2. useScenarios.ts - Gelir Hesaplama Mantığı
+
+Mevcut `newRevenues` hesaplaması:
+```typescript
+// MEVCUT: Tüm kalemler aynı oranda büyür
+const newRevenues = referenceScenario.revenues.map(r => {
+  const ratio = currentTotalRevenue > 0 ? r.projectedAmount / currentTotalRevenue : ...;
+  const itemProjectedAmount = Math.round(totalAIRevenue * ratio);
+  // ...
+});
+```
+
+Yeni mantık:
+```typescript
+// YENİ: Odak projeler büyür, diğerleri sabit
+const newRevenues = referenceScenario.revenues.map(r => {
+  const isFocusProject = focusProjects.includes(r.category);
+  
+  let itemProjectedAmount: number;
+  let projectedQuarterly: QuarterlyAmounts;
+  
+  if (isFocusProject && focusProjects.length > 0) {
+    // ODAK PROJE: Toplam AI büyümesini odak projeler arasında dağıt
+    // Odak projelerin mevcut toplam cirosu
+    const focusProjectsCurrentTotal = referenceScenario.revenues
+      .filter(rv => focusProjects.includes(rv.category))
+      .reduce((sum, rv) => sum + rv.projectedAmount, 0);
+    
+    // Bu odak projenin payı
+    const focusRatio = focusProjectsCurrentTotal > 0 
+      ? r.projectedAmount / focusProjectsCurrentTotal 
+      : 1 / focusProjects.length;
+    
+    // Odak olmayan projelerin sabit toplamı
+    const nonFocusTotal = referenceScenario.revenues
+      .filter(rv => !focusProjects.includes(rv.category))
+      .reduce((sum, rv) => sum + rv.projectedAmount, 0);
+    
+    // Odak projelere düşen AI ciro hedefi
+    const focusProjectsTargetTotal = totalAIRevenue - nonFocusTotal;
+    
+    itemProjectedAmount = Math.round(focusProjectsTargetTotal * focusRatio);
+    
+    // Çeyreklik dağılım AI oranlarıyla
+    projectedQuarterly = {
+      q1: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q1),
+      q2: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q2),
+      q3: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q3),
+      q4: Math.round(itemProjectedAmount * revenueQuarterlyRatios.q4),
+    };
+  } else {
+    // DİĞER PROJE: Sabit kal (baseAmount = projectedAmount)
+    itemProjectedAmount = r.projectedAmount; // Önceki yılın projectedAmount değeri
+    
+    // Çeyreklik dağılım: Önceki yıldan aynen al
+    projectedQuarterly = r.projectedQuarterly || { q1: 0, q2: 0, q3: 0, q4: 0 };
+  }
+  
+  return {
+    id: generateId(),
+    category: r.category,
+    baseAmount: r.projectedAmount,  // Önceki yılın projectedAmount = yeni baseAmount
+    baseQuarterly: r.projectedQuarterly || { q1: 0, q2: 0, q3: 0, q4: 0 },
+    projectedAmount: itemProjectedAmount,
+    projectedQuarterly,
+    description: r.description,
+    isNew: false,
+    startMonth: r.startMonth,
+  };
+});
+```
+
+#### 3. ScenarioComparisonPage.tsx - Fonksiyon Çağrısı Güncelleme
+
+```typescript
+const handleCreateNextYear = async () => {
+  if (!unifiedAnalysis?.next_year_projection || !scenarioA || !scenarioB) return;
+  
+  // focusProjects parametresini ekle
+  const newScenario = await createNextYearFromAI(
+    scenarioA, 
+    scenarioB, 
+    unifiedAnalysis.next_year_projection,
+    focusProjects  // YENİ: Seçili odak projeler
+  );
+  
+  if (newScenario) {
+    toast.success(`${newScenario.targetYear} yılı senaryosu oluşturuldu!`);
+    navigate(`/finance/simulation?scenario=${newScenario.id}`);
+  }
+};
+```
+
+#### 4. Senaryo Notlarına Odak Bilgisi Ekleme
+
+```typescript
+const focusProjectNote = focusProjects.length > 0
+  ? `\n🎯 Odak Projeler: ${focusProjects.join(', ')}\n📌 Diğer projeler sabit tutuldu.`
+  : '';
+
+const newScenario: Omit<SimulationScenario, 'id' | 'createdAt' | 'updatedAt'> = {
+  // ...
+  notes: `🤖 AI tarafından oluşturuldu...${focusProjectNote}\n\n${inheritedItemsNote}...`,
+};
+```
+
+---
+
+### Örnek Senaryo
+
+**Girdi:**
+- Mevcut toplam ciro: $308K
+- AI hedef ciro: $483K (+57% genel büyüme)
+- Seçili odak proje: SBT Tracker ($205K mevcut)
+- Diğer projeler: $103K (Leadership $68K + Danışmanlık $21K + ZDHC $14K)
+
+**Hesaplama:**
+1. Diğer projeler sabit: $103K
+2. Odak projeler hedefi: $483K - $103K = $380K
+3. SBT Tracker yeni değeri: $380K (tek odak proje olduğu için tamamı)
+
+**Çıktı:**
+| Proje | 2026 (Base) | 2027 (Projected) | Büyüme |
+|-------|-------------|------------------|--------|
+| SBT Tracker ⭐ | $205K | $380K | +85% |
+| Leadership | $68K | $68K | %0 |
+| Danışmanlık | $21K | $21K | %0 |
+| ZDHC InCheck | $14K | $14K | %0 |
+| **Toplam** | **$308K** | **$483K** | **+57%** |
+
+---
 
 ### Değiştirilecek Dosyalar
 
 | Dosya | Değişiklik |
 |-------|------------|
-| `supabase/functions/unified-scenario-analysis/index.ts` | userPrompt'a 5 yıllık projeksiyon detayları + değerleme metodları bölümü ekle |
+| `src/hooks/finance/useScenarios.ts` | `createNextYearFromAI` fonksiyon imzası + gelir hesaplama mantığı |
+| `src/pages/finance/ScenarioComparisonPage.tsx` | `handleCreateNextYear` fonksiyonunda `focusProjects` parametresi ekleme |
+
+---
 
 ### Beklenen Sonuç
 
-| Metrik | Önceki | Sonraki |
-|--------|--------|---------|
-| AI'a gönderilen değerleme verisi | Sadece post-money, MOIC | 4 metot + EBITDA + FCF + ağırlıklı |
-| AI'ın değerleme anlayışı | Sınırlı | Tam kapsamlı |
-| Pitch deck değerleme doğruluğu | Genel ifadeler | Spesifik $ ve metodoloji |
-| Deal score hesaplama kalitesi | Eksik | Veri odaklı |
+| Senaryo | Önceki Davranış | Yeni Davranış |
+|---------|-----------------|---------------|
+| Odak proje seçilmemiş | Tüm kalemler büyür | Tüm kalemler büyür (mevcut) |
+| 1 odak proje seçili | Tüm kalemler büyür | Sadece odak proje büyür |
+| 2 odak proje seçili | Tüm kalemler büyür | Sadece 2 odak proje büyür |
 
-### Teknik Notlar
-
-- `exitPlan.allYears` zaten frontend'den gönderiliyor (line 417), sadece prompt'a yazılmıyor
-- `trimmedExitPlan` ilk 5 yılı alıyor (payload optimizasyonu)
-- Edge Function deployment sonrası cache'li analizler eski kalacak - kullanıcıya "Yeniden Analiz" önerilmeli
+**Yatırımcı Mantığı:** 
+> "Yatırımı SBT Tracker'a odaklayarak bu proje %85 büyür, diğer projeler stabil kalır. Bu, yatırımın geri dönüşünün nereden geleceğini net gösterir."
