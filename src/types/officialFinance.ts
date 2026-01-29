@@ -298,3 +298,43 @@ export const BALANCE_SHEET_GROUPS: BalanceSheetGroup[] = [
     ],
   },
 ];
+
+// Bilanço hesap kodu -> veritabanı alan mapping
+export const BALANCE_SHEET_ACCOUNT_MAP: Record<string, string> = {
+  '100': 'cash_on_hand',
+  '102': 'bank_balance',
+  '120': 'trade_receivables',
+  '131': 'partner_receivables',
+  '190': 'vat_receivable',
+  '191': 'other_vat',
+  '150': 'inventory',
+  '254': 'vehicles',
+  '255': 'fixtures',
+  '256': 'equipment',
+  '257': 'accumulated_depreciation',
+  '300': 'short_term_loan_debt',
+  '320': 'trade_payables',
+  '331': 'partner_payables',
+  '335': 'personnel_payables',
+  '360': 'tax_payables',
+  '361': 'social_security_payables',
+  '391': 'vat_payable',
+  '370': 'deferred_tax_liabilities',
+  '379': 'tax_provision',
+  '400': 'bank_loans',
+  '500': 'paid_capital',
+  '501': 'unpaid_capital',
+  '570': 'retained_earnings',
+  '590': 'current_profit',
+};
+
+// Bilanço parsed account interface
+export interface BalanceSheetParsedAccount {
+  code: string;
+  name: string;
+  debit: number;
+  credit: number;
+  debitBalance: number;
+  creditBalance: number;
+  subAccounts?: SubAccount[];
+}
