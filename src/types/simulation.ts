@@ -410,7 +410,38 @@ export const SECTOR_NORMALIZED_GROWTH: Record<string, number> = {
   'default': 0.25    // %25
 };
 
-/** Multi-Year Financial Projection */
+// =====================================================
+// VALUATION ENGINE TYPES
+// =====================================================
+
+/** Valuation breakdown from multiple methods */
+export interface ValuationBreakdown {
+  revenueMultiple: number;    // Revenue x Sector Multiple
+  ebitdaMultiple: number;     // EBITDA x EBITDA Multiple
+  dcf: number;                // Discounted Cash Flow valuation
+  vcMethod: number;           // VC Method (Exit / ROI)
+  weighted: number;           // Weighted average of all methods
+}
+
+/** Weights for valuation methods */
+export interface ValuationWeights {
+  revenueMultiple: number;    // Default: 0.30
+  ebitdaMultiple: number;     // Default: 0.25
+  dcf: number;                // Default: 0.30
+  vcMethod: number;           // Default: 0.15
+}
+
+/** Configuration for valuation calculations */
+export interface ValuationConfiguration {
+  discountRate: number;        // DCF discount rate (e.g., 0.30 for 30%)
+  terminalGrowthRate: number;  // Terminal growth rate (e.g., 0.03 for 3%)
+  expectedROI: number;         // VC expected ROI (e.g., 10 for 10x)
+  capexRatio: number;          // CapEx as ratio of revenue (e.g., 0.10)
+  taxRate: number;             // Corporate tax rate (e.g., 0.22)
+  weights: ValuationWeights;   // Weights for each valuation method
+}
+
+/** Multi-Year Financial Projection - Enhanced with EBITDA and Valuations */
 export interface MultiYearProjection {
   year: number;                  // Relative year (1, 2, 3, 4, 5)
   actualYear: number;            // Actual calendar year (2027, 2028, 2029, 2030, 2031)
@@ -418,9 +449,14 @@ export interface MultiYearProjection {
   expenses: number;
   netProfit: number;
   cumulativeProfit: number;
-  companyValuation: number;      // Ciro x Çarpan
-  appliedGrowthRate?: number;    // Uygulanan büyüme oranı (şeffaflık için)
-  growthStage?: 'aggressive' | 'normalized'; // Büyüme aşaması
+  companyValuation: number;      // Now uses weighted valuation
+  appliedGrowthRate?: number;    // Applied growth rate for transparency
+  growthStage?: 'aggressive' | 'normalized'; // Growth phase
+  // NEW: EBITDA and advanced valuations
+  ebitda?: number;               // EBITDA value
+  ebitdaMargin?: number;         // EBITDA margin (%)
+  freeCashFlow?: number;         // Free Cash Flow
+  valuations?: ValuationBreakdown; // All valuation methods
 }
 
 /** Exit Plan for Investors */

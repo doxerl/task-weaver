@@ -45,6 +45,8 @@ import { InvestmentScenarioCard } from './InvestmentScenarioCard';
 import { FutureImpactChart } from './FutureImpactChart';
 import { AIInvestmentTimingCard } from './AIInvestmentTimingCard';
 import { QuarterlyCapitalTable } from './QuarterlyCapitalTable';
+import { ValuationMethodsCard } from './ValuationMethodsCard';
+import { getEBITDAMultiple, DEFAULT_VALUATION_CONFIG } from '@/lib/valuationCalculator';
 
 interface InvestmentTabProps {
   scenarioA: SimulationScenario;
@@ -593,7 +595,18 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
         </CardContent>
       </Card>
 
-      {/* 5 Year Projection Detail Table */}
+      {/* Valuation Methods Card - 4 farklı değerleme metodunun karşılaştırması */}
+      {exitPlan.allYears && exitPlan.allYears.length > 0 && exitPlan.allYears[4]?.valuations && (
+        <ValuationMethodsCard
+          valuations={exitPlan.allYears[4].valuations}
+          sectorMultiple={dealConfig.sectorMultiple}
+          ebitdaMultiple={getEBITDAMultiple('default')}
+          config={DEFAULT_VALUATION_CONFIG}
+          year5Label={`${exitPlan.yearLabels?.moic5Year || scenarioTargetYear + 5}`}
+        />
+      )}
+
+      {/* 5 Year Projection Detail Table - Enhanced with EBITDA and Valuations */}
       {exitPlan.allYears && exitPlan.allYears.length > 0 && (
         <Card>
           <CardHeader className="pb-2">
@@ -601,15 +614,23 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
               <Target className="h-4 w-4 text-primary" />
               5 Yıllık Projeksiyon Detayı
             </CardTitle>
+            <CardDescription className="text-xs">
+              EBITDA, DCF ve çoklu değerleme metodları ile geliştirilmiş projeksiyon
+            </CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[100px]">Yıl</TableHead>
-                  <TableHead>Aşama</TableHead>
+                  <TableHead className="w-[80px]">Yıl</TableHead>
+                  <TableHead className="w-[80px]">Aşama</TableHead>
                   <TableHead className="text-right">Büyüme</TableHead>
                   <TableHead className="text-right">Gelir</TableHead>
+                  <TableHead className="text-right">EBITDA</TableHead>
+                  <TableHead className="text-right">EBITDA %</TableHead>
+                  <TableHead className="text-right text-muted-foreground">Rev. Mult.</TableHead>
+                  <TableHead className="text-right text-muted-foreground">EBITDA Mult.</TableHead>
+                  <TableHead className="text-right text-muted-foreground">DCF</TableHead>
                   <TableHead className="text-right">Değerleme</TableHead>
                   <TableHead className="text-right">MOIC</TableHead>
                 </TableRow>
@@ -631,13 +652,28 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
                           </Badge>
                         )}
                       </TableCell>
-                      <TableCell className="text-right text-blue-600 font-medium">
+                      <TableCell className="text-right text-blue-600 dark:text-blue-400 font-medium">
                         +{((year.appliedGrowthRate || 0) * 100).toFixed(0)}%
                       </TableCell>
                       <TableCell className="text-right font-mono">
                         {formatCompactUSD(year.revenue)}
                       </TableCell>
-                      <TableCell className="text-right font-mono">
+                      <TableCell className="text-right font-mono text-purple-600 dark:text-purple-400">
+                        {year.ebitda ? formatCompactUSD(year.ebitda) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right text-muted-foreground">
+                        {year.ebitdaMargin ? `%${year.ebitdaMargin.toFixed(1)}` : '-'}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs text-muted-foreground">
+                        {year.valuations?.revenueMultiple ? formatCompactUSD(year.valuations.revenueMultiple) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs text-muted-foreground">
+                        {year.valuations?.ebitdaMultiple ? formatCompactUSD(year.valuations.ebitdaMultiple) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right font-mono text-xs text-muted-foreground">
+                        {year.valuations?.dcf ? formatCompactUSD(year.valuations.dcf) : '-'}
+                      </TableCell>
+                      <TableCell className="text-right font-mono font-bold text-primary">
                         {formatCompactUSD(year.companyValuation)}
                       </TableCell>
                       <TableCell className="text-right">
