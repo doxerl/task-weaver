@@ -1,47 +1,54 @@
 
-## Çok Yıllı Yatırım Simülatörü - Yıl Bağımlı Sermaye Hesaplama Planı
+## Exit Plan & 5 Yıllık Projeksiyon - AI Entegrasyonu Planı
 
 ### Problem Analizi
 
-Mevcut sistem tek yıl için yatırım ihtiyacı hesaplıyor. Kullanıcının istediği:
+Mevcut sistemde iki farklı veri kaynağı çakışıyor:
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│  ÖNCEKİ YIL AKIŞI (2026)                                       │
+│  MEVCUT DURUM: İKİ FARKLI VERİ KAYNAĞI                         │
 ├─────────────────────────────────────────────────────────────────┤
-│  • Yatırım Alındı: $150K                                       │
-│  • Yıl Sonu Kar: $33.9K                                        │
-│  • Devir Edilecek: $33.9K (2027'ye açılış bakiyesi)            │
-└─────────────────────────────────────────────────────────────────┘
-
-┌─────────────────────────────────────────────────────────────────┐
-│  SONRAKI YIL HESAPLAMASI (2027)                                │
-├─────────────────────────────────────────────────────────────────┤
-│  • Hedef Gelir: $700K                                          │
-│  • Toplam Gider: $460K                                         │
-│  • Brüt Açık: $460K - $700K = -$240K (kar) veya $0             │
 │                                                                 │
-│  ANCAK çeyreklik nakit akışı düzensiz:                         │
-│  ├── Q1-Q2: Personel sabit harcıyor → Nakit çıkışı             │
-│  ├── Gelir Q3-Q4'te yoğunlaşabilir                             │
-│  └── Ara dönem sermaye ihtiyacı: ~$250K                        │
+│  AI Projeksiyonu (next_year_projection):                       │
+│  ├── 2027 Gelir: $580.6K (AI tarafından üretildi)              │
+│  ├── 2027 Gider: $503.4K (AI tarafından üretildi)              │
+│  └── Çeyreklik dağılım: AI belirledi                           │
 │                                                                 │
-│  2027 Sermaye İhtiyacı = Q1-Q2 Açığı - Devir Kar               │
-│  Örnek: $250K - $33.9K = $216.1K ek yatırım gerekli            │
+│  Exit Plan (calculateExitPlan - hardcoded formül):             │
+│  ├── 2027 Gelir: $826.2K (growth rate × scenario revenue)      │
+│  ├── 2028 Gelir: $1.1M (aggressiveGrowthRate × decay)          │
+│  └── 5 yıllık projeksiyon: Sabit formülle hesaplanıyor         │
+│                                                                 │
+│  SORUN: İki sistem birbirinden habersiz çalışıyor!             │
+│                                                                 │
 └─────────────────────────────────────────────────────────────────┘
+```
 
+### Çözüm Yaklaşımı
+
+**Ana Fikir:** Exit Plan'ı AI projeksiyonuyla beslemek
+
+```text
 ┌─────────────────────────────────────────────────────────────────┐
-│  5 YILLIK PROJEKSİYON (CANLI VERİ AKIŞI)                       │
+│  ÇÖZÜM: AI-DRIVEN EXIT PLAN                                    │
 ├─────────────────────────────────────────────────────────────────┤
-│  Yıl  │ Açılış │ Gelir │ Gider │ Net │ Sermaye İhtiyacı        │
-│  ─────┼────────┼───────┼───────┼─────┼─────────────────        │
-│  2026 │ $0     │ $308K │ $273K │ $34K│ $150K (ilk yatırım)     │
-│  2027 │ $34K   │ $700K │ $460K │$240K│ $216K (ara dönem)       │
-│  2028 │ $274K  │ $1.1M │ $680K │$420K│ $0 (kendi kendini fin.) │
-│  2029 │ $694K  │ $1.6M │ $880K │$720K│ $0                      │
-│  2030 │ $1.4M  │ $2.1M │ $1.1M │$1M  │ $0                      │
-│  ─────┴────────┴───────┴───────┴─────┴─────────────────        │
-│  Ağırlıklı Değerleme: $2.7M (DCF + EBITDA + Revenue + VC)      │
+│                                                                 │
+│  AI next_year_projection →                                     │
+│  ├── Yıl 1 (2027): AI'ın $580.6K gelir, $503.4K gider          │
+│  │   └── Çeyreklik: AI'ın q1, q2, q3, q4 değerleri             │
+│  │                                                              │
+│  calculateExitPlan (updated) →                                 │
+│  ├── Yıl 1: AI projeksiyonundan al (override)                  │
+│  ├── Yıl 2-5: AI year1'den başlayarak formülle devam et        │
+│  │   └── Büyüme oranı: AI'ın investor_hook.revenue_growth_yoy  │
+│  │                                                              │
+│  5 Yıllık Projeksiyon Detayı →                                 │
+│  ├── 2027: $580.6K | $503.4K (AI)                              │
+│  ├── 2028: $928.9K | $704.8K (AI-based growth)                 │
+│  ├── 2029: $1.39M | $916K (formül devam)                       │
+│  └── ...                                                        │
+│                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -49,347 +56,357 @@ Mevcut sistem tek yıl için yatırım ihtiyacı hesaplıyor. Kullanıcının is
 
 ### Teknik Değişiklikler
 
-#### 1. Yeni Tip: MultiYearCapitalPlan
-
-**Dosya:** `src/types/simulation.ts`
-
-```typescript
-/** Çok yıllı sermaye planı */
-export interface MultiYearCapitalPlan {
-  years: YearCapitalRequirement[];
-  totalRequiredInvestment: number;
-  cumulativeEndingCash: number;
-  selfSustainingFromYear: number | null;
-}
-
-/** Tek yıl sermaye ihtiyacı detayı */
-export interface YearCapitalRequirement {
-  year: number;
-  openingCash: number;           // Önceki yıldan devir
-  projectedRevenue: number;
-  projectedExpenses: number;
-  projectedNetProfit: number;
-  quarterlyDeficit: {            // Çeyreklik nakit açıkları
-    q1: number;
-    q2: number;
-    q3: number;
-    q4: number;
-  };
-  peakDeficit: number;           // Death Valley (en derin açık)
-  peakDeficitQuarter: string;    // Hangi çeyrekte
-  requiredCapital: number;       // Bu yıl gereken ek sermaye
-  endingCash: number;            // Yıl sonu bakiye
-  isSelfSustaining: boolean;     // Kendi kendini finanse ediyor mu
-  weightedValuation: number;     // Ağırlıklı değerleme (DCF+EBITDA vb)
-}
-```
-
----
-
-#### 2. Yeni Hesaplama Fonksiyonu: calculateMultiYearCapitalNeeds
+#### 1. calculateExitPlan Fonksiyonu - AI Override Parametresi Ekleme
 
 **Dosya:** `src/hooks/finance/useInvestorAnalysis.ts`
 
-Bu fonksiyon 5 yıllık projeksiyon üzerinden yıl bazlı sermaye ihtiyacını hesaplayacak:
+```typescript
+// Calculate Exit Plan for investors - UPDATED with AI projection support
+export const calculateExitPlan = (
+  deal: DealConfiguration,
+  year1Revenue: number,
+  year1Expenses: number,
+  userGrowthRate: number,
+  sector: string = 'default',
+  scenarioTargetYear?: number,
+  // YENİ: AI projeksiyonu (varsa Year 1'i override eder)
+  aiProjection?: {
+    year1Revenue: number;
+    year1Expenses: number;
+    year1NetProfit: number;
+    quarterlyData: {
+      revenues: { q1: number; q2: number; q3: number; q4: number };
+      expenses: { q1: number; q2: number; q3: number; q4: number };
+    };
+    growthRateHint?: number;  // AI'ın önerdiği büyüme oranı
+  }
+): ExitPlan => {
+```
+
+**Değişiklik 2: Year 1 için AI verilerini kullanma**
+
+```typescript
+// AI projeksiyonu varsa Year 1'i override et
+const baseYear1Revenue = aiProjection?.year1Revenue ?? year1Revenue;
+const baseYear1Expenses = aiProjection?.year1Expenses ?? year1Expenses;
+const effectiveGrowthRate = aiProjection?.growthRateHint ?? userGrowthRate;
+
+// İki aşamalı konfigürasyon - AI'dan gelen büyüme oranıyla
+const growthConfig: GrowthConfiguration = {
+  aggressiveGrowthRate: Math.min(Math.max(effectiveGrowthRate, 0.10), 1.0),
+  normalizedGrowthRate: SECTOR_NORMALIZED_GROWTH[sector] || SECTOR_NORMALIZED_GROWTH['default'],
+  transitionYear: 2,
+  rawUserGrowthRate: effectiveGrowthRate
+};
+
+// projectFutureRevenue'ye AI Year 1 verileriyle başla
+const projections = projectFutureRevenue(
+  baseYear1Revenue,        // AI Year 1 geliri
+  baseYear1Expenses,       // AI Year 1 gideri
+  growthConfig, 
+  deal.sectorMultiple, 
+  year1                    // senaryo yılı
+);
+```
+
+#### 2. projectFutureRevenue - Year 0 Override Desteği
+
+**Dosya:** `src/hooks/finance/useInvestorAnalysis.ts`
+
+```typescript
+export const projectFutureRevenue = (
+  year1Revenue: number, 
+  year1Expenses: number,
+  growthConfig: GrowthConfiguration, 
+  sectorMultiple: number,
+  scenarioTargetYear?: number,
+  valuationConfig: ValuationConfiguration = DEFAULT_VALUATION_CONFIG,
+  sector: string = 'default'
+): { year3: MultiYearProjection; year5: MultiYearProjection; allYears: MultiYearProjection[] } => {
+  
+  // Year 0 (başlangıç) verisi olarak gelen değerleri kullan
+  // Bu AI'dan geliyorsa AI verileri, değilse senaryo verileri olacak
+  let revenue = year1Revenue;   // Artık AI'dan gelebilir
+  let expenses = year1Expenses; // Artık AI'dan gelebilir
+  
+  // ... rest of calculation
+  
+  for (let i = 1; i <= 5; i++) {
+    // İlk yıl (i=1) için growth uygulanmaz, direkt AI/senaryo verisi kullanılır
+    // Sonraki yıllar için growth uygulanır
+    
+    if (i === 1) {
+      // Year 1: Direkt gelen veriyi kullan (AI veya senaryo)
+      // revenue ve expenses zaten set edildi
+    } else {
+      // Year 2-5: Büyüme formülü uygula
+      let effectiveGrowthRate: number;
+      if (i <= growthConfig.transitionYear) {
+        const aggressiveDecay = Math.max(0.7, 1 - (i * 0.15));
+        effectiveGrowthRate = growthConfig.aggressiveGrowthRate * aggressiveDecay;
+      } else {
+        const normalDecay = Math.max(0.8, 1 - ((i - growthConfig.transitionYear) * 0.05));
+        effectiveGrowthRate = growthConfig.normalizedGrowthRate * normalDecay;
+      }
+      
+      revenue = revenue * (1 + effectiveGrowthRate);
+      expenses = expenses * (1 + (effectiveGrowthRate * 0.6));
+    }
+    
+    // ... valuation calculations
+  }
+};
+```
+
+#### 3. InvestmentTab - AI Projeksiyonunu Exit Plan'a Geçirme
+
+**Dosya:** `src/components/simulation/InvestmentTab.tsx`
+
+```typescript
+interface InvestmentTabProps {
+  scenarioA: SimulationScenario;
+  scenarioB: SimulationScenario;
+  summaryA: { ... };
+  summaryB: { ... };
+  quarterlyA: { ... };
+  quarterlyB: { ... };
+  quarterlyRevenueA?: { ... };
+  quarterlyExpenseA?: { ... };
+  quarterlyRevenueB?: { ... };
+  quarterlyExpenseB?: { ... };
+  dealConfig: DealConfiguration;
+  onDealConfigChange: (updates: Partial<DealConfiguration>) => void;
+  // YENİ: AI projeksiyonu
+  aiNextYearProjection?: NextYearProjection;
+}
+
+export const InvestmentTab: React.FC<InvestmentTabProps> = ({
+  // ... existing props
+  aiNextYearProjection,
+}) => {
+  
+  // AI projeksiyonunu Exit Plan formatına dönüştür
+  const aiProjectionForExitPlan = useMemo(() => {
+    if (!aiNextYearProjection) return undefined;
+    
+    return {
+      year1Revenue: aiNextYearProjection.summary.total_revenue,
+      year1Expenses: aiNextYearProjection.summary.total_expenses,
+      year1NetProfit: aiNextYearProjection.summary.net_profit,
+      quarterlyData: {
+        revenues: {
+          q1: aiNextYearProjection.quarterly.q1.revenue,
+          q2: aiNextYearProjection.quarterly.q2.revenue,
+          q3: aiNextYearProjection.quarterly.q3.revenue,
+          q4: aiNextYearProjection.quarterly.q4.revenue,
+        },
+        expenses: {
+          q1: aiNextYearProjection.quarterly.q1.expenses,
+          q2: aiNextYearProjection.quarterly.q2.expenses,
+          q3: aiNextYearProjection.quarterly.q3.expenses,
+          q4: aiNextYearProjection.quarterly.q4.expenses,
+        },
+      },
+      // AI'ın önerdiği büyüme oranını parse et (e.g. "%65 YoY" → 0.65)
+      growthRateHint: aiNextYearProjection.investor_hook?.revenue_growth_yoy
+        ? parseFloat(aiNextYearProjection.investor_hook.revenue_growth_yoy.replace(/[^0-9.]/g, '')) / 100
+        : undefined,
+    };
+  }, [aiNextYearProjection]);
+  
+  // Calculate exit plan - AI DESTEKLİ
+  const exitPlan = useMemo(() => {
+    return calculateExitPlan(
+      dealConfig, 
+      summaryA.totalRevenue, 
+      summaryA.totalExpenses, 
+      growthRate, 
+      'default', 
+      scenarioTargetYear,
+      aiProjectionForExitPlan  // YENİ: AI projeksiyonu
+    );
+  }, [dealConfig, summaryA.totalRevenue, summaryA.totalExpenses, growthRate, scenarioTargetYear, aiProjectionForExitPlan]);
+  
+  // ... rest of component
+};
+```
+
+#### 4. ScenarioComparisonPage - AI Projeksiyonunu InvestmentTab'a Geçirme
+
+**Dosya:** `src/pages/finance/ScenarioComparisonPage.tsx`
+
+```typescript
+// InvestmentTab'a AI projeksiyonunu geçir
+<InvestmentTab
+  scenarioA={scenarioA}
+  scenarioB={scenarioB}
+  summaryA={summaryA}
+  summaryB={summaryB}
+  quarterlyA={quarterlyComparison.netCashFlowA}
+  quarterlyB={quarterlyComparison.netCashFlowB}
+  quarterlyRevenueA={quarterlyComparison.revenueA}
+  quarterlyExpenseA={quarterlyComparison.expenseA}
+  quarterlyRevenueB={quarterlyComparison.revenueB}
+  quarterlyExpenseB={quarterlyComparison.expenseB}
+  dealConfig={dealConfig}
+  onDealConfigChange={setDealConfig}
+  // YENİ: AI projeksiyonunu geçir
+  aiNextYearProjection={unifiedAnalysis?.next_year_projection}
+/>
+```
+
+#### 5. calculateMultiYearCapitalNeeds - AI Verilerini Kullanma
+
+**Dosya:** `src/hooks/finance/useInvestorAnalysis.ts`
 
 ```typescript
 export const calculateMultiYearCapitalNeeds = (
   exitPlan: ExitPlan,
-  year1Investment: number,      // 1. yıl alınan yatırım
-  year1NetProfit: number,       // 1. yıl net kar
-  quarterlyDataByYear?: Map<number, QuarterlyData>  // Opsiyonel çeyreklik veri
+  year1Investment: number,
+  year1NetProfit: number,
+  safetyMargin: number = 0.20,
+  // YENİ: AI çeyreklik verileri (Year 1 için)
+  aiQuarterlyData?: {
+    revenues: { q1: number; q2: number; q3: number; q4: number };
+    expenses: { q1: number; q2: number; q3: number; q4: number };
+  }
 ): MultiYearCapitalPlan => {
-  const years: YearCapitalRequirement[] = [];
-  let carryForwardCash = year1NetProfit;  // Devir nakit
-  let totalRequiredInvestment = year1Investment;
-  let selfSustainingFromYear: number | null = null;
+  
+  // Daha gerçekçi arka-yüklü gelir dağılımı (AI yoksa fallback)
+  const revenueQuarterlyRatios = { q1: 0.10, q2: 0.18, q3: 0.32, q4: 0.40 };
+  const expenseQuarterlyRatios = { q1: 0.25, q2: 0.25, q3: 0.25, q4: 0.25 };
   
   exitPlan.allYears?.forEach((yearProjection, index) => {
-    const year = yearProjection.actualYear;
-    const openingCash = index === 0 ? year1NetProfit : carryForwardCash;
+    const isFirstYear = index === 0;
     
-    // Çeyreklik nakit akışı simülasyonu
-    // Giderler sabit dağılım, gelirler arka çeyreklere yoğun varsayımı
-    const quarterlyRevenue = {
-      q1: yearProjection.revenue * 0.15,  // Q1: %15
-      q2: yearProjection.revenue * 0.20,  // Q2: %20
-      q3: yearProjection.revenue * 0.30,  // Q3: %30
-      q4: yearProjection.revenue * 0.35,  // Q4: %35
-    };
+    // İlk yıl için AI çeyreklik verileri, yoksa ratio ile hesapla
+    const quarterlyRevenue = (isFirstYear && aiQuarterlyData)
+      ? aiQuarterlyData.revenues
+      : {
+          q1: yearProjection.revenue * revenueQuarterlyRatios.q1,
+          q2: yearProjection.revenue * revenueQuarterlyRatios.q2,
+          q3: yearProjection.revenue * revenueQuarterlyRatios.q3,
+          q4: yearProjection.revenue * revenueQuarterlyRatios.q4,
+        };
     
-    const quarterlyExpense = {
-      q1: yearProjection.expenses * 0.25,  // Sabit dağılım
-      q2: yearProjection.expenses * 0.25,
-      q3: yearProjection.expenses * 0.25,
-      q4: yearProjection.expenses * 0.25,
-    };
+    const quarterlyExpense = (isFirstYear && aiQuarterlyData)
+      ? aiQuarterlyData.expenses
+      : {
+          q1: yearProjection.expenses * expenseQuarterlyRatios.q1,
+          q2: yearProjection.expenses * expenseQuarterlyRatios.q2,
+          q3: yearProjection.expenses * expenseQuarterlyRatios.q3,
+          q4: yearProjection.expenses * expenseQuarterlyRatios.q4,
+        };
     
-    // Çeyreklik kümülatif nakit akışı
+    // Death Valley hesaplama - DÜZELTİLMİŞ
     let cumulative = openingCash;
-    let peakDeficit = 0;
-    let peakDeficitQuarter = 'Q1';
-    const quarterlyDeficit = { q1: 0, q2: 0, q3: 0, q4: 0 };
+    let minBalance = openingCash;
     
-    ['q1', 'q2', 'q3', 'q4'].forEach((q, i) => {
+    quarters.forEach((q, i) => {
       const netFlow = quarterlyRevenue[q] - quarterlyExpense[q];
       cumulative += netFlow;
       
-      if (cumulative < peakDeficit) {
-        peakDeficit = cumulative;
+      if (cumulative < minBalance) {
+        minBalance = cumulative;
         peakDeficitQuarter = `Q${i + 1}`;
       }
-      
-      quarterlyDeficit[q] = cumulative < 0 ? Math.abs(cumulative) : 0;
     });
     
-    // Bu yıl gereken ek sermaye
-    const requiredCapital = peakDeficit < 0 
-      ? Math.abs(peakDeficit) * 1.20  // %20 güvenlik marjı
+    // Sermaye ihtiyacı: Minimum negatifse gerekli
+    const peakDeficit = minBalance < 0 ? minBalance : 0;
+    const requiredCapital = minBalance < 0 
+      ? Math.abs(minBalance) * (1 + safetyMargin)
       : 0;
     
-    // Yıl sonu bakiye
-    const endingCash = openingCash + yearProjection.netProfit;
-    
-    // Kendi kendini finanse ediyor mu?
-    const isSelfSustaining = peakDeficit >= 0;
-    if (isSelfSustaining && selfSustainingFromYear === null) {
-      selfSustainingFromYear = year;
-    }
-    
-    years.push({
-      year,
-      openingCash,
-      projectedRevenue: yearProjection.revenue,
-      projectedExpenses: yearProjection.expenses,
-      projectedNetProfit: yearProjection.netProfit,
-      quarterlyDeficit,
-      peakDeficit,
-      peakDeficitQuarter,
-      requiredCapital,
-      endingCash,
-      isSelfSustaining,
-      weightedValuation: yearProjection.valuations?.weighted || yearProjection.companyValuation,
-    });
-    
-    // Bir sonraki yıla devir
-    carryForwardCash = endingCash;
-    totalRequiredInvestment += requiredCapital;
+    // ... rest of calculation
   });
-  
-  return {
-    years,
-    totalRequiredInvestment,
-    cumulativeEndingCash: carryForwardCash,
-    selfSustainingFromYear,
-  };
 };
 ```
 
 ---
 
-#### 3. UI Güncellemesi: InvestmentTab.tsx
-
-5 Yıllık Projeksiyon tablosuna yeni kolonlar eklenecek:
-
-```tsx
-{/* 5 Yıllık Sermaye Planı Tablosu - Güncellenmiş */}
-<Table>
-  <TableHeader>
-    <TableRow>
-      <TableHead>Yıl</TableHead>
-      <TableHead className="text-right">Açılış</TableHead>      {/* YENİ */}
-      <TableHead className="text-right">Gelir</TableHead>
-      <TableHead className="text-right">Gider</TableHead>
-      <TableHead className="text-right">Net Kar</TableHead>
-      <TableHead className="text-right">Death Valley</TableHead> {/* YENİ */}
-      <TableHead className="text-right">Sermaye İhtiyacı</TableHead> {/* YENİ */}
-      <TableHead className="text-right">Yıl Sonu</TableHead>    {/* YENİ */}
-      <TableHead className="text-right">Değerleme</TableHead>
-      <TableHead className="text-right">MOIC</TableHead>
-    </TableRow>
-  </TableHeader>
-  <TableBody>
-    {multiYearPlan.years.map((year, i) => (
-      <TableRow key={year.year}>
-        <TableCell>{year.year}</TableCell>
-        <TableCell className="text-right text-muted-foreground">
-          {formatCompactUSD(year.openingCash)}
-        </TableCell>
-        <TableCell className="text-right">
-          {formatCompactUSD(year.projectedRevenue)}
-        </TableCell>
-        <TableCell className="text-right">
-          {formatCompactUSD(year.projectedExpenses)}
-        </TableCell>
-        <TableCell className="text-right">
-          {formatCompactUSD(year.projectedNetProfit)}
-        </TableCell>
-        <TableCell className="text-right">
-          {year.peakDeficit < 0 ? (
-            <span className="text-red-500">
-              {formatCompactUSD(year.peakDeficit)} ({year.peakDeficitQuarter})
-            </span>
-          ) : (
-            <span className="text-emerald-500">-</span>
-          )}
-        </TableCell>
-        <TableCell className="text-right">
-          {year.requiredCapital > 0 ? (
-            <Badge variant="outline" className="text-amber-500">
-              {formatCompactUSD(year.requiredCapital)}
-            </Badge>
-          ) : (
-            <Badge className="bg-emerald-500/20 text-emerald-400">
-              Yok
-            </Badge>
-          )}
-        </TableCell>
-        <TableCell className="text-right font-mono">
-          {formatCompactUSD(year.endingCash)}
-        </TableCell>
-        <TableCell className="text-right font-mono font-bold text-primary">
-          {formatCompactUSD(year.weightedValuation)}
-        </TableCell>
-        <TableCell>
-          <Badge>{moic.toFixed(1)}x</Badge>
-        </TableCell>
-      </TableRow>
-    ))}
-  </TableBody>
-</Table>
-```
-
----
-
-#### 4. Yatırım Anlaşması Simülatörü Güncelleme
-
-"Önerilen" yatırım miktarı artık yıl bazlı hesaplanacak:
-
-```tsx
-{/* Yatırım Tutarı Input Alanı - Güncellenmiş */}
-<div className="space-y-2">
-  <Label className="text-xs">Yatırım Tutarı</Label>
-  <Input
-    type="number"
-    value={dealConfig.investmentAmount}
-    onChange={(e) => onDealConfigChange({ investmentAmount: Number(e.target.value) })}
-  />
-  
-  {/* Yıl bazlı öneri */}
-  <div className="text-xs space-y-1">
-    <p className="text-muted-foreground">
-      <strong>{scenarioTargetYear}:</strong> {formatCompactUSD(multiYearPlan.years[0]?.requiredCapital || 0)}
-      <span className="ml-1 text-[10px]">(ilk yıl sermaye)</span>
-    </p>
-    {multiYearPlan.years[1]?.requiredCapital > 0 && (
-      <p className="text-amber-500">
-        <strong>{scenarioTargetYear + 1}:</strong> {formatCompactUSD(multiYearPlan.years[1].requiredCapital)}
-        <span className="ml-1 text-[10px]">(ek sermaye gerekli)</span>
-      </p>
-    )}
-    {multiYearPlan.selfSustainingFromYear && (
-      <p className="text-emerald-500">
-        <CheckCircle2 className="inline h-3 w-3 mr-1" />
-        {multiYearPlan.selfSustainingFromYear}'dan itibaren kendi kendini finanse ediyor
-      </p>
-    )}
-  </div>
-</div>
-```
-
----
-
-#### 5. Veri Akışı Diyagramı
+### Veri Akışı Diyagramı
 
 ```text
 ┌─────────────────────────────────────────────────────────────────┐
-│  VERİ AKIŞI                                                    │
+│  YENİ VERİ AKIŞI (AI-DRIVEN)                                   │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  calculateExitPlan()                                           │
-│  └── allYears[0..4] = { revenue, expenses, netProfit,          │
-│                         valuations: { weighted } }              │
+│  unified-scenario-analysis (Edge Function)                     │
+│  └── next_year_projection: {                                   │
+│        summary: { total_revenue: $580.6K, ... },               │
+│        quarterly: { q1: {...}, q2: {...}, ... },               │
+│        investor_hook: { revenue_growth_yoy: "%57" }            │
+│      }                                                          │
 │                                                                 │
 │  ↓                                                              │
 │                                                                 │
-│  calculateMultiYearCapitalNeeds(exitPlan, investmentY1, profitY1)
-│  └── years[0..4] = {                                           │
-│        openingCash: previousYear.endingCash,                   │
-│        quarterlyDeficit: { q1, q2, q3, q4 },                   │
-│        peakDeficit: min(cumulative),                           │
-│        requiredCapital: abs(peakDeficit) * 1.20,               │
-│        endingCash: openingCash + netProfit,                    │
-│        weightedValuation: valuations.weighted                  │
-│      }                                                         │
+│  ScenarioComparisonPage                                         │
+│  └── unifiedAnalysis.next_year_projection                      │
 │                                                                 │
 │  ↓                                                              │
 │                                                                 │
-│  InvestmentTab UI                                               │
-│  ├── "Önerilen" input = multiYearPlan.years[0].requiredCapital │
-│  ├── 5Y Tablo: Açılış | Gelir | Gider | Net | DV | Sermaye    │
-│  └── Uyarı: "2028'den itibaren ek sermaye gerekmez"           │
+│  InvestmentTab (aiNextYearProjection prop)                     │
+│  └── aiProjectionForExitPlan = {                               │
+│        year1Revenue: $580.6K,                                  │
+│        year1Expenses: $503.4K,                                 │
+│        quarterlyData: { revenues, expenses },                  │
+│        growthRateHint: 0.57                                    │
+│      }                                                          │
+│                                                                 │
+│  ↓                                                              │
+│                                                                 │
+│  calculateExitPlan(..., aiProjectionForExitPlan)               │
+│  └── allYears[0] = { revenue: $580.6K, ... }  ← AI             │
+│  └── allYears[1] = { revenue: $911.5K, ... }  ← AI × 1.57      │
+│  └── allYears[2-4] = formül devam                              │
+│                                                                 │
+│  ↓                                                              │
+│                                                                 │
+│  calculateMultiYearCapitalNeeds(..., aiQuarterlyData)          │
+│  └── Year 1 çeyreklikleri: AI'dan                              │
+│  └── Year 2-5 çeyreklikleri: ratio ile                         │
+│  └── Death Valley: Doğru hesaplanıyor                          │
+│                                                                 │
+│  ↓                                                              │
+│                                                                 │
+│  5 Yıllık Projeksiyon Detayı Tablosu                           │
+│  └── Tüm veriler AI-uyumlu                                     │
 │                                                                 │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
 ---
 
-### Değiştirilecek / Oluşturulacak Dosyalar
+### Değiştirilecek Dosyalar
 
-| Dosya | İşlem |
-|-------|-------|
-| `src/types/simulation.ts` | Yeni tipler: MultiYearCapitalPlan, YearCapitalRequirement |
-| `src/hooks/finance/useInvestorAnalysis.ts` | Yeni fonksiyon: calculateMultiYearCapitalNeeds |
-| `src/components/simulation/InvestmentTab.tsx` | Tablo güncelleme: Açılış, Death Valley, Sermaye İhtiyacı kolonları |
-
----
-
-### Örnek Hesaplama
-
-**Girdi:**
-- 2026 Yatırım: $150K
-- 2026 Net Kar: $33.9K
-- 2027 Gelir: $700K, Gider: $460K
-
-**Çeyreklik Dağılım (2027):**
-
-| Çeyrek | Gelir | Gider | Net | Kümülatif |
-|--------|-------|-------|-----|-----------|
-| Açılış | - | - | - | $33.9K |
-| Q1 | $105K | $115K | -$10K | $23.9K |
-| Q2 | $140K | $115K | +$25K | $48.9K |
-| Q3 | $210K | $115K | +$95K | $143.9K |
-| Q4 | $245K | $115K | +$130K | $273.9K |
-
-**Sonuç:**
-- 2027 Death Valley: $23.9K (Q1'de en düşük, ama hala pozitif)
-- 2027 Sermaye İhtiyacı: $0 (açılış bakiyesi yeterli)
-- 2027 Yıl Sonu: $273.9K
-- Kendi Kendini Finanse Etme: 2027'den itibaren ✅
-
-**Ancak daha agresif büyüme senaryosunda:**
-
-| Çeyrek | Gelir | Gider | Net | Kümülatif |
-|--------|-------|-------|-----|-----------|
-| Açılış | - | - | - | $33.9K |
-| Q1 | $70K | $150K | -$80K | -$46.1K ❌ |
-| Q2 | $100K | $150K | -$50K | -$96.1K ❌ |
-| Q3 | $180K | $150K | +$30K | -$66.1K |
-| Q4 | $350K | $150K | +$200K | $133.9K |
-
-**Sonuç:**
-- 2027 Death Valley: -$96.1K (Q2'de)
-- 2027 Sermaye İhtiyacı: $96.1K × 1.20 = **$115.3K**
-- 2027 Yıl Sonu: $133.9K
+| Dosya | Değişiklik |
+|-------|------------|
+| `src/hooks/finance/useInvestorAnalysis.ts` | `calculateExitPlan` - aiProjection parametresi, `projectFutureRevenue` - Year 1 override, `calculateMultiYearCapitalNeeds` - AI çeyreklik veri desteği |
+| `src/components/simulation/InvestmentTab.tsx` | `aiNextYearProjection` prop ekleme, AI verilerini Exit Plan'a dönüştürme |
+| `src/pages/finance/ScenarioComparisonPage.tsx` | InvestmentTab'a `aiNextYearProjection` geçirme |
 
 ---
 
 ### Beklenen Sonuç
 
-| Özellik | Önceki | Sonraki |
-|---------|--------|---------|
-| Sermaye hesaplama | Tek yıl | 5 yıl bağımlı |
-| Devir kar | Yok | Önceki yıldan otomatik |
-| Çeyreklik death valley | Yok | Her yıl için hesaplanıyor |
-| Ek yatırım önerisi | Sabit | Yıl bazlı dinamik |
-| Self-sustaining uyarısı | Yok | "X yılından itibaren" |
+| Metrik | Önceki (Hardcoded) | Sonraki (AI-Driven) |
+|--------|--------------------|--------------------|
+| 2027 Gelir | $826.2K (formül) | $580.6K (AI) |
+| 2027 Gider | $623.2K (formül) | $503.4K (AI) |
+| 2027 Çeyreklik | Sabit %15/%20/%30/%35 | AI'ın q1-q4 değerleri |
+| 2028+ Gelir | $1.1M (formül) | $911.5K (AI year1 × 1.57) |
+| Death Valley | Yanlış (pozitif) | Doğru (AI çeyreklik) |
+| Veri Tutarlılığı | ❌ | ✅ |
+
+---
+
+### Önemli Notlar
+
+1. **Fallback Mantığı:** AI projeksiyonu yoksa (örn. analiz henüz çalışmadıysa), mevcut senaryo verileriyle çalışmaya devam eder.
+
+2. **Büyüme Oranı:** AI'ın `investor_hook.revenue_growth_yoy` değeri parse edilerek sonraki yıllar için büyüme oranı olarak kullanılır.
+
+3. **Çeyreklik Veri:** Year 1 için AI'ın çeyreklik verileri, Year 2-5 için arka-yüklü ratio kullanılır.
+
+4. **Değerleme:** Değerleme hesaplamaları (DCF, EBITDA multiple, vb.) AI'ın Year 1 verilerine dayalı olarak yeniden hesaplanır.
