@@ -5,8 +5,9 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { ArrowLeft, FileSpreadsheet, BarChart3, Shield, Calculator } from 'lucide-react';
+import { ArrowLeft, FileSpreadsheet, BarChart3, Shield, Calculator, Upload, Edit } from 'lucide-react';
 import { TrialBalanceUploader } from '@/components/finance/TrialBalanceUploader';
+import { IncomeStatementUploader } from '@/components/finance/IncomeStatementUploader';
 import { OfficialIncomeStatementForm } from '@/components/finance/OfficialIncomeStatementForm';
 import { OfficialBalanceSheetForm } from '@/components/finance/OfficialBalanceSheetForm';
 import { useYear } from '@/contexts/YearContext';
@@ -16,6 +17,7 @@ export default function OfficialData() {
   const navigate = useNavigate();
   const { selectedYear, setSelectedYear } = useYear();
   const [activeTab, setActiveTab] = useState('mizan');
+  const [incomeMode, setIncomeMode] = useState<'upload' | 'manual'>('upload');
   
   const { isLocked } = useOfficialIncomeStatement(selectedYear);
 
@@ -114,7 +116,33 @@ export default function OfficialData() {
           </TabsContent>
 
           <TabsContent value="income" className="mt-6">
-            <OfficialIncomeStatementForm year={selectedYear} />
+            <div className="space-y-4">
+              {/* Mode selector */}
+              <div className="flex gap-2">
+                <Button 
+                  variant={incomeMode === 'upload' ? 'default' : 'outline'}
+                  onClick={() => setIncomeMode('upload')}
+                  size="sm"
+                >
+                  <Upload className="h-4 w-4 mr-2" />
+                  Dosya Yükle
+                </Button>
+                <Button 
+                  variant={incomeMode === 'manual' ? 'default' : 'outline'}
+                  onClick={() => setIncomeMode('manual')}
+                  size="sm"
+                >
+                  <Edit className="h-4 w-4 mr-2" />
+                  Manuel Giriş
+                </Button>
+              </div>
+              
+              {incomeMode === 'upload' ? (
+                <IncomeStatementUploader year={selectedYear} />
+              ) : (
+                <OfficialIncomeStatementForm year={selectedYear} />
+              )}
+            </div>
           </TabsContent>
 
           <TabsContent value="balance" className="mt-6">

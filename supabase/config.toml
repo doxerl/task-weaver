@@ -50,3 +50,6 @@ verify_jwt = false
 
 [functions.parse-trial-balance]
 verify_jwt = false
+
+[functions.parse-income-statement]
+verify_jwt = false
