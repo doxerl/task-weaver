@@ -1,95 +1,157 @@
 
 
-## PDF Desteği Ekleme Planı - Mizan Yükleyici
+## AI ile PDF Mizan Parse Çözümü
 
-### Mevcut Durum
+### Sorunun Kaynağı
 
-Şu an yalnızca Excel formatları destekleniyor:
-- **UI**: `accept=".xlsx,.xls"`  
-- **Edge Function**: Sadece Excel parse mantığı var
-- **Hata**: PDF yüklenirse "Only Excel files supported" hatası
+`pdf-parse` kütüphanesi Node.js'in `fs.readFileSync` API'sini kullanıyor ve bu Deno/Edge Functions ortamında desteklenmiyor:
+
+```
+Error: [unenv] fs.readFileSync is not implemented yet!
+```
 
 ---
 
-### Yapılacak Değişiklikler
+### Çözüm: AI Destekli PDF Parsing
 
-#### 1. Edge Function Güncelleme: `parse-trial-balance`
+Lovable AI Gateway (`LOVABLE_API_KEY`) kullanarak PDF içeriğini AI ile parse edeceğiz. Bu yaklaşım:
+
+1. **Daha Akıllı**: Farklı mizan formatlarını otomatik tanır
+2. **Daha Esnek**: OCR benzeri sorunları aşar
+3. **Daha Güvenilir**: Regex yerine semantik anlama
+
+---
+
+### Teknik Uygulama Planı
+
+#### 1. Edge Function Değişiklikleri
 
 **Dosya:** `supabase/functions/parse-trial-balance/index.ts`
 
-PDF parsing için `pdfjs-serverless` kütüphanesi eklenecek:
+**Değişiklikler:**
+- `pdf-parse` kütüphanesini kaldır (Deno uyumsuz)
+- PDF dosyasını Base64'e çevir
+- Lovable AI Gateway'e gönder (vision destekli model)
+- AI'dan yapılandırılmış JSON çıktısı al
 
 ```typescript
-import { getDocument } from 'https://esm.sh/pdfjs-serverless';
-
-async function parsePDF(buffer: ArrayBuffer): Promise<ParseResult> {
-  const document = await getDocument({ data: new Uint8Array(buffer) }).promise;
+// YENİ: AI ile PDF parsing
+async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
+  const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
   
-  let fullText = '';
-  for (let i = 1; i <= document.numPages; i++) {
-    const page = await document.getPage(i);
-    const content = await page.getTextContent();
-    const pageText = content.items.map((item: any) => item.str).join(' ');
-    fullText += pageText + '\n';
+  // PDF'i base64'e çevir
+  const base64PDF = btoa(String.fromCharCode(...new Uint8Array(buffer)));
+  
+  // Vision destekli model ile gönder
+  const response = await fetch('https://ai.gateway.lovable.dev/v1/chat/completions', {
+    method: 'POST',
+    headers: {
+      'Authorization': `Bearer ${LOVABLE_API_KEY}`,
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'google/gemini-2.5-flash', // Vision destekli
+      messages: [
+        { role: 'system', content: MIZAN_PARSE_PROMPT },
+        { 
+          role: 'user', 
+          content: [
+            { type: 'text', text: 'Bu PDF mizan dosyasını parse et.' },
+            { 
+              type: 'image_url', 
+              image_url: { url: `data:application/pdf;base64,${base64PDF}` }
+            }
+          ]
+        }
+      ],
+      tools: [{ type: 'function', function: PARSE_FUNCTION_SCHEMA }],
+      tool_choice: { type: 'function', function: { name: 'parse_mizan' } },
+      temperature: 0.1
+    })
+  });
+  
+  // Sonucu işle
+  const data = await response.json();
+  return extractAccountsFromAIResponse(data);
+}
+```
+
+#### 2. AI Prompt Tasarımı
+
+```typescript
+const MIZAN_PARSE_PROMPT = `Sen bir Türk muhasebe uzmanısın. 
+PDF formatındaki mizan (trial balance) dosyalarını parse ediyorsun.
+
+## GÖREV
+Mizan dosyasındaki tüm hesapları çıkar ve yapılandırılmış JSON olarak döndür.
+
+## MİZAN YAPISI
+- Hesap Kodu: 3 haneli (100, 102, 600, 632, vb.)
+- Hesap Adı: Türkçe (Kasa, Bankalar, Yurtiçi Satışlar, vb.)
+- Borç: Dönem içi borç toplamı
+- Alacak: Dönem içi alacak toplamı  
+- Borç Bakiye: Borç - Alacak (pozitifse)
+- Alacak Bakiye: Alacak - Borç (pozitifse)
+
+## SAYISAL FORMAT
+Türk formatı: 1.234.567,89 (nokta binlik, virgül ondalık)
+Boş/eksik değerler = 0
+
+## ÖNEMLİ HESAP KODLARI
+- 1xx-2xx: Aktifler (varlıklar)
+- 3xx-4xx: Pasifler (borçlar)
+- 5xx: Özkaynaklar
+- 6xx: Gelir/Gider hesapları
+
+## ÇIKTI
+Her hesap için:
+{
+  "code": "600",
+  "name": "Yurtiçi Satışlar", 
+  "debit": 0,
+  "credit": 2500000,
+  "debitBalance": 0,
+  "creditBalance": 2500000
+}`;
+```
+
+#### 3. Function Schema (Tool Call)
+
+```typescript
+const PARSE_FUNCTION_SCHEMA = {
+  name: 'parse_mizan',
+  description: 'Mizan hesaplarını parse et',
+  parameters: {
+    type: 'object',
+    properties: {
+      accounts: {
+        type: 'array',
+        items: {
+          type: 'object',
+          properties: {
+            code: { type: 'string', description: '3 haneli hesap kodu' },
+            name: { type: 'string', description: 'Hesap adı' },
+            debit: { type: 'number', description: 'Borç tutarı' },
+            credit: { type: 'number', description: 'Alacak tutarı' },
+            debitBalance: { type: 'number', description: 'Borç bakiyesi' },
+            creditBalance: { type: 'number', description: 'Alacak bakiyesi' }
+          },
+          required: ['code', 'name', 'debit', 'credit', 'debitBalance', 'creditBalance']
+        }
+      },
+      metadata: {
+        type: 'object',
+        properties: {
+          period: { type: 'string', description: 'Dönem (Ocak-Aralık 2025)' },
+          company: { type: 'string', description: 'Şirket adı' },
+          totalAccounts: { type: 'number' }
+        }
+      }
+    },
+    required: ['accounts']
   }
-  
-  // Parse text to extract account data
-  return parseTextToAccounts(fullText);
-}
-
-function parseTextToAccounts(text: string): ParseResult {
-  // Satır satır analiz
-  // Hesap kodu (3 haneli), hesap adı, borç, alacak pattern'i ara
-  // Örnek: "100 Kasa 5.000,00 3.000,00"
-}
+};
 ```
-
-**Dosya uzantısı kontrolü güncellenir:**
-```typescript
-const fileName = file.name.toLowerCase();
-const isPDF = fileName.endsWith('.pdf');
-const isExcel = fileName.endsWith('.xlsx') || fileName.endsWith('.xls');
-
-if (!isPDF && !isExcel) {
-  throw new Error('Desteklenen formatlar: Excel (.xlsx, .xls) veya PDF');
-}
-
-const buffer = await file.arrayBuffer();
-const result = isPDF ? await parsePDF(buffer) : await parseExcel(buffer);
-```
-
----
-
-#### 2. UI Bileşen Güncelleme: `TrialBalanceUploader`
-
-**Dosya:** `src/components/finance/TrialBalanceUploader.tsx`
-
-| Satır | Değişiklik |
-|-------|-----------|
-| 104 | Açıklama: "Excel veya PDF formatı" |
-| 129-130 | Metin: "Excel veya PDF dosyasını sürükleyip bırakın" |
-| 139 | Accept: `.xlsx,.xls,.pdf` |
-| 144-145 | Desteklenen formatlar: ".xlsx, .xls, .pdf" |
-| 155 | İkon: PDF için `FileText`, Excel için `FileSpreadsheet` |
-
----
-
-#### 3. PDF Parse Mantığı (Detay)
-
-Türk mizan PDF'leri genelde tablo formatında olur:
-
-```
-HESAP KODU  HESAP ADI           BORÇ          ALACAK        BORÇ BAK.     ALACAK BAK.
-100         Kasa                5.000,00      3.000,00      2.000,00      0,00
-102         Bankalar            1.500.000,00  1.200.000,00  300.000,00    0,00
-600         Yurtiçi Satışlar    0,00          2.500.000,00  0,00          2.500.000,00
-```
-
-**Parse stratejisi:**
-1. Her satırı analiz et
-2. 3 haneli sayı ile başlayan satırları hesap olarak kabul et
-3. Sayısal değerleri Türk formatından (1.234,56) parse et
-4. Hesap koduna göre gruplama yap
 
 ---
 
@@ -97,15 +159,34 @@ HESAP KODU  HESAP ADI           BORÇ          ALACAK        BORÇ BAK.     ALAC
 
 | Dosya | İşlem | Açıklama |
 |-------|-------|----------|
-| `supabase/functions/parse-trial-balance/index.ts` | Güncelle | PDF parsing ekle |
-| `src/components/finance/TrialBalanceUploader.tsx` | Güncelle | .pdf accept, metin güncellemeleri |
+| `supabase/functions/parse-trial-balance/index.ts` | Güncelle | AI ile PDF parsing ekle, pdf-parse kaldır |
+
+---
+
+### Alternatif Yaklaşım (Fallback)
+
+PDF vision desteği çalışmazsa, text extraction için Deno-uyumlu bir kütüphane kullanılabilir:
+
+```typescript
+// pdfjs-dist Deno uyumlu wrapper
+import * as pdfjsLib from 'https://esm.sh/pdfjs-dist@4.0.379/build/pdf.min.mjs';
+```
+
+---
+
+### Beklenen Sonuçlar
+
+- PDF dosyaları AI tarafından akıllıca parse edilir
+- Farklı mizan formatları (dikey/yatay tablo) desteklenir
+- Türk sayı formatı doğru çevrilir
+- Hata durumunda açıklayıcı mesajlar döner
 
 ---
 
 ### Test Senaryoları
 
-1. Excel dosyası yükle - mevcut işlevsellik korunmalı
-2. PDF dosyası yükle - hesaplar parse edilmeli
-3. Desteklenmeyen format (.doc, .txt) - hata mesajı gösterilmeli
-4. Bozuk PDF - graceful error handling
+1. Standart mizan PDF'i yükle → Hesaplar çıkarılmalı
+2. Farklı formatta PDF yükle → AI adapte olmalı
+3. Bozuk PDF yükle → Anlamlı hata mesajı
+4. Excel dosyası yükle → Mevcut XLSX parser çalışmalı
 
