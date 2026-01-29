@@ -111,7 +111,8 @@ export function useBalanceSheet(year: number): {
           total: yearlyBalance.trade_payables + yearlyBalance.partner_payables + 
                  yearlyBalance.tax_payables + yearlyBalance.social_security_payables +
                  yearlyBalance.deferred_tax_liabilities + yearlyBalance.tax_provision +
-                 yearlyBalance.personnel_payables + yearlyBalance.short_term_loan_debt,
+                 yearlyBalance.personnel_payables + yearlyBalance.short_term_loan_debt +
+                 yearlyBalance.vat_payable,
         },
         longTermLiabilities: {
           bankLoans: yearlyBalance.bank_loans,
