@@ -36,10 +36,11 @@ import {
   DealConfiguration, 
   SECTOR_MULTIPLES,
   InvestmentScenarioComparison,
-  MultiYearCapitalPlan
+  MultiYearCapitalPlan,
+  NextYearProjection
 } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
-import { calculateCapitalNeeds, calculateExitPlan, calculateInvestmentScenarioComparison, calculateMultiYearCapitalNeeds } from '@/hooks/finance/useInvestorAnalysis';
+import { calculateCapitalNeeds, calculateExitPlan, calculateInvestmentScenarioComparison, calculateMultiYearCapitalNeeds, AIProjectionForExitPlan } from '@/hooks/finance/useInvestorAnalysis';
 import { calculateInternalGrowthRate } from '@/utils/yearCalculations';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { InvestmentScenarioCard } from './InvestmentScenarioCard';
@@ -63,6 +64,8 @@ interface InvestmentTabProps {
   quarterlyExpenseB?: { q1: number; q2: number; q3: number; q4: number };
   dealConfig: DealConfiguration;
   onDealConfigChange: (updates: Partial<DealConfiguration>) => void;
+  // NEW: AI projection for Exit Plan integration
+  aiNextYearProjection?: NextYearProjection;
 }
 
 export const InvestmentTab: React.FC<InvestmentTabProps> = ({
@@ -78,6 +81,7 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
   quarterlyExpenseB,
   dealConfig,
   onDealConfigChange,
+  aiNextYearProjection,
 }) => {
   // Calculate capital needs for both scenarios
   const capitalNeedA = useMemo(() => calculateCapitalNeeds(quarterlyA), [quarterlyA]);
@@ -96,20 +100,64 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
     return Math.max(scenarioA.targetYear || 2026, scenarioB.targetYear || 2026);
   }, [scenarioA.targetYear, scenarioB.targetYear]);
 
-  // Calculate exit plan - POZİTİF SENARYO (A) verileriyle
-  const exitPlan = useMemo(() => {
-    return calculateExitPlan(dealConfig, summaryA.totalRevenue, summaryA.totalExpenses, growthRate, 'default', scenarioTargetYear);
-  }, [dealConfig, summaryA.totalRevenue, summaryA.totalExpenses, growthRate, scenarioTargetYear]);
+  // AI projeksiyonunu Exit Plan formatına dönüştür
+  const aiProjectionForExitPlan = useMemo<AIProjectionForExitPlan | undefined>(() => {
+    if (!aiNextYearProjection) return undefined;
+    
+    // AI'ın önerdiği büyüme oranını parse et (e.g. "%65 YoY" → 0.65 veya "65% YoY" → 0.65)
+    let growthRateHint: number | undefined;
+    if (aiNextYearProjection.investor_hook?.revenue_growth_yoy) {
+      const match = aiNextYearProjection.investor_hook.revenue_growth_yoy.match(/[0-9.]+/);
+      if (match) {
+        growthRateHint = parseFloat(match[0]) / 100;
+      }
+    }
+    
+    return {
+      year1Revenue: aiNextYearProjection.summary.total_revenue,
+      year1Expenses: aiNextYearProjection.summary.total_expenses,
+      year1NetProfit: aiNextYearProjection.summary.net_profit,
+      quarterlyData: {
+        revenues: {
+          q1: aiNextYearProjection.quarterly.q1.revenue,
+          q2: aiNextYearProjection.quarterly.q2.revenue,
+          q3: aiNextYearProjection.quarterly.q3.revenue,
+          q4: aiNextYearProjection.quarterly.q4.revenue,
+        },
+        expenses: {
+          q1: aiNextYearProjection.quarterly.q1.expenses,
+          q2: aiNextYearProjection.quarterly.q2.expenses,
+          q3: aiNextYearProjection.quarterly.q3.expenses,
+          q4: aiNextYearProjection.quarterly.q4.expenses,
+        },
+      },
+      growthRateHint,
+    };
+  }, [aiNextYearProjection]);
 
-  // Calculate multi-year capital needs - YIL BAĞIMLI sermaye ihtiyacı
+  // Calculate exit plan - AI DESTEKLİ
+  const exitPlan = useMemo(() => {
+    return calculateExitPlan(
+      dealConfig, 
+      summaryA.totalRevenue, 
+      summaryA.totalExpenses, 
+      growthRate, 
+      'default', 
+      scenarioTargetYear,
+      aiProjectionForExitPlan  // YENİ: AI projeksiyonu
+    );
+  }, [dealConfig, summaryA.totalRevenue, summaryA.totalExpenses, growthRate, scenarioTargetYear, aiProjectionForExitPlan]);
+
+  // Calculate multi-year capital needs - AI çeyreklik veri desteği ile
   const multiYearCapitalPlan = useMemo<MultiYearCapitalPlan>(() => {
     return calculateMultiYearCapitalNeeds(
       exitPlan,
       dealConfig.investmentAmount,
       summaryA.netProfit, // Year 1 net profit
-      dealConfig.safetyMargin / 100 // Convert percentage to decimal
+      dealConfig.safetyMargin / 100, // Convert percentage to decimal
+      aiProjectionForExitPlan?.quarterlyData  // YENİ: AI çeyreklik verileri
     );
-  }, [exitPlan, dealConfig.investmentAmount, summaryA.netProfit, dealConfig.safetyMargin]);
+  }, [exitPlan, dealConfig.investmentAmount, summaryA.netProfit, dealConfig.safetyMargin, aiProjectionForExitPlan?.quarterlyData]);
 
   // Calculate runway data for chart - CORRECTED LOGIC
   // Yatırımlı = Pozitif Senaryo (A) + Yatırım ile başla

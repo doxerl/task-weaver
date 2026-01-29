@@ -1573,6 +1573,7 @@ function ScenarioComparisonContent() {
               quarterlyExpenseB={{ q1: quarterlyComparison[0]?.scenarioBExpense || 0, q2: quarterlyComparison[1]?.scenarioBExpense || 0, q3: quarterlyComparison[2]?.scenarioBExpense || 0, q4: quarterlyComparison[3]?.scenarioBExpense || 0 }}
               dealConfig={dealConfig}
               onDealConfigChange={updateDealConfig}
+              aiNextYearProjection={unifiedAnalysis?.next_year_projection}
             />
                 
                 {/* Focus Project Selector - Yatırım Odak Projesi (çoklu seçim) */}
