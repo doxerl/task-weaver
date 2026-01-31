@@ -1390,20 +1390,31 @@ function ScenarioComparisonContent() {
                   <DataChangedWarning onReanalyze={handleUnifiedAnalysis} isLoading={unifiedLoading} />
                 )}
                 
-                <AIAnalysisSummaryCard
-                  unifiedAnalysis={unifiedAnalysis}
-                  isLoading={unifiedLoading}
-                  onAnalyze={handleUnifiedAnalysis}
-                  onShowPitchDeck={() => setShowPitchDeck(true)}
-                  onCreateNextYear={handleCreateNextYear}
-                  targetYear={scenarioB?.targetYear}
-                  cachedAt={unifiedCachedInfo?.updatedAt || null}
-                  scenarioA={scenarioA}
-                  scenarioB={scenarioB}
-                  summaryA={summaryA}
-                  summaryB={summaryB}
-                  projectionYear={unifiedAnalysis?.next_year_projection?.projection_year}
-              />
+                {/* Calculate projection year dynamically: max(A.year, B.year) + 1 */}
+                {(() => {
+                  const maxScenarioYear = Math.max(
+                    scenarioA?.targetYear || new Date().getFullYear(),
+                    scenarioB?.targetYear || new Date().getFullYear()
+                  );
+                  const fallbackProjectionYear = maxScenarioYear + 1;
+                  
+                  return (
+                    <AIAnalysisSummaryCard
+                      unifiedAnalysis={unifiedAnalysis}
+                      isLoading={unifiedLoading}
+                      onAnalyze={handleUnifiedAnalysis}
+                      onShowPitchDeck={() => setShowPitchDeck(true)}
+                      onCreateNextYear={handleCreateNextYear}
+                      targetYear={maxScenarioYear}
+                      cachedAt={unifiedCachedInfo?.updatedAt || null}
+                      scenarioA={scenarioA}
+                      scenarioB={scenarioB}
+                      summaryA={summaryA}
+                      summaryB={summaryB}
+                      projectionYear={unifiedAnalysis?.next_year_projection?.projection_year || fallbackProjectionYear}
+                    />
+                  );
+                })()}
                 
                 {/* AI Analysis Details - Collapsible - Sayfanın başında */}
                 <AIAnalysisDetails
