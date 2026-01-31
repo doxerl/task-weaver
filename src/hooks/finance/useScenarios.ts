@@ -308,14 +308,29 @@ export function useScenarios() {
     const currentTotalRevenue = referenceScenario.revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
     const currentTotalExpenses = referenceScenario.expenses.reduce((sum, e) => sum + e.projectedAmount, 0);
 
-    // FALLBACK: Eğer AI $0 döndürürse, globalleşme odaklı büyüme varsay
-    if (totalAIRevenue <= 0) {
-      console.warn('[createNextYearFromAI] AI revenue is $0, applying 60% global growth fallback');
-      totalAIRevenue = Math.round(currentTotalRevenue * 1.6);
-    }
-    if (totalAIExpenses <= 0) {
-      console.warn('[createNextYearFromAI] AI expenses is $0, applying 35% growth fallback (operating leverage)');
-      totalAIExpenses = Math.round(currentTotalExpenses * 1.35);
+    // ========================================================
+    // KRİTİK: DÜŞÜK/SIFIR BÜYÜME KONTROLÜ VE FALLBACK
+    // ========================================================
+    // AI bazen yanlış yıl için projeksiyon döndürür (örn: 2028 değerleri 2029 için)
+    // Bu durumda büyüme oranı %0 veya çok düşük olur
+    const revenueGrowth = currentTotalRevenue > 0 
+      ? (totalAIRevenue - currentTotalRevenue) / currentTotalRevenue 
+      : 0;
+
+    if (revenueGrowth <= 0.05) { // %5'ten az büyüme = muhtemelen yanlış yıl için projeksiyon
+      console.warn(`[createNextYearFromAI] Low/no growth detected (${(revenueGrowth * 100).toFixed(1)}%). AI may have projected for wrong year.`);
+      console.warn(`[createNextYearFromAI] Current: $${currentTotalRevenue.toLocaleString()}, AI: $${totalAIRevenue.toLocaleString()}`);
+      
+      // Minimum %20 büyüme fallback uygula (bilimsel model)
+      const minGrowthRate = 0.20;
+      totalAIRevenue = Math.round(currentTotalRevenue * (1 + minGrowthRate));
+      
+      // Operating leverage: giderler daha yavaş büyür (%12 = %20 × 0.6)
+      const expenseGrowthRate = minGrowthRate * 0.6;
+      totalAIExpenses = Math.round(currentTotalExpenses * (1 + expenseGrowthRate));
+      
+      console.log(`[createNextYearFromAI] Fallback applied: Revenue $${currentTotalRevenue.toLocaleString()} → $${totalAIRevenue.toLocaleString()} (+20%)`);
+      console.log(`[createNextYearFromAI] Fallback applied: Expenses $${currentTotalExpenses.toLocaleString()} → $${totalAIExpenses.toLocaleString()} (+12%)`);
     }
 
     // AI quarterly verisinden çeyreklik oranları hesapla

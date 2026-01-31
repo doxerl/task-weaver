@@ -274,6 +274,28 @@ ${FOCUS_PROJECT_RULES}
 
 🎯 TEK GÖREV: Sana verilen TÜM finansal verileri (Geçmiş Bilanço + Mevcut Senaryolar + Yatırım Anlaşması + Profesyonel Analiz Verileri) analiz edip, hem OPERASYONEL İÇGÖRÜLER hem de YATIRIMCI SUNUMU hazırla.
 
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📅 PROJECTION YEAR RULE - KRİTİK!
+
+next_year_projection.projection_year hesaplama kuralı:
+projection_year = max(Scenario_A_Year, Scenario_B_Year) + 1
+
+ÖRNEKLER:
+- 2028 vs 2027 karşılaştırması → projection_year = 2029
+- 2027 vs 2026 karşılaştırması → projection_year = 2028
+- 2026 vs 2026 karşılaştırması → projection_year = 2027
+
+⚠️ summary.total_revenue ve summary.total_expenses değerleri, 
+projection_year YILI için projeksiyonlar olmalı, mevcut senaryo değerleri DEĞİL!
+
+Örnek: 2028 vs 2027 karşılaştırması yapılıyorsa:
+- projection_year = 2029
+- total_revenue = 2028 gelirinin %40-100 üstünde olmalı (büyüme projeksiyonu)
+- Mevcut yıl (2028) değerlerini kopyalama, BÜYÜME uygula!
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
 📥 SANA VERİLEN VERİ PAKETİ:
 1. GEÇMİŞ YIL BİLANÇOSU: Nakit, Alacaklar, Borçlar, Özkaynak (şirketin nereden geldiğini gösterir)
 2. SENARYO VERİLERİ: A (Pozitif) vs B (Negatif) tam karşılaştırması + kalem bazlı gelir/gider detayları
@@ -1048,8 +1070,12 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
                   },
                   next_year_projection: {
                     type: "object",
-                    description: "CRITICAL: All numeric fields MUST be > 0. Revenue should be at least 40% higher than current year. MUST include itemized_revenues and itemized_expenses arrays.",
+                    description: "CRITICAL: All numeric fields MUST be > 0. Revenue should be at least 40% higher than current year. MUST include itemized_revenues and itemized_expenses arrays. projection_year is REQUIRED!",
                     properties: {
+                      projection_year: {
+                        type: "number",
+                        description: "CRITICAL & REQUIRED: The target year for this projection. MUST be max(scenarioA.targetYear, scenarioB.targetYear) + 1. Example: Comparing 2028 vs 2027 scenarios → projection_year MUST be 2029. This ensures the projection is for the NEXT year, not the current scenario year!"
+                      },
                       strategy_note: { 
                         type: "string",
                         description: "2-3 sentence investor-exciting vision statement about globalization and scale"
@@ -1168,7 +1194,7 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
                         }
                       }
                     },
-                    required: ["strategy_note", "quarterly", "summary", "itemized_revenues", "itemized_expenses"]
+                    required: ["projection_year", "strategy_note", "quarterly", "summary", "itemized_revenues", "itemized_expenses"]
                   }
                 },
                 required: ["insights", "recommendations", "quarterly_analysis", "deal_analysis", "pitch_deck", "next_year_projection"]
