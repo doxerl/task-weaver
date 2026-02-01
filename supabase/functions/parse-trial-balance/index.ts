@@ -181,22 +181,26 @@ function isValidAccountCode(code: string): boolean {
   const trimmed = code.trim();
   // Accept 3-digit codes and sub-account codes with dots or spaces
   // Examples: 100, 320.001, 320 001, 320.1.006, 320 1 006
-  return /^\d{3}([\.\s]\d+)*$/.test(trimmed);
+  // Updated regex to handle multiple spaces between segments: \s+ instead of \s
+  return /^\d{3}([\.\s]+\d+)*$/.test(trimmed);
 }
 
 function normalizeAccountCode(code: string): string {
   // Normalize account code: convert spaces to dots for consistent storage
   // "320 1 006" → "320.1.006"
+  // "320 001" → "320.001"
   return code.trim().replace(/\s+/g, '.');
 }
 
 function getBaseAccountCode(code: string): string {
   // Get first 3 digits as base account code
-  return code.trim().split(/[\.\s]/)[0].substring(0, 3);
+  // Works for both "320.001" and "320 001" formats
+  return code.trim().split(/[\.\s]+/)[0].substring(0, 3);
 }
 
 function isSubAccount(code: string): boolean {
   // Sub-accounts have separators (dots or spaces) after the main code
+  // "320 001" or "320.001" are sub-accounts, "320" is not
   return /[\.\s]/.test(code.trim());
 }
 
