@@ -2472,7 +2472,7 @@ function ScenarioComparisonContent() {
                                 fontWeight: '600',
                                 color: '#166534'
                               }}>
-                                {(year.companyValuation * (dealConfig.equityPercentage/100) / dealConfig.investmentAmount).toFixed(1)}x
+                                {safeDivide(year.companyValuation * (dealConfig.equityPercentage / 100), dealConfig.investmentAmount, 0).toFixed(1)}x
                               </td>
                             </tr>
                           ))}
