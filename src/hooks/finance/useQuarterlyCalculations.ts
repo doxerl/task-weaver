@@ -195,6 +195,23 @@ export const quarterlyUtils = {
   },
 
   /**
+   * Distribute annual amount fairly across quarters (no Q4 bias)
+   * Remainder is distributed evenly starting from Q1
+   * Example: 101 -> Q1: 26, Q2: 25, Q3: 25, Q4: 25
+   */
+  distributeQuarterlyFair: (total: number): QuarterlyAmounts => {
+    const base = Math.floor(total / 4);
+    const remainder = total - (base * 4);
+    return {
+      q1: base + (remainder > 0 ? 1 : 0),
+      q2: base + (remainder > 1 ? 1 : 0),
+      q3: base + (remainder > 2 ? 1 : 0),
+      q4: base + (remainder > 3 ? 1 : 0),
+      total,
+    };
+  },
+
+  /**
    * Sum multiple quarterly amounts
    */
   sum: (items: QuarterlyAmounts[]): QuarterlyAmounts => {
