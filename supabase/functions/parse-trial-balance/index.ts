@@ -266,40 +266,16 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
           debitBalance,
           creditBalance,
         });
-
-        // Also aggregate to main account
-        if (accounts[baseCode]) {
-          accounts[baseCode].debit += debit;
-          accounts[baseCode].credit += credit;
-          accounts[baseCode].debitBalance += debitBalance;
-          accounts[baseCode].creditBalance += creditBalance;
-        } else {
-          accounts[baseCode] = {
-            name: '', // Will be filled when we find the main account
-            debit,
-            credit,
-            debitBalance,
-            creditBalance,
-          };
-        }
+        // Alt hesap değerleri ana hesaba EKLENMEZ - AI zaten toplam değerleri döndürüyor
       } else {
-        // This is a main account
-        if (accounts[baseCode]) {
-          // Already exists from sub-accounts, just update name
-          accounts[baseCode].name = name;
-          accounts[baseCode].debit += debit;
-          accounts[baseCode].credit += credit;
-          accounts[baseCode].debitBalance += debitBalance;
-          accounts[baseCode].creditBalance += creditBalance;
-        } else {
-          accounts[baseCode] = {
-            name,
-            debit,
-            credit,
-            debitBalance,
-            creditBalance,
-          };
-        }
+        // This is a main account - use its own values (don't aggregate)
+        accounts[baseCode] = {
+          name,
+          debit,
+          credit,
+          debitBalance,
+          creditBalance,
+        };
       }
     }
   } else {
@@ -344,39 +320,16 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
           debitBalance,
           creditBalance,
         });
-
-        // Also aggregate to main account
-        if (accounts[baseCode]) {
-          accounts[baseCode].debit += debit;
-          accounts[baseCode].credit += credit;
-          accounts[baseCode].debitBalance += debitBalance;
-          accounts[baseCode].creditBalance += creditBalance;
-        } else {
-          accounts[baseCode] = {
-            name: '',
-            debit,
-            credit,
-            debitBalance,
-            creditBalance,
-          };
-        }
+        // Alt hesap değerleri ana hesaba EKLENMEZ - AI zaten toplam değerleri döndürüyor
       } else {
-        // This is a main account
-        if (accounts[baseCode]) {
-          accounts[baseCode].name = name;
-          accounts[baseCode].debit += debit;
-          accounts[baseCode].credit += credit;
-          accounts[baseCode].debitBalance += debitBalance;
-          accounts[baseCode].creditBalance += creditBalance;
-        } else {
-          accounts[baseCode] = {
-            name,
-            debit,
-            credit,
-            debitBalance,
-            creditBalance,
-          };
-        }
+        // This is a main account - use its own values
+        accounts[baseCode] = {
+          name,
+          debit,
+          credit,
+          debitBalance,
+          creditBalance,
+        };
       }
     }
   }
@@ -583,22 +536,7 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
           debitBalance,
           creditBalance,
         });
-
-        // Aggregate to main account
-        if (accounts[baseCode]) {
-          accounts[baseCode].debit += debit;
-          accounts[baseCode].credit += credit;
-          accounts[baseCode].debitBalance += debitBalance;
-          accounts[baseCode].creditBalance += creditBalance;
-        } else {
-          accounts[baseCode] = {
-            name: '',
-            debit,
-            credit,
-            debitBalance,
-            creditBalance,
-          };
-        }
+        // Alt hesap değerleri ana hesaba EKLENMEZ - AI zaten toplam değerleri döndürüyor
       } else {
         // This is a main account (3-digit code)
         if (accounts[baseCode]) {
