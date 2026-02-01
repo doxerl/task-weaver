@@ -77,7 +77,8 @@ import {
   FocusProjectInfo,
   EditableProjectionItem,
   InvestmentAllocation,
-  YearlyBalanceSheet
+  YearlyBalanceSheet,
+  safeArray
 } from '@/types/simulation';
 import { FocusProjectSelector } from '@/components/simulation/FocusProjectSelector';
 import { EditableProjectionTable } from '@/components/simulation/EditableProjectionTable';
@@ -1164,18 +1165,25 @@ function ScenarioComparisonContent() {
       ? await fetchHistoricalBalance(scenarioA.baseYear, averageRate) 
       : null;
     
+    // Validate quarterlyComparison array has required length
+    if (!quarterlyComparison || quarterlyComparison.length < 4) {
+      toast.error('Çeyreklik veri eksik. Lütfen senaryoları kontrol edin.');
+      setIsAnalyzing(false);
+      return;
+    }
+
     // Quarterly data from POSITIVE scenario (A) for capital needs
-    const quarterlyA = { 
-      q1: quarterlyComparison[0]?.scenarioANet || 0, 
-      q2: quarterlyComparison[1]?.scenarioANet || 0, 
-      q3: quarterlyComparison[2]?.scenarioANet || 0, 
-      q4: quarterlyComparison[3]?.scenarioANet || 0 
+    const quarterlyA = {
+      q1: quarterlyComparison[0]?.scenarioANet || 0,
+      q2: quarterlyComparison[1]?.scenarioANet || 0,
+      q3: quarterlyComparison[2]?.scenarioANet || 0,
+      q4: quarterlyComparison[3]?.scenarioANet || 0
     };
-    const quarterlyB = { 
-      q1: quarterlyComparison[0]?.scenarioBNet || 0, 
-      q2: quarterlyComparison[1]?.scenarioBNet || 0, 
-      q3: quarterlyComparison[2]?.scenarioBNet || 0, 
-      q4: quarterlyComparison[3]?.scenarioBNet || 0 
+    const quarterlyB = {
+      q1: quarterlyComparison[0]?.scenarioBNet || 0,
+      q2: quarterlyComparison[1]?.scenarioBNet || 0,
+      q3: quarterlyComparison[2]?.scenarioBNet || 0,
+      q4: quarterlyComparison[3]?.scenarioBNet || 0
     };
     
     // Calculate capital needs from POSITIVE SCENARIO (A) - this is the investment target
