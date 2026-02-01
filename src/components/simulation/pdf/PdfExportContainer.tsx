@@ -14,7 +14,7 @@ import { PdfInvestorPage } from './PdfInvestorPage';
 import { PdfProjectionPage } from './PdfProjectionPage';
 import { PdfFocusProjectPage } from './PdfFocusProjectPage';
 import { PdfAIInsightsPage } from './PdfAIInsightsPage';
-import { PdfPitchDeckPage } from './PdfPitchDeckPage';
+// PdfPitchDeckPage intentionally excluded - Pitch Deck should be a separate export
 
 import type { PdfExportContainerProps } from './types';
 
@@ -24,7 +24,7 @@ import type { PdfExportContainerProps } from './types';
  * Main container for PDF export functionality that composes all PDF pages.
  * This component extracts ~1,039 lines of PDF-related code from ScenarioComparisonPage.
  *
- * Pages included:
+ * Pages included (9 pages):
  * 1. Cover Page - Title and key metrics
  * 2. Metrics Page - Financial summary comparison
  * 3. Charts Page - Visual analysis (quarterly comparison)
@@ -34,7 +34,8 @@ import type { PdfExportContainerProps } from './types';
  * 7. Projection Page - Editable projections
  * 8. Focus Project Page - Investment allocation
  * 9. AI Insights Page - AI-generated insights and recommendations
- * 10. Pitch Deck Page - Investor presentation slides
+ *
+ * Note: Pitch Deck is intentionally excluded - should be a separate export.
  */
 export function PdfExportContainer({
   presentationPdfRef,
@@ -148,15 +149,11 @@ export function PdfExportContainer({
           dealConfig={dealConfig}
         />
 
-        {/* PAGE 6: AI INSIGHTS */}
+        {/* PAGE 9: AI INSIGHTS (Last page - no page break) */}
         <PdfAIInsightsPage
           unifiedAnalysis={unifiedAnalysis}
         />
-
-        {/* PAGE 7: PITCH DECK (Last page - no page break) */}
-        <PdfPitchDeckPage
-          unifiedAnalysis={unifiedAnalysis}
-        />
+        {/* Pitch Deck intentionally excluded from PDF export */}
       </div>
     </div>
   );
