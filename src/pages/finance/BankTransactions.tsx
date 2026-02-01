@@ -8,7 +8,8 @@ import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { ArrowLeft, Loader2, TrendingUp, TrendingDown, X, Trash2, FileX, ChevronDown, Check } from 'lucide-react';
+import { Alert, AlertDescription } from '@/components/ui/alert';
+import { ArrowLeft, Loader2, TrendingUp, TrendingDown, X, Trash2, FileX, ChevronDown, Check, Shield } from 'lucide-react';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -22,6 +23,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useBankTransactions } from '@/hooks/finance/useBankTransactions';
 import { useCategories } from '@/hooks/finance/useCategories';
+import { useOfficialDataStatus } from '@/hooks/finance/useOfficialDataStatus';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { BankTransaction, TransactionCategory } from '@/types/finance';
@@ -250,6 +252,7 @@ export default function BankTransactions() {
   
   const { transactions, isLoading, updateCategory, deleteTransaction, deleteAllTransactions, toggleExcluded, stats } = useBankTransactions(year);
   const { grouped } = useCategories();
+  const { isAnyLocked } = useOfficialDataStatus(year);
 
   // Get available months from transactions
   const availableMonths = useMemo(() => {
@@ -399,6 +402,16 @@ export default function BankTransactions() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <div className="p-4 space-y-4">
+        {/* Official Data Lock Warning */}
+        {isAnyLocked && (
+          <Alert className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+            <Shield className="h-4 w-4 text-green-600" />
+            <AlertDescription className="text-green-700 dark:text-green-300">
+              Resmi veri modu aktif. Banka işlemleri hesaplamalara dahil edilmiyor.
+            </AlertDescription>
+          </Alert>
+        )}
+
         {/* Header */}
         <div className="flex items-center gap-3">
           <Link to="/finance" className="p-2 hover:bg-accent rounded-lg">

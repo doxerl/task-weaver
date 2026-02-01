@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useReceipts } from './useReceipts';
 import { useBankTransactions } from './useBankTransactions';
 import { separateVat } from './utils/vatSeparation';
+import { useOfficialDataStatus } from './useOfficialDataStatus';
 
 export interface VatByMonth {
   calculatedVat: number;
@@ -78,11 +79,44 @@ export interface VatCalculations {
   isLoading: boolean;
 }
 
-export function useVatCalculations(year: number): VatCalculations {
+export function useVatCalculations(year: number): VatCalculations & { isOfficial: boolean; officialWarning?: string } {
   const { receipts, isLoading: receiptsLoading } = useReceipts(year);
   const { transactions, isLoading: txLoading } = useBankTransactions(year);
+  const { isAnyLocked } = useOfficialDataStatus(year);
   
   const isLoading = receiptsLoading || txLoading;
+
+  // If official data is locked, return empty VAT calculations with warning
+  if (isAnyLocked && !isLoading) {
+    return {
+      totalCalculatedVat: 0,
+      totalDeductibleVat: 0,
+      netVatPayable: 0,
+      receiptCalculatedVat: 0,
+      receiptDeductibleVat: 0,
+      bankCalculatedVat: 0,
+      bankDeductibleVat: 0,
+      byMonth: {},
+      byVatRate: {},
+      bySource: {
+        receipts: { calculated: 0, deductible: 0, count: 0 },
+        bank: { calculated: 0, deductible: 0, count: 0 }
+      },
+      foreignInvoices: {
+        count: 0,
+        totalAmountTry: 0,
+        byMonth: {},
+      },
+      issuedCount: 0,
+      receivedCount: 0,
+      bankIncomeCount: 0,
+      bankExpenseCount: 0,
+      missingVatCount: 0,
+      isLoading: false,
+      isOfficial: true,
+      officialWarning: 'Resmi veri modunda KDV dinamik hesaplanmaz',
+    };
+  }
 
   return useMemo(() => {
     if (isLoading || !receipts) {
@@ -111,6 +145,7 @@ export function useVatCalculations(year: number): VatCalculations {
         bankExpenseCount: 0,
         missingVatCount: 0,
         isLoading: true,
+        isOfficial: false,
       };
     }
 
@@ -312,6 +347,7 @@ export function useVatCalculations(year: number): VatCalculations {
       bankExpenseCount: bankExpenseTx.length,
       missingVatCount,
       isLoading: false,
+      isOfficial: false,
     };
   }, [receipts, transactions, isLoading]);
 }
