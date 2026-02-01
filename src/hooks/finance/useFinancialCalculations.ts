@@ -2,16 +2,24 @@ import { useMemo } from 'react';
 import { useBankTransactions } from './useBankTransactions';
 import { useReceipts } from './useReceipts';
 import { useCategories } from './useCategories';
+import { useOfficialIncomeStatement, calculateStatementTotals } from './useOfficialIncomeStatement';
 import { FinancialCalculations } from '@/types/finance';
 
-export function useFinancialCalculations(year: number): FinancialCalculations & { isLoading: boolean } {
+export interface ExtendedFinancialCalculations extends FinancialCalculations {
+  isLoading: boolean;
+  isOfficial: boolean;
+}
+
+export function useFinancialCalculations(year: number): ExtendedFinancialCalculations {
   const { transactions, isLoading: txLoading } = useBankTransactions(year);
   const { receipts, isLoading: rcLoading } = useReceipts(year);
   const { categories, isLoading: catLoading } = useCategories();
+  const { officialStatement, isLocked, isLoading: officialLoading } = useOfficialIncomeStatement(year);
 
-  const isLoading = txLoading || rcLoading || catLoading;
+  const isLoading = txLoading || rcLoading || catLoading || officialLoading;
 
   return useMemo(() => {
+    // Empty state during loading
     if (isLoading || !categories.length) {
       return {
         totalIncome: 0,
@@ -34,7 +42,8 @@ export function useFinancialCalculations(year: number): FinancialCalculations & 
         netVatPayable: 0,
         netRevenue: 0,
         netCost: 0,
-        isLoading
+        isLoading,
+        isOfficial: false,
       };
     }
 
@@ -61,6 +70,79 @@ export function useFinancialCalculations(year: number): FinancialCalculations & 
       .map(c => c.id);
     
     const skipIds = [...financingIds, ...partnerIds, ...excludedIds, ...investmentIds];
+
+    // PRIORITY 1: Use official locked data for income statement values
+    if (isLocked && officialStatement) {
+      const totals = calculateStatementTotals(officialStatement);
+      const grossSales = (officialStatement.gross_sales_domestic || 0) + 
+                         (officialStatement.gross_sales_export || 0) + 
+                         (officialStatement.gross_sales_other || 0);
+      
+      const costOfSales = (officialStatement.cost_of_goods_sold || 0) + 
+                          (officialStatement.cost_of_merchandise_sold || 0) + 
+                          (officialStatement.cost_of_services_sold || 0);
+      
+      const operatingExpenses = (officialStatement.rd_expenses || 0) +
+                                (officialStatement.marketing_expenses || 0) +
+                                (officialStatement.general_admin_expenses || 0);
+      
+      // Partner & financing calculations still from dynamic data
+      const partnerOut = activeTx
+        .filter(t => t.amount < 0 && partnerIds.includes(t.category_id || ''))
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+      
+      const partnerIn = activeTx
+        .filter(t => t.amount > 0 && partnerIds.includes(t.category_id || ''))
+        .reduce((sum, t) => sum + t.amount, 0);
+
+      const financingIn = activeTx
+        .filter(t => t.amount > 0 && financingIds.includes(t.category_id || ''))
+        .reduce((sum, t) => sum + t.amount, 0);
+      
+      const financingOut = activeTx
+        .filter(t => t.amount < 0 && financingIds.includes(t.category_id || ''))
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+      const investmentOut = activeTx
+        .filter(t => t.amount < 0 && investmentIds.includes(t.category_id || ''))
+        .reduce((sum, t) => sum + Math.abs(t.amount), 0);
+
+      // VAT calculations - these remain dynamic as official data doesn't have VAT
+      const calculatedVat = activeTx
+        .filter(t => t.amount > 0 && t.is_commercial !== false && !skipIds.includes(t.category_id || ''))
+        .reduce((sum, t) => sum + (t.vat_amount ?? (t.amount - t.amount / 1.20)), 0);
+
+      const deductibleVat = activeTx
+        .filter(t => t.amount < 0 && t.is_commercial !== false && !skipIds.includes(t.category_id || ''))
+        .reduce((sum, t) => sum + (t.vat_amount ?? (Math.abs(t.amount) - Math.abs(t.amount) / 1.20)), 0);
+
+      return {
+        totalIncome: grossSales,
+        totalExpenses: costOfSales + operatingExpenses,
+        operatingProfit: totals.operating_profit,
+        profitMargin: totals.net_sales > 0 ? (totals.net_profit / totals.net_sales) * 100 : 0,
+        partnerOut,
+        partnerIn,
+        netPartnerBalance: partnerIn - partnerOut,
+        financingIn,
+        financingOut,
+        investmentOut,
+        receiptTotal: 0, // Official data doesn't track receipts separately
+        byCategory: {}, // Official data doesn't have category breakdown
+        byMonth: {}, // Official data doesn't have monthly breakdown
+        byInvestmentType: {},
+        uncategorizedCount: 0,
+        calculatedVat,
+        deductibleVat,
+        netVatPayable: calculatedVat - deductibleVat,
+        netRevenue: totals.net_sales,
+        netCost: costOfSales,
+        isLoading: false,
+        isOfficial: true,
+      };
+    }
+
+    // PRIORITY 2: Dynamic calculation from bank transactions
 
     // Calculate income (positive amounts, excluding special categories)
     // Use net_amount if available (VAT separated), otherwise calculate from amount
@@ -261,7 +343,8 @@ export function useFinancialCalculations(year: number): FinancialCalculations & 
       netVatPayable,
       netRevenue,
       netCost,
-      isLoading
+      isLoading,
+      isOfficial: false,
     };
-  }, [transactions, receipts, categories, isLoading]);
+  }, [transactions, receipts, categories, isLoading, isLocked, officialStatement]);
 }
