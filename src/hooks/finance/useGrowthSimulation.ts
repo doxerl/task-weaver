@@ -95,7 +95,7 @@ export function useGrowthSimulation(initialBaseYear?: number, initialTargetYear?
   
   // Gerçek baz yıl verilerini veritabanından çek (targetYear - 1)
   const actualBaseYear = targetYear - 1;
-  const baseYearStatement = useIncomeStatement(actualBaseYear);
+  const baseYearStatement = useIncomeStatement(actualBaseYear, { forceRealtime: true });
   const baseYearExchangeRates = useExchangeRates(actualBaseYear);
   
   const [scenarioName, setScenarioName] = useState('Varsayılan Senaryo');
