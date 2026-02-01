@@ -377,7 +377,7 @@ export default function Reports() {
             <CardContent className="p-3">
               <TrendingUp className="h-4 w-4 text-green-600 mb-1" />
               <p className="text-xs text-muted-foreground">Net Gelir (KDV Hariç)</p>
-              <p className="text-lg font-bold text-green-600">{formatAmount(hub.incomeSummary.net)}</p>
+              <p className="text-lg font-bold text-green-600">{formatAmount(incomeStatement.statement?.netSales || 0)}</p>
             </CardContent>
           </Card>
           <Card className="bg-red-50 dark:bg-red-950/30">
@@ -740,21 +740,21 @@ export default function Reports() {
               <div className="grid grid-cols-4 gap-4">
                 <div className="bg-green-50 p-4 rounded-lg border border-green-200">
                   <p className="text-xs text-gray-600">Net Gelir</p>
-                  <p className="text-lg font-bold text-green-700">{formatAmount(hub.incomeSummary.net)}</p>
+                  <p className="text-lg font-bold text-green-700">{formatAmount(incomeStatement.statement?.netSales || 0)}</p>
                 </div>
                 <div className="bg-red-50 p-4 rounded-lg border border-red-200">
                   <p className="text-xs text-gray-600">Net Gider</p>
-                  <p className="text-lg font-bold text-red-700">{formatAmount(hub.expenseSummary.net)}</p>
+                  <p className="text-lg font-bold text-red-700">{formatAmount((incomeStatement.statement?.costOfSales || 0) + (incomeStatement.statement?.operatingExpenses.total || 0))}</p>
                 </div>
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
                   <p className="text-xs text-gray-600">Net Kâr</p>
-                  <p className={`text-lg font-bold ${hub.operatingProfit >= 0 ? 'text-green-700' : 'text-red-700'}`}>
-                    {formatAmount(hub.operatingProfit)}
+                  <p className={`text-lg font-bold ${(incomeStatement.statement?.netProfit || 0) >= 0 ? 'text-green-700' : 'text-red-700'}`}>
+                    {formatAmount(incomeStatement.statement?.netProfit || 0)}
                   </p>
                 </div>
                 <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
                   <p className="text-xs text-gray-600">Kâr Marjı</p>
-                  <p className="text-lg font-bold text-purple-700">{hub.profitMargin.toFixed(1)}%</p>
+                  <p className="text-lg font-bold text-purple-700">{(incomeStatement.statement?.profitMargin || 0).toFixed(1)}%</p>
                 </div>
               </div>
             </div>
