@@ -10,7 +10,12 @@ import { ExpenseCategory, MonthlyDataPoint, MONTH_NAMES_SHORT_TR, CHART_COLORS }
 // Fixed expense category codes
 const FIXED_EXPENSE_CODES = ['KIRA_OUT', 'SIGORTA', 'YAZILIM', 'TELEKOM', 'MUHASEBE', 'PERSONEL'];
 
-export function useExpenseAnalysis(year: number) {
+interface ExpenseAnalysisOptions {
+  forceRealtime?: boolean;
+}
+
+export function useExpenseAnalysis(year: number, options?: ExpenseAnalysisOptions) {
+  const { forceRealtime = false } = options || {};
   const { transactions, isLoading: txLoading } = useBankTransactions(year);
   const { receipts, isLoading: receiptLoading } = useReceipts(year);
   const { categories, isLoading: catLoading } = useCategories();
@@ -37,8 +42,8 @@ export function useExpenseAnalysis(year: number) {
       return emptyResult;
     }
 
-    // PRIORITY 1: If official data is locked, use official expense values
-    if (isAnyLocked && officialStatement) {
+    // PRIORITY 1: If official data is locked and forceRealtime is false, use official expense values
+    if (!forceRealtime && isAnyLocked && officialStatement) {
       const costOfSales = (officialStatement.cost_of_goods_sold || 0) + 
                           (officialStatement.cost_of_merchandise_sold || 0) + 
                           (officialStatement.cost_of_services_sold || 0);
@@ -283,7 +288,7 @@ export function useExpenseAnalysis(year: number) {
       topCategories: expenseCategoryList.slice(0, 10),
       isOfficial: false,
     };
-  }, [transactions, receipts, categories, isLoading, payrollSummary, payrollAccruals, isAnyLocked, officialStatement]);
+  }, [transactions, receipts, categories, isLoading, payrollSummary, payrollAccruals, isAnyLocked, officialStatement, forceRealtime]);
 
   return {
     ...analysis,
