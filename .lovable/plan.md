@@ -1,126 +1,125 @@
 
 
-## Mizan PDF Alt Hesap (Muavin) Desteği - Düzeltme
+## /finance Dashboard'ında Resmi Veri Entegrasyonu
 
-### Problem Analizi
+### Mevcut Durum Analizi
 
-PDF'den 131 hesap parse ediliyor ama toplamlar uyuşmuyor (₺1.322.450 fark). Bu, bazı alt hesapların kaybolmasından kaynaklanıyor.
+Dashboard'da farklı hook'lar kullanılıyor ve bunların resmi veri desteği tutarsız:
 
-**Tespit edilen sorunlar:**
+| Hook | Resmi Veri | Dashboard Kullanımı |
+|------|------------|---------------------|
+| `useIncomeStatement` | Var (isLocked kontrolu) | Sadece "Resmi Veri" badge icin |
+| `useFinancialCalculations` | **YOK** | Ciro Ozeti, Net Kar, Ortak Cari |
+| `useVatCalculations` | Yok | KDV Ozeti |
+| `useBalanceSheet` | Yok | Bilanco Ozeti |
 
-1. **Ana hesap yoksa alt hesaplar kaybolur** (satır 565-568): `if (accounts[baseCode])` kontrolü, ana hesap yoksa alt hesapları atlamaya neden oluyor.
+Ekran goruntusundeki degerler (`7.106.084,28`, `5.922.838,50` vs.) `useFinancialCalculations` hook'undan geliyor ve bu hook sadece banka islemlerinden dinamik hesaplama yapiyor - **resmi verileri kullanmiyor**.
 
-2. **Toplam hesaplaması hatalı**: UI'da `totalDebit` hesaplanırken sadece ana hesaplar toplanıyor, alt hesaplar dahil edilmiyor.
+### Cozum Plani
 
-3. **Alt hesap değerlerinin çift sayılma riski**: Bazı mizan formatlarında ana hesap satırı alt hesapların toplamını içerir, bu durumda alt hesaplar da ayrı toplanırsa çift sayım olur.
+#### 1. `useFinancialCalculations` Hook'unu Guncelle
 
-### Cozum
+**Dosya: `src/hooks/finance/useFinancialCalculations.ts`**
 
-#### 1. Edge Function Duzeltmesi
+Hibrit mantik ekle: Eger resmi gelir tablosu kilitliyse, oradan degerleri al.
 
-**Dosya: `supabase/functions/parse-trial-balance/index.ts`**
-
-##### a) Alt hesaplar icin sanal ana hesap olustur (satir 564-569)
-
-Mevcut kod:
 ```typescript
-// Attach sub-accounts to main accounts
-for (const baseCode of Object.keys(subAccountsTemp)) {
-  if (accounts[baseCode]) {
-    accounts[baseCode].subAccounts = subAccountsTemp[baseCode];
-  }
+import { useOfficialIncomeStatement } from './useOfficialIncomeStatement';
+
+export function useFinancialCalculations(year: number) {
+  const { officialStatement, isLocked } = useOfficialIncomeStatement(year);
+  
+  // ... mevcut hook kodlari ...
+  
+  return useMemo(() => {
+    // ONCELIK 1: Resmi veri kilitliyse onu kullan!
+    if (isLocked && officialStatement) {
+      const netSales = officialStatement.net_sales || 0;
+      const grossSales = (officialStatement.gross_sales_domestic || 0) + 
+                         (officialStatement.gross_sales_export || 0) + 
+                         (officialStatement.gross_sales_other || 0);
+      
+      // Resmi veriden hesapla
+      const operatingExpenses = (officialStatement.rd_expenses || 0) +
+                               (officialStatement.marketing_expenses || 0) +
+                               (officialStatement.general_admin_expenses || 0);
+      
+      return {
+        totalIncome: grossSales,
+        netRevenue: netSales,
+        totalExpenses: operatingExpenses + (officialStatement.cost_of_goods_sold || 0),
+        netCost: /* ... */,
+        operatingProfit: officialStatement.net_profit || 0,
+        profitMargin: netSales > 0 ? (officialStatement.net_profit / netSales) * 100 : 0,
+        // Diger alanlar icin banka islemlerinden hesaplama devam eder
+        partnerOut, partnerIn, financingIn, financingOut, // dinamik
+        isLoading: false,
+        isOfficial: true,
+      };
+    }
+    
+    // ONCELIK 2: Dinamik hesaplama (mevcut kod)
+    // ... mevcut kod ...
+  }, [...]);
 }
 ```
 
-Duzeltilmis kod:
-```typescript
-// Attach sub-accounts to main accounts
-// If main account doesn't exist, create it from sub-accounts
-for (const baseCode of Object.keys(subAccountsTemp)) {
-  if (!accounts[baseCode]) {
-    // Create virtual main account from sub-accounts
-    const subs = subAccountsTemp[baseCode];
-    accounts[baseCode] = {
-      name: `Hesap ${baseCode}`,
-      debit: subs.reduce((sum, s) => sum + s.debit, 0),
-      credit: subs.reduce((sum, s) => sum + s.credit, 0),
-      debitBalance: subs.reduce((sum, s) => sum + s.debitBalance, 0),
-      creditBalance: subs.reduce((sum, s) => sum + s.creditBalance, 0),
-    };
-  }
-  accounts[baseCode].subAccounts = subAccountsTemp[baseCode];
-}
-```
+#### 2. Return Type'a `isOfficial` Ekle
 
-Bu degisiklik hem `parsePDFWithAI()` hem de `parseExcel()` fonksiyonlarinda yapilmali.
-
-##### b) AI Prompt'u daha net talimatlarla guncelle
-
-Alt hesaplarin ana hesapla birlikte dondurulmesi gerektigini vurgula:
+Hook'un dondurdugu nesneye `isOfficial: boolean` alani ekle:
 
 ```typescript
-// Prompt'a ekleme:
-"## KRITIK KURAL
-Ana hesap satiri (ornegin 320 SATICILAR) mutlaka ayri bir kayit olarak dondurulmeli.
-Alt hesaplar (320 001, 320 1 006) ana hesaptan AYRI kayitlar olarak dondurulmeli.
-Ana hesabin toplam degeri, alt hesaplarin toplamindan FARKLI olabilir."
+return {
+  // ... mevcut alanlar ...
+  isOfficial: isLocked,
+};
 ```
 
-#### 2. Excel parse fonksiyonunda da ayni duzeltme
+#### 3. Dashboard'da Gosterim Iyilestirmesi (Opsiyonel)
 
-**Dosya: `supabase/functions/parse-trial-balance/index.ts` (satir 341-346)**
+**Dosya: `src/pages/finance/FinanceDashboard.tsx`**
 
-Ayni mantik `parseExcel()` fonksiyonunda da uygulanmali.
+Resmi veri aktifken kartlarda kucuk bir ikon goster:
+
+```tsx
+<div className="flex items-center gap-2">
+  <span className="text-xs text-muted-foreground">Brut Ciro</span>
+  {calc.isOfficial && <Shield className="h-3 w-3 text-green-600" />}
+</div>
+```
+
+### Dikkat Edilmesi Gerekenler
+
+1. **Ortak Cari ve Finansman**: Bu degerler resmi gelir tablosunda yok. Bunlar icin banka islemlerinden hesaplama devam etmeli.
+
+2. **KDV Ozeti**: Resmi veriden KDV bilgisi gelmez, dinamik hesaplama devam etmeli.
+
+3. **Hibrit Yaklasim**: Bazi alanlar resmi veriden (ciro, kar), bazi alanlar dinamik (ortak cari, KDV).
 
 ### Degistirilecek Dosyalar
 
 | Dosya | Degisiklik |
 |-------|------------|
-| `supabase/functions/parse-trial-balance/index.ts` | Alt hesap isleme mantigi duzeltmesi (satirlar 341-346 ve 564-569) |
+| `src/hooks/finance/useFinancialCalculations.ts` | Resmi veri entegrasyonu ekle |
+| `src/pages/finance/FinanceDashboard.tsx` | (opsiyonel) Resmi veri ikonu ekle |
 
 ### Beklenen Sonuc
 
-**Oncesi:**
-- PDF yuklendi: 15 ana hesap (alt hesaplar kayip)
-- Toplam Borc: X, Toplam Alacak: Y
-- Fark: ₺1.322.450 (bazi hesaplar kayip)
+**Oncesi (mevcut):**
+- Dashboard: Banka islemlerinden dinamik hesaplama
+- Degerler: ₺7.106.084,28 (brut ciro)
+- "Resmi Veri" badge: Gosteriliyor ama degerler dinamik
 
 **Sonrasi:**
-- PDF yuklendi: 15 ana hesap + 116 alt hesap (toplam 131)
-- Alt hesapsiz ana hesaplar icin: alt hesaplardan toplam hesaplanir
-- Fark: ₺0 (tum hesaplar dahil)
+- Dashboard: Eger resmi veri kilitliyse, oradan gelen degerleri goster
+- Degerler: Resmi gelir tablosundaki net satislar
+- Kart basliklarinda kucuk "Shield" ikonu ile resmi veri oldugu belirtilir
 
-### Teknik Detay
+### Test Senaryosu
 
-Ana hesap-alt hesap iliskisi su sekilde calismali:
-
-```text
-AI'dan gelen:
-├── 320 SATICILAR (debit: 120.136, credit: 4.199.153)
-├── 320 001 METRO GROSMARKET (debit: 81.251, credit: 86.271)
-├── 320 1 006 RADSAN GRUP (debit: 0, credit: 650.400)
-└── 320 1 007 DOGRU GRUP (debit: 0, credit: 209.400)
-
-Islenme sonrasi:
-accounts["320"] = {
-  name: "SATICILAR",
-  debit: 120.136,
-  credit: 4.199.153,
-  subAccounts: [
-    { code: "320.001", name: "METRO GROSMARKET", ... },
-    { code: "320.1.006", name: "RADSAN GRUP", ... },
-    { code: "320.1.007", name: "DOGRU GRUP", ... }
-  ]
-}
-```
-
-Eger AI ana hesabi (320) dondurmediyse:
-```text
-accounts["320"] = {
-  name: "Hesap 320",  // Sanal isim
-  debit: 81.251,      // Alt hesaplarin toplami
-  credit: 946.071,    // Alt hesaplarin toplami
-  subAccounts: [...]
-}
-```
+1. `/finance/official-data` sayfasina git
+2. Gelir tablosu yukle ve kilitle
+3. `/finance` dashboard'a don
+4. Ciro Ozeti kartindaki degerlerin resmi veriden geldigini dogrula
+5. "Resmi Veri" badge'inin gorundugunun ve degerlerin tutarli oldugunu kontrol et
 
