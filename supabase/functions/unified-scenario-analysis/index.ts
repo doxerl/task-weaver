@@ -6,6 +6,290 @@ const corsHeaders = {
 };
 
 // =====================================================
+// UNIFIED ANALYSIS TOOL SCHEMA
+// Used by both primary and fallback models
+// =====================================================
+const getUnifiedAnalysisToolSchema = () => ({
+  type: "function",
+  function: {
+    name: "generate_unified_analysis",
+    description: "Generate comprehensive unified analysis with all 5 sections",
+    parameters: {
+      type: "object",
+      properties: {
+        insights: {
+          type: "array",
+          description: "5-7 critical financial insights",
+          items: {
+            type: "object",
+            properties: {
+              category: { type: "string", description: "One of: revenue, profit, cash_flow, risk, efficiency, opportunity" },
+              severity: { type: "string", description: "One of: critical, high, medium" },
+              title: { type: "string" },
+              description: { type: "string" },
+              impact_analysis: { type: "string" },
+              data_points: { type: "array", items: { type: "string" } }
+            }
+          }
+        },
+        recommendations: {
+          type: "array",
+          description: "3-5 strategic recommendations",
+          items: {
+            type: "object",
+            properties: {
+              priority: { type: "number", description: "1, 2, or 3" },
+              title: { type: "string" },
+              description: { type: "string" },
+              action_plan: { type: "array", items: { type: "string" } },
+              expected_outcome: { type: "string" },
+              risk_mitigation: { type: "string" },
+              timeframe: { type: "string" }
+            }
+          }
+        },
+        quarterly_analysis: {
+          type: "object",
+          properties: {
+            overview: { type: "string" },
+            critical_periods: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  quarter: { type: "string" },
+                  reason: { type: "string" },
+                  risk_level: { type: "string", description: "One of: high, medium, low" }
+                }
+              }
+            },
+            seasonal_trends: { type: "array", items: { type: "string" } },
+            cash_burn_warning: { type: "string" },
+            growth_trajectory: { type: "string" },
+            winner_by_quarter: {
+              type: "object",
+              properties: {
+                q1: { type: "string" },
+                q2: { type: "string" },
+                q3: { type: "string" },
+                q4: { type: "string" }
+              }
+            }
+          }
+        },
+        deal_analysis: {
+          type: "object",
+          description: "CRITICAL: Include formula transparency for deal_score calculation",
+          properties: {
+            deal_score: { type: "number", description: "Score from 1 to 10. MUST show calculation formula in deal_score_formula field" },
+            deal_score_formula: {
+              type: "string",
+              description: "REQUIRED: Show exact calculation. Format: '7/10 = (MOIC_Score×2 + Margin_Score×3 + Growth_Score×2 + Risk_Score×3) / 10 = (8×2 + 7×3 + 6×2 + 7×3) / 10'"
+            },
+            score_components: {
+              type: "object",
+              description: "Individual scores (1-10 each) used in formula",
+              properties: {
+                moic_score: { type: "number", description: "MOIC component score 1-10. MOIC>3x=10, 2-3x=8, 1.5-2x=6, <1.5x=4" },
+                margin_score: { type: "number", description: "Profit margin score 1-10. >20%=10, 15-20%=8, 10-15%=6, <10%=4" },
+                growth_score: { type: "number", description: "Revenue growth score 1-10. >50%=10, 30-50%=8, 15-30%=6, <15%=4" },
+                risk_score: { type: "number", description: "Risk-adjusted score 1-10. Low risk=10, Medium=7, High=4" }
+              }
+            },
+            valuation_verdict: { type: "string", description: "One of: premium, fair, cheap" },
+            investor_attractiveness: { type: "string" },
+            risk_factors: { type: "array", items: { type: "string" } }
+          },
+          required: ["deal_score", "deal_score_formula", "valuation_verdict", "investor_attractiveness", "risk_factors"]
+        },
+        pitch_deck: {
+          type: "object",
+          description: "CRITICAL: Every slide MUST contain $ amounts and % figures. NO generic statements.",
+          properties: {
+            slides: {
+              type: "array",
+              description: "10 slides for investor pitch. Each slide tells ONE story with supporting numbers. Language: confident startup founder, not financial analyst. Slides: 1-Problem, 2-Çözüm, 3-Pazar, 4-İş Modeli, 5-Traction, 6-Büyüme Planı, 7-Use of Funds, 8-Finansal Projeksiyon, 9-Ekip, 10-The Ask",
+              items: {
+                type: "object",
+                properties: {
+                  slide_number: { type: "number" },
+                  title: {
+                    type: "string",
+                    description: "Max 8 words. MUST include focus project name if available"
+                  },
+                  key_message: {
+                    type: "string",
+                    description: "MUST contain at least one $ amount or % figure. Example: '$150K yatırım ile $560K gelir hedefine ulaşıyoruz'"
+                  },
+                  content_bullets: {
+                    type: "array",
+                    items: { type: "string" },
+                    description: "3-4 bullets. EVERY bullet MUST contain $ or % format number. NO generic statements like 'ölçeklenebilir model'."
+                  },
+                  speaker_notes: { type: "string" }
+                }
+              }
+            },
+            executive_summary: {
+              type: "object",
+              description: "MUST be an object with structured fields, NOT a plain string. Include scenario comparison and revenue items.",
+              properties: {
+                short_pitch: {
+                  type: "string",
+                  description: "150 word investor pitch with company description and revenue sources. List actual revenue item names."
+                },
+                revenue_items: {
+                  type: "string",
+                  description: "REQUIRED: List top 3-4 revenue items with $ amounts. Example: 'SBT Tracker ($230K), PlannerDeck ($150K), Billiyor App ($120K)'"
+                },
+                scenario_comparison: {
+                  type: "string",
+                  description: "REQUIRED: A vs B comparison. Format: 'Pozitif (Senaryo A adı): $X gelir, $Y kâr | Negatif (Senaryo B adı): $X gelir, $Y kâr | Fark: $X (%Y)'"
+                },
+                investment_impact: {
+                  type: "string",
+                  description: "REQUIRED: What happens without investment. Example: 'Yatırım alamazsak $210K daha az gelir ve organik büyüme %15 ile sınırlı'"
+                }
+              },
+              required: ["short_pitch", "revenue_items", "scenario_comparison", "investment_impact"]
+            }
+          }
+        },
+        next_year_projection: {
+          type: "object",
+          description: "CRITICAL: All numeric fields MUST be > 0. Revenue should be at least 40% higher than current year. MUST include itemized_revenues and itemized_expenses arrays. projection_year is REQUIRED!",
+          properties: {
+            projection_year: {
+              type: "number",
+              description: "CRITICAL & REQUIRED: The target year for this projection. MUST be max(scenarioA.targetYear, scenarioB.targetYear) + 1. Example: Comparing 2028 vs 2027 scenarios → projection_year MUST be 2029. This ensures the projection is for the NEXT year, not the current scenario year!"
+            },
+            strategy_note: {
+              type: "string",
+              description: "2-3 sentence investor-exciting vision statement about globalization and scale"
+            },
+            virtual_opening_balance: {
+              type: "object",
+              description: "Virtual balance sheet opening for next year",
+              properties: {
+                opening_cash: {
+                  type: "number",
+                  description: "Current year ending cash + requested investment. MUST be > 0"
+                },
+                war_chest_status: {
+                  type: "string",
+                  description: "One of: Hazır, Yakın, Uzak"
+                },
+                intangible_growth: {
+                  type: "string",
+                  description: "Notes on brand value, IP, network effect growth"
+                }
+              }
+            },
+            quarterly: {
+              type: "object",
+              properties: {
+                q1: {
+                  type: "object",
+                  properties: {
+                    revenue: { type: "number", description: "MUST be > 0" },
+                    expenses: { type: "number" },
+                    cash_flow: { type: "number" },
+                    key_event: { type: "string", description: "Global expansion focused event" }
+                  }
+                },
+                q2: {
+                  type: "object",
+                  properties: {
+                    revenue: { type: "number", description: "MUST be > 0" },
+                    expenses: { type: "number" },
+                    cash_flow: { type: "number" },
+                    key_event: { type: "string", description: "Global expansion focused event" }
+                  }
+                },
+                q3: {
+                  type: "object",
+                  properties: {
+                    revenue: { type: "number", description: "MUST be > 0, should show growth momentum" },
+                    expenses: { type: "number" },
+                    cash_flow: { type: "number" },
+                    key_event: { type: "string", description: "Revenue diversification event" }
+                  }
+                },
+                q4: {
+                  type: "object",
+                  properties: {
+                    revenue: { type: "number", description: "MUST be > 0, highest of the year" },
+                    expenses: { type: "number" },
+                    cash_flow: { type: "number", description: "Should be positive" },
+                    key_event: { type: "string", description: "Series A preparation or partnership" }
+                  }
+                }
+              }
+            },
+            summary: {
+              type: "object",
+              description: "CRITICAL: total_revenue MUST be at least 40% higher than scenario B current revenue. NEVER zero!",
+              properties: {
+                total_revenue: { type: "number", description: "MUST be > 0 and at least 40% higher than current year" },
+                total_expenses: { type: "number", description: "Should grow slower than revenue (operating leverage)" },
+                net_profit: { type: "number", description: "Should be positive or near break-even" },
+                ending_cash: { type: "number", description: "opening_cash + net_profit + investment" }
+              }
+            },
+            investor_hook: {
+              type: "object",
+              description: "Key metrics to excite investors about the Series A opportunity",
+              properties: {
+                revenue_growth_yoy: { type: "string", description: "e.g. '%65 YoY Büyüme'" },
+                margin_improvement: { type: "string", description: "e.g. '+8pp EBIT Marjı'" },
+                valuation_multiple_target: { type: "string", description: "e.g. '4x Revenue Multiple'" },
+                competitive_moat: { type: "string", description: "What makes this company defensible" }
+              }
+            },
+            itemized_revenues: {
+              type: "array",
+              description: "SCIENTIFIC PROJECTION MODEL - REQUIRED: (1) FOCUS PROJECTS: Calculate growth = (Investment × Product_Ratio × Multiplier) / Current_Revenue. Multipliers: SaaS=2.0, Services=1.3, Product=1.8. Result typically 50-120%. (2) NON-FOCUS PROJECTS: EXACTLY 0% growth - use base scenario values unchanged! This isolates investment impact. (3) J-CURVE: Q1=10%, Q2=25%, Q3=65%, Q4=100% of annual growth. (4) Sum of totals MUST match summary.total_revenue.",
+              items: {
+                type: "object",
+                properties: {
+                  category: { type: "string", description: "EXACT category name from scenario revenues" },
+                  q1: { type: "number", description: "Q1: Base + (Annual_Growth × 0.10) for FOCUS, exact base value for NON-FOCUS" },
+                  q2: { type: "number", description: "Q2: Base + (Annual_Growth × 0.25) for FOCUS, exact base value for NON-FOCUS" },
+                  q3: { type: "number", description: "Q3: Base + (Annual_Growth × 0.65) for FOCUS, exact base value for NON-FOCUS" },
+                  q4: { type: "number", description: "Q4: Base + (Annual_Growth × 1.00) for FOCUS, exact base value for NON-FOCUS" },
+                  total: { type: "number", description: "Sum of q1+q2+q3+q4" },
+                  growth_rate: { type: "number", description: "Investment-calculated growth. FOCUS projects: 0.5-1.2 (formula result). NON-FOCUS: MUST be exactly 0.0 to isolate investment impact." }
+                },
+                required: ["category", "q1", "q2", "q3", "q4", "total", "growth_rate"]
+              }
+            },
+            itemized_expenses: {
+              type: "array",
+              description: "OPERATING LEVERAGE MODEL - REQUIRED: (1) FIXED COSTS (Rent, Insurance, Licenses, Depreciation): 5-10% growth only (inflation). (2) VARIABLE COSTS (Personnel, Marketing, Operations): Revenue_Growth × 0.4-0.6 - expenses must grow SLOWER than revenue for margin expansion! (3) INVESTMENT DIRECT IMPACT: Add allocated amounts for hiring + marketing from Use of Funds. (4) GOAL: If revenue grows 60%, expenses should grow only 25-35%. Sum MUST match summary.total_expenses.",
+              items: {
+                type: "object",
+                properties: {
+                  category: { type: "string", description: "EXACT category name from scenario expenses" },
+                  q1: { type: "number", description: "Q1 expense - higher due to investment spending (hiring, setup)" },
+                  q2: { type: "number", description: "Q2 expense - stabilizing as operations scale" },
+                  q3: { type: "number", description: "Q3 expense - efficiency gains visible" },
+                  q4: { type: "number", description: "Q4 expense - optimized run-rate" },
+                  total: { type: "number", description: "Sum of q1+q2+q3+q4" },
+                  growth_rate: { type: "number", description: "FIXED costs: 0.05-0.10. VARIABLE costs: Revenue_Growth × 0.5. Must be LOWER than revenue growth for margin expansion." }
+                },
+                required: ["category", "q1", "q2", "q3", "q4", "total", "growth_rate"]
+              }
+            }
+          },
+          required: ["projection_year", "strategy_note", "quarterly", "summary", "itemized_revenues", "itemized_expenses"]
+        }
+      },
+      required: ["insights", "recommendations", "quarterly_analysis", "deal_analysis", "pitch_deck", "next_year_projection"]
+    }
+  }
+});
+
+// =====================================================
 // ANTI-HALLUCINATION RULES - KRİTİK
 // =====================================================
 const ANTI_HALLUCINATION_RULES = `
@@ -1009,287 +1293,7 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
           { role: "system", content: getUnifiedMasterPrompt(dynamicScenarioRules) },
           { role: "user", content: userPrompt }
         ],
-        tools: [
-          {
-            type: "function",
-            function: {
-              name: "generate_unified_analysis",
-              description: "Generate comprehensive unified analysis with all 5 sections",
-              parameters: {
-                type: "object",
-                properties: {
-                  insights: {
-                    type: "array",
-                    description: "5-7 critical financial insights",
-                    items: {
-                      type: "object",
-                      properties: {
-                        category: { type: "string", description: "One of: revenue, profit, cash_flow, risk, efficiency, opportunity" },
-                        severity: { type: "string", description: "One of: critical, high, medium" },
-                        title: { type: "string" },
-                        description: { type: "string" },
-                        impact_analysis: { type: "string" },
-                        data_points: { type: "array", items: { type: "string" } }
-                      }
-                    }
-                  },
-                  recommendations: {
-                    type: "array",
-                    description: "3-5 strategic recommendations",
-                    items: {
-                      type: "object",
-                      properties: {
-                        priority: { type: "number", description: "1, 2, or 3" },
-                        title: { type: "string" },
-                        description: { type: "string" },
-                        action_plan: { type: "array", items: { type: "string" } },
-                        expected_outcome: { type: "string" },
-                        risk_mitigation: { type: "string" },
-                        timeframe: { type: "string" }
-                      }
-                    }
-                  },
-                  quarterly_analysis: {
-                    type: "object",
-                    properties: {
-                      overview: { type: "string" },
-                      critical_periods: {
-                        type: "array",
-                        items: {
-                          type: "object",
-                          properties: {
-                            quarter: { type: "string" },
-                            reason: { type: "string" },
-                            risk_level: { type: "string", description: "One of: high, medium, low" }
-                          }
-                        }
-                      },
-                      seasonal_trends: { type: "array", items: { type: "string" } },
-                      cash_burn_warning: { type: "string" },
-                      growth_trajectory: { type: "string" },
-                      winner_by_quarter: {
-                        type: "object",
-                        properties: {
-                          q1: { type: "string" },
-                          q2: { type: "string" },
-                          q3: { type: "string" },
-                          q4: { type: "string" }
-                        }
-                      }
-                    }
-                  },
-                  deal_analysis: {
-                    type: "object",
-                    description: "CRITICAL: Include formula transparency for deal_score calculation",
-                    properties: {
-                      deal_score: { type: "number", description: "Score from 1 to 10. MUST show calculation formula in deal_score_formula field" },
-                      deal_score_formula: {
-                        type: "string",
-                        description: "REQUIRED: Show exact calculation. Format: '7/10 = (MOIC_Score×2 + Margin_Score×3 + Growth_Score×2 + Risk_Score×3) / 10 = (8×2 + 7×3 + 6×2 + 7×3) / 10'"
-                      },
-                      score_components: {
-                        type: "object",
-                        description: "Individual scores (1-10 each) used in formula",
-                        properties: {
-                          moic_score: { type: "number", description: "MOIC component score 1-10. MOIC>3x=10, 2-3x=8, 1.5-2x=6, <1.5x=4" },
-                          margin_score: { type: "number", description: "Profit margin score 1-10. >20%=10, 15-20%=8, 10-15%=6, <10%=4" },
-                          growth_score: { type: "number", description: "Revenue growth score 1-10. >50%=10, 30-50%=8, 15-30%=6, <15%=4" },
-                          risk_score: { type: "number", description: "Risk-adjusted score 1-10. Low risk=10, Medium=7, High=4" }
-                        }
-                      },
-                      valuation_verdict: { type: "string", description: "One of: premium, fair, cheap" },
-                      investor_attractiveness: { type: "string" },
-                      risk_factors: { type: "array", items: { type: "string" } }
-                    },
-                    required: ["deal_score", "deal_score_formula", "valuation_verdict", "investor_attractiveness", "risk_factors"]
-                  },
-                  pitch_deck: {
-                    type: "object",
-                    description: "CRITICAL: Every slide MUST contain $ amounts and % figures. NO generic statements.",
-                    properties: {
-                      slides: {
-                        type: "array",
-                        description: "10 slides for investor pitch. Each slide tells ONE story with supporting numbers. Language: confident startup founder, not financial analyst. Slides: 1-Problem, 2-Çözüm, 3-Pazar, 4-İş Modeli, 5-Traction, 6-Büyüme Planı, 7-Use of Funds, 8-Finansal Projeksiyon, 9-Ekip, 10-The Ask",
-                        items: {
-                          type: "object",
-                          properties: {
-                            slide_number: { type: "number" },
-                            title: { 
-                              type: "string", 
-                              description: "Max 8 words. MUST include focus project name if available" 
-                            },
-                            key_message: { 
-                              type: "string", 
-                              description: "MUST contain at least one $ amount or % figure. Example: '$150K yatırım ile $560K gelir hedefine ulaşıyoruz'" 
-                            },
-                            content_bullets: { 
-                              type: "array", 
-                              items: { type: "string" },
-                              description: "3-4 bullets. EVERY bullet MUST contain $ or % format number. NO generic statements like 'ölçeklenebilir model'."
-                            },
-                            speaker_notes: { type: "string" }
-                          }
-                        }
-                      },
-                      executive_summary: { 
-                        type: "object",
-                        description: "MUST be an object with structured fields, NOT a plain string. Include scenario comparison and revenue items.",
-                        properties: {
-                          short_pitch: { 
-                            type: "string", 
-                            description: "150 word investor pitch with company description and revenue sources. List actual revenue item names." 
-                          },
-                          revenue_items: { 
-                            type: "string", 
-                            description: "REQUIRED: List top 3-4 revenue items with $ amounts. Example: 'SBT Tracker ($230K), PlannerDeck ($150K), Billiyor App ($120K)'" 
-                          },
-                          scenario_comparison: { 
-                            type: "string", 
-                            description: "REQUIRED: A vs B comparison. Format: 'Pozitif (Senaryo A adı): $X gelir, $Y kâr | Negatif (Senaryo B adı): $X gelir, $Y kâr | Fark: $X (%Y)'" 
-                          },
-                          investment_impact: { 
-                            type: "string", 
-                            description: "REQUIRED: What happens without investment. Example: 'Yatırım alamazsak $210K daha az gelir ve organik büyüme %15 ile sınırlı'" 
-                          }
-                        },
-                        required: ["short_pitch", "revenue_items", "scenario_comparison", "investment_impact"]
-                      }
-                    }
-                  },
-                  next_year_projection: {
-                    type: "object",
-                    description: "CRITICAL: All numeric fields MUST be > 0. Revenue should be at least 40% higher than current year. MUST include itemized_revenues and itemized_expenses arrays. projection_year is REQUIRED!",
-                    properties: {
-                      projection_year: {
-                        type: "number",
-                        description: "CRITICAL & REQUIRED: The target year for this projection. MUST be max(scenarioA.targetYear, scenarioB.targetYear) + 1. Example: Comparing 2028 vs 2027 scenarios → projection_year MUST be 2029. This ensures the projection is for the NEXT year, not the current scenario year!"
-                      },
-                      strategy_note: { 
-                        type: "string",
-                        description: "2-3 sentence investor-exciting vision statement about globalization and scale"
-                      },
-                      virtual_opening_balance: {
-                        type: "object",
-                        description: "Virtual balance sheet opening for next year",
-                        properties: {
-                          opening_cash: { 
-                            type: "number",
-                            description: "Current year ending cash + requested investment. MUST be > 0"
-                          },
-                          war_chest_status: { 
-                            type: "string",
-                            description: "One of: Hazır, Yakın, Uzak"
-                          },
-                          intangible_growth: { 
-                            type: "string",
-                            description: "Notes on brand value, IP, network effect growth"
-                          }
-                        }
-                      },
-                      quarterly: {
-                        type: "object",
-                        properties: {
-                          q1: {
-                            type: "object",
-                            properties: {
-                              revenue: { type: "number", description: "MUST be > 0" },
-                              expenses: { type: "number" },
-                              cash_flow: { type: "number" },
-                              key_event: { type: "string", description: "Global expansion focused event" }
-                            }
-                          },
-                          q2: {
-                            type: "object",
-                            properties: {
-                              revenue: { type: "number", description: "MUST be > 0" },
-                              expenses: { type: "number" },
-                              cash_flow: { type: "number" },
-                              key_event: { type: "string", description: "Global expansion focused event" }
-                            }
-                          },
-                          q3: {
-                            type: "object",
-                            properties: {
-                              revenue: { type: "number", description: "MUST be > 0, should show growth momentum" },
-                              expenses: { type: "number" },
-                              cash_flow: { type: "number" },
-                              key_event: { type: "string", description: "Revenue diversification event" }
-                            }
-                          },
-                          q4: {
-                            type: "object",
-                            properties: {
-                              revenue: { type: "number", description: "MUST be > 0, highest of the year" },
-                              expenses: { type: "number" },
-                              cash_flow: { type: "number", description: "Should be positive" },
-                              key_event: { type: "string", description: "Series A preparation or partnership" }
-                            }
-                          }
-                        }
-                      },
-                      summary: {
-                        type: "object",
-                        description: "CRITICAL: total_revenue MUST be at least 40% higher than scenario B current revenue. NEVER zero!",
-                        properties: {
-                          total_revenue: { type: "number", description: "MUST be > 0 and at least 40% higher than current year" },
-                          total_expenses: { type: "number", description: "Should grow slower than revenue (operating leverage)" },
-                          net_profit: { type: "number", description: "Should be positive or near break-even" },
-                          ending_cash: { type: "number", description: "opening_cash + net_profit + investment" }
-                        }
-                      },
-                      investor_hook: {
-                        type: "object",
-                        description: "Key metrics to excite investors about the Series A opportunity",
-                        properties: {
-                          revenue_growth_yoy: { type: "string", description: "e.g. '%65 YoY Büyüme'" },
-                          margin_improvement: { type: "string", description: "e.g. '+8pp EBIT Marjı'" },
-                          valuation_multiple_target: { type: "string", description: "e.g. '4x Revenue Multiple'" },
-                          competitive_moat: { type: "string", description: "What makes this company defensible" }
-                        }
-                      },
-                      itemized_revenues: {
-                        type: "array",
-                        description: "SCIENTIFIC PROJECTION MODEL - REQUIRED: (1) FOCUS PROJECTS: Calculate growth = (Investment × Product_Ratio × Multiplier) / Current_Revenue. Multipliers: SaaS=2.0, Services=1.3, Product=1.8. Result typically 50-120%. (2) NON-FOCUS PROJECTS: EXACTLY 0% growth - use base scenario values unchanged! This isolates investment impact. (3) J-CURVE: Q1=10%, Q2=25%, Q3=65%, Q4=100% of annual growth. (4) Sum of totals MUST match summary.total_revenue.",
-                        items: {
-                          type: "object",
-                          properties: {
-                            category: { type: "string", description: "EXACT category name from scenario revenues" },
-                            q1: { type: "number", description: "Q1: Base + (Annual_Growth × 0.10) for FOCUS, exact base value for NON-FOCUS" },
-                            q2: { type: "number", description: "Q2: Base + (Annual_Growth × 0.25) for FOCUS, exact base value for NON-FOCUS" },
-                            q3: { type: "number", description: "Q3: Base + (Annual_Growth × 0.65) for FOCUS, exact base value for NON-FOCUS" },
-                            q4: { type: "number", description: "Q4: Base + (Annual_Growth × 1.00) for FOCUS, exact base value for NON-FOCUS" },
-                            total: { type: "number", description: "Sum of q1+q2+q3+q4" },
-                            growth_rate: { type: "number", description: "Investment-calculated growth. FOCUS projects: 0.5-1.2 (formula result). NON-FOCUS: MUST be exactly 0.0 to isolate investment impact." }
-                          },
-                          required: ["category", "q1", "q2", "q3", "q4", "total", "growth_rate"]
-                        }
-                      },
-                      itemized_expenses: {
-                        type: "array",
-                        description: "OPERATING LEVERAGE MODEL - REQUIRED: (1) FIXED COSTS (Rent, Insurance, Licenses, Depreciation): 5-10% growth only (inflation). (2) VARIABLE COSTS (Personnel, Marketing, Operations): Revenue_Growth × 0.4-0.6 - expenses must grow SLOWER than revenue for margin expansion! (3) INVESTMENT DIRECT IMPACT: Add allocated amounts for hiring + marketing from Use of Funds. (4) GOAL: If revenue grows 60%, expenses should grow only 25-35%. Sum MUST match summary.total_expenses.",
-                        items: {
-                          type: "object",
-                          properties: {
-                            category: { type: "string", description: "EXACT category name from scenario expenses" },
-                            q1: { type: "number", description: "Q1 expense - higher due to investment spending (hiring, setup)" },
-                            q2: { type: "number", description: "Q2 expense - stabilizing as operations scale" },
-                            q3: { type: "number", description: "Q3 expense - efficiency gains visible" },
-                            q4: { type: "number", description: "Q4 expense - optimized run-rate" },
-                            total: { type: "number", description: "Sum of q1+q2+q3+q4" },
-                            growth_rate: { type: "number", description: "FIXED costs: 0.05-0.10. VARIABLE costs: Revenue_Growth × 0.5. Must be LOWER than revenue growth for margin expansion." }
-                          },
-                          required: ["category", "q1", "q2", "q3", "q4", "total", "growth_rate"]
-                        }
-                      }
-                    },
-                    required: ["projection_year", "strategy_note", "quarterly", "summary", "itemized_revenues", "itemized_expenses"]
-                  }
-                },
-                required: ["insights", "recommendations", "quarterly_analysis", "deal_analysis", "pitch_deck", "next_year_projection"]
-              }
-            }
-          }
-        ],
+        tools: [getUnifiedAnalysisToolSchema()],
         tool_choice: { type: "function", function: { name: "generate_unified_analysis" } }
       }),
     });
@@ -1334,20 +1338,7 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
             { role: "system", content: getUnifiedMasterPrompt(dynamicScenarioRules) },
             { role: "user", content: userPrompt }
           ],
-          tools: [
-            {
-              type: "function",
-              function: {
-                name: "generate_unified_analysis",
-                description: "Generate comprehensive unified analysis with all 5 sections",
-                parameters: {
-                  type: "object",
-                  properties: {},
-                  required: ["insights", "recommendations", "quarterly_analysis", "deal_analysis", "pitch_deck", "next_year_projection"]
-                }
-              }
-            }
-          ],
+          tools: [getUnifiedAnalysisToolSchema()],
           tool_choice: { type: "function", function: { name: "generate_unified_analysis" } }
         }),
       });
