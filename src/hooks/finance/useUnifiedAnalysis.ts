@@ -1,17 +1,43 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
-import { 
-  SimulationScenario, 
-  DealConfiguration, 
-  CapitalRequirement, 
+
+// Utility for exponential backoff delays
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+// Retry configuration
+const RETRY_CONFIG = {
+  MAX_RETRIES: 3,
+  BASE_DELAY_MS: 2000, // 2s, 4s, 8s
+  RETRYABLE_ERRORS: ['FunctionsFetchError', 'FunctionsHttpError', 'TypeError'] // Network/fetch errors
+} as const;
+import {
+  SimulationScenario,
+  DealConfiguration,
+  CapitalRequirement,
   ExitPlan,
   UnifiedAnalysisResult,
   AnalysisHistoryItem,
   QuarterlyAmounts,
   YearlyBalanceSheet,
   QuarterlyItemizedData,
-  FocusProjectInfo
+  FocusProjectInfo,
+  InvestmentAllocation,
+  EditableProjectionItem,
+  AIScenarioInsight,
+  AIRecommendation,
+  QuarterlyAIAnalysis,
+  PitchDeck,
+  NextYearProjection,
+  // Type guards
+  isValidInsightArray,
+  isValidRecommendationArray,
+  isValidQuarterlyAnalysis,
+  isValidPitchDeck,
+  isValidNextYearProjection,
+  isValidInvestmentAllocation,
+  isValidEditableProjectionArray,
+  safeArray
 } from '@/types/simulation';
 import { generateScenarioHash } from '@/lib/scenarioHash';
 import { useAuth } from '@/hooks/useAuth';
@@ -29,15 +55,10 @@ interface CachedAnalysisInfo {
   // Focus project settings from cache
   focusProjects?: string[];
   focusProjectPlan?: string;
-  investmentAllocation?: {
-    product: number;
-    marketing: number;
-    hiring: number;
-    operations: number;
-  };
+  investmentAllocation?: InvestmentAllocation;
   // Edited projections from cache
-  editedRevenueProjection?: any[];
-  editedExpenseProjection?: any[];
+  editedRevenueProjection?: EditableProjectionItem[];
+  editedExpenseProjection?: EditableProjectionItem[];
   projectionUserEdited?: boolean;
 }
 
@@ -80,9 +101,9 @@ export function useUnifiedAnalysis() {
       if (data) {
         // Cache validation: Eksik unified analiz verisi kontrolü
         // Eski format (scenario_comparison, investor_pitch) kayıtlarında bu alanlar boş
-        const isValidUnifiedCache = 
-          data.deal_score !== null && 
-          data.pitch_deck !== null && 
+        const isValidUnifiedCache =
+          data.deal_score !== null &&
+          data.pitch_deck !== null &&
           data.next_year_projection !== null;
 
         if (!isValidUnifiedCache) {
@@ -91,39 +112,61 @@ export function useUnifiedAnalysis() {
           return false; // Cache yok gibi davran
         }
 
-        const investorAnalysis = data.investor_analysis as any;
-        
+        // Type-safe extraction with type guards
+        const investorAnalysis = data.investor_analysis as Record<string, unknown> | null;
+        const defaultQuarterlyAnalysis: QuarterlyAIAnalysis = {
+          overview: '',
+          critical_periods: [],
+          seasonal_trends: [],
+          growth_trajectory: ''
+        };
+        const defaultPitchDeck: PitchDeck = { slides: [], executive_summary: '' };
+        const defaultInvestmentAllocation: InvestmentAllocation = {
+          product: 40,
+          marketing: 30,
+          hiring: 20,
+          operations: 10
+        };
+
         const result: UnifiedAnalysisResult = {
-          insights: (data.insights as any) || [],
-          recommendations: (data.recommendations as any) || [],
-          quarterly_analysis: (data.quarterly_analysis as any) || { overview: '', critical_periods: [], seasonal_trends: [], growth_trajectory: '' },
+          insights: isValidInsightArray(data.insights) ? data.insights : [],
+          recommendations: isValidRecommendationArray(data.recommendations) ? data.recommendations : [],
+          quarterly_analysis: isValidQuarterlyAnalysis(data.quarterly_analysis)
+            ? data.quarterly_analysis
+            : defaultQuarterlyAnalysis,
           deal_analysis: {
             deal_score: data.deal_score || 0,
             valuation_verdict: (data.valuation_verdict as 'premium' | 'fair' | 'cheap') || 'fair',
-            investor_attractiveness: investorAnalysis?.investor_attractiveness || '',
-            risk_factors: investorAnalysis?.risk_factors || []
+            investor_attractiveness: (investorAnalysis?.investor_attractiveness as string) || '',
+            risk_factors: safeArray(investorAnalysis?.risk_factors as string[] | undefined)
           },
-          pitch_deck: (data.pitch_deck as any) || { slides: [], executive_summary: '' },
-          next_year_projection: (data.next_year_projection as any) || null
+          pitch_deck: isValidPitchDeck(data.pitch_deck) ? data.pitch_deck : defaultPitchDeck,
+          next_year_projection: isValidNextYearProjection(data.next_year_projection)
+            ? data.next_year_projection
+            : null as unknown as NextYearProjection
         };
-        
+
         setAnalysis(result);
+
+        // Extract cached focus project info with type guards
+        const cachedData = data as Record<string, unknown>;
         setCachedInfo({
           id: data.id,
-          updatedAt: new Date(data.updated_at || data.created_at || new Date()),
+          updatedAt: new Date((data.updated_at || data.created_at || new Date()) as string),
           // Focus project settings from cache
-          focusProjects: (data as any).focus_projects || [],
-          focusProjectPlan: (data as any).focus_project_plan || '',
-          investmentAllocation: (data as any).investment_allocation || {
-            product: 40,
-            marketing: 30,
-            hiring: 20,
-            operations: 10
-          },
+          focusProjects: safeArray(cachedData.focus_projects as string[] | undefined),
+          focusProjectPlan: (cachedData.focus_project_plan as string) || '',
+          investmentAllocation: isValidInvestmentAllocation(cachedData.investment_allocation)
+            ? cachedData.investment_allocation
+            : defaultInvestmentAllocation,
           // Edited projections from cache
-          editedRevenueProjection: (data as any).edited_revenue_projection || [],
-          editedExpenseProjection: (data as any).edited_expense_projection || [],
-          projectionUserEdited: (data as any).projection_user_edited || false
+          editedRevenueProjection: isValidEditableProjectionArray(cachedData.edited_revenue_projection)
+            ? cachedData.edited_revenue_projection
+            : [],
+          editedExpenseProjection: isValidEditableProjectionArray(cachedData.edited_expense_projection)
+            ? cachedData.edited_expense_projection
+            : [],
+          projectionUserEdited: (cachedData.projection_user_edited as boolean) || false
         });
         // Hash'leri kaydet - veri değişikliği kontrolü için
         setSavedHashes({
@@ -183,30 +226,35 @@ export function useUnifiedAnalysis() {
 
       if (data) {
         const history: AnalysisHistoryItem[] = data.map(item => {
-          const itemAny = item as any;
-          
-          // investor_analysis JSON'dan verileri çıkar
-          const investorAnalysis = itemAny.investor_analysis as any;
-          
+          // Type-safe extraction from database row
+          const itemData = item as Record<string, unknown>;
+          const investorAnalysis = itemData.investor_analysis as Record<string, unknown> | null;
+
           return {
             id: item.id,
-            createdAt: new Date(item.created_at || new Date()),
+            createdAt: new Date((item.created_at || new Date()) as string),
             analysisType: (item.analysis_type as 'unified' | 'scenario_comparison' | 'investor_pitch') || 'unified',
-            insights: (item.insights as any) || [],
-            recommendations: (item.recommendations as any) || [],
-            quarterlyAnalysis: (item.quarterly_analysis as any),
+            insights: isValidInsightArray(item.insights) ? item.insights : [],
+            recommendations: isValidRecommendationArray(item.recommendations) ? item.recommendations : [],
+            quarterlyAnalysis: isValidQuarterlyAnalysis(item.quarterly_analysis)
+              ? item.quarterly_analysis
+              : undefined,
             // investor_analysis JSON'dan okuma (eski format için uyumluluk)
             investorAnalysis: investorAnalysis ? {
-              capitalStory: investorAnalysis.capitalStory || '',
-              exitNarrative: investorAnalysis.exitNarrative || '',
-              investorROI: investorAnalysis.investorROI || '',
-              keyMetrics: investorAnalysis.keyMetrics,
-              opportunityCost: investorAnalysis.opportunityCost || '',
-              potentialAcquirers: investorAnalysis.potentialAcquirers || [],
-              recommendedExit: investorAnalysis.recommendedExit,
-              riskFactors: investorAnalysis.riskFactors || []
+              capitalStory: (investorAnalysis.capitalStory as string) || '',
+              exitNarrative: (investorAnalysis.exitNarrative as string) || '',
+              investorROI: (investorAnalysis.investorROI as string) || '',
+              keyMetrics: investorAnalysis.keyMetrics as {
+                capitalEfficiency: number;
+                paybackMonths: number;
+                burnMultiple: number;
+              } | undefined,
+              opportunityCost: (investorAnalysis.opportunityCost as string) || '',
+              potentialAcquirers: safeArray(investorAnalysis.potentialAcquirers as string[] | undefined),
+              recommendedExit: investorAnalysis.recommendedExit as 'series_b' | 'strategic_sale' | 'ipo' | 'hold' | undefined,
+              riskFactors: safeArray(investorAnalysis.riskFactors as string[] | undefined)
             } : undefined,
-            dealConfig: (item.deal_config as any)
+            dealConfig: itemData.deal_config as DealConfiguration | undefined
           };
         });
         setAnalysisHistory(history);
@@ -230,14 +278,14 @@ export function useUnifiedAnalysis() {
     try {
       // Tabloda olmayan sütunları kaldırdık (deal_score, valuation_verdict, pitch_deck, next_year_projection)
       // Tüm deal verilerini investor_analysis JSON içine koyuyoruz
-      const { error: insertError } = await supabase.from('scenario_analysis_history').insert({
+      const historyInsertData = {
         user_id: user.id,
         scenario_a_id: scenarioA.id,
         scenario_b_id: scenarioB.id,
-        analysis_type: 'unified',
-        insights: result.insights as any,
-        recommendations: result.recommendations as any,
-        quarterly_analysis: result.quarterly_analysis as any,
+        analysis_type: 'unified' as const,
+        insights: result.insights,
+        recommendations: result.recommendations,
+        quarterly_analysis: result.quarterly_analysis,
         investor_analysis: {
           deal_score: result.deal_analysis.deal_score,
           valuation_verdict: result.deal_analysis.valuation_verdict,
@@ -245,11 +293,15 @@ export function useUnifiedAnalysis() {
           risk_factors: result.deal_analysis.risk_factors,
           pitch_deck: result.pitch_deck,
           next_year_projection: result.next_year_projection
-        } as any,
-        deal_config: dealConfig as any,
+        },
+        deal_config: dealConfig,
         scenario_a_data_hash: generateScenarioHash(scenarioA),
         scenario_b_data_hash: generateScenarioHash(scenarioB)
-      });
+      };
+
+      const { error: insertError } = await supabase
+        .from('scenario_analysis_history')
+        .insert(historyInsertData as Record<string, unknown>);
       
       if (insertError) {
         console.error('History insert failed:', insertError);
@@ -270,41 +322,43 @@ export function useUnifiedAnalysis() {
     if (!user?.id || !scenarioA.id || !scenarioB.id) return;
 
     try {
-      // Cast to any because focus_projects, focus_project_plan, investment_allocation are new columns
-      const upsertData: any = {
+      // Construct upsert data with proper typing
+      const defaultInvestmentAllocation: InvestmentAllocation = {
+        product: 40,
+        marketing: 30,
+        hiring: 20,
+        operations: 10
+      };
+
+      const upsertData = {
         user_id: user.id,
         scenario_a_id: scenarioA.id,
         scenario_b_id: scenarioB.id,
-        analysis_type: 'unified',
-        insights: result.insights as any,
-        recommendations: result.recommendations as any,
-        quarterly_analysis: result.quarterly_analysis as any,
+        analysis_type: 'unified' as const,
+        insights: result.insights,
+        recommendations: result.recommendations,
+        quarterly_analysis: result.quarterly_analysis,
         deal_score: Math.round(result.deal_analysis.deal_score),
         valuation_verdict: result.deal_analysis.valuation_verdict,
         investor_analysis: {
           investor_attractiveness: result.deal_analysis.investor_attractiveness,
           risk_factors: result.deal_analysis.risk_factors
-        } as any,
-        pitch_deck: result.pitch_deck as any,
-        next_year_projection: result.next_year_projection as any,
-        deal_config_snapshot: dealConfig as any,
+        },
+        pitch_deck: result.pitch_deck,
+        next_year_projection: result.next_year_projection,
+        deal_config_snapshot: dealConfig,
         scenario_a_data_hash: generateScenarioHash(scenarioA),
         scenario_b_data_hash: generateScenarioHash(scenarioB),
         // Focus project settings (new columns)
         focus_projects: focusProjectInfo?.projects?.map(p => p.projectName) || [],
         focus_project_plan: focusProjectInfo?.growthPlan || '',
-        investment_allocation: focusProjectInfo?.investmentAllocation || {
-          product: 40,
-          marketing: 30,
-          hiring: 20,
-          operations: 10
-        },
+        investment_allocation: focusProjectInfo?.investmentAllocation || defaultInvestmentAllocation,
         updated_at: new Date().toISOString()
       };
 
       const { data, error: upsertError } = await supabase
         .from('scenario_ai_analyses')
-        .upsert(upsertData, {
+        .upsert(upsertData as Record<string, unknown>, {
           onConflict: 'user_id,scenario_a_id,scenario_b_id,analysis_type'
         })
         .select()
@@ -401,34 +455,81 @@ export function useUnifiedAnalysis() {
         allYears: exitPlan.allYears?.slice(0, 5) || []
       };
 
-      const { data, error: invokeError } = await supabase.functions.invoke('unified-scenario-analysis', {
-        body: {
-          scenarioA,
-          scenarioB,
-          metrics: {
-            scenarioA: summaryA,
-            scenarioB: summaryB
-          },
-          quarterly: {
-            a: quarterlyA,
-            b: quarterlyB
-          },
-          dealConfig,
-          exitPlan: trimmedExitPlan,
-          capitalNeeds,
-          historicalBalance,
-          quarterlyItemized,
-          exchangeRate,
-          focusProjectInfo
-        }
-      });
+      // Request body
+      const requestBody = {
+        scenarioA,
+        scenarioB,
+        metrics: {
+          scenarioA: summaryA,
+          scenarioB: summaryB
+        },
+        quarterly: {
+          a: quarterlyA,
+          b: quarterlyB
+        },
+        dealConfig,
+        exitPlan: trimmedExitPlan,
+        capitalNeeds,
+        historicalBalance,
+        quarterlyItemized,
+        exchangeRate,
+        focusProjectInfo
+      };
 
-      if (invokeError) {
-        throw invokeError;
+      // Retry wrapper for Edge Function call with exponential backoff
+      let lastError: Error | null = null;
+      let data: UnifiedAnalysisResult | null = null;
+
+      for (let attempt = 0; attempt < RETRY_CONFIG.MAX_RETRIES; attempt++) {
+        try {
+          const { data: responseData, error: invokeError } = await supabase.functions.invoke(
+            'unified-scenario-analysis',
+            { body: requestBody }
+          );
+
+          if (invokeError) {
+            // Check if error is retryable (network/fetch errors)
+            const errorName = invokeError.name || invokeError.constructor?.name || '';
+            const isRetryable = RETRY_CONFIG.RETRYABLE_ERRORS.some(e =>
+              errorName.includes(e) || invokeError.message?.includes('fetch')
+            );
+
+            if (isRetryable && attempt < RETRY_CONFIG.MAX_RETRIES - 1) {
+              const delayMs = RETRY_CONFIG.BASE_DELAY_MS * Math.pow(2, attempt);
+              console.warn(`Edge function call failed (attempt ${attempt + 1}/${RETRY_CONFIG.MAX_RETRIES}), retrying in ${delayMs}ms...`, invokeError);
+              await sleep(delayMs);
+              continue;
+            }
+            throw invokeError;
+          }
+
+          if (responseData?.error) {
+            throw new Error(responseData.error);
+          }
+
+          data = responseData as UnifiedAnalysisResult;
+          break; // Success, exit retry loop
+        } catch (retryError) {
+          lastError = retryError instanceof Error ? retryError : new Error(String(retryError));
+
+          // Only retry on network-type errors
+          const errorName = lastError.name || '';
+          const isRetryable = RETRY_CONFIG.RETRYABLE_ERRORS.some(e =>
+            errorName.includes(e) || lastError!.message?.includes('fetch') || lastError!.message?.includes('network')
+          );
+
+          if (isRetryable && attempt < RETRY_CONFIG.MAX_RETRIES - 1) {
+            const delayMs = RETRY_CONFIG.BASE_DELAY_MS * Math.pow(2, attempt);
+            console.warn(`Edge function call failed (attempt ${attempt + 1}/${RETRY_CONFIG.MAX_RETRIES}), retrying in ${delayMs}ms...`, lastError);
+            await sleep(delayMs);
+            continue;
+          }
+          throw lastError;
+        }
       }
 
-      if (data.error) {
-        throw new Error(data.error);
+      if (!data) {
+        throw lastError || new Error('Analysis failed after retries');
       }
 
       const result = data as UnifiedAnalysisResult;
@@ -505,23 +606,25 @@ export function useUnifiedAnalysis() {
   const saveEditedProjections = useCallback(async (
     scenarioAId: string,
     scenarioBId: string,
-    editedRevenueProjection: any[],
-    editedExpenseProjection: any[]
+    editedRevenueProjection: EditableProjectionItem[],
+    editedExpenseProjection: EditableProjectionItem[]
   ): Promise<void> => {
     if (!user?.id) return;
 
-    const hasEdits = editedRevenueProjection.some(i => i.userEdited) || 
+    const hasEdits = editedRevenueProjection.some(i => i.userEdited) ||
                      editedExpenseProjection.some(i => i.userEdited);
 
     try {
+      const updateData = {
+        edited_revenue_projection: editedRevenueProjection,
+        edited_expense_projection: editedExpenseProjection,
+        projection_user_edited: hasEdits,
+        updated_at: new Date().toISOString()
+      };
+
       const { error: updateError } = await supabase
         .from('scenario_ai_analyses')
-        .update({
-          edited_revenue_projection: editedRevenueProjection,
-          edited_expense_projection: editedExpenseProjection,
-          projection_user_edited: hasEdits,
-          updated_at: new Date().toISOString()
-        } as any)
+        .update(updateData as Record<string, unknown>)
         .eq('user_id', user.id)
         .eq('scenario_a_id', scenarioAId)
         .eq('scenario_b_id', scenarioBId)
