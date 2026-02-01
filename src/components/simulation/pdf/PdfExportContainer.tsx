@@ -1,0 +1,165 @@
+import React from 'react';
+import {
+  PDF_CONTAINER_STYLE,
+  PDF_HIDDEN_CONTAINER_STYLE,
+} from '@/styles/pdfExport';
+
+// PDF Page Components
+import { PdfCoverPage } from './PdfCoverPage';
+import { PdfMetricsPage } from './PdfMetricsPage';
+import { PdfChartsPage } from './PdfChartsPage';
+import { PdfFinancialRatiosPage } from './PdfFinancialRatiosPage';
+import { PdfRevenueExpensePage } from './PdfRevenueExpensePage';
+import { PdfInvestorPage } from './PdfInvestorPage';
+import { PdfProjectionPage } from './PdfProjectionPage';
+import { PdfFocusProjectPage } from './PdfFocusProjectPage';
+import { PdfAIInsightsPage } from './PdfAIInsightsPage';
+import { PdfPitchDeckPage } from './PdfPitchDeckPage';
+
+import type { PdfExportContainerProps } from './types';
+
+/**
+ * PDF Export Container Component
+ *
+ * Main container for PDF export functionality that composes all PDF pages.
+ * This component extracts ~1,039 lines of PDF-related code from ScenarioComparisonPage.
+ *
+ * Pages included:
+ * 1. Cover Page - Title and key metrics
+ * 2. Metrics Page - Financial summary comparison
+ * 3. Charts Page - Visual analysis (quarterly comparison)
+ * 4. Financial Ratios Page - Professional analysis metrics
+ * 5. Revenue/Expense Page - Itemized comparison
+ * 6. Investor Page - Deal analysis and exit strategy
+ * 7. Projection Page - Editable projections
+ * 8. Focus Project Page - Investment allocation
+ * 9. AI Insights Page - AI-generated insights and recommendations
+ * 10. Pitch Deck Page - Investor presentation slides
+ */
+export function PdfExportContainer({
+  presentationPdfRef,
+  // Scenarios
+  scenarioA,
+  scenarioB,
+  summaryA,
+  summaryB,
+  // Metrics
+  metrics,
+  calculateDiff,
+  formatValue,
+  // Quarterly data
+  quarterlyComparison,
+  quarterlyCumulativeData,
+  quarterlyItemized,
+  // Charts
+  chartConfig,
+  cumulativeChartConfig,
+  // Professional analysis
+  financialRatios,
+  sensitivityAnalysis,
+  // AI Analysis
+  unifiedAnalysis,
+  // Deal & Investment
+  dealConfig,
+  pdfExitPlan,
+  // Projections
+  editableRevenueProjection,
+  editableExpenseProjection,
+  // Focus Projects
+  focusProjects,
+  investmentAllocation,
+  focusProjectPlan,
+}: PdfExportContainerProps) {
+  return (
+    <div
+      ref={presentationPdfRef}
+      className="pdf-hidden-container"
+      style={PDF_HIDDEN_CONTAINER_STYLE}
+    >
+      {/*
+        Landscape A4: 297mm x 210mm = 1.414:1 aspect ratio
+        1200px width → 848px height (1200/1.414)
+        Each page should be this size
+      */}
+      <div style={PDF_CONTAINER_STYLE}>
+        {/* PAGE 1: COVER */}
+        <PdfCoverPage
+          scenarioA={scenarioA}
+          scenarioB={scenarioB}
+          metrics={metrics}
+          calculateDiff={calculateDiff}
+          formatValue={formatValue}
+        />
+
+        {/* PAGE 2: METRICS TABLE */}
+        <PdfMetricsPage
+          scenarioA={scenarioA}
+          scenarioB={scenarioB}
+          metrics={metrics}
+          calculateDiff={calculateDiff}
+          formatValue={formatValue}
+        />
+
+        {/* PAGE 3: CHARTS */}
+        <PdfChartsPage
+          scenarioA={scenarioA}
+          scenarioB={scenarioB}
+          quarterlyComparison={quarterlyComparison}
+          quarterlyCumulativeData={quarterlyCumulativeData}
+          chartConfig={chartConfig}
+          cumulativeChartConfig={cumulativeChartConfig}
+        />
+
+        {/* PAGE 3.5: PROFESSIONAL ANALYSIS METRICS */}
+        <PdfFinancialRatiosPage
+          financialRatios={financialRatios}
+          sensitivityAnalysis={sensitivityAnalysis}
+        />
+
+        {/* PAGE 3.75: REVENUE/EXPENSE COMPARISON */}
+        <PdfRevenueExpensePage
+          scenarioA={scenarioA}
+          scenarioB={scenarioB}
+          summaryA={summaryA}
+          summaryB={summaryB}
+          quarterlyItemized={quarterlyItemized}
+        />
+
+        {/* PAGE 4: INVESTOR METRICS */}
+        <PdfInvestorPage
+          unifiedAnalysis={unifiedAnalysis}
+          dealConfig={dealConfig}
+          pdfExitPlan={pdfExitPlan}
+        />
+
+        {/* PAGE 5.5: EDITABLE PROJECTION */}
+        <PdfProjectionPage
+          scenarioA={scenarioA}
+          editableRevenueProjection={editableRevenueProjection}
+          editableExpenseProjection={editableExpenseProjection}
+        />
+
+        {/* PAGE 5.75: FOCUS PROJECT ANALYSIS */}
+        <PdfFocusProjectPage
+          scenarioA={scenarioA}
+          focusProjects={focusProjects}
+          investmentAllocation={investmentAllocation}
+          focusProjectPlan={focusProjectPlan}
+          dealConfig={dealConfig}
+        />
+
+        {/* PAGE 6: AI INSIGHTS */}
+        <PdfAIInsightsPage
+          unifiedAnalysis={unifiedAnalysis}
+        />
+
+        {/* PAGE 7: PITCH DECK (Last page - no page break) */}
+        <PdfPitchDeckPage
+          unifiedAnalysis={unifiedAnalysis}
+        />
+      </div>
+    </div>
+  );
+}
+
+export default PdfExportContainer;

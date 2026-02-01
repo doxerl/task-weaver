@@ -454,8 +454,8 @@ export function usePdfEngine(): UsePdfEngineReturn {
       element.style.visibility = 'visible';
       element.style.opacity = '1';
       
-      // DOM'un güncellenmesi için kısa bekle
-      await new Promise(resolve => setTimeout(resolve, 100));
+      // DOM'un güncellenmesi için bekle (charts, fonts, images)
+      await new Promise(resolve => setTimeout(resolve, 500));
     }
     
     setIsGenerating(true);
