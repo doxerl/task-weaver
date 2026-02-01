@@ -1168,7 +1168,6 @@ function ScenarioComparisonContent() {
     // Validate quarterlyComparison array has required length
     if (!quarterlyComparison || quarterlyComparison.length < 4) {
       toast.error('Çeyreklik veri eksik. Lütfen senaryoları kontrol edin.');
-      setIsAnalyzing(false);
       return;
     }
 
