@@ -11,6 +11,10 @@ import { PdfChartsPage } from './PdfChartsPage';
 import { PdfFinancialRatiosPage } from './PdfFinancialRatiosPage';
 import { PdfRevenueExpensePage } from './PdfRevenueExpensePage';
 import { PdfInvestorPage } from './PdfInvestorPage';
+import { PdfCapitalAnalysisPage } from './PdfCapitalAnalysisPage';
+import { PdfValuationPage } from './PdfValuationPage';
+import { PdfInvestmentOptionsPage } from './PdfInvestmentOptionsPage';
+import { PdfScenarioImpactPage } from './PdfScenarioImpactPage';
 import { PdfProjectionPage } from './PdfProjectionPage';
 import { PdfFocusProjectPage } from './PdfFocusProjectPage';
 import { PdfAIInsightsPage } from './PdfAIInsightsPage';
@@ -24,16 +28,20 @@ import type { PdfExportContainerProps } from './types';
  * Main container for PDF export functionality that composes all PDF pages.
  * This component extracts ~1,039 lines of PDF-related code from ScenarioComparisonPage.
  *
- * Pages included (9 pages):
+ * Pages included (13 pages):
  * 1. Cover Page - Title and key metrics
  * 2. Metrics Page - Financial summary comparison
  * 3. Charts Page - Visual analysis (quarterly comparison)
  * 4. Financial Ratios Page - Professional analysis metrics
  * 5. Revenue/Expense Page - Itemized comparison
  * 6. Investor Page - Deal analysis and exit strategy
- * 7. Projection Page - Editable projections
- * 8. Focus Project Page - Investment allocation
- * 9. AI Insights Page - AI-generated insights and recommendations
+ * 7. Capital Analysis Page - Death Valley, Runway, Capital needs (NEW)
+ * 8. Valuation Page - 4 valuation methods, 5Y projection (NEW)
+ * 9. Investment Options Page - Min/Recommended/Aggressive, AI timing (NEW)
+ * 10. Scenario Impact Page - With vs Without investment comparison (NEW)
+ * 11. Projection Page - Editable projections
+ * 12. Focus Project Page - Investment allocation
+ * 13. AI Insights Page - AI-generated insights and recommendations
  *
  * Note: Pitch Deck is intentionally excluded - should be a separate export.
  */
@@ -70,6 +78,14 @@ export function PdfExportContainer({
   focusProjects,
   investmentAllocation,
   focusProjectPlan,
+  // Capital Analysis (NEW)
+  capitalNeedA,
+  capitalNeedB,
+  // Investment Options (NEW)
+  investmentTiers,
+  optimalTiming,
+  // Scenario Comparison (NEW)
+  scenarioComparison,
 }: PdfExportContainerProps) {
   return (
     <div
@@ -111,13 +127,13 @@ export function PdfExportContainer({
           cumulativeChartConfig={cumulativeChartConfig}
         />
 
-        {/* PAGE 3.5: PROFESSIONAL ANALYSIS METRICS */}
+        {/* PAGE 4: PROFESSIONAL ANALYSIS METRICS */}
         <PdfFinancialRatiosPage
           financialRatios={financialRatios}
           sensitivityAnalysis={sensitivityAnalysis}
         />
 
-        {/* PAGE 3.75: REVENUE/EXPENSE COMPARISON */}
+        {/* PAGE 5: REVENUE/EXPENSE COMPARISON */}
         <PdfRevenueExpensePage
           scenarioA={scenarioA}
           scenarioB={scenarioB}
@@ -126,21 +142,59 @@ export function PdfExportContainer({
           quarterlyItemized={quarterlyItemized}
         />
 
-        {/* PAGE 4: INVESTOR METRICS */}
+        {/* PAGE 6: INVESTOR METRICS */}
         <PdfInvestorPage
           unifiedAnalysis={unifiedAnalysis}
           dealConfig={dealConfig}
           pdfExitPlan={pdfExitPlan}
         />
 
-        {/* PAGE 5.5: EDITABLE PROJECTION */}
+        {/* PAGE 7: CAPITAL ANALYSIS (NEW) */}
+        {capitalNeedA && capitalNeedB && (
+          <PdfCapitalAnalysisPage
+            capitalNeedA={capitalNeedA}
+            capitalNeedB={capitalNeedB}
+            dealConfig={dealConfig}
+            scenarioAName={`${scenarioA?.targetYear || ''} ${scenarioA?.name || 'Pozitif'}`}
+            scenarioBName={`${scenarioB?.targetYear || ''} ${scenarioB?.name || 'Negatif'}`}
+          />
+        )}
+
+        {/* PAGE 8: VALUATION PAGE (NEW) */}
+        {pdfExitPlan && (
+          <PdfValuationPage
+            pdfExitPlan={pdfExitPlan}
+            dealConfig={dealConfig}
+          />
+        )}
+
+        {/* PAGE 9: INVESTMENT OPTIONS (NEW) */}
+        {investmentTiers && investmentTiers.length > 0 && (
+          <PdfInvestmentOptionsPage
+            investmentTiers={investmentTiers}
+            optimalTiming={optimalTiming}
+            targetYear={scenarioB?.targetYear || new Date().getFullYear() + 1}
+          />
+        )}
+
+        {/* PAGE 10: SCENARIO IMPACT (NEW) */}
+        {scenarioComparison && (
+          <PdfScenarioImpactPage
+            scenarioComparison={scenarioComparison}
+            scenarioAName={`${scenarioA?.targetYear || ''} ${scenarioA?.name || 'Pozitif'}`}
+            scenarioBName={`${scenarioB?.targetYear || ''} ${scenarioB?.name || 'Negatif'}`}
+            scenarioYear={Math.max(scenarioA?.targetYear || 2026, scenarioB?.targetYear || 2026)}
+          />
+        )}
+
+        {/* PAGE 11: EDITABLE PROJECTION */}
         <PdfProjectionPage
           scenarioA={scenarioA}
           editableRevenueProjection={editableRevenueProjection}
           editableExpenseProjection={editableExpenseProjection}
         />
 
-        {/* PAGE 5.75: FOCUS PROJECT ANALYSIS */}
+        {/* PAGE 12: FOCUS PROJECT ANALYSIS */}
         <PdfFocusProjectPage
           scenarioA={scenarioA}
           focusProjects={focusProjects}
@@ -149,7 +203,7 @@ export function PdfExportContainer({
           dealConfig={dealConfig}
         />
 
-        {/* PAGE 9: AI INSIGHTS (Last page - no page break) */}
+        {/* PAGE 13: AI INSIGHTS (Last page - no page break) */}
         <PdfAIInsightsPage
           unifiedAnalysis={unifiedAnalysis}
         />

@@ -10,6 +10,9 @@ import type {
   EditableProjectionItem,
   InvestmentAllocation,
   QuarterlyItemizedData,
+  CapitalRequirement,
+  InvestmentTier,
+  InvestmentScenarioComparison,
 } from '@/types/simulation';
 import type { UnifiedAnalysisResult, ExitPlan } from '@/types/simulation';
 import type { ChartConfig } from '@/components/ui/chart';
@@ -147,6 +150,17 @@ export interface PdfExportContainerProps {
   focusProjects: string[];
   investmentAllocation: InvestmentAllocation | null;
   focusProjectPlan: string;
+
+  // Capital Analysis (NEW)
+  capitalNeedA: CapitalRequirement | null;
+  capitalNeedB: CapitalRequirement | null;
+
+  // Investment Options (NEW)
+  investmentTiers: InvestmentTier[];
+  optimalTiming: OptimalInvestmentTiming | null;
+
+  // Scenario Comparison (NEW)
+  scenarioComparison: InvestmentScenarioComparison | null;
 }
 
 /**
@@ -236,5 +250,56 @@ export interface PdfFocusProjectPageProps {
  */
 export interface PdfAIInsightsPageProps {
   unifiedAnalysis: UnifiedAnalysisResult | null;
+}
+
+/**
+ * Optimal Investment Timing - computed for PDF
+ */
+export interface OptimalInvestmentTiming {
+  recommendedQuarter: string;
+  recommendedTiming: string;
+  reason: string;
+  riskIfDelayed: string;
+  requiredInvestment: number;
+  urgencyLevel: 'critical' | 'high' | 'medium' | 'low';
+  quarterlyNeeds: number[];
+}
+
+/**
+ * Capital Analysis Page Props
+ */
+export interface PdfCapitalAnalysisPageProps {
+  capitalNeedA: CapitalRequirement;
+  capitalNeedB: CapitalRequirement;
+  dealConfig: DealConfig;
+  scenarioAName: string;
+  scenarioBName: string;
+}
+
+/**
+ * Valuation Page Props
+ */
+export interface PdfValuationPageProps {
+  pdfExitPlan: PdfExitPlanData | null;
+  dealConfig: DealConfig;
+}
+
+/**
+ * Investment Options Page Props
+ */
+export interface PdfInvestmentOptionsPageProps {
+  investmentTiers: InvestmentTier[];
+  optimalTiming: OptimalInvestmentTiming | null;
+  targetYear: number;
+}
+
+/**
+ * Scenario Impact Page Props
+ */
+export interface PdfScenarioImpactPageProps {
+  scenarioComparison: InvestmentScenarioComparison;
+  scenarioAName: string;
+  scenarioBName: string;
+  scenarioYear: number;
 }
 
