@@ -1,6 +1,16 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+
+// Utility for exponential backoff delays
+const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
+
+// Retry configuration
+const RETRY_CONFIG = {
+  MAX_RETRIES: 3,
+  BASE_DELAY_MS: 2000, // 2s, 4s, 8s
+  RETRYABLE_ERRORS: ['FunctionsFetchError', 'FunctionsHttpError', 'TypeError'] // Network/fetch errors
+} as const;
 import {
   SimulationScenario,
   DealConfiguration,
@@ -445,34 +455,81 @@ export function useUnifiedAnalysis() {
         allYears: exitPlan.allYears?.slice(0, 5) || []
       };
 
-      const { data, error: invokeError } = await supabase.functions.invoke('unified-scenario-analysis', {
-        body: {
-          scenarioA,
-          scenarioB,
-          metrics: {
-            scenarioA: summaryA,
-            scenarioB: summaryB
-          },
-          quarterly: {
-            a: quarterlyA,
-            b: quarterlyB
-          },
-          dealConfig,
-          exitPlan: trimmedExitPlan,
-          capitalNeeds,
-          historicalBalance,
-          quarterlyItemized,
-          exchangeRate,
-          focusProjectInfo
-        }
-      });
+      // Request body
+      const requestBody = {
+        scenarioA,
+        scenarioB,
+        metrics: {
+          scenarioA: summaryA,
+          scenarioB: summaryB
+        },
+        quarterly: {
+          a: quarterlyA,
+          b: quarterlyB
+        },
+        dealConfig,
+        exitPlan: trimmedExitPlan,
+        capitalNeeds,
+        historicalBalance,
+        quarterlyItemized,
+        exchangeRate,
+        focusProjectInfo
+      };
 
-      if (invokeError) {
-        throw invokeError;
+      // Retry wrapper for Edge Function call with exponential backoff
+      let lastError: Error | null = null;
+      let data: UnifiedAnalysisResult | null = null;
+
+      for (let attempt = 0; attempt < RETRY_CONFIG.MAX_RETRIES; attempt++) {
+        try {
+          const { data: responseData, error: invokeError } = await supabase.functions.invoke(
+            'unified-scenario-analysis',
+            { body: requestBody }
+          );
+
+          if (invokeError) {
+            // Check if error is retryable (network/fetch errors)
+            const errorName = invokeError.name || invokeError.constructor?.name || '';
+            const isRetryable = RETRY_CONFIG.RETRYABLE_ERRORS.some(e =>
+              errorName.includes(e) || invokeError.message?.includes('fetch')
+            );
+
+            if (isRetryable && attempt < RETRY_CONFIG.MAX_RETRIES - 1) {
+              const delayMs = RETRY_CONFIG.BASE_DELAY_MS * Math.pow(2, attempt);
+              console.warn(`Edge function call failed (attempt ${attempt + 1}/${RETRY_CONFIG.MAX_RETRIES}), retrying in ${delayMs}ms...`, invokeError);
+              await sleep(delayMs);
+              continue;
+            }
+            throw invokeError;
+          }
+
+          if (responseData?.error) {
+            throw new Error(responseData.error);
+          }
+
+          data = responseData as UnifiedAnalysisResult;
+          break; // Success, exit retry loop
+        } catch (retryError) {
+          lastError = retryError instanceof Error ? retryError : new Error(String(retryError));
+
+          // Only retry on network-type errors
+          const errorName = lastError.name || '';
+          const isRetryable = RETRY_CONFIG.RETRYABLE_ERRORS.some(e =>
+            errorName.includes(e) || lastError!.message?.includes('fetch') || lastError!.message?.includes('network')
+          );
+
+          if (isRetryable && attempt < RETRY_CONFIG.MAX_RETRIES - 1) {
+            const delayMs = RETRY_CONFIG.BASE_DELAY_MS * Math.pow(2, attempt);
+            console.warn(`Edge function call failed (attempt ${attempt + 1}/${RETRY_CONFIG.MAX_RETRIES}), retrying in ${delayMs}ms...`, lastError);
+            await sleep(delayMs);
+            continue;
+          }
+          throw lastError;
+        }
       }
 
-      if (data.error) {
-        throw new Error(data.error);
+      if (!data) {
+        throw lastError || new Error('Analysis failed after retries');
       }
 
       const result = data as UnifiedAnalysisResult;
