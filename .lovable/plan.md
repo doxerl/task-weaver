@@ -1,149 +1,127 @@
 
-## PDF'den Yatırımcı Sunumu Sayfasını Kaldırma ve Build Hatalarını Düzeltme
 
-### Mevcut Durum
+## Mizan PDF Alt Hesap (Muavin) Desteği
 
-Kullanıcı, PDF export işleminde "Yatırımcı Sunumu" (PdfPitchDeckPage) sayfasının kaldırılmasını istiyor. Ayrıca çeşitli TypeScript build hataları var.
+### Problem
 
-### Build Hataları
+PDF'deki boşluklu hesap kodları tanınmıyor:
 
-| Hata | Dosya | Açıklama |
-|------|-------|----------|
-| TS2459 | `types.ts`, `SimulationContext.tsx` | `UnifiedAnalysisResult` locally declared ama export edilmiyor |
-| TS2322 | `ScenarioComparisonPage.tsx:1847` | `calculateDiff` return type: `{ value, percent }` vs expected `{ absolute, percent }` |
-| TS2322 | `ScenarioComparisonPage.tsx:1858` | `pdfExitPlan.yearLabels.moic3Year` type: `number` vs expected `string` |
+| PDF'deki Format | Mevcut Regex | Sonuç |
+|-----------------|--------------|-------|
+| `320` | `/^\d{3}(\.\d+)*$/` | Tanınıyor |
+| `320.001` | `/^\d{3}(\.\d+)*$/` | Tanınıyor |
+| `320 001` | `/^\d{3}(\.\d+)*$/` | TANINAMIYOR |
+| `320 1 006` | `/^\d{3}(\.\d+)*$/` | TANINAMIYOR |
 
-### Çözüm Planı
+### Cozum
 
-#### 1. PdfPitchDeckPage Sayfasını Kaldır
+#### 1. Edge Function Guncellemesi
 
-**Dosya: `src/components/simulation/pdf/PdfExportContainer.tsx`**
+**Dosya: `supabase/functions/parse-trial-balance/index.ts`**
 
-```diff
-- import { PdfPitchDeckPage } from './PdfPitchDeckPage';
+##### a) `normalizeAccountCode()` Fonksiyonu Ekle
 
-  // Container içinden kaldır:
-- {/* PAGE 7: PITCH DECK (Last page - no page break) */}
-- <PdfPitchDeckPage
--   unifiedAnalysis={unifiedAnalysis}
-- />
-```
-
-#### 2. UnifiedAnalysisResult Import Düzeltmesi
-
-**Dosya: `src/components/simulation/pdf/types.ts`**
-
-```diff
-- import type { UnifiedAnalysisResult } from '@/hooks/finance/useUnifiedAnalysis';
-+ import type { UnifiedAnalysisResult } from '@/types/simulation';
-```
-
-**Dosya: `src/contexts/SimulationContext.tsx`**
-
-```diff
-- import type { UnifiedAnalysisResult } from '@/hooks/finance/useUnifiedAnalysis';
-+ import type { UnifiedAnalysisResult } from '@/types/simulation';
-```
-
-#### 3. calculateDiff Return Type Düzeltmesi
-
-**Dosya: `src/pages/finance/ScenarioComparisonPage.tsx`** (satır 212-216)
-
-Mevcut:
-```typescript
-const calculateDiff = (a: number, b: number): { value: number; percent: number } => {
-  const diff = b - a;
-  const percent = a !== 0 ? ((b - a) / Math.abs(a)) * 100 : b !== 0 ? 100 : 0;
-  return { value: diff, percent };
-};
-```
-
-Düzeltilmiş:
-```typescript
-const calculateDiff = (a: number, b: number): { absolute: number; percent: number } => {
-  const diff = b - a;
-  const percent = a !== 0 ? ((b - a) / Math.abs(a)) * 100 : b !== 0 ? 100 : 0;
-  return { absolute: diff, percent };
-};
-```
-
-**DiffBadge bileşeni de güncellenmeli** (satır 247-259):
-```diff
-const DiffBadge = ({ diff, format, higherIsBetter }: { 
-  diff: { absolute: number; percent: number }; 
-  ...
-}) => {
-- const isPositive = diff.value > 0;
-- const isNeutral = diff.value === 0;
-+ const isPositive = diff.absolute > 0;
-+ const isNeutral = diff.absolute === 0;
-  ...
-- {isPositive ? '+' : ''}{format === 'percent' ? `${diff.value.toFixed(1)}pp` : `${diff.percent.toFixed(1)}%`}
-+ {isPositive ? '+' : ''}{format === 'percent' ? `${diff.absolute.toFixed(1)}pp` : `${diff.percent.toFixed(1)}%`}
-};
-```
-
-#### 4. pdfExitPlan Type Uyumsuzluğu
-
-**Dosya: `src/components/simulation/pdf/types.ts`** (satır 89-103)
-
-Mevcut type `yearLabels.moic3Year` ve `moic5Year` string bekliyor ama number geliyor. Type'ı düzeltmemiz gerekiyor:
+Bosluklu kodlari noktaliya donusturecek yeni fonksiyon:
 
 ```typescript
-export interface PdfExitPlanData {
-  moic3Year: number;
-  moic5Year: number;
-  investorShare5Year: number;
-  year5Projection?: ExitPlanYear;
-  yearLabels?: {
-    moic3Year?: string;  // Doğru - string olmalı (örn: "2029")
-    moic5Year?: string;  // Doğru - string olmalı (örn: "2031")
-  };
-  allYears?: ExitPlanYear[];
-  growthConfig?: {
-    aggressiveGrowthRate: number;
-    normalizedGrowthRate: number;
-  };
+function normalizeAccountCode(code: string): string {
+  // "320 001" -> "320.001"
+  // "320 1 006" -> "320.1.006"
+  return code.trim().replace(/\s+/g, '.');
 }
 ```
 
-Sorun aslında `ScenarioComparisonPage.tsx`'de `pdfExitPlan` oluştururken `yearLabels`'a yanlış değer atanmasından kaynaklanıyor. Bu noktayı bulmak için sayfa kodunu inceleyeceğim ve düzelteceğim.
+##### b) `isValidAccountCode()` Guncelle
 
-#### 5. Barrel Export Güncelle
+Hem bosluklu hem noktali formatlari kabul et:
 
-**Dosya: `src/components/simulation/pdf/index.ts`**
-
-```diff
-- export { PdfPitchDeckPage } from './PdfPitchDeckPage';
-...
-- export type {
-    ...
--   PdfPitchDeckPageProps,
-    ...
-  } from './types';
+```typescript
+// Onceki: /^\d{3}(\.\d+)*$/
+// Sonraki: /^\d{3}([\.\s]+\d+)*$/
+function isValidAccountCode(code: string): boolean {
+  const trimmed = code.trim();
+  return /^\d{3}([\.\s]+\d+)*$/.test(trimmed);
+}
 ```
 
-### Değiştirilecek Dosyalar
+##### c) `isSubAccount()` Guncelle
 
-| Dosya | Değişiklik |
+```typescript
+function isSubAccount(code: string): boolean {
+  // Nokta veya bosluk iceriyorsa alt hesaptir
+  return /[\.\s]/.test(code);
+}
+```
+
+##### d) `getBaseAccountCode()` Guncelle
+
+```typescript
+function getBaseAccountCode(code: string): string {
+  // Ilk 3 haneyi al (nokta veya bosluktan once)
+  return code.split(/[\.\s]/)[0].substring(0, 3);
+}
+```
+
+##### e) AI Prompt Guncelle
+
+Alt hesap formatlarini acikca belirt:
+
+```typescript
+const MIZAN_PARSE_PROMPT = `...
+## ALT HESAP FORMATLARI
+Alt hesaplar su formatlarda olabilir:
+- 320.01, 320.001, 320.01.001 (noktali)
+- 320 01, 320 001, 320 1 006 (bosluklu)
+- Her iki formati da tani ve parse et
+
+## ONEMLI ORNEKLER
+| PDF'deki Kod | Tip | parentCode |
+|--------------|-----|------------|
+| 320 | Ana hesap | - |
+| 320 001 | Alt hesap | 320 |
+| 320 1 006 | Alt hesap | 320 |
+| 320.01.003 | Alt hesap | 320 |
+...`;
+```
+
+##### f) Parse Akisini Guncelle
+
+`parsePDFWithAI()` ve `parseExcel()` fonksiyonlarinda kodu normalize et:
+
+```typescript
+for (const acc of aiAccounts) {
+  const rawCode = String(acc.code || '').trim();
+  if (!isValidAccountCode(rawCode)) continue;
+  
+  const code = normalizeAccountCode(rawCode);  // "320 001" -> "320.001"
+  const baseCode = getBaseAccountCode(code);
+  // ... devami ayni
+}
+```
+
+### Degistirilecek Dosyalar
+
+| Dosya | Degisiklik |
 |-------|------------|
-| `src/components/simulation/pdf/PdfExportContainer.tsx` | PdfPitchDeckPage import ve render kaldır |
-| `src/components/simulation/pdf/index.ts` | PdfPitchDeckPage export kaldır |
-| `src/components/simulation/pdf/types.ts` | UnifiedAnalysisResult import düzelt |
-| `src/contexts/SimulationContext.tsx` | UnifiedAnalysisResult import düzelt |
-| `src/pages/finance/ScenarioComparisonPage.tsx` | calculateDiff return type + DiffBadge + pdfExitPlan düzelt |
+| `supabase/functions/parse-trial-balance/index.ts` | Regex, fonksiyonlar ve AI prompt guncelle |
 
-### Beklenen Sonuç
+### Beklenen Sonuc
 
-1. PDF'de artık "Yatırımcı Sunumu" sayfası olmayacak
-2. Build hataları çözülecek
-3. PDF şu sayfalarda kalacak:
-   - Cover Page
-   - Metrics Page
-   - Charts Page
-   - Financial Ratios Page
-   - Revenue/Expense Page
-   - Investor Page (Deal Analysis - bu kalıyor)
-   - Projection Page
-   - Focus Project Page
-   - AI Insights Page
+**Oncesi:**
+- PDF yuklendi: 15 hesap
+- Onizlemede: Sadece ana hesaplar (320, 600, 632...)
+- Alt hesaplar (320 001, 320 1 006) kayboluyor
+
+**Sonrasi:**
+- PDF yuklendi: 15 hesap + 48 alt hesap
+- Onizlemede: Ana hesabin yaninda "(3 alt hesap)" + chevron ikonu
+- Tiklandiginda: METRO GROSMARKET, RADSAN GRUP, DOGRU GRUP listeleniyor
+
+### Test Senaryosu
+
+1. PDF yukle (bosluklu alt hesaplar iceren)
+2. "Onizle" butonuna tikla
+3. 320 SATICILAR satirinda "(X alt hesap)" gorunmeli
+4. Chevron ikonuna tikla
+5. Alt hesaplar genislemeli: 320.001 METRO GROSMARKET vb.
+
