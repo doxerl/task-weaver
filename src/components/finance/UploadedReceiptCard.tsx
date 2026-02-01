@@ -20,6 +20,10 @@ interface UploadedReceiptCardProps {
   onReprocess: (id: string) => void;
   onToggleInclude: (id: string, include: boolean) => void;
   isReprocessing?: boolean;
+  // Selection props
+  isSelectable?: boolean;
+  isSelected?: boolean;
+  onSelectionChange?: (id: string, selected: boolean) => void;
 }
 
 export function UploadedReceiptCard({
@@ -28,7 +32,10 @@ export function UploadedReceiptCard({
   onEdit,
   onReprocess,
   onToggleInclude,
-  isReprocessing = false
+  isReprocessing = false,
+  isSelectable = false,
+  isSelected = false,
+  onSelectionChange
 }: UploadedReceiptCardProps) {
   const hasMissingVat = !receipt.vat_amount && receipt.vat_amount !== 0;
   const hasMissingSeller = !receipt.seller_name;
@@ -89,10 +96,22 @@ export function UploadedReceiptCard({
   return (
     <Card className={cn(
       "overflow-hidden transition-all",
-      hasWarnings && "border-warning"
+      hasWarnings && "border-warning",
+      isSelected && "ring-2 ring-primary border-primary"
     )}>
       <CardContent className="p-0">
         <div className="flex gap-4 p-4">
+          {/* Selection Checkbox */}
+          {isSelectable && (
+            <div className="flex-shrink-0 flex items-start pt-1">
+              <Checkbox 
+                checked={isSelected}
+                onCheckedChange={(checked) => onSelectionChange?.(receipt.id, !!checked)}
+                className="h-5 w-5"
+              />
+            </div>
+          )}
+          
           {/* Thumbnail */}
           <div className="w-20 h-20 flex-shrink-0 bg-muted rounded-lg overflow-hidden">
             {receipt.thumbnail_url || (receipt.file_type === 'image' && receipt.file_url) ? (
