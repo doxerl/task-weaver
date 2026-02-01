@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -43,7 +43,7 @@ interface AIAnalysisSummaryCardProps {
   projectionYear?: number;
 }
 
-export const AIAnalysisSummaryCard: React.FC<AIAnalysisSummaryCardProps> = ({
+const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
   unifiedAnalysis,
   isLoading,
   onAnalyze,
@@ -379,3 +379,6 @@ export const AIAnalysisSummaryCard: React.FC<AIAnalysisSummaryCardProps> = ({
     </Card>
   );
 };
+
+// Memoize to prevent unnecessary re-renders during heavy analysis operations
+export const AIAnalysisSummaryCard = memo(AIAnalysisSummaryCardComponent);

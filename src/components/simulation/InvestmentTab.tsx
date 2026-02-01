@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, memo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -73,7 +73,7 @@ interface InvestmentTabProps {
   };
 }
 
-export const InvestmentTab: React.FC<InvestmentTabProps> = ({
+const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
   scenarioA,
   scenarioB,
   summaryA,
@@ -828,3 +828,6 @@ export const InvestmentTab: React.FC<InvestmentTabProps> = ({
     </div>
   );
 };
+
+// Memoize the component to prevent unnecessary re-renders
+export const InvestmentTab = memo(InvestmentTabComponent);
