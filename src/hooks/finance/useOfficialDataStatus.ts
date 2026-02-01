@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/contexts/AuthContext';
 
 export interface OfficialDataStatus {
   isIncomeStatementLocked: boolean;
@@ -20,7 +20,7 @@ export interface OfficialDataStatus {
  * with other finance hooks.
  */
 export function useOfficialDataStatus(year: number): OfficialDataStatus {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
 
   // Query income statement lock status directly
   const { data: incomeStatementData, isLoading: incomeLoading } = useQuery({

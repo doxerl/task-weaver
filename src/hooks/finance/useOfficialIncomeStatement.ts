@@ -1,7 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import type { YearlyIncomeStatement, YearlyIncomeStatementFormData } from '@/types/officialFinance';
 
@@ -99,7 +99,7 @@ export function calculateStatementTotals(data: Partial<YearlyIncomeStatementForm
 }
 
 export function useOfficialIncomeStatement(year: number) {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
   const queryClient = useQueryClient();
   const userId = user?.id;
   
