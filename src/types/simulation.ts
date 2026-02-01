@@ -913,6 +913,8 @@ export interface FocusProjectInfo {
       year5: number;             // 2031 (5-year MOIC)
     };
   };
+  /** Organic growth rate for non-focus projects (0-15%, default 0) */
+  organicGrowthRate?: number;
 }
 
 /** Editable projection item for next year */

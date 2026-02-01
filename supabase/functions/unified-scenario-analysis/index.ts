@@ -60,12 +60,25 @@ const ANTI_HALLUCINATION_RULES = `
    ✅ Kullanıcının girdiği proje açıklamalarına dayalı büyüme
    ✅ Bilanço + Senaryo verilerinden çapraz analiz
 
-6. **CONFIDENCE SCORE KURALI (ZORUNLU):**
+6. **CONFIDENCE SCORE KURALI (ZORUNLU - SIKIŞTIRILMIŞ):**
    Her insight ve recommendation için:
-   - %90+: Direkt veri hesaplaması (örn: Current Ratio = Varlık/Borç)
-   - %70-90: Veri bazlı çıkarım (örn: Burn rate → runway hesabı)
-   - %50-70: Mantıksal tahmin (örn: "Senaryo A gerçekleşirse...")
-   - <%50: KULLANMA - belirsizlik çok yüksek
+   - %90-100: SADECE direkt veri hesaplaması (örn: Current Ratio = 2.1)
+   - %75-89: Veri bazlı çıkarım, varsayım YOK (örn: Burn rate → runway hesabı)
+   - %60-74: Mantıksal tahmin - "⚠️ TAHMİN:" etiketi ZORUNLU
+   - %50-59: Düşük güvenli tahmin - "❓ DÜŞÜK GÜVENLİ:" etiketi ZORUNLU
+   - <%50: KULLANMA - belirsizlik çok yüksek, bu insight'ı ÜRETME
+
+   ⚠️ CONFIDENCE DAĞILIMI KURALI:
+   - Tüm insights'ların hepsi %85+ olamaz - bu gerçekçi değil
+   - En az 1 insight %60-74 aralığında olmalı (belirsizlik kabul et)
+   - Gerçek analizlerde hep "kesin" sonuçlar olmaz
+   - %90+ sadece matematiksel hesaplamalar için (oran, yüzde, toplam)
+
+7. **VARSAYIM ŞEFFAFLIĞI (YENİ):**
+   Her insight için "assumptions" alanında:
+   - Hangi veriye dayandığını belirt
+   - Hangi varsayımlar yapıldığını listele
+   - "Bu tahmin şu koşulda geçerli: ..." formatı kullan
 `;
 
 // =====================================================
@@ -230,24 +243,54 @@ $200K Yatırım × %40 Ürün = $80K → Ürün Geliştirme
 $80K × 2.0 (SaaS) = $160K Ek Gelir
 Büyüme = $160K ÷ $243K (mevcut) = %65.8
 
-📉 2. NON-FOCUS İZOLASYON KURALI (KRİTİK!):
+📉 2. NON-FOCUS ORGANİK BÜYÜME KURALI:
 
 ⚠️ Yatırım odak projelere yönlendirildiğinden:
 - ODAK PROJELER: Yukarıdaki formülle hesaplanan büyüme
-- DİĞER TÜM PROJELER: %0 BÜYÜME - BAZ YIL DEĞERLERİ AYNEN KORUNUR!
+- DİĞER PROJELER: ORGANİK BÜYÜME oranı uygulanır
 
-NEDEN?
-1. Yatırımın spesifik etkisini NET gösterir
-2. Yatırımcı sorusu: "Bu para tam olarak nereye gidiyor?"
-3. Cevap: Sadece odak projelerdeki büyüme farkı!
+ORGANİK BÜYÜME SEÇENEKLERİ:
+├── %0 (Varsayılan): Tam izolasyon - yatırım etkisi net görünür
+├── %5: Minimal organik büyüme (enflasyon + doğal büyüme)
+├── %8-10: Orta organik büyüme (mevcut müşteri genişlemesi)
+└── %12-15: Güçlü organik büyüme (olgun ürünler)
 
-📈 3. J-CURVE EFFECT (Zamanlama):
+⚠️ focusProjectInfo.organicGrowthRate değeri varsa KULLAN, yoksa %0 uygula.
 
-Büyümeyi çeyreklere lineer dağıtma! Yatırım önce "yakar", sonra "kazandırır":
-- Q1: %10 etki (yatırım harcanıyor, organizasyonel hazırlık)
-- Q2: %25 etki (müşteri kazanımı başlıyor)
-- Q3: %65 etki (momentum, ağızdan ağıza)
-- Q4: %100 etki (tam ölçekleme)
+NEDEN ORGANİK BÜYÜME?
+1. Gerçekçilik: Hiçbir proje tam olarak %0 büyümez
+2. Mevcut müşteri genişlemesi yatırım olmadan da olur
+3. Yatırımcı güveni: Abartılı olmayan projeksiyonlar
+
+📈 3. J-CURVE EFFECT (Sektöre Göre Zamanlama):
+
+Büyümeyi çeyreklere lineer dağıtma! Sektöre göre farklı J-Curve uygula:
+
+🔷 SaaS / YAZILIM (Varsayılan):
+- Q1: %10 etki (ürün geliştirme, beta)
+- Q2: %25 etki (ilk müşteriler)
+- Q3: %65 etki (momentum)
+- Q4: %100 etki (tam ölçek)
+
+🔶 DANIŞMANLIK / HİZMET:
+- Q1: %20 etki (ekip kurulumu, ilk projeler)
+- Q2: %45 etki (referanslar oluşuyor)
+- Q3: %75 etki (pipeline doluyor)
+- Q4: %100 etki (tam kapasite)
+
+🔹 ÜRÜN / LİSANS:
+- Q1: %5 etki (üretim hazırlığı)
+- Q2: %15 etki (ilk satışlar)
+- Q3: %50 etki (dağıtım kanalları)
+- Q4: %100 etki (pazar penetrasyonu)
+
+🔸 E-TİCARET:
+- Q1: %25 etki (kampanya başlangıcı)
+- Q2: %40 etki (müşteri kazanımı)
+- Q3: %60 etki (tekrar satışlar)
+- Q4: %100 etki (sezon + tam ölçek)
+
+⚠️ Sektör belirleme: Gelir kalemlerinin isimlerine bak (SaaS, Tracker, Platform = SaaS; Denetim, Danışmanlık = Hizmet)
 
 📊 4. OPERATING LEVERAGE (Gider Modeli):
 
@@ -355,8 +398,30 @@ Bu bölümde şu çıktıları üret:
 
 💼 BÖLÜM 2: DEAL DEĞERLENDİRME (Yatırımcı Gözüyle)
 
-- deal_score: 1-10 arası puan (formül göster)
-- valuation_verdict: "premium" / "fair" / "cheap"
+📊 VALUATION HESAPLAMA ŞEFFAFLIĞI (ZORUNLU):
+Her değerleme için FORMÜLÜ GÖSTER:
+
+1. **Pre-Money Valuation:**
+   Formül: Pre-Money = (Investment / Equity%) - Investment
+   Örnek: ($150K / 10%) - $150K = $1.35M Pre-Money
+
+2. **Post-Money Valuation:**
+   Formül: Post-Money = Investment / Equity%
+   Örnek: $150K / 10% = $1.5M Post-Money
+
+3. **Revenue Multiple:**
+   Formül: Valuation = Revenue × Sector_Multiple
+   Örnek: $500K × 4x (SaaS) = $2M Valuation
+
+4. **MOIC Hesabı:**
+   Formül: MOIC = Exit_Value × Equity% / Investment
+   Örnek: $5M × 10% / $150K = 3.33x MOIC
+
+⚠️ HER RAKAMI FORMÜLLE DESTEKLE - "Değerleme $X" yerine "Değerleme = Gelir × Çarpan = $Y × Zx = $X"
+
+ÇIKTI:
+- deal_score: 1-10 arası puan + HESAPLAMA FORMÜLÜ (örn: "7/10 = (MOIC×2 + Margin×3 + Growth×2 + Risk×3) / 10")
+- valuation_verdict: "premium" / "fair" / "cheap" + NEDEN
 - investor_attractiveness: 2 cümlelik yorum
 - risk_factors: 3-5 risk (VERİDEN türet, UYDURMA)
 
@@ -378,7 +443,12 @@ Her slayt için:
 - title: Çarpıcı başlık (max 8 kelime)
 - key_message: Ana mesaj (tek cümle) - RAKAM DAHİL ($X, %Y formatında)
 - content_bullets: 3-4 madde - HER MADDE $ veya % FORMATINDA RAKAM İÇERMELİ
-- speaker_notes: Konuşma metni (3-4 cümle) - samimi startup dili
+- speaker_notes: Konuşma metni (MAX 80 KELİME!) - samimi startup dili
+  ⚠️ SPEAKER NOTES KURALI:
+  - Maksimum 80 kelime (30-45 saniye konuşma)
+  - Teknik jargon kullanma
+  - Yatırımcının dikkatini çekecek kısa, vurucu cümleler
+  - Her notta EN AZ 1 rakam olmalı
 
 SLAYT YAPISI (10 SLAYT):
 
@@ -486,9 +556,10 @@ Adım 1: Investment_Product = Total_Investment × Product_Ratio (genellikle %40)
 Adım 2: Revenue_Uplift = Investment_Product × Multiplier (SaaS:2.0, Service:1.3, Ürün:1.8)
 Adım 3: Growth = Revenue_Uplift / Current_Revenue
 
-📉 NON-FOCUS KURALI (ZORUNLU):
-- Odak OLMAYAN projeler: %0 büyüme, BAZ YIL DEĞERLERİ AYNEN KORUNUR
-- Yatırımın spesifik etkisini göstermek için KRİTİK
+📉 NON-FOCUS KURALI (GÜNCELLENDİ):
+- Odak OLMAYAN projeler: focusProjectInfo.organicGrowthRate değeri uygulanır
+- Eğer organicGrowthRate belirtilmemişse: %0 büyüme (tam izolasyon)
+- Örnek: organicGrowthRate = 5 ise, non-focus projeler %5 büyüme alır
 
 ⏱️ J-CURVE (Çeyreklik Dağılım):
 - Q1: Yıllık büyümenin %10'u (hazırlık dönemi)
