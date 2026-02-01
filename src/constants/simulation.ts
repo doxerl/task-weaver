@@ -95,6 +95,71 @@ export const CACHE_SETTINGS = {
 } as const;
 
 // =====================================================
+// AI ANALYSIS DEFAULTS
+// =====================================================
+export const AI_DEFAULTS = {
+  /** Fallback exchange rate when not available from scenario (TRY/USD) */
+  FALLBACK_EXCHANGE_RATE: 39,
+  /** Maximum years to include in exit plan for AI analysis */
+  EXIT_PLAN_MAX_YEARS: 5,
+  /** Confidence thresholds for AI insights */
+  CONFIDENCE_THRESHOLDS: {
+    CERTAIN: 90,
+    HIGH: 75,
+    MEDIUM: 60,
+    LOW: 50
+  },
+  /** Default revenue growth multiplier for AI projections */
+  DEFAULT_REVENUE_GROWTH_MULTIPLIER: 1.3,
+  /** Minimum growth threshold - below this is considered "low growth" */
+  MIN_GROWTH_THRESHOLD: 0.05,
+  /** Maximum reasonable growth threshold - above this might be hallucination */
+  MAX_REASONABLE_GROWTH: 2.0,
+} as const;
+
+// =====================================================
+// SECTOR-SPECIFIC J-CURVE DISTRIBUTIONS
+// =====================================================
+/** J-Curve quarterly revenue realization patterns by sector */
+export const SECTOR_J_CURVES = {
+  /** SaaS/Software: Slow start, accelerating growth */
+  SAAS: { q1: 0.10, q2: 0.25, q3: 0.65, q4: 1.00 },
+  /** Consulting/Services: Steadier realization */
+  SERVICES: { q1: 0.20, q2: 0.45, q3: 0.75, q4: 1.00 },
+  /** Product/License: Backend-loaded with demos */
+  PRODUCT: { q1: 0.05, q2: 0.15, q3: 0.50, q4: 1.00 },
+  /** E-commerce: More even distribution */
+  ECOMMERCE: { q1: 0.25, q2: 0.40, q3: 0.60, q4: 1.00 },
+} as const;
+
+// =====================================================
+// OPERATING LEVERAGE CONSTANTS
+// =====================================================
+export const OPERATING_LEVERAGE = {
+  /** Fixed expense growth rate (inflation-based) */
+  FIXED_EXPENSE_GROWTH: 0.08,
+  /** Variable expense multiplier relative to revenue growth */
+  VARIABLE_EXPENSE_MULTIPLIER: 0.5,
+  /** Target: If revenue grows 60%, expenses should grow only 25-35% */
+  EXPENSE_TO_REVENUE_RATIO_MIN: 0.4,
+  EXPENSE_TO_REVENUE_RATIO_MAX: 0.6,
+} as const;
+
+// =====================================================
+// DEFAULT INVESTMENT ALLOCATION
+// =====================================================
+export const DEFAULT_INVESTMENT_ALLOCATION = {
+  /** Product development percentage */
+  PRODUCT: 40,
+  /** Marketing percentage */
+  MARKETING: 30,
+  /** Hiring/Personnel percentage */
+  HIRING: 20,
+  /** Operations percentage */
+  OPERATIONS: 10,
+} as const;
+
+// =====================================================
 // GROWTH SIMULATION DEFAULTS
 // =====================================================
 export const SIMULATION_DEFAULTS = {

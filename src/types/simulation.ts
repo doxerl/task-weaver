@@ -887,6 +887,155 @@ export interface ProfessionalAnalysisData {
 }
 
 // =====================================================
+// DATABASE ROW TYPES (Supabase schema)
+// =====================================================
+
+/** Database row type for scenario_ai_analyses table */
+export interface ScenarioAIAnalysisRow {
+  id: string;
+  user_id: string;
+  scenario_a_id: string;
+  scenario_b_id: string;
+  analysis_type: 'unified' | 'scenario_comparison' | 'investor_pitch';
+  insights: AIScenarioInsight[] | null;
+  recommendations: AIRecommendation[] | null;
+  quarterly_analysis: QuarterlyAIAnalysis | null;
+  deal_score: number | null;
+  valuation_verdict: 'premium' | 'fair' | 'cheap' | null;
+  investor_analysis: {
+    investor_attractiveness?: string;
+    risk_factors?: string[];
+    capitalStory?: string;
+    exitNarrative?: string;
+    investorROI?: string;
+    keyMetrics?: {
+      capitalEfficiency: number;
+      paybackMonths: number;
+      burnMultiple: number;
+    };
+    opportunityCost?: string;
+    potentialAcquirers?: string[];
+    recommendedExit?: 'series_b' | 'strategic_sale' | 'ipo' | 'hold';
+  } | null;
+  pitch_deck: PitchDeck | null;
+  next_year_projection: NextYearProjection | null;
+  focus_projects: string[] | null;
+  focus_project_plan: string | null;
+  investment_allocation: InvestmentAllocation | null;
+  edited_revenue_projection: EditableProjectionItem[] | null;
+  edited_expense_projection: EditableProjectionItem[] | null;
+  projection_user_edited: boolean | null;
+  deal_config_snapshot: DealConfiguration | null;
+  scenario_a_data_hash: string | null;
+  scenario_b_data_hash: string | null;
+  created_at: string;
+  updated_at: string | null;
+}
+
+/** Database row type for scenario_analysis_history table */
+export interface ScenarioAnalysisHistoryRow {
+  id: string;
+  user_id: string;
+  scenario_a_id: string;
+  scenario_b_id: string;
+  analysis_type: 'unified' | 'scenario_comparison' | 'investor_pitch';
+  insights: AIScenarioInsight[] | null;
+  recommendations: AIRecommendation[] | null;
+  quarterly_analysis: QuarterlyAIAnalysis | null;
+  investor_analysis: Record<string, unknown> | null;
+  deal_config: DealConfiguration | null;
+  scenario_a_data_hash: string | null;
+  scenario_b_data_hash: string | null;
+  created_at: string;
+}
+
+// =====================================================
+// TYPE GUARDS
+// =====================================================
+
+/** Type guard for AIScenarioInsight array */
+export function isValidInsightArray(data: unknown): data is AIScenarioInsight[] {
+  if (!Array.isArray(data)) return false;
+  return data.every(item =>
+    typeof item === 'object' &&
+    item !== null &&
+    'category' in item &&
+    'severity' in item &&
+    'title' in item &&
+    'description' in item
+  );
+}
+
+/** Type guard for AIRecommendation array */
+export function isValidRecommendationArray(data: unknown): data is AIRecommendation[] {
+  if (!Array.isArray(data)) return false;
+  return data.every(item =>
+    typeof item === 'object' &&
+    item !== null &&
+    'priority' in item &&
+    'title' in item &&
+    'description' in item
+  );
+}
+
+/** Type guard for QuarterlyAIAnalysis */
+export function isValidQuarterlyAnalysis(data: unknown): data is QuarterlyAIAnalysis {
+  if (typeof data !== 'object' || data === null) return false;
+  const obj = data as Record<string, unknown>;
+  return 'overview' in obj && typeof obj.overview === 'string';
+}
+
+/** Type guard for PitchDeck */
+export function isValidPitchDeck(data: unknown): data is PitchDeck {
+  if (typeof data !== 'object' || data === null) return false;
+  const obj = data as Record<string, unknown>;
+  return 'slides' in obj && Array.isArray(obj.slides);
+}
+
+/** Type guard for NextYearProjection */
+export function isValidNextYearProjection(data: unknown): data is NextYearProjection {
+  if (typeof data !== 'object' || data === null) return false;
+  const obj = data as Record<string, unknown>;
+  return 'strategy_note' in obj && 'quarterly' in obj && 'summary' in obj;
+}
+
+/** Type guard for InvestmentAllocation */
+export function isValidInvestmentAllocation(data: unknown): data is InvestmentAllocation {
+  if (typeof data !== 'object' || data === null) return false;
+  const obj = data as Record<string, unknown>;
+  return (
+    typeof obj.product === 'number' &&
+    typeof obj.marketing === 'number' &&
+    typeof obj.hiring === 'number' &&
+    typeof obj.operations === 'number'
+  );
+}
+
+/** Type guard for EditableProjectionItem array */
+export function isValidEditableProjectionArray(data: unknown): data is EditableProjectionItem[] {
+  if (!Array.isArray(data)) return false;
+  return data.every(item =>
+    typeof item === 'object' &&
+    item !== null &&
+    'category' in item &&
+    typeof (item as EditableProjectionItem).category === 'string'
+  );
+}
+
+/** Safe array access - returns empty array if input is not an array */
+export function safeArray<T>(arr: T[] | null | undefined): T[] {
+  return Array.isArray(arr) ? arr : [];
+}
+
+/** Safe object access with default value */
+export function safeObject<T extends Record<string, unknown>>(
+  obj: T | null | undefined,
+  defaultValue: T
+): T {
+  return obj && typeof obj === 'object' ? obj : defaultValue;
+}
+
+// =====================================================
 // FOCUS PROJECT & EDITABLE PROJECTION TYPES
 // =====================================================
 
