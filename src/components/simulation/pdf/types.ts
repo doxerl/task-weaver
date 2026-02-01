@@ -151,16 +151,16 @@ export interface PdfExportContainerProps {
   investmentAllocation: InvestmentAllocation | null;
   focusProjectPlan: string;
 
-  // Capital Analysis (NEW)
-  capitalNeedA: CapitalRequirement | null;
-  capitalNeedB: CapitalRequirement | null;
+  // Capital Analysis (NEW) - Optional for backward compatibility
+  capitalNeedA?: CapitalRequirement | null;
+  capitalNeedB?: CapitalRequirement | null;
 
-  // Investment Options (NEW)
-  investmentTiers: InvestmentTier[];
-  optimalTiming: OptimalInvestmentTiming | null;
+  // Investment Options (NEW) - Optional for backward compatibility
+  investmentTiers?: InvestmentTier[];
+  optimalTiming?: OptimalInvestmentTiming | null;
 
-  // Scenario Comparison (NEW)
-  scenarioComparison: InvestmentScenarioComparison | null;
+  // Scenario Comparison (NEW) - Optional for backward compatibility
+  scenarioComparison?: InvestmentScenarioComparison | null;
 }
 
 /**
