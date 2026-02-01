@@ -509,6 +509,8 @@ function ScenarioComparisonContent() {
   // Focus Project State - yatırım odak projesi (çoklu seçim destekli)
   const [focusProjects, setFocusProjects] = useState<string[]>([]);
   const [focusProjectPlan, setFocusProjectPlan] = useState<string>('');
+  // Organik büyüme oranı (non-focus projeler için)
+  const [organicGrowthRate, setOrganicGrowthRate] = useState<number>(5); // Default %5
   
   // Handler for multi-select focus projects (max 2)
   const handleFocusProjectsChange = useCallback((projects: string[]) => {
@@ -530,6 +532,12 @@ function ScenarioComparisonContent() {
   const [editableExpenseProjection, setEditableExpenseProjection] = useState<EditableProjectionItem[]>([]);
   const [originalRevenueProjection, setOriginalRevenueProjection] = useState<EditableProjectionItem[]>([]);
   const [originalExpenseProjection, setOriginalExpenseProjection] = useState<EditableProjectionItem[]>([]);
+  // Kullanıcı düzenlemelerini koruma seçeneği
+  const [preserveUserEdits, setPreserveUserEdits] = useState(true);
+
+  // Kullanıcının düzenleme yapıp yapmadığını kontrol et
+  const hasUserEdits = editableRevenueProjection.some(i => i.userEdited) ||
+                       editableExpenseProjection.some(i => i.userEdited);
 
   const { generatePdfFromElement, isGenerating } = usePdfEngine();
   
@@ -945,10 +953,21 @@ function ScenarioComparisonContent() {
   
   // Editable Projection Sync - AI analizi tamamlandığında düzenlenebilir tabloya aktar
   // UPDATED: AI'ın itemized_revenues/expenses verilerini öncelikli olarak kullan
+  // UPDATED: Kullanıcı düzenlemelerini koruma seçeneği eklendi
   useEffect(() => {
     if (unifiedAnalysis?.next_year_projection && scenarioA) {
       const projection = unifiedAnalysis.next_year_projection;
-      
+
+      // Kullanıcı düzenlemelerini koru - eğer preserveUserEdits true ve mevcut düzenlemeler varsa
+      const currentHasUserEdits = editableRevenueProjection.some(i => i.userEdited) ||
+                                  editableExpenseProjection.some(i => i.userEdited);
+
+      if (preserveUserEdits && currentHasUserEdits) {
+        console.log('[Editable Sync] Preserving user edits - skipping AI projection override');
+        toast.info('Kullanıcı düzenlemeleri korundu. Yeni AI projeksiyonunu görmek için "Düzenlemeleri Sıfırla" kullanın.');
+        return; // Kullanıcı düzenlemelerini koru, AI sonuçlarını uygulama
+      }
+
       // YENİ: AI'dan gelen itemized veriler varsa bunları kullan
       if (projection.itemized_revenues && projection.itemized_revenues.length > 0) {
         console.log('[Editable Sync] Using AI itemized_revenues:', projection.itemized_revenues.length, 'items');
@@ -1200,7 +1219,8 @@ function ScenarioComparisonContent() {
             year3: years.year3,              // 2029
             year5: years.year5               // 2031
           }
-        }
+        },
+        organicGrowthRate // Non-focus projeler için organik büyüme oranı
       };
     }
     
