@@ -2306,7 +2306,7 @@ function ScenarioComparisonContent() {
                 }}>
                   <div>
                     <p style={{ fontSize: '14px', opacity: 0.9 }}>Anlaşma Skoru</p>
-                    <p style={{ fontSize: '48px', fontWeight: 'bold' }}>{unifiedAnalysis.deal_analysis.deal_score}/100</p>
+                    <p style={{ fontSize: '48px', fontWeight: 'bold' }}>{unifiedAnalysis.deal_analysis.deal_score}/10</p>
                   </div>
                   <div style={{ textAlign: 'right' }}>
                     <p style={{ fontSize: '14px', opacity: 0.9 }}>Değerleme Görüşü</p>
