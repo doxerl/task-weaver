@@ -45,7 +45,7 @@ export default function Reports() {
   // Reports sayfası HER ZAMAN dinamik veri göstermeli (etiketlenmiş banka işlemleri)
   const incomeAnalysis = useIncomeAnalysis(year, { forceRealtime: true });
   const expenseAnalysis = useExpenseAnalysis(year, { forceRealtime: true });
-  const incomeStatement = useIncomeStatement(year);
+  const incomeStatement = useIncomeStatement(year, { forceRealtime: true });
   const detailedStatement = useDetailedIncomeStatement(year);
   const { definitions: fixedExpensesList } = useFixedExpenses();
   const { balanceSheet } = useBalanceSheet(year);
