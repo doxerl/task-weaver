@@ -14,7 +14,6 @@ import { PdfInvestorPage } from './PdfInvestorPage';
 import { PdfProjectionPage } from './PdfProjectionPage';
 import { PdfFocusProjectPage } from './PdfFocusProjectPage';
 import { PdfAIInsightsPage } from './PdfAIInsightsPage';
-import { PdfPitchDeckPage } from './PdfPitchDeckPage';
 
 import type { PdfExportContainerProps } from './types';
 
@@ -148,13 +147,8 @@ export function PdfExportContainer({
           dealConfig={dealConfig}
         />
 
-        {/* PAGE 6: AI INSIGHTS */}
+        {/* PAGE 6: AI INSIGHTS (Last page - no page break) */}
         <PdfAIInsightsPage
-          unifiedAnalysis={unifiedAnalysis}
-        />
-
-        {/* PAGE 7: PITCH DECK (Last page - no page break) */}
-        <PdfPitchDeckPage
           unifiedAnalysis={unifiedAnalysis}
         />
       </div>

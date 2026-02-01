@@ -209,10 +209,10 @@ const formatValue = (value: number, format: 'currency' | 'percent' | 'number'): 
   }
 };
 
-const calculateDiff = (a: number, b: number): { value: number; percent: number } => {
+const calculateDiff = (a: number, b: number): { absolute: number; percent: number } => {
   const diff = b - a;
   const percent = a !== 0 ? ((b - a) / Math.abs(a)) * 100 : b !== 0 ? 100 : 0;
-  return { value: diff, percent };
+  return { absolute: diff, percent };
 };
 
 const calculateScenarioSummary = (scenario: SimulationScenario) => {
@@ -244,9 +244,9 @@ const calculateQuarterlyComparison = (scenarioA: SimulationScenario, scenarioB: 
   });
 };
 
-const DiffBadge = ({ diff, format, higherIsBetter }: { diff: { value: number; percent: number }; format: 'currency' | 'percent' | 'number'; higherIsBetter: boolean }) => {
-  const isPositive = diff.value > 0;
-  const isNeutral = diff.value === 0;
+const DiffBadge = ({ diff, format, higherIsBetter }: { diff: { absolute: number; percent: number }; format: 'currency' | 'percent' | 'number'; higherIsBetter: boolean }) => {
+  const isPositive = diff.absolute > 0;
+  const isNeutral = diff.absolute === 0;
   const isGood = higherIsBetter ? isPositive : !isPositive;
   if (isNeutral) return <Badge variant="secondary" className="gap-1"><Minus className="h-3 w-3" />-</Badge>;
   const Icon = isPositive ? TrendingUp : TrendingDown;
@@ -254,7 +254,7 @@ const DiffBadge = ({ diff, format, higherIsBetter }: { diff: { value: number; pe
   return (
     <Badge variant="outline" className={`gap-1 ${colorClass}`}>
       <Icon className="h-3 w-3" />
-      {isPositive ? '+' : ''}{format === 'percent' ? `${diff.value.toFixed(1)}pp` : `${diff.percent.toFixed(1)}%`}
+      {isPositive ? '+' : ''}{format === 'percent' ? `${diff.absolute.toFixed(1)}pp` : `${diff.percent.toFixed(1)}%`}
     </Badge>
   );
 };

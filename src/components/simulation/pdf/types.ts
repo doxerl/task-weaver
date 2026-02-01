@@ -11,7 +11,7 @@ import type {
   InvestmentAllocation,
   QuarterlyItemizedData,
 } from '@/types/simulation';
-import type { UnifiedAnalysisResult } from '@/hooks/finance/useUnifiedAnalysis';
+import type { UnifiedAnalysisResult, ExitPlan } from '@/types/simulation';
 import type { ChartConfig } from '@/components/ui/chart';
 
 /**
@@ -92,8 +92,8 @@ export interface PdfExitPlanData {
   investorShare5Year: number;
   year5Projection?: ExitPlanYear;
   yearLabels?: {
-    moic3Year?: string;
-    moic5Year?: string;
+    moic3Year?: number;
+    moic5Year?: number;
   };
   allYears?: ExitPlanYear[];
   growthConfig?: {
@@ -137,7 +137,7 @@ export interface PdfExportContainerProps {
 
   // Deal & Investment
   dealConfig: DealConfig;
-  pdfExitPlan: PdfExitPlanData | null;
+  pdfExitPlan: ExitPlan | null;
 
   // Projections
   editableRevenueProjection: EditableProjectionItem[];
@@ -238,9 +238,3 @@ export interface PdfAIInsightsPageProps {
   unifiedAnalysis: UnifiedAnalysisResult | null;
 }
 
-/**
- * Pitch Deck Page Props
- */
-export interface PdfPitchDeckPageProps {
-  unifiedAnalysis: UnifiedAnalysisResult | null;
-}
