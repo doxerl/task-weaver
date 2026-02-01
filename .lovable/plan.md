@@ -1,125 +1,263 @@
 
 
-## /finance Dashboard'ında Resmi Veri Entegrasyonu
+## Kilitli Resmi Veri - Dinamik Verilerin Devre Dışı Bırakılması
 
-### Mevcut Durum Analizi
+### Genel Bakış
 
-Dashboard'da farklı hook'lar kullanılıyor ve bunların resmi veri desteği tutarsız:
+Kilitli resmi veri (Gelir Tablosu veya Bilanço) olduğunda, tüm dinamik veri kaynaklarının (banka işlemleri, fişler, manuel girişler) hesaplamalara dahil edilmemesi gerekiyor. Bu, resmi muhasebe verilerinin "Source of Truth" olarak korunmasını sağlar.
 
-| Hook | Resmi Veri | Dashboard Kullanımı |
-|------|------------|---------------------|
-| `useIncomeStatement` | Var (isLocked kontrolu) | Sadece "Resmi Veri" badge icin |
-| `useFinancialCalculations` | **YOK** | Ciro Ozeti, Net Kar, Ortak Cari |
-| `useVatCalculations` | Yok | KDV Ozeti |
-| `useBalanceSheet` | Yok | Bilanco Ozeti |
+### Mimari Yaklaşım
 
-Ekran goruntusundeki degerler (`7.106.084,28`, `5.922.838,50` vs.) `useFinancialCalculations` hook'undan geliyor ve bu hook sadece banka islemlerinden dinamik hesaplama yapiyor - **resmi verileri kullanmiyor**.
+Merkezi bir hook oluşturarak tüm kod tabanında tutarlı kontrol sağlanacak.
 
-### Cozum Plani
+```text
+                    useOfficialDataStatus (Merkezi)
+                              |
+        +---------------------+---------------------+
+        |                     |                     |
+useFinancialCalculations  useFinancialDataHub   useIncomeStatement
+        |                     |                     |
+        +---------------------------------------------+
+                              |
+          isOfficiallyLocked = true olduğunda:
+          - Banka işlemleri kullanılmaz
+          - Fişler dahil edilmez
+          - Manuel girişler etkisiz
+          - Sadece resmi veriler gösterilir
+```
 
-#### 1. `useFinancialCalculations` Hook'unu Guncelle
+### Değiştirilecek Dosyalar
 
-**Dosya: `src/hooks/finance/useFinancialCalculations.ts`**
+| Dosya | Değişiklik |
+|-------|------------|
+| `src/hooks/finance/useOfficialDataStatus.ts` | **YENİ** - Merkezi kilit durumu hook'u |
+| `src/hooks/finance/useFinancialCalculations.ts` | Kilitli durumda boş dinamik veri |
+| `src/hooks/finance/useFinancialDataHub.ts` | Kilitli durumda boş işlem listesi |
+| `src/hooks/finance/useVatCalculations.ts` | Kilitli durumda resmi KDV kullan |
+| `src/hooks/finance/useExpenseAnalysis.ts` | Kilitli durumda resmi giderler |
+| `src/hooks/finance/useIncomeAnalysis.ts` | Kilitli durumda resmi gelirler |
+| `src/hooks/finance/useCashFlowStatement.ts` | Kilitli durumda hesaplama atla |
+| `src/pages/finance/ManualEntry.tsx` | Kilitli uyarısı ve form disable |
+| `src/pages/finance/BankTransactions.tsx` | Kilitli uyarısı göster |
+| `src/pages/finance/Receipts.tsx` | Kilitli banner ekle |
+| `src/pages/finance/BankImport.tsx` | Yükleme engelle |
+| `src/hooks/finance/index.ts` | Yeni hook export |
 
-Hibrit mantik ekle: Eger resmi gelir tablosu kilitliyse, oradan degerleri al.
+---
+
+### Teknik Detaylar
+
+#### 1. Merkezi Hook: `useOfficialDataStatus.ts`
+
+Tüm resmi veri kilit durumlarını tek noktadan kontrol eden hook:
 
 ```typescript
 import { useOfficialIncomeStatement } from './useOfficialIncomeStatement';
+import { useYearlyBalanceSheet } from './useYearlyBalanceSheet';
 
-export function useFinancialCalculations(year: number) {
-  const { officialStatement, isLocked } = useOfficialIncomeStatement(year);
+export interface OfficialDataStatus {
+  isIncomeStatementLocked: boolean;
+  isBalanceSheetLocked: boolean;
+  isAnyLocked: boolean;        // Herhangi biri kilitli
+  isFullyLocked: boolean;      // İkisi de kilitli
+  lockedModules: string[];     // ['income_statement', 'balance_sheet']
+  isLoading: boolean;
+}
+
+export function useOfficialDataStatus(year: number): OfficialDataStatus {
+  const { isLocked: incomeStatementLocked, isLoading: incomeLoading } = 
+    useOfficialIncomeStatement(year);
+  const { isLocked: balanceSheetLocked, isLoading: balanceLoading } = 
+    useYearlyBalanceSheet(year);
   
-  // ... mevcut hook kodlari ...
+  const lockedModules: string[] = [];
+  if (incomeStatementLocked) lockedModules.push('income_statement');
+  if (balanceSheetLocked) lockedModules.push('balance_sheet');
   
-  return useMemo(() => {
-    // ONCELIK 1: Resmi veri kilitliyse onu kullan!
-    if (isLocked && officialStatement) {
-      const netSales = officialStatement.net_sales || 0;
-      const grossSales = (officialStatement.gross_sales_domestic || 0) + 
-                         (officialStatement.gross_sales_export || 0) + 
-                         (officialStatement.gross_sales_other || 0);
-      
-      // Resmi veriden hesapla
-      const operatingExpenses = (officialStatement.rd_expenses || 0) +
-                               (officialStatement.marketing_expenses || 0) +
-                               (officialStatement.general_admin_expenses || 0);
-      
-      return {
-        totalIncome: grossSales,
-        netRevenue: netSales,
-        totalExpenses: operatingExpenses + (officialStatement.cost_of_goods_sold || 0),
-        netCost: /* ... */,
-        operatingProfit: officialStatement.net_profit || 0,
-        profitMargin: netSales > 0 ? (officialStatement.net_profit / netSales) * 100 : 0,
-        // Diger alanlar icin banka islemlerinden hesaplama devam eder
-        partnerOut, partnerIn, financingIn, financingOut, // dinamik
-        isLoading: false,
-        isOfficial: true,
-      };
-    }
-    
-    // ONCELIK 2: Dinamik hesaplama (mevcut kod)
-    // ... mevcut kod ...
-  }, [...]);
+  return {
+    isIncomeStatementLocked: incomeStatementLocked,
+    isBalanceSheetLocked: balanceSheetLocked,
+    isAnyLocked: incomeStatementLocked || balanceSheetLocked,
+    isFullyLocked: incomeStatementLocked && balanceSheetLocked,
+    lockedModules,
+    isLoading: incomeLoading || balanceLoading,
+  };
 }
 ```
 
-#### 2. Return Type'a `isOfficial` Ekle
+#### 2. Hook Güncellemeleri
 
-Hook'un dondurdugu nesneye `isOfficial: boolean` alani ekle:
-
+**useFinancialCalculations.ts:**
 ```typescript
-return {
-  // ... mevcut alanlar ...
-  isOfficial: isLocked,
-};
+import { useOfficialDataStatus } from './useOfficialDataStatus';
+
+export function useFinancialCalculations(year: number) {
+  const { isAnyLocked } = useOfficialDataStatus(year);
+  
+  // Kilitli değilse normal banka işlemlerini yükle
+  const { transactions, isLoading: txLoading } = useBankTransactions(
+    isAnyLocked ? undefined : year  // Kilitliyse veri çekme
+  );
+  
+  return useMemo(() => {
+    if (isAnyLocked && officialStatement) {
+      // Sadece resmi veriyi kullan
+      return { ...officialData, isOfficial: true };
+    }
+    
+    // Dinamik hesaplama (mevcut kod)
+    // ...
+  }, [isAnyLocked, ...]);
+}
 ```
 
-#### 3. Dashboard'da Gosterim Iyilestirmesi (Opsiyonel)
+**useFinancialDataHub.ts:**
+```typescript
+export function useFinancialDataHub(year: number) {
+  const { isAnyLocked } = useOfficialDataStatus(year);
+  
+  // Kilitliyse boş veri döndür
+  if (isAnyLocked) {
+    return createEmptyHub();
+  }
+  
+  // Mevcut dinamik hesaplama
+  // ...
+}
+```
 
-**Dosya: `src/pages/finance/FinanceDashboard.tsx`**
+**useVatCalculations.ts:**
+```typescript
+export function useVatCalculations(year: number) {
+  const { isAnyLocked } = useOfficialDataStatus(year);
+  
+  return useMemo(() => {
+    if (isAnyLocked) {
+      // KDV hesaplamaları için resmi veri yok
+      // Uyarı mesajı ile boş dön
+      return {
+        ...emptyVatData,
+        isOfficial: true,
+        officialWarning: 'Resmi veri modunda KDV dinamik hesaplanmaz'
+      };
+    }
+    // Normal hesaplama
+  }, [isAnyLocked, ...]);
+}
+```
 
-Resmi veri aktifken kartlarda kucuk bir ikon goster:
+#### 3. Sayfa Güncellemeleri
 
+**ManualEntry.tsx:**
 ```tsx
-<div className="flex items-center gap-2">
-  <span className="text-xs text-muted-foreground">Brut Ciro</span>
-  {calc.isOfficial && <Shield className="h-3 w-3 text-green-600" />}
-</div>
+import { useOfficialDataStatus } from '@/hooks/finance/useOfficialDataStatus';
+
+export default function ManualEntry() {
+  const { isAnyLocked, lockedModules } = useOfficialDataStatus(year);
+  
+  // Kilitli uyarısı
+  if (isAnyLocked) {
+    return (
+      <div className="p-4">
+        <Alert variant="warning" className="bg-amber-50 border-amber-200">
+          <Shield className="h-4 w-4" />
+          <AlertTitle>Resmi Veri Modu Aktif</AlertTitle>
+          <AlertDescription>
+            {year} yılı için resmi veriler kilitli olduğundan manuel giriş yapılamaz.
+            Kilitli modüller: {lockedModules.join(', ')}
+          </AlertDescription>
+        </Alert>
+        
+        <Button asChild variant="outline" className="mt-4">
+          <Link to="/finance/official-data">
+            Resmi Veri Sayfasına Git
+          </Link>
+        </Button>
+      </div>
+    );
+  }
+  
+  // Normal form (mevcut kod)
+}
 ```
 
-### Dikkat Edilmesi Gerekenler
+**BankTransactions.tsx:**
+```tsx
+export default function BankTransactions() {
+  const { isAnyLocked } = useOfficialDataStatus(year);
+  
+  return (
+    <div>
+      {isAnyLocked && (
+        <Alert variant="default" className="mb-4 bg-green-50 border-green-200">
+          <Shield className="h-4 w-4 text-green-600" />
+          <AlertDescription>
+            Resmi veri modu aktif. Banka işlemleri hesaplamalara dahil edilmiyor.
+          </AlertDescription>
+        </Alert>
+      )}
+      
+      {/* İşlem listesi - salt okunur göster */}
+      {/* Kategori değiştirme ve silme butonları disabled */}
+    </div>
+  );
+}
+```
 
-1. **Ortak Cari ve Finansman**: Bu degerler resmi gelir tablosunda yok. Bunlar icin banka islemlerinden hesaplama devam etmeli.
+**BankImport.tsx (veya ilgili sayfa):**
+```tsx
+export default function BankImport() {
+  const { isAnyLocked } = useOfficialDataStatus(year);
+  
+  if (isAnyLocked) {
+    return (
+      <Alert variant="warning">
+        <Shield className="h-4 w-4" />
+        <AlertDescription>
+          Resmi veri modu aktif. Yeni banka ekstresi yüklenemez.
+          Kilit açmak için Resmi Veri sayfasına gidin.
+        </AlertDescription>
+      </Alert>
+    );
+  }
+  
+  // Normal yükleme formu
+}
+```
 
-2. **KDV Ozeti**: Resmi veriden KDV bilgisi gelmez, dinamik hesaplama devam etmeli.
+---
 
-3. **Hibrit Yaklasim**: Bazi alanlar resmi veriden (ciro, kar), bazi alanlar dinamik (ortak cari, KDV).
+### Davranış Matrisi
 
-### Degistirilecek Dosyalar
+| Senaryo | Banka İşlemleri | Fişler | Manuel Giriş | Hesaplamalar |
+|---------|-----------------|--------|--------------|--------------|
+| Hiçbir kilit yok | Aktif | Aktif | Aktif | Dinamik |
+| Gelir Tablosu Kilitli | Göster (read-only) | Göster (read-only) | Devre dışı | Resmi G.T. + Dinamik Bilanço |
+| Bilanço Kilitli | Göster (read-only) | Göster (read-only) | Devre dışı | Dinamik G.T. + Resmi Bilanço |
+| Her ikisi kilitli | Göster (read-only) | Göster (read-only) | Devre dışı | Tamamen Resmi |
 
-| Dosya | Degisiklik |
-|-------|------------|
-| `src/hooks/finance/useFinancialCalculations.ts` | Resmi veri entegrasyonu ekle |
-| `src/pages/finance/FinanceDashboard.tsx` | (opsiyonel) Resmi veri ikonu ekle |
+---
 
-### Beklenen Sonuc
+### UI/UX İyileştirmeleri
 
-**Oncesi (mevcut):**
-- Dashboard: Banka islemlerinden dinamik hesaplama
-- Degerler: ₺7.106.084,28 (brut ciro)
-- "Resmi Veri" badge: Gosteriliyor ama degerler dinamik
+1. **Banner Gösterimi**: Tüm finans sayfalarında kilitli durumu gösteren yeşil banner
+2. **Form Disable**: Manuel giriş formları tamamen devre dışı
+3. **Buton Disable**: Kategori değiştirme, silme, düzenleme butonları disabled
+4. **Tooltip**: Neden devre dışı olduğunu açıklayan tooltip
+5. **Navigasyon**: "Resmi Veri Sayfasına Git" butonu ile kolay erişim
 
-**Sonrasi:**
-- Dashboard: Eger resmi veri kilitliyse, oradan gelen degerleri goster
-- Degerler: Resmi gelir tablosundaki net satislar
-- Kart basliklarinda kucuk "Shield" ikonu ile resmi veri oldugu belirtilir
+---
 
-### Test Senaryosu
+### Beklenen Sonuç
 
-1. `/finance/official-data` sayfasina git
-2. Gelir tablosu yukle ve kilitle
-3. `/finance` dashboard'a don
-4. Ciro Ozeti kartindaki degerlerin resmi veriden geldigini dogrula
-5. "Resmi Veri" badge'inin gorundugunun ve degerlerin tutarli oldugunu kontrol et
+**Öncesi:**
+- Resmi veri kilitlense bile dashboard'da banka işlemleri toplanıyor
+- Manuel girişler resmi verilere ekleniyor
+- Tutarsız hesaplamalar
+
+**Sonrası:**
+- Kilitli resmi veri = tek kaynak (Source of Truth)
+- Dinamik veriler hesaplamalara dahil edilmiyor
+- UI'da net uyarılar ve engeller
+- Kullanıcı karışıklığı önleniyor
 
