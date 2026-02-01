@@ -1,115 +1,100 @@
 
 
-## /finance/reports Sayfasında Dinamik Veri Gösterimi
+## /finance/reports - Giderlerin Görünmeme Sorunu
 
 ### Sorun Analizi
 
-Son değişikliklerle birlikte `useIncomeAnalysis` ve `useExpenseAnalysis` hook'larına `isAnyLocked` kontrolü eklendi. Resmi veri kilitliyken:
+Veritabanı sorgusundan görüldüğü üzere, 2025 yılı için resmi gelir tablosunda:
 
-- Etiketlenmiş banka işlemleri atlanıyor
-- Sadece resmi gelir tablosundaki özet veriler döndürülüyor (gross_sales_domestic, general_admin_expenses vs.)
-- Detaylı hizmet dağılımları (L&S, SBT, DANIS), müşteri gelirleri ve aylık dağılımlar kayboluyor
+| Alan | Değer |
+|------|-------|
+| `net_sales` | 5,282,460.22 ₺ |
+| `cost_of_goods_sold` | **0** |
+| `cost_of_merchandise_sold` | **0** |
+| `cost_of_services_sold` | **0** |
+| `marketing_expenses` | **0** |
+| `general_admin_expenses` | **0** |
+| `net_profit` | 4,839,674.89 ₺ |
+| `is_locked` | **true** |
 
-**Reports sayfası resmi verilerden bağımsız olmalı** - her zaman etiketlenmiş banka işlemlerini ve fişleri göstermeli.
+Kullanıcı resmi gelir tablosuna sadece gelir ve kâr değerlerini girmiş, gider detaylarını boş bırakmış.
 
-### Mimari Yaklaşım
-
-Hook'lara `forceRealtime` parametresi ekleyerek resmi veri kontrolünü atlama imkanı sağlanacak.
-
+**KPI kartlarındaki "Net Gider (KDV Hariç)"** değeri `useIncomeStatement` hook'undan geliyor:
+```tsx
+formatAmount((incomeStatement.statement?.costOfSales || 0) + 
+             (incomeStatement.statement?.operatingExpenses.total || 0))
 ```
-useIncomeAnalysis(year, { forceRealtime: true })
-                           ↓
-         isAnyLocked kontrolünü atla
-                           ↓
-         Her zaman banka işlemlerini kullan
-```
+
+`useIncomeStatement` kilitli resmi veriyi kullandığında, gider alanları 0 olduğu için ₺0 gösteriyor.
+
+### Çözüm
+
+`useIncomeStatement` hook'una da `forceRealtime` parametresi eklenerek, Reports sayfasının her zaman dinamik veri kullanması sağlanacak.
 
 ### Değişiklikler
 
-#### 1. `useIncomeAnalysis.ts` - forceRealtime Parametresi
-
-Hook'a opsiyonel `forceRealtime` parametresi eklenecek:
+#### 1. `useIncomeStatement.ts` - forceRealtime Parametresi
 
 ```typescript
-interface IncomeAnalysisOptions {
-  forceRealtime?: boolean;  // true olursa resmi veri kontrolü atlanır
-}
-
-export function useIncomeAnalysis(year: number, options?: IncomeAnalysisOptions) {
-  const { forceRealtime = false } = options || {};
-  const { isAnyLocked } = useOfficialDataStatus(year);
-  
-  // ...
-  
-  return useMemo(() => {
-    // forceRealtime = true ise resmi veri kontrolünü atla
-    if (!forceRealtime && isAnyLocked && officialStatement) {
-      // Resmi veri modunda basitleştirilmiş veri dön
-      return { ... };
-    }
-    
-    // HER ZAMAN dinamik hesaplama
-    // ...banka işlemleri ve fişlerden hesapla...
-  }, [...]);
-}
-```
-
-#### 2. `useExpenseAnalysis.ts` - forceRealtime Parametresi
-
-Aynı şekilde:
-
-```typescript
-interface ExpenseAnalysisOptions {
+interface IncomeStatementOptions {
   forceRealtime?: boolean;
 }
 
-export function useExpenseAnalysis(year: number, options?: ExpenseAnalysisOptions) {
+export function useIncomeStatement(year: number, options?: IncomeStatementOptions) {
   const { forceRealtime = false } = options || {};
   
-  return useMemo(() => {
-    if (!forceRealtime && isAnyLocked && officialStatement) {
-      return { ...officialData };
+  // RESMİ VERİ KONTROLÜ
+  const { officialStatement, isLocked, isLoading: isOfficialLoading } = 
+    useOfficialIncomeStatement(year);
+  
+  const statement = useMemo(() => {
+    // forceRealtime = true ise resmi veri kontrolünü atla
+    if (!forceRealtime && isLocked && officialStatement) {
+      return convertOfficialToStatement(officialStatement);
     }
     
-    // Dinamik hesaplama
-  }, [...]);
+    // Dinamik hesaplama (mevcut kod)
+    // ...
+  }, [..., forceRealtime]);
+  
+  return {
+    statement,
+    isLoading: ...,
+    isOfficial: !forceRealtime && isLocked, // forceRealtime varsa official sayılmaz
+    lines,
+  };
 }
 ```
 
-#### 3. `Reports.tsx` - forceRealtime Kullanımı
-
-Reports sayfası hook'ları `forceRealtime: true` ile çağıracak:
+#### 2. `Reports.tsx` - forceRealtime Kullanımı
 
 ```typescript
-export default function Reports() {
-  // Reports sayfası HER ZAMAN dinamik veri göstermeli
-  const incomeAnalysis = useIncomeAnalysis(year, { forceRealtime: true });
-  const expenseAnalysis = useExpenseAnalysis(year, { forceRealtime: true });
-  
-  // ... mevcut kod ...
-}
+// Mevcut
+const incomeStatement = useIncomeStatement(year);
+
+// Güncellenecek
+const incomeStatement = useIncomeStatement(year, { forceRealtime: true });
 ```
-
-### Davranış Matrisi
-
-| Sayfa | Resmi Kilitli | forceRealtime | Sonuç |
-|-------|---------------|---------------|-------|
-| Dashboard | Evet | false (varsayılan) | Resmi veri |
-| Dashboard | Hayır | false | Dinamik |
-| Reports | Evet | **true** | **Dinamik** |
-| Reports | Hayır | true | Dinamik |
 
 ### Değiştirilecek Dosyalar
 
 | Dosya | Değişiklik |
 |-------|------------|
-| `src/hooks/finance/useIncomeAnalysis.ts` | `forceRealtime` parametresi ekle |
-| `src/hooks/finance/useExpenseAnalysis.ts` | `forceRealtime` parametresi ekle |
-| `src/pages/finance/Reports.tsx` | Hook'ları `{ forceRealtime: true }` ile çağır |
+| `src/hooks/finance/useIncomeStatement.ts` | `forceRealtime` parametresi ekle |
+| `src/pages/finance/Reports.tsx` | `useIncomeStatement` çağrısına `{ forceRealtime: true }` ekle |
+
+### Davranış Matrisi (Güncellenmiş)
+
+| Hook | Dashboard | Reports |
+|------|-----------|---------|
+| `useIncomeStatement` | Resmi veri | **forceRealtime: true** → Dinamik |
+| `useIncomeAnalysis` | Resmi veri | **forceRealtime: true** → Dinamik |
+| `useExpenseAnalysis` | Resmi veri | **forceRealtime: true** → Dinamik |
 
 ### Beklenen Sonuç
 
-- Reports sayfası resmi veri kilitli olsa bile etiketlenmiş banka işlemlerini gösterecek
-- Hizmet dağılımları (L&S, SBT, DANIS, ZDHC), müşteri gelirleri ve aylık grafikler geri gelecek
-- Dashboard ve diğer sayfalar resmi veri önceliğini koruyacak
+- Reports sayfasındaki KPI kartları dinamik verilerden hesaplanacak
+- "Net Gider (KDV Hariç)" banka işlemlerinden toplanacak
+- Gider grafikleri ve detayları doğru gösterilecek
+- Dashboard ise resmi veri önceliğini koruyacak
 
