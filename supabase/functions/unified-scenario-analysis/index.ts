@@ -6,8 +6,8 @@ const corsHeaders = {
 };
 
 // =====================================================
-// UNIFIED ANALYSIS TOOL SCHEMA
-// Used by both primary and fallback models
+// UNIFIED ANALYSIS TOOL SCHEMA (Primary Model - Gemini)
+// Detailed schema with comprehensive field descriptions
 // =====================================================
 const getUnifiedAnalysisToolSchema = () => ({
   type: "function",
@@ -282,6 +282,162 @@ const getUnifiedAnalysisToolSchema = () => ({
             }
           },
           required: ["projection_year", "strategy_note", "quarterly", "summary", "itemized_revenues", "itemized_expenses"]
+        }
+      },
+      required: ["insights", "recommendations", "quarterly_analysis", "deal_analysis", "pitch_deck", "next_year_projection"]
+    }
+  }
+});
+
+// =====================================================
+// FALLBACK TOOL SCHEMA (Simpler for Claude)
+// Used when primary model (Gemini) fails
+// =====================================================
+const getFallbackToolSchema = () => ({
+  type: "function",
+  function: {
+    name: "generate_unified_analysis",
+    description: "Generate unified financial analysis. Focus on accuracy over creativity.",
+    parameters: {
+      type: "object",
+      properties: {
+        insights: {
+          type: "array",
+          description: "5-7 financial insights based ONLY on provided data",
+          items: {
+            type: "object",
+            properties: {
+              category: { type: "string", enum: ["revenue", "profit", "cash_flow", "risk", "efficiency", "opportunity"] },
+              severity: { type: "string", enum: ["critical", "high", "medium"] },
+              title: { type: "string" },
+              description: { type: "string" },
+              impact_analysis: { type: "string" },
+              data_points: { type: "array", items: { type: "string" } }
+            },
+            required: ["category", "severity", "title", "description"]
+          }
+        },
+        recommendations: {
+          type: "array",
+          description: "3-5 actionable recommendations",
+          items: {
+            type: "object",
+            properties: {
+              priority: { type: "number", enum: [1, 2, 3] },
+              title: { type: "string" },
+              description: { type: "string" },
+              action_plan: { type: "array", items: { type: "string" } },
+              expected_outcome: { type: "string" },
+              timeframe: { type: "string" }
+            },
+            required: ["priority", "title", "description"]
+          }
+        },
+        quarterly_analysis: {
+          type: "object",
+          properties: {
+            overview: { type: "string" },
+            critical_periods: { type: "array", items: { type: "object", properties: { quarter: { type: "string" }, reason: { type: "string" }, risk_level: { type: "string" } } } },
+            seasonal_trends: { type: "array", items: { type: "string" } },
+            growth_trajectory: { type: "string" }
+          },
+          required: ["overview", "growth_trajectory"]
+        },
+        deal_analysis: {
+          type: "object",
+          properties: {
+            deal_score: { type: "number", minimum: 1, maximum: 10, description: "Score 1-10" },
+            deal_score_formula: { type: "string", description: "Show calculation" },
+            valuation_verdict: { type: "string", enum: ["premium", "fair", "cheap"] },
+            investor_attractiveness: { type: "string" },
+            risk_factors: { type: "array", items: { type: "string" } }
+          },
+          required: ["deal_score", "valuation_verdict", "investor_attractiveness", "risk_factors"]
+        },
+        pitch_deck: {
+          type: "object",
+          properties: {
+            slides: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  slide_number: { type: "number" },
+                  title: { type: "string" },
+                  key_message: { type: "string", description: "Must contain $ or % figures" },
+                  content_bullets: { type: "array", items: { type: "string" } },
+                  speaker_notes: { type: "string" }
+                },
+                required: ["slide_number", "title", "key_message", "content_bullets"]
+              }
+            },
+            executive_summary: {
+              type: "object",
+              properties: {
+                short_pitch: { type: "string" },
+                revenue_items: { type: "string" },
+                scenario_comparison: { type: "string" },
+                investment_impact: { type: "string" }
+              },
+              required: ["short_pitch"]
+            }
+          },
+          required: ["slides", "executive_summary"]
+        },
+        next_year_projection: {
+          type: "object",
+          description: "Next year financial projection. projection_year REQUIRED!",
+          properties: {
+            projection_year: { type: "number", description: "REQUIRED: max(scenarioA.targetYear, scenarioB.targetYear) + 1" },
+            strategy_note: { type: "string" },
+            quarterly: {
+              type: "object",
+              properties: {
+                q1: { type: "object", properties: { revenue: { type: "number" }, expenses: { type: "number" }, cash_flow: { type: "number" }, key_event: { type: "string" } }, required: ["revenue", "expenses"] },
+                q2: { type: "object", properties: { revenue: { type: "number" }, expenses: { type: "number" }, cash_flow: { type: "number" }, key_event: { type: "string" } }, required: ["revenue", "expenses"] },
+                q3: { type: "object", properties: { revenue: { type: "number" }, expenses: { type: "number" }, cash_flow: { type: "number" }, key_event: { type: "string" } }, required: ["revenue", "expenses"] },
+                q4: { type: "object", properties: { revenue: { type: "number" }, expenses: { type: "number" }, cash_flow: { type: "number" }, key_event: { type: "string" } }, required: ["revenue", "expenses"] }
+              },
+              required: ["q1", "q2", "q3", "q4"]
+            },
+            summary: {
+              type: "object",
+              properties: {
+                total_revenue: { type: "number", description: "Must be > 0" },
+                total_expenses: { type: "number" },
+                net_profit: { type: "number" },
+                ending_cash: { type: "number" }
+              },
+              required: ["total_revenue", "total_expenses", "net_profit"]
+            },
+            itemized_revenues: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  category: { type: "string" },
+                  q1: { type: "number" }, q2: { type: "number" }, q3: { type: "number" }, q4: { type: "number" },
+                  total: { type: "number" },
+                  growth_rate: { type: "number", description: "0.0 for non-focus, 0.5-1.2 for focus projects" }
+                },
+                required: ["category", "total"]
+              }
+            },
+            itemized_expenses: {
+              type: "array",
+              items: {
+                type: "object",
+                properties: {
+                  category: { type: "string" },
+                  q1: { type: "number" }, q2: { type: "number" }, q3: { type: "number" }, q4: { type: "number" },
+                  total: { type: "number" },
+                  growth_rate: { type: "number" }
+                },
+                required: ["category", "total"]
+              }
+            }
+          },
+          required: ["projection_year", "strategy_note", "quarterly", "summary"]
         }
       },
       required: ["insights", "recommendations", "quarterly_analysis", "deal_analysis", "pitch_deck", "next_year_projection"]
@@ -1325,7 +1481,7 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
       console.error(`Primary model (${PRIMARY_MODEL_ID}) failed:`, response.status, errorText);
       console.log(`Attempting fallback to ${FALLBACK_MODEL_ID}...`);
 
-      // Retry with fallback model
+      // Retry with fallback model - uses simpler schema for better Claude compatibility
       const fallbackResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -1338,7 +1494,7 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
             { role: "system", content: getUnifiedMasterPrompt(dynamicScenarioRules) },
             { role: "user", content: userPrompt }
           ],
-          tools: [getUnifiedAnalysisToolSchema()],
+          tools: [getFallbackToolSchema()],  // Simpler schema for Claude fallback
           tool_choice: { type: "function", function: { name: "generate_unified_analysis" } }
         }),
       });
