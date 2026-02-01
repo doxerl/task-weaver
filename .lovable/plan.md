@@ -1,100 +1,148 @@
 
+## Toplu Silme Fonksiyonu - /finance/receipts/upload
 
-## /finance/reports - Giderlerin Görünmeme Sorunu
+### Genel Bakış
 
-### Sorun Analizi
+ReceiptUpload sayfasına checkbox ile belge seçimi ve toplu silme özelliği eklenecek.
 
-Veritabanı sorgusundan görüldüğü üzere, 2025 yılı için resmi gelir tablosunda:
+### Kullanıcı Deneyimi
 
-| Alan | Değer |
-|------|-------|
-| `net_sales` | 5,282,460.22 ₺ |
-| `cost_of_goods_sold` | **0** |
-| `cost_of_merchandise_sold` | **0** |
-| `cost_of_services_sold` | **0** |
-| `marketing_expenses` | **0** |
-| `general_admin_expenses` | **0** |
-| `net_profit` | 4,839,674.89 ₺ |
-| `is_locked` | **true** |
-
-Kullanıcı resmi gelir tablosuna sadece gelir ve kâr değerlerini girmiş, gider detaylarını boş bırakmış.
-
-**KPI kartlarındaki "Net Gider (KDV Hariç)"** değeri `useIncomeStatement` hook'undan geliyor:
-```tsx
-formatAmount((incomeStatement.statement?.costOfSales || 0) + 
-             (incomeStatement.statement?.operatingExpenses.total || 0))
+```
++--------------------------------------------------+
+|  ☐ 2 belge seçildi           [Seçimi Temizle] [🗑️ Sil] |
++--------------------------------------------------+
+|  ☑ Satıcı A - ₺1,500.00                    [...]  |
+|  ☐ Satıcı B - ₺2,300.00                    [...]  |
+|  ☑ Satıcı C - ₺890.00                      [...]  |
++--------------------------------------------------+
 ```
 
-`useIncomeStatement` kilitli resmi veriyi kullandığında, gider alanları 0 olduğu için ₺0 gösteriyor.
+- Kart üzerindeki checkbox tıklandığında belge seçilir
+- Seçim yapıldığında üstte seçim bar'ı görünür
+- "Sil" butonu tıklandığında onay dialog'u açılır
+- Silme işlemi sonrası seçim temizlenir
 
-### Çözüm
+### Teknik Değişiklikler
 
-`useIncomeStatement` hook'una da `forceRealtime` parametresi eklenerek, Reports sayfasının her zaman dinamik veri kullanması sağlanacak.
+#### 1. useReceipts.ts - Toplu Silme Fonksiyonu
 
-### Değişiklikler
-
-#### 1. `useIncomeStatement.ts` - forceRealtime Parametresi
+Yeni `deleteMultipleReceipts` mutation eklenecek:
 
 ```typescript
-interface IncomeStatementOptions {
-  forceRealtime?: boolean;
-}
+const deleteMultipleReceipts = useMutation({
+  mutationFn: async (ids: string[]) => {
+    const { error } = await supabase
+      .from('receipts')
+      .delete()
+      .in('id', ids);
+    if (error) throw error;
+    return ids.length;
+  },
+  onSuccess: (count) => {
+    queryClient.invalidateQueries({ queryKey: ['receipts'] });
+    toast({ title: `${count} belge silindi` });
+  }
+});
+```
 
-export function useIncomeStatement(year: number, options?: IncomeStatementOptions) {
-  const { forceRealtime = false } = options || {};
-  
-  // RESMİ VERİ KONTROLÜ
-  const { officialStatement, isLocked, isLoading: isOfficialLoading } = 
-    useOfficialIncomeStatement(year);
-  
-  const statement = useMemo(() => {
-    // forceRealtime = true ise resmi veri kontrolünü atla
-    if (!forceRealtime && isLocked && officialStatement) {
-      return convertOfficialToStatement(officialStatement);
-    }
-    
-    // Dinamik hesaplama (mevcut kod)
-    // ...
-  }, [..., forceRealtime]);
-  
-  return {
-    statement,
-    isLoading: ...,
-    isOfficial: !forceRealtime && isLocked, // forceRealtime varsa official sayılmaz
-    lines,
-  };
+#### 2. UploadedReceiptCard.tsx - Seçim Checkbox'ı
+
+Props'a selection desteği eklenecek:
+
+```typescript
+interface UploadedReceiptCardProps {
+  receipt: Receipt;
+  // ... mevcut props
+  isSelectable?: boolean;        // Seçim modu aktif mi
+  isSelected?: boolean;          // Bu kart seçili mi
+  onSelectionChange?: (id: string, selected: boolean) => void;
 }
 ```
 
-#### 2. `Reports.tsx` - forceRealtime Kullanımı
+Kart sol üstüne ek checkbox eklenecek (mevcut "Rapora dahil et" checkbox'ından farklı).
+
+#### 3. ReceiptUpload.tsx - State ve UI
+
+Yeni state'ler:
 
 ```typescript
-// Mevcut
-const incomeStatement = useIncomeStatement(year);
+const [selectedReceiptIds, setSelectedReceiptIds] = useState<Set<string>>(new Set());
+const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+const isSelectionMode = selectedReceiptIds.size > 0;
+```
 
-// Güncellenecek
-const incomeStatement = useIncomeStatement(year, { forceRealtime: true });
+Seçim bar'ı (liste üstünde):
+
+```typescript
+{isSelectionMode && (
+  <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border-b p-3 flex items-center justify-between">
+    <span className="text-sm font-medium">
+      {selectedReceiptIds.size} belge seçildi
+    </span>
+    <div className="flex gap-2">
+      <Button variant="outline" size="sm" onClick={clearSelection}>
+        Seçimi Temizle
+      </Button>
+      <Button variant="destructive" size="sm" onClick={() => setShowDeleteConfirm(true)}>
+        <Trash2 className="h-4 w-4 mr-1" />
+        Sil ({selectedReceiptIds.size})
+      </Button>
+    </div>
+  </div>
+)}
+```
+
+Onay dialog'u:
+
+```typescript
+<AlertDialog open={showDeleteConfirm} onOpenChange={setShowDeleteConfirm}>
+  <AlertDialogContent>
+    <AlertDialogHeader>
+      <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+        <Trash2 className="h-5 w-5" />
+        Toplu Silme Onayı
+      </AlertDialogTitle>
+      <AlertDialogDescription>
+        <strong>{selectedReceiptIds.size}</strong> belge kalıcı olarak silinecek.
+        Bu işlem geri alınamaz!
+      </AlertDialogDescription>
+    </AlertDialogHeader>
+    <AlertDialogFooter>
+      <AlertDialogCancel>İptal</AlertDialogCancel>
+      <AlertDialogAction 
+        className="bg-destructive hover:bg-destructive/90"
+        onClick={handleBulkDelete}
+      >
+        Evet, Sil
+      </AlertDialogAction>
+    </AlertDialogFooter>
+  </AlertDialogContent>
+</AlertDialog>
 ```
 
 ### Değiştirilecek Dosyalar
 
 | Dosya | Değişiklik |
 |-------|------------|
-| `src/hooks/finance/useIncomeStatement.ts` | `forceRealtime` parametresi ekle |
-| `src/pages/finance/Reports.tsx` | `useIncomeStatement` çağrısına `{ forceRealtime: true }` ekle |
+| `src/hooks/finance/useReceipts.ts` | `deleteMultipleReceipts` mutation ekle |
+| `src/components/finance/UploadedReceiptCard.tsx` | Selection checkbox ve props ekle |
+| `src/pages/finance/ReceiptUpload.tsx` | Selection state, bar, dialog, handler'lar ekle |
 
-### Davranış Matrisi (Güncellenmiş)
+### Akış
 
-| Hook | Dashboard | Reports |
-|------|-----------|---------|
-| `useIncomeStatement` | Resmi veri | **forceRealtime: true** → Dinamik |
-| `useIncomeAnalysis` | Resmi veri | **forceRealtime: true** → Dinamik |
-| `useExpenseAnalysis` | Resmi veri | **forceRealtime: true** → Dinamik |
+1. Kullanıcı kart üzerindeki checkbox'ı tıklar
+2. `selectedReceiptIds` state'i güncellenir
+3. Seçim bar'ı görünür hale gelir
+4. "Sil" butonuna tıklanır
+5. Onay dialog'u açılır
+6. "Evet, Sil" tıklanır
+7. `deleteMultipleReceipts.mutate(Array.from(selectedReceiptIds))` çağrılır
+8. Silme sonrası `selectedReceiptIds` temizlenir
+9. Toast ile sonuç bildirilir
 
 ### Beklenen Sonuç
 
-- Reports sayfasındaki KPI kartları dinamik verilerden hesaplanacak
-- "Net Gider (KDV Hariç)" banka işlemlerinden toplanacak
-- Gider grafikleri ve detayları doğru gösterilecek
-- Dashboard ise resmi veri önceliğini koruyacak
-
+- Kullanıcılar birden fazla belgeyi hızlıca seçip silebilir
+- Onay dialog'u yanlışlıkla silmeyi önler
+- Seçim bar'ı kaç belgenin seçili olduğunu net gösterir
+- Mevcut tek silme işlevi de korunur
