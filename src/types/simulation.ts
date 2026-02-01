@@ -612,6 +612,15 @@ export interface EnhancedExecutiveSummary {
 /** Deal Analysis from AI */
 export interface DealAnalysis {
   deal_score: number;
+  /** Formula breakdown showing how deal_score was calculated */
+  deal_score_formula?: string;
+  /** Score components for transparency */
+  score_components?: {
+    moic_score?: number;
+    margin_score?: number;
+    growth_score?: number;
+    risk_score?: number;
+  };
   valuation_verdict: 'premium' | 'fair' | 'cheap';
   investor_attractiveness: string;
   risk_factors: string[];

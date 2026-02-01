@@ -642,7 +642,8 @@ serve(async (req) => {
     }
 
     // Use the most powerful model for deep reasoning - now with fixed scenario logic
-    const MODEL_ID = "google/gemini-3-pro-preview";
+    const PRIMARY_MODEL_ID = "google/gemini-3-pro-preview";
+    const FALLBACK_MODEL_ID = "anthropic/claude-3.5-sonnet"; // Fallback if Gemini fails
     
     // Detect scenario relationship type
     const scenarioRelationship = detectScenarioRelationship(scenarioA, scenarioB);
@@ -1003,7 +1004,7 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: MODEL_ID,
+        model: PRIMARY_MODEL_ID,
         messages: [
           { role: "system", content: getUnifiedMasterPrompt(dynamicScenarioRules) },
           { role: "user", content: userPrompt }
@@ -1079,12 +1080,28 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
                   },
                   deal_analysis: {
                     type: "object",
+                    description: "CRITICAL: Include formula transparency for deal_score calculation",
                     properties: {
-                      deal_score: { type: "number", description: "Score from 1 to 10" },
+                      deal_score: { type: "number", description: "Score from 1 to 10. MUST show calculation formula in deal_score_formula field" },
+                      deal_score_formula: {
+                        type: "string",
+                        description: "REQUIRED: Show exact calculation. Format: '7/10 = (MOIC_Score×2 + Margin_Score×3 + Growth_Score×2 + Risk_Score×3) / 10 = (8×2 + 7×3 + 6×2 + 7×3) / 10'"
+                      },
+                      score_components: {
+                        type: "object",
+                        description: "Individual scores (1-10 each) used in formula",
+                        properties: {
+                          moic_score: { type: "number", description: "MOIC component score 1-10. MOIC>3x=10, 2-3x=8, 1.5-2x=6, <1.5x=4" },
+                          margin_score: { type: "number", description: "Profit margin score 1-10. >20%=10, 15-20%=8, 10-15%=6, <10%=4" },
+                          growth_score: { type: "number", description: "Revenue growth score 1-10. >50%=10, 30-50%=8, 15-30%=6, <15%=4" },
+                          risk_score: { type: "number", description: "Risk-adjusted score 1-10. Low risk=10, Medium=7, High=4" }
+                        }
+                      },
                       valuation_verdict: { type: "string", description: "One of: premium, fair, cheap" },
                       investor_attractiveness: { type: "string" },
                       risk_factors: { type: "array", items: { type: "string" } }
-                    }
+                    },
+                    required: ["deal_score", "deal_score_formula", "valuation_verdict", "investor_attractiveness", "risk_factors"]
                   },
                   pitch_deck: {
                     type: "object",
@@ -1277,27 +1294,77 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
       }),
     });
 
-    if (!response.ok) {
+    let usedModel = PRIMARY_MODEL_ID;
+    let finalResponse = response;
+
+    // Handle rate limit and credit errors immediately (no fallback)
+    if (response.status === 429) {
       const errorText = await response.text();
-      console.error("AI Gateway error:", response.status, errorText);
-      
-      if (response.status === 429) {
-        return new Response(
-          JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
-          { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      if (response.status === 402) {
-        return new Response(
-          JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }),
-          { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-      throw new Error(`AI Gateway error: ${response.status}`);
+      console.error("Rate limit exceeded:", errorText);
+      return new Response(
+        JSON.stringify({ error: "Rate limit exceeded. Please try again later." }),
+        { status: 429, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
+    }
+    if (response.status === 402) {
+      const errorText = await response.text();
+      console.error("Credits exhausted:", errorText);
+      return new Response(
+        JSON.stringify({ error: "AI credits exhausted. Please add credits to continue." }),
+        { status: 402, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+      );
     }
 
-    const data = await response.json();
-    console.log("AI response received successfully");
+    // If primary model fails with other errors, try fallback
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`Primary model (${PRIMARY_MODEL_ID}) failed:`, response.status, errorText);
+      console.log(`Attempting fallback to ${FALLBACK_MODEL_ID}...`);
+
+      // Retry with fallback model
+      const fallbackResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${LOVABLE_API_KEY}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model: FALLBACK_MODEL_ID,
+          messages: [
+            { role: "system", content: getUnifiedMasterPrompt(dynamicScenarioRules) },
+            { role: "user", content: userPrompt }
+          ],
+          tools: [
+            {
+              type: "function",
+              function: {
+                name: "generate_unified_analysis",
+                description: "Generate comprehensive unified analysis with all 5 sections",
+                parameters: {
+                  type: "object",
+                  properties: {},
+                  required: ["insights", "recommendations", "quarterly_analysis", "deal_analysis", "pitch_deck", "next_year_projection"]
+                }
+              }
+            }
+          ],
+          tool_choice: { type: "function", function: { name: "generate_unified_analysis" } }
+        }),
+      });
+
+      if (!fallbackResponse.ok) {
+        const fallbackErrorText = await fallbackResponse.text();
+        console.error(`Fallback model (${FALLBACK_MODEL_ID}) also failed:`, fallbackResponse.status, fallbackErrorText);
+        throw new Error(`Both AI models failed. Primary: ${response.status}, Fallback: ${fallbackResponse.status}`);
+      }
+
+      finalResponse = fallbackResponse;
+      usedModel = FALLBACK_MODEL_ID;
+      console.log(`Fallback to ${FALLBACK_MODEL_ID} succeeded`);
+    }
+
+    const data = await finalResponse.json();
+    console.log(`AI response received successfully from ${usedModel}`);
     
     // Debug: log the response structure
     console.log("Response structure:", JSON.stringify({
@@ -1317,14 +1384,18 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
         const analysisResult = JSON.parse(toolCall.function.arguments);
         console.log("Successfully parsed tool call arguments");
         
-        // Add projection_year from scenarioRelationship to the response
-        const responseWithProjectionYear = {
+        // Add projection_year and model metadata to the response
+        const responseWithMetadata = {
           ...analysisResult,
-          projection_year: scenarioRelationship.projectionYear
+          projection_year: scenarioRelationship.projectionYear,
+          _metadata: {
+            model_used: usedModel,
+            is_fallback: usedModel !== PRIMARY_MODEL_ID
+          }
         };
-        
+
         return new Response(
-          JSON.stringify(responseWithProjectionYear),
+          JSON.stringify(responseWithMetadata),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (parseError) {
