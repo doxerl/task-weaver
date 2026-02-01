@@ -118,14 +118,21 @@ import {
 } from 'recharts';
 
 // ============================================
-// CONSTANTS
+// CONSTANTS (imported from centralized file)
 // ============================================
-const DEFAULT_REVENUE_GROWTH_MULTIPLIER = 1.3;
-const DEFAULT_EXPENSE_GROWTH_MULTIPLIER = 1.15;
-const MAX_DISPLAY_ITEMS = 5;
-const MAX_METRICS_DISPLAY = 4;
-const MAX_RECOMMENDATIONS_DISPLAY = 4;
-const QUARTERS = ['q1', 'q2', 'q3', 'q4'] as const;
+import {
+  GROWTH_MULTIPLIERS,
+  DISPLAY_LIMITS,
+  FINANCIAL_ASSUMPTIONS,
+  QUARTERS,
+} from '@/constants/simulation';
+
+// Destructure for backward compatibility
+const DEFAULT_REVENUE_GROWTH_MULTIPLIER = GROWTH_MULTIPLIERS.REVENUE;
+const DEFAULT_EXPENSE_GROWTH_MULTIPLIER = GROWTH_MULTIPLIERS.EXPENSE;
+const MAX_DISPLAY_ITEMS = DISPLAY_LIMITS.FOCUS_PROJECTS;
+const MAX_METRICS_DISPLAY = DISPLAY_LIMITS.METRICS;
+const MAX_RECOMMENDATIONS_DISPLAY = DISPLAY_LIMITS.RECOMMENDATIONS;
 
 // ============================================
 // UTILITY FUNCTIONS
@@ -705,7 +712,7 @@ function ScenarioComparisonContent() {
     
     const cash = (historicalBalance.cash_on_hand || 0) + (historicalBalance.bank_balance || 0);
     const currentAssets = cash + (historicalBalance.trade_receivables || 0);
-    const shortTermDebt = (historicalBalance.trade_payables || 0) + ((historicalBalance.bank_loans || 0) * 0.3);
+    const shortTermDebt = (historicalBalance.trade_payables || 0) + ((historicalBalance.bank_loans || 0) * FINANCIAL_ASSUMPTIONS.SHORT_TERM_DEBT_RATIO);
     const equity = (historicalBalance.total_assets || 0) - (historicalBalance.total_liabilities || 0);
     
     return {
