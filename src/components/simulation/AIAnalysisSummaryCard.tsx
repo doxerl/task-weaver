@@ -226,7 +226,40 @@ export const AIAnalysisSummaryCard: React.FC<AIAnalysisSummaryCardProps> = ({
                     </Badge>
                   </div>
                 </div>
-                
+
+                {/* Deal Score Formula Transparency */}
+                {unifiedAnalysis.deal_analysis.deal_score_formula && (
+                  <div className="mb-3 p-2 rounded bg-purple-500/5 border border-purple-500/10">
+                    <p className="text-[10px] font-mono text-muted-foreground">
+                      📐 {unifiedAnalysis.deal_analysis.deal_score_formula}
+                    </p>
+                    {unifiedAnalysis.deal_analysis.score_components && (
+                      <div className="flex flex-wrap gap-2 mt-1.5">
+                        {unifiedAnalysis.deal_analysis.score_components.moic_score !== undefined && (
+                          <Badge variant="secondary" className="text-[9px]">
+                            MOIC: {unifiedAnalysis.deal_analysis.score_components.moic_score}/10
+                          </Badge>
+                        )}
+                        {unifiedAnalysis.deal_analysis.score_components.margin_score !== undefined && (
+                          <Badge variant="secondary" className="text-[9px]">
+                            Marj: {unifiedAnalysis.deal_analysis.score_components.margin_score}/10
+                          </Badge>
+                        )}
+                        {unifiedAnalysis.deal_analysis.score_components.growth_score !== undefined && (
+                          <Badge variant="secondary" className="text-[9px]">
+                            Büyüme: {unifiedAnalysis.deal_analysis.score_components.growth_score}/10
+                          </Badge>
+                        )}
+                        {unifiedAnalysis.deal_analysis.score_components.risk_score !== undefined && (
+                          <Badge variant="secondary" className="text-[9px]">
+                            Risk: {unifiedAnalysis.deal_analysis.score_components.risk_score}/10
+                          </Badge>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Enhanced Executive Summary */}
                 {unifiedAnalysis.pitch_deck?.executive_summary && (
                   <div className="text-sm text-muted-foreground border-t border-purple-500/20 pt-3 space-y-2">

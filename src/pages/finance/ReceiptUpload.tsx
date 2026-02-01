@@ -143,6 +143,7 @@ export default function ReceiptUpload() {
   const [uploading, setUploading] = useState(false);
   const [completed, setCompleted] = useState(0);
   const [showUploadConfirm, setShowUploadConfirm] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
   
   // Uploaded receipts - start with empty, then merge with newly uploaded
   const [sessionUploadedIds, setSessionUploadedIds] = useState<Set<string>>(new Set());
@@ -548,12 +549,37 @@ const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
     };
   }, [recentReceipts, receiptFilter, getCurrencyRate]);
 
-  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const selected = Array.from(e.target.files || []);
-    setFiles(prev => [...prev, ...selected]);
-    
+  // Common file processing function for both input and drag & drop
+  const processFiles = useCallback((selected: File[]) => {
+    if (selected.length === 0) return;
+
+    // Filter valid file types
+    const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'xml', 'zip', 'html', 'htm'];
+    const validFiles = selected.filter(file => {
+      const ext = file.name.split('.').pop()?.toLowerCase() || '';
+      return validExtensions.includes(ext) || file.type.startsWith('image/');
+    });
+
+    if (validFiles.length === 0) {
+      toast({
+        title: 'Geçersiz dosya formatı',
+        description: 'JPG, PNG, PDF, XML, ZIP veya HTML dosyaları yükleyebilirsiniz.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (validFiles.length < selected.length) {
+      toast({
+        title: 'Bazı dosyalar atlandı',
+        description: `${selected.length - validFiles.length} dosya desteklenmeyen formatta.`,
+      });
+    }
+
+    setFiles(prev => [...prev, ...validFiles]);
+
     // Generate previews and auto-detect subtype
-    selected.forEach(file => {
+    validFiles.forEach(file => {
       // Auto-detect subtype based on file type
       const fileInfo = getFileTypeInfo(file);
       if (documentType === 'received') {
@@ -566,7 +592,7 @@ const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
           }
         }
       }
-      
+
       if (file.type.startsWith('image/')) {
         const url = URL.createObjectURL(file);
         setPreviews(prev => [...prev, url]);
@@ -574,7 +600,45 @@ const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
         setPreviews(prev => [...prev, '']);
       }
     });
-  }, [documentType, receiptSubtype]);
+  }, [documentType, receiptSubtype, toast]);
+
+  const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const selected = Array.from(e.target.files || []);
+    processFiles(selected);
+    // Reset input value so same file can be selected again
+    e.target.value = '';
+  }, [processFiles]);
+
+  // Drag and drop handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set to false if we're leaving the drop zone entirely
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (uploading) return;
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    processFiles(droppedFiles);
+  }, [uploading, processFiles]);
 
   const removeFile = (index: number) => {
     // Revoke object URL to prevent memory leaks
@@ -1033,76 +1097,72 @@ const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
               </div>
             ) : (
               <>
-                {/* Mobile: Camera + Gallery buttons */}
+                {/* Mobile: Camera + Gallery buttons with drag & drop wrapper */}
                 {isMobile ? (
-                  <div className="grid grid-cols-2 gap-3">
-                    <button
-                      onClick={() => cameraInputRef.current?.click()}
-                      className="flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg transition-colors border-primary bg-primary/5 hover:bg-primary/10"
-                    >
-                      <Camera className="h-10 w-10 text-primary" />
-                      <div className="text-center">
-                        <p className="text-sm font-medium">Kamera ile Çek</p>
-                        <p className="text-xs text-muted-foreground">Fotoğraf çek</p>
+                  <div
+                    onDragOver={handleDragOver}
+                    onDragEnter={handleDragEnter}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
+                    className={cn(
+                      "transition-all duration-200 rounded-lg",
+                      isDragging && "ring-2 ring-primary ring-offset-2 bg-primary/5"
+                    )}
+                  >
+                    {isDragging ? (
+                      <div className="flex flex-col items-center justify-center gap-3 p-8 border-2 border-dashed rounded-lg border-primary bg-primary/10">
+                        <Upload className="h-10 w-10 text-primary" />
+                        <p className="text-sm font-medium text-primary">Dosyaları buraya bırakın</p>
                       </div>
-                    </button>
-                    
-                    <button
-                      onClick={() => galleryInputRef.current?.click()}
-                      className="flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg transition-colors border-muted-foreground/25 hover:border-primary/50"
-                    >
-                      <ImageIcon className="h-10 w-10 text-muted-foreground" />
-                      <div className="text-center">
-                        <p className="text-sm font-medium">Galeriden Seç</p>
-                        <p className="text-xs text-muted-foreground">JPG, PDF, XML, ZIP</p>
+                    ) : (
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          onClick={() => cameraInputRef.current?.click()}
+                          className="flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg transition-colors border-primary bg-primary/5 hover:bg-primary/10"
+                        >
+                          <Camera className="h-10 w-10 text-primary" />
+                          <div className="text-center">
+                            <p className="text-sm font-medium">Kamera ile Çek</p>
+                            <p className="text-xs text-muted-foreground">Fotoğraf çek</p>
+                          </div>
+                        </button>
+
+                        <button
+                          onClick={() => galleryInputRef.current?.click()}
+                          className="flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg transition-colors border-muted-foreground/25 hover:border-primary/50"
+                        >
+                          <ImageIcon className="h-10 w-10 text-muted-foreground" />
+                          <div className="text-center">
+                            <p className="text-sm font-medium">Galeriden Seç</p>
+                            <p className="text-xs text-muted-foreground">JPG, PDF, XML, ZIP</p>
+                          </div>
+                        </button>
                       </div>
-                    </button>
+                    )}
                   </div>
                 ) : (
-                  /* Desktop: Single drop zone with drag-and-drop */
+                  /* Desktop: Single drop zone with drag & drop support */
                   <div
                     onClick={() => galleryInputRef.current?.click()}
-                    onDragOver={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      if (!uploading) setIsDragOver(true);
-                    }}
-                    onDragLeave={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setIsDragOver(false);
-                    }}
-                    onDrop={(e) => {
-                      e.preventDefault();
-                      e.stopPropagation();
-                      setIsDragOver(false);
-                      if (uploading) return;
-                      
-                      const droppedFiles = Array.from(e.dataTransfer.files).filter(file => {
-                        const ext = file.name.split('.').pop()?.toLowerCase();
-                        return ['jpg', 'jpeg', 'png', 'pdf', 'xml', 'zip', 'html', 'htm'].includes(ext || '');
-                      });
-                      
-                      if (droppedFiles.length > 0) {
-                        setFiles(prev => [...prev, ...droppedFiles]);
-                      }
-                    }}
+                    onDragOver={handleDragOver}
+                    onDragEnter={handleDragEnter}
+                    onDragLeave={handleDragLeave}
+                    onDrop={handleDrop}
                     className={cn(
-                      "w-full flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg cursor-pointer transition-all",
-                      isDragOver 
-                        ? "border-primary bg-primary/10 scale-[1.02]" 
+                      "w-full flex flex-col items-center justify-center gap-3 p-6 border-2 border-dashed rounded-lg cursor-pointer transition-all duration-200",
+                      isDragging
+                        ? "border-primary bg-primary/10 scale-[1.02]"
                         : "border-muted-foreground/25 hover:border-primary/50"
                     )}
                   >
                     <Upload className={cn(
                       "h-10 w-10 transition-colors",
-                      isDragOver ? "text-primary" : "text-muted-foreground"
+                      isDragging ? "text-primary" : "text-muted-foreground"
                     )} />
                     <p className="text-sm font-medium">
-                      {isDragOver 
-                        ? 'Dosyaları bırakın' 
-                        : (receiptSubtype === 'slip' ? 'Fiş seçin veya sürükleyin' : 'Fatura seçin veya sürükleyin')
-                      }
+                      {isDragging
+                        ? 'Dosyaları buraya bırakın'
+                        : receiptSubtype === 'slip' ? 'Fiş seçin veya sürükleyin' : 'Fatura seçin veya sürükleyin'}
                     </p>
                     <p className="text-xs text-muted-foreground">JPG, PNG, PDF, XML, ZIP</p>
                   </div>
