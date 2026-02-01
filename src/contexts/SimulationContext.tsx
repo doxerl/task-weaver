@@ -6,7 +6,7 @@ import type {
   FocusProjectInfo,
   InvestmentAllocation,
 } from '@/types/simulation';
-import type { UnifiedAnalysisResult } from '@/hooks/finance/useUnifiedAnalysis';
+import type { UnifiedAnalysisResult } from '@/types/simulation';
 
 /**
  * Deal Configuration for investment analysis

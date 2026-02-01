@@ -6,7 +6,7 @@ import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code, FileCheck, Globe, Home, Check, AlertCircle, Copy, RefreshCw, Download, ChevronDown } from 'lucide-react';
+import { Upload, Loader2, ArrowLeft, X, FileText, Receipt as ReceiptIcon, Plus, Camera, ImageIcon, Archive, Code, FileCheck, Globe, Home, Check, AlertCircle, Copy, RefreshCw, Download, ChevronDown, Trash2 } from 'lucide-react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
 import { useReceipts, BatchProgress, BatchFileResult } from '@/hooks/finance/useReceipts';
@@ -126,7 +126,8 @@ export default function ReceiptUpload() {
     batchProgress,
     isBatchUploading,
     uploadProgress, 
-    deleteReceipt, 
+    deleteReceipt,
+    deleteMultipleReceipts,
     updateReceipt,
     reprocessReceipt,
     toggleIncludeInReport,
@@ -184,6 +185,39 @@ const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
 
   // Filter state for summary
   const [receiptFilter, setReceiptFilter] = useState<ReceiptFilter>(initialType === 'issued' ? 'issued' : 'received');
+  
+  // Bulk selection state
+  const [selectedReceiptIds, setSelectedReceiptIds] = useState<Set<string>>(new Set());
+  const [showBulkDeleteConfirm, setShowBulkDeleteConfirm] = useState(false);
+  const isSelectionMode = selectedReceiptIds.size > 0;
+  
+  // Selection handlers
+  const handleSelectionChange = useCallback((id: string, selected: boolean) => {
+    setSelectedReceiptIds(prev => {
+      const next = new Set(prev);
+      if (selected) {
+        next.add(id);
+      } else {
+        next.delete(id);
+      }
+      return next;
+    });
+  }, []);
+  
+  const clearSelection = useCallback(() => {
+    setSelectedReceiptIds(new Set());
+  }, []);
+  
+  const handleBulkDelete = useCallback(async () => {
+    const ids = Array.from(selectedReceiptIds);
+    try {
+      await deleteMultipleReceipts.mutateAsync(ids);
+      clearSelection();
+      setShowBulkDeleteConfirm(false);
+    } catch (error) {
+      console.error('Bulk delete error:', error);
+    }
+  }, [selectedReceiptIds, deleteMultipleReceipts, clearSelection]);
   
   // Belge türü değiştiğinde özet filtresini senkronize et
   useEffect(() => {
@@ -1872,6 +1906,33 @@ const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
               </CardContent>
             </Card>
 
+            {/* Selection Bar */}
+            {isSelectionMode && (
+              <div className="sticky top-0 z-10 bg-background/95 backdrop-blur border rounded-lg p-3 flex items-center justify-between mb-4">
+                <span className="text-sm font-medium">
+                  {selectedReceiptIds.size} belge seçildi
+                </span>
+                <div className="flex gap-2">
+                  <Button variant="outline" size="sm" onClick={clearSelection}>
+                    Seçimi Temizle
+                  </Button>
+                  <Button 
+                    variant="destructive" 
+                    size="sm" 
+                    onClick={() => setShowBulkDeleteConfirm(true)}
+                    disabled={deleteMultipleReceipts.isPending}
+                  >
+                    {deleteMultipleReceipts.isPending ? (
+                      <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+                    ) : (
+                      <Trash2 className="h-4 w-4 mr-1" />
+                    )}
+                    Sil ({selectedReceiptIds.size})
+                  </Button>
+                </div>
+              </div>
+            )}
+
             <div className="flex items-center justify-between">
               <h2 className="text-lg font-semibold">
                 📋 {receiptFilter === 'all' ? 'Son Yüklenen Belgeler' : 
@@ -1897,6 +1958,9 @@ const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
                   onReprocess={handleReprocess}
                   onToggleInclude={handleToggleInclude}
                   isReprocessing={isReprocessing}
+                  isSelectable={true}
+                  isSelected={selectedReceiptIds.has(receipt.id)}
+                  onSelectionChange={handleSelectionChange}
                 />
               ))}
             </div>
@@ -2000,6 +2064,36 @@ const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
               )}
             >
               {documentType === 'issued' ? '📤 Kesilen Olarak Yükle' : '📥 Alınan Olarak Yükle'}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {/* Bulk Delete Confirmation Dialog */}
+      <AlertDialog open={showBulkDeleteConfirm} onOpenChange={setShowBulkDeleteConfirm}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle className="flex items-center gap-2 text-destructive">
+              <Trash2 className="h-5 w-5" />
+              Toplu Silme Onayı
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              <strong>{selectedReceiptIds.size}</strong> belge kalıcı olarak silinecek.
+              <br />
+              <span className="text-destructive font-medium">Bu işlem geri alınamaz!</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogAction 
+              className="bg-destructive hover:bg-destructive/90"
+              onClick={handleBulkDelete}
+              disabled={deleteMultipleReceipts.isPending}
+            >
+              {deleteMultipleReceipts.isPending ? (
+                <Loader2 className="h-4 w-4 mr-1 animate-spin" />
+              ) : null}
+              Evet, Sil
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

@@ -1055,6 +1055,25 @@ export function useReceipts(year?: number, month?: number) {
     }
   });
 
+  // Delete multiple receipts (bulk delete)
+  const deleteMultipleReceipts = useMutation({
+    mutationFn: async (ids: string[]) => {
+      const { error } = await supabase
+        .from('receipts')
+        .delete()
+        .in('id', ids);
+      if (error) throw error;
+      return ids.length;
+    },
+    onSuccess: (count) => {
+      queryClient.invalidateQueries({ queryKey: ['receipts'] });
+      toast({ title: `${count} belge silindi` });
+    },
+    onError: (error: Error) => {
+      toast({ title: 'Silme hatası', description: error.message, variant: 'destructive' });
+    }
+  });
+
   // Update receipt fields
   const updateReceipt = useMutation({
     mutationFn: async ({ id, data }: { id: string; data: Partial<Receipt> }) => {
@@ -1103,6 +1122,7 @@ export function useReceipts(year?: number, month?: number) {
     updateCategory,
     toggleIncludeInReport,
     deleteReceipt,
+    deleteMultipleReceipts,
     updateReceipt,
     // Reprocess exports
     missingVatReceipts,

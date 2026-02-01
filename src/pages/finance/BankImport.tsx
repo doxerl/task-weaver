@@ -3,9 +3,11 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Card, CardContent } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Button } from '@/components/ui/button';
-import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle, PlayCircle, Eye, RefreshCw, Trash2, UserPlus, AlertTriangle, Zap, Clock } from 'lucide-react';
+import { Upload, Loader2, CheckCircle, ArrowLeft, AlertCircle, FileSpreadsheet, X, StopCircle, PlayCircle, Eye, RefreshCw, Trash2, UserPlus, AlertTriangle, Zap, Clock, Shield } from 'lucide-react';
 import { useBankFileUpload } from '@/hooks/finance/useBankFileUpload';
 import { useBankImportSession } from '@/hooks/finance/useBankImportSession';
+import { useOfficialDataStatus } from '@/hooks/finance/useOfficialDataStatus';
+import { useYear } from '@/contexts/YearContext';
 import { TransactionEditor, EditableTransaction } from '@/components/finance/TransactionEditor';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
@@ -18,6 +20,8 @@ type ViewMode = 'upload' | 'preview' | 'completed';
 
 export default function BankImport() {
   const navigate = useNavigate();
+  const { selectedYear } = useYear();
+  const { isAnyLocked, lockedModules } = useOfficialDataStatus(selectedYear);
   
   // Upload hook - for new uploads
   const { 
@@ -391,6 +395,24 @@ export default function BankImport() {
           <h1 className="text-xl font-bold">Banka Hareketi Yükle</h1>
         </div>
 
+        {/* Official Data Lock Warning */}
+        {isAnyLocked && (
+          <Alert className="bg-amber-50 border-amber-200 dark:bg-amber-950 dark:border-amber-800">
+            <Shield className="h-4 w-4 text-amber-600" />
+            <AlertTitle className="text-amber-800 dark:text-amber-200">Resmi Veri Modu Aktif</AlertTitle>
+            <AlertDescription className="text-amber-700 dark:text-amber-300">
+              <p>{selectedYear} yılı için resmi veriler kilitli olduğundan yeni banka ekstresi yüklenemez.</p>
+              <p className="text-sm mt-1">Kilitli modüller: {lockedModules.join(', ')}</p>
+              <Button asChild variant="outline" size="sm" className="mt-3">
+                <Link to="/finance/official-data">Resmi Veri Sayfasına Git</Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Only show upload form if not locked */}
+        {!isAnyLocked && (
+
         <Card>
           <CardContent className="p-6 space-y-4">
             <label className={cn(
@@ -682,6 +704,7 @@ export default function BankImport() {
             )}
           </CardContent>
         </Card>
+        )}
       </div>
       <BottomTabBar />
     </div>

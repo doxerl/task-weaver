@@ -10,9 +10,11 @@ import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue, SelectGroup, SelectLabel } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle } from '@/components/ui/sheet';
-import { ArrowLeft, Plus, TrendingUp, TrendingDown, Users, Pencil, Trash2, AlertCircle, Check } from 'lucide-react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { ArrowLeft, Plus, TrendingUp, TrendingDown, Users, Pencil, Trash2, AlertCircle, Check, Shield } from 'lucide-react';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { useManualEntry } from '@/hooks/finance/useManualEntry';
+import { useOfficialDataStatus } from '@/hooks/finance/useOfficialDataStatus';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { BankTransaction } from '@/types/finance';
 
@@ -49,6 +51,7 @@ export default function ManualEntry() {
   const { selectedYear, setSelectedYear } = useYear();
   const { grouped, hierarchical, isLoading: catLoading, createCategory, parentCategories } = useCategories();
   const { addTransaction, addPartnerTransaction, updateTransaction, deleteTransaction, recentTransactions, isLoading } = useManualEntry(selectedYear);
+  const { isAnyLocked, lockedModules, isLoading: lockLoading } = useOfficialDataStatus(selectedYear);
 
   const [transactionType, setTransactionType] = useState<'income' | 'expense' | 'partner'>('income');
   const [selectedMonth, setSelectedMonth] = useState(currentDate.getMonth() + 1);
@@ -210,6 +213,25 @@ export default function ManualEntry() {
           </Link>
           <h1 className="text-xl font-bold">Manuel İşlem Ekle</h1>
         </div>
+
+        {/* Official Data Lock Warning */}
+        {isAnyLocked && (
+          <Alert className="bg-green-50 border-green-200 dark:bg-green-950 dark:border-green-800">
+            <Shield className="h-4 w-4 text-green-600" />
+            <AlertTitle className="text-green-800 dark:text-green-200">Resmi Veri Modu Aktif</AlertTitle>
+            <AlertDescription className="text-green-700 dark:text-green-300">
+              <p>{selectedYear} yılı için resmi veriler kilitli olduğundan manuel giriş yapılamaz.</p>
+              <p className="text-sm mt-1">Kilitli modüller: {lockedModules.join(', ')}</p>
+              <Button asChild variant="outline" size="sm" className="mt-3">
+                <Link to="/finance/official-data">Resmi Veri Sayfasına Git</Link>
+              </Button>
+            </AlertDescription>
+          </Alert>
+        )}
+
+        {/* Only show form if not locked */}
+        {!isAnyLocked && (
+          <>
 
         {/* Year Warning */}
         {selectedYear > 2025 && (
@@ -507,6 +529,8 @@ export default function ManualEntry() {
             )}
           </CardContent>
         </Card>
+        </>
+        )}
       </div>
 
       {/* Edit Transaction Sheet */}

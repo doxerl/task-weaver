@@ -2,27 +2,99 @@ import { useMemo } from 'react';
 import { useBankTransactions } from './useBankTransactions';
 import { useCategories } from './useCategories';
 import { useReceipts } from './useReceipts';
+import { useOfficialDataStatus } from './useOfficialDataStatus';
+import { useOfficialIncomeStatement } from './useOfficialIncomeStatement';
 import { ServiceRevenue, CustomerRevenue, MonthlyDataPoint, MONTH_NAMES_SHORT_TR, CHART_COLORS } from '@/types/reports';
 
-export function useIncomeAnalysis(year: number) {
+interface IncomeAnalysisOptions {
+  forceRealtime?: boolean;
+}
+
+export function useIncomeAnalysis(year: number, options?: IncomeAnalysisOptions) {
+  const { forceRealtime = false } = options || {};
   const { transactions, isLoading: txLoading } = useBankTransactions(year);
   const { categories, isLoading: catLoading } = useCategories();
   const { receipts, isLoading: receiptLoading } = useReceipts(year);
+  const { isAnyLocked } = useOfficialDataStatus(year);
+  const { officialStatement } = useOfficialIncomeStatement(year);
 
   const isLoading = txLoading || catLoading || receiptLoading;
 
   const analysis = useMemo(() => {
+    const emptyResult = {
+      serviceRevenue: [] as ServiceRevenue[],
+      customerRevenue: [] as CustomerRevenue[],
+      monthlyIncome: [] as MonthlyDataPoint[],
+      totalIncome: 0,
+      avgMonthlyIncome: 0,
+      bestMonth: { month: 0, amount: 0 },
+      worstMonth: { month: 0, amount: 0 },
+      isOfficial: false,
+    };
+
     if (isLoading || !categories.length) {
+      return emptyResult;
+    }
+
+    // PRIORITY 1: If official data is locked and forceRealtime is false, use official income values
+    if (!forceRealtime && isAnyLocked && officialStatement) {
+      const grossSalesDomestic = officialStatement.gross_sales_domestic || 0;
+      const grossSalesExport = officialStatement.gross_sales_export || 0;
+      const grossSalesOther = officialStatement.gross_sales_other || 0;
+      const totalIncome = grossSalesDomestic + grossSalesExport + grossSalesOther;
+
+      // Create simplified service revenue breakdown from official data
+      const serviceRevenue: ServiceRevenue[] = [];
+      
+      if (grossSalesDomestic > 0) {
+        serviceRevenue.push({
+          categoryId: 'official_domestic',
+          code: '600_YURTICI',
+          name: 'Yurtiçi Satışlar',
+          amount: grossSalesDomestic,
+          percentage: totalIncome > 0 ? (grossSalesDomestic / totalIncome) * 100 : 0,
+          color: CHART_COLORS.services[0],
+          byMonth: {},
+        });
+      }
+      
+      if (grossSalesExport > 0) {
+        serviceRevenue.push({
+          categoryId: 'official_export',
+          code: '601_IHRACAT',
+          name: 'İhracat Satışları',
+          amount: grossSalesExport,
+          percentage: totalIncome > 0 ? (grossSalesExport / totalIncome) * 100 : 0,
+          color: CHART_COLORS.services[1],
+          byMonth: {},
+        });
+      }
+      
+      if (grossSalesOther > 0) {
+        serviceRevenue.push({
+          categoryId: 'official_other',
+          code: '602_DIGER',
+          name: 'Diğer Gelirler',
+          amount: grossSalesOther,
+          percentage: totalIncome > 0 ? (grossSalesOther / totalIncome) * 100 : 0,
+          color: CHART_COLORS.services[2],
+          byMonth: {},
+        });
+      }
+
       return {
-        serviceRevenue: [] as ServiceRevenue[],
-        customerRevenue: [] as CustomerRevenue[],
-        monthlyIncome: [] as MonthlyDataPoint[],
-        totalIncome: 0,
-        avgMonthlyIncome: 0,
+        serviceRevenue,
+        customerRevenue: [] as CustomerRevenue[], // No customer breakdown in official data
+        monthlyIncome: [] as MonthlyDataPoint[], // No monthly breakdown in official data
+        totalIncome,
+        avgMonthlyIncome: totalIncome / 12,
         bestMonth: { month: 0, amount: 0 },
         worstMonth: { month: 0, amount: 0 },
+        isOfficial: true,
       };
     }
+
+    // PRIORITY 2: Dynamic calculation from bank transactions
 
     // Exclude partner, financing, investment, and excluded categories from income
     const excludedTypes = ['PARTNER', 'FINANCING', 'INVESTMENT', 'EXCLUDED'];
@@ -214,8 +286,9 @@ export function useIncomeAnalysis(year: number) {
       avgMonthlyIncome: totalIncome / 12,
       bestMonth: { month: bestMonth.month, amount: bestMonth.income },
       worstMonth: { month: worstMonth.month, amount: worstMonth.income },
+      isOfficial: false,
     };
-  }, [transactions, categories, receipts, isLoading]);
+  }, [transactions, categories, receipts, isLoading, isAnyLocked, officialStatement, forceRealtime]);
 
   return {
     ...analysis,

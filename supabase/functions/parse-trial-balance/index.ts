@@ -75,7 +75,12 @@ Boş/eksik değerler = 0
 2. Alt hesap kodlarını OLDUĞU GİBİ döndür (boşlukları koru)
 3. Alt hesaplar için parentCode alanını DOLDURABİLİRSİN (ilk 3 hane)
 4. ASLA özetleme veya gruplama yapma
-5. Firma/kişi isimlerini tam olarak yaz`;
+5. Firma/kişi isimlerini tam olarak yaz
+
+## KRİTİK KURAL
+Ana hesap satırı (örneğin 320 SATICILAR) MUTLAKA ayrı bir kayıt olarak döndürülmeli.
+Alt hesaplar (320 001, 320 1 006) ana hesaptan AYRI kayıtlar olarak döndürülmeli.
+Ana hesabın toplam değeri, alt hesapların toplamından FARKLI olabilir - bu normaldir.`;
 
 // Function schema for structured output
 const PARSE_FUNCTION_SCHEMA = {
@@ -181,22 +186,26 @@ function isValidAccountCode(code: string): boolean {
   const trimmed = code.trim();
   // Accept 3-digit codes and sub-account codes with dots or spaces
   // Examples: 100, 320.001, 320 001, 320.1.006, 320 1 006
-  return /^\d{3}([\.\s]\d+)*$/.test(trimmed);
+  // Updated regex to handle multiple spaces between segments: \s+ instead of \s
+  return /^\d{3}([\.\s]+\d+)*$/.test(trimmed);
 }
 
 function normalizeAccountCode(code: string): string {
   // Normalize account code: convert spaces to dots for consistent storage
   // "320 1 006" → "320.1.006"
+  // "320 001" → "320.001"
   return code.trim().replace(/\s+/g, '.');
 }
 
 function getBaseAccountCode(code: string): string {
   // Get first 3 digits as base account code
-  return code.trim().split(/[\.\s]/)[0].substring(0, 3);
+  // Works for both "320.001" and "320 001" formats
+  return code.trim().split(/[\.\s]+/)[0].substring(0, 3);
 }
 
 function isSubAccount(code: string): boolean {
   // Sub-accounts have separators (dots or spaces) after the main code
+  // "320 001" or "320.001" are sub-accounts, "320" is not
   return /[\.\s]/.test(code.trim());
 }
 
@@ -334,11 +343,21 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
     }
   }
 
-  // Attach sub-accounts to main accounts
+// Attach sub-accounts to main accounts
+  // If main account doesn't exist, create it from sub-accounts
   for (const baseCode of Object.keys(subAccountsTemp)) {
-    if (accounts[baseCode]) {
-      accounts[baseCode].subAccounts = subAccountsTemp[baseCode];
+    if (!accounts[baseCode]) {
+      // Create virtual main account from sub-accounts
+      const subs = subAccountsTemp[baseCode];
+      accounts[baseCode] = {
+        name: `Hesap ${baseCode}`,
+        debit: subs.reduce((sum, s) => sum + s.debit, 0),
+        credit: subs.reduce((sum, s) => sum + s.credit, 0),
+        debitBalance: subs.reduce((sum, s) => sum + s.debitBalance, 0),
+        creditBalance: subs.reduce((sum, s) => sum + s.creditBalance, 0),
+      };
     }
+    accounts[baseCode].subAccounts = subAccountsTemp[baseCode];
   }
 
   return {
@@ -558,10 +577,20 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
     }
 
     // Attach sub-accounts to main accounts
+    // If main account doesn't exist, create it from sub-accounts
     for (const baseCode of Object.keys(subAccountsTemp)) {
-      if (accounts[baseCode]) {
-        accounts[baseCode].subAccounts = subAccountsTemp[baseCode];
+      if (!accounts[baseCode]) {
+        // Create virtual main account from sub-accounts
+        const subs = subAccountsTemp[baseCode];
+        accounts[baseCode] = {
+          name: `Hesap ${baseCode}`,
+          debit: subs.reduce((sum, s) => sum + s.debit, 0),
+          credit: subs.reduce((sum, s) => sum + s.credit, 0),
+          debitBalance: subs.reduce((sum, s) => sum + s.debitBalance, 0),
+          creditBalance: subs.reduce((sum, s) => sum + s.creditBalance, 0),
+        };
       }
+      accounts[baseCode].subAccounts = subAccountsTemp[baseCode];
     }
 
     if (Object.keys(accounts).length === 0) {

@@ -3,31 +3,123 @@ import { useBankTransactions } from './useBankTransactions';
 import { useReceipts } from './useReceipts';
 import { useCategories } from './useCategories';
 import { usePayrollAccruals } from './usePayrollAccruals';
+import { useOfficialDataStatus } from './useOfficialDataStatus';
+import { useOfficialIncomeStatement } from './useOfficialIncomeStatement';
 import { ExpenseCategory, MonthlyDataPoint, MONTH_NAMES_SHORT_TR, CHART_COLORS } from '@/types/reports';
 
 // Fixed expense category codes
 const FIXED_EXPENSE_CODES = ['KIRA_OUT', 'SIGORTA', 'YAZILIM', 'TELEKOM', 'MUHASEBE', 'PERSONEL'];
 
-export function useExpenseAnalysis(year: number) {
+interface ExpenseAnalysisOptions {
+  forceRealtime?: boolean;
+}
+
+export function useExpenseAnalysis(year: number, options?: ExpenseAnalysisOptions) {
+  const { forceRealtime = false } = options || {};
   const { transactions, isLoading: txLoading } = useBankTransactions(year);
   const { receipts, isLoading: receiptLoading } = useReceipts(year);
   const { categories, isLoading: catLoading } = useCategories();
   const { summary: payrollSummary, accruals: payrollAccruals, isLoading: payrollLoading } = usePayrollAccruals(year);
+  const { isAnyLocked } = useOfficialDataStatus(year);
+  const { officialStatement } = useOfficialIncomeStatement(year);
 
   const isLoading = txLoading || catLoading || receiptLoading || payrollLoading;
 
   const analysis = useMemo(() => {
+    // Empty state
+    const emptyResult = {
+      expenseCategories: [] as ExpenseCategory[],
+      monthlyExpense: [] as MonthlyDataPoint[],
+      totalExpense: 0,
+      fixedExpense: 0,
+      variableExpense: 0,
+      avgMonthlyExpense: 0,
+      topCategories: [] as ExpenseCategory[],
+      isOfficial: false,
+    };
+
     if (isLoading || !categories.length) {
+      return emptyResult;
+    }
+
+    // PRIORITY 1: If official data is locked and forceRealtime is false, use official expense values
+    if (!forceRealtime && isAnyLocked && officialStatement) {
+      const costOfSales = (officialStatement.cost_of_goods_sold || 0) + 
+                          (officialStatement.cost_of_merchandise_sold || 0) + 
+                          (officialStatement.cost_of_services_sold || 0);
+      const operatingExpenses = (officialStatement.rd_expenses || 0) +
+                                (officialStatement.marketing_expenses || 0) +
+                                (officialStatement.general_admin_expenses || 0);
+      const totalExpense = costOfSales + operatingExpenses;
+
+      // Create simplified category breakdown from official data
+      const expenseCategories: ExpenseCategory[] = [];
+      
+      if (costOfSales > 0) {
+        expenseCategories.push({
+          categoryId: 'official_cogs',
+          code: 'COGS',
+          name: 'Satışların Maliyeti',
+          amount: costOfSales,
+          percentage: totalExpense > 0 ? (costOfSales / totalExpense) * 100 : 0,
+          color: CHART_COLORS.services[0],
+          isFixed: false,
+          byMonth: {},
+        });
+      }
+      
+      if (officialStatement.rd_expenses && officialStatement.rd_expenses > 0) {
+        expenseCategories.push({
+          categoryId: 'official_rd',
+          code: 'AR_GE',
+          name: 'Ar-Ge Giderleri',
+          amount: officialStatement.rd_expenses,
+          percentage: totalExpense > 0 ? (officialStatement.rd_expenses / totalExpense) * 100 : 0,
+          color: CHART_COLORS.services[1],
+          isFixed: true,
+          byMonth: {},
+        });
+      }
+      
+      if (officialStatement.marketing_expenses && officialStatement.marketing_expenses > 0) {
+        expenseCategories.push({
+          categoryId: 'official_marketing',
+          code: 'PAZARLAMA',
+          name: 'Pazarlama Giderleri',
+          amount: officialStatement.marketing_expenses,
+          percentage: totalExpense > 0 ? (officialStatement.marketing_expenses / totalExpense) * 100 : 0,
+          color: CHART_COLORS.services[2],
+          isFixed: false,
+          byMonth: {},
+        });
+      }
+      
+      if (officialStatement.general_admin_expenses && officialStatement.general_admin_expenses > 0) {
+        expenseCategories.push({
+          categoryId: 'official_admin',
+          code: 'GENEL_YONETIM',
+          name: 'Genel Yönetim Giderleri',
+          amount: officialStatement.general_admin_expenses,
+          percentage: totalExpense > 0 ? (officialStatement.general_admin_expenses / totalExpense) * 100 : 0,
+          color: CHART_COLORS.services[3],
+          isFixed: true,
+          byMonth: {},
+        });
+      }
+
       return {
-        expenseCategories: [] as ExpenseCategory[],
-        monthlyExpense: [] as MonthlyDataPoint[],
-        totalExpense: 0,
-        fixedExpense: 0,
-        variableExpense: 0,
-        avgMonthlyExpense: 0,
-        topCategories: [] as ExpenseCategory[],
+        expenseCategories,
+        monthlyExpense: [] as MonthlyDataPoint[], // No monthly breakdown in official data
+        totalExpense,
+        fixedExpense: operatingExpenses,
+        variableExpense: costOfSales,
+        avgMonthlyExpense: totalExpense / 12,
+        topCategories: expenseCategories,
+        isOfficial: true,
       };
     }
+
+    // PRIORITY 2: Dynamic calculation from bank transactions
 
     // Exclude partner, financing, investment, and excluded categories from expenses
     const excludedTypes = ['PARTNER', 'FINANCING', 'INVESTMENT', 'EXCLUDED', 'INCOME'];
@@ -194,8 +286,9 @@ export function useExpenseAnalysis(year: number) {
       variableExpense,
       avgMonthlyExpense: totalExpense / 12,
       topCategories: expenseCategoryList.slice(0, 10),
+      isOfficial: false,
     };
-  }, [transactions, receipts, categories, isLoading, payrollSummary, payrollAccruals]);
+  }, [transactions, receipts, categories, isLoading, payrollSummary, payrollAccruals, isAnyLocked, officialStatement, forceRealtime]);
 
   return {
     ...analysis,

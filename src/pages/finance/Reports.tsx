@@ -42,9 +42,10 @@ export default function Reports() {
   
   // Use unified data hub
   const hub = useFinancialDataHub(year);
-  const incomeAnalysis = useIncomeAnalysis(year);
-  const expenseAnalysis = useExpenseAnalysis(year);
-  const incomeStatement = useIncomeStatement(year);
+  // Reports sayfası HER ZAMAN dinamik veri göstermeli (etiketlenmiş banka işlemleri)
+  const incomeAnalysis = useIncomeAnalysis(year, { forceRealtime: true });
+  const expenseAnalysis = useExpenseAnalysis(year, { forceRealtime: true });
+  const incomeStatement = useIncomeStatement(year, { forceRealtime: true });
   const detailedStatement = useDetailedIncomeStatement(year);
   const { definitions: fixedExpensesList } = useFixedExpenses();
   const { balanceSheet } = useBalanceSheet(year);

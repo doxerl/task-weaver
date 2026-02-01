@@ -29,3 +29,6 @@ export type { FullReportPdfParams } from './usePdfEngine';
 export { useOfficialIncomeStatement, calculateStatementTotals } from './useOfficialIncomeStatement';
 export { useTrialBalance } from './useTrialBalance';
 export { useYearlyBalanceSheet } from './useYearlyBalanceSheet';
+// Official data status - central lock check
+export { useOfficialDataStatus } from './useOfficialDataStatus';
+export type { OfficialDataStatus } from './useOfficialDataStatus';

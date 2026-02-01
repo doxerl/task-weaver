@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 
 export interface YearlyBalanceSheet {
@@ -45,7 +45,7 @@ export interface YearlyBalanceSheet {
 }
 
 export function useYearlyBalanceSheet(year: number) {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
   const queryClient = useQueryClient();
 
   const { data: yearlyBalance, isLoading } = useQuery({

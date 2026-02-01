@@ -19,7 +19,6 @@ export { PdfInvestorPage } from './PdfInvestorPage';
 export { PdfProjectionPage } from './PdfProjectionPage';
 export { PdfFocusProjectPage } from './PdfFocusProjectPage';
 export { PdfAIInsightsPage } from './PdfAIInsightsPage';
-export { PdfPitchDeckPage } from './PdfPitchDeckPage';
 
 // Types
 export type {
@@ -33,7 +32,6 @@ export type {
   PdfProjectionPageProps,
   PdfFocusProjectPageProps,
   PdfAIInsightsPageProps,
-  PdfPitchDeckPageProps,
   DealConfig,
   ScenarioSummary,
   MetricItem,

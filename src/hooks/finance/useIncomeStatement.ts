@@ -130,7 +130,13 @@ function convertOfficialToStatement(official: any): IncomeStatementData {
   };
 }
 
-export function useIncomeStatement(year: number) {
+interface IncomeStatementOptions {
+  forceRealtime?: boolean;
+}
+
+export function useIncomeStatement(year: number, options?: IncomeStatementOptions) {
+  const { forceRealtime = false } = options || {};
+  
   // RESMİ VERİ KONTROLÜ - Öncelik resmi veride!
   const { officialStatement, isLocked, isLoading: isOfficialLoading } = useOfficialIncomeStatement(year);
   
@@ -138,8 +144,9 @@ export function useIncomeStatement(year: number) {
   const { summary: payrollSummary } = usePayrollAccruals(year);
 
   const statement = useMemo((): IncomeStatementData => {
+    // forceRealtime = true ise resmi veri kontrolünü atla
     // ÖNCELİK 1: Kilitli resmi veri varsa onu kullan!
-    if (isLocked && officialStatement) {
+    if (!forceRealtime && isLocked && officialStatement) {
       console.log(`[useIncomeStatement] ${year} yılı için RESMİ VERİ kullanılıyor (is_locked=true)`);
       return convertOfficialToStatement(officialStatement);
     }
@@ -357,7 +364,7 @@ export function useIncomeStatement(year: number) {
       grossMargin: netSales > 0 ? (grossProfit / netSales) * 100 : 0,
       kkegTotal,
     };
-  }, [hub, payrollSummary]);
+  }, [hub, payrollSummary, forceRealtime, isLocked, officialStatement, year]);
 
   // Generate formatted lines for display
   const lines = useMemo((): IncomeStatementLine[] => {
@@ -430,6 +437,6 @@ export function useIncomeStatement(year: number) {
     statement,
     lines,
     isLoading: hub.isLoading || isOfficialLoading,
-    isOfficial: isLocked, // UI'da "Resmi Veri" badge'i göstermek için
+    isOfficial: !forceRealtime && isLocked, // forceRealtime varsa official sayılmaz
   };
 }
