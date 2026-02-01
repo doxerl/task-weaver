@@ -116,6 +116,76 @@ import {
   AreaChart,
 } from 'recharts';
 
+// ============================================
+// CONSTANTS
+// ============================================
+const DEFAULT_REVENUE_GROWTH_MULTIPLIER = 1.3;
+const DEFAULT_EXPENSE_GROWTH_MULTIPLIER = 1.15;
+const MAX_DISPLAY_ITEMS = 5;
+const MAX_METRICS_DISPLAY = 4;
+const MAX_RECOMMENDATIONS_DISPLAY = 4;
+const QUARTERS = ['q1', 'q2', 'q3', 'q4'] as const;
+
+// ============================================
+// UTILITY FUNCTIONS
+// ============================================
+
+/**
+ * Deep clone an object without using JSON.parse/stringify
+ * Handles most common data types safely
+ */
+function deepClone<T>(obj: T): T {
+  if (obj === null || typeof obj !== 'object') return obj;
+  if (Array.isArray(obj)) return obj.map(item => deepClone(item)) as T;
+  const cloned = {} as T;
+  for (const key in obj) {
+    if (Object.prototype.hasOwnProperty.call(obj, key)) {
+      cloned[key] = deepClone(obj[key]);
+    }
+  }
+  return cloned;
+}
+
+/**
+ * Safely get array element with default value
+ */
+function safeArrayAccess<T>(arr: T[], index: number, defaultValue: T): T {
+  return arr[index] ?? defaultValue;
+}
+
+/**
+ * Calculate quarterly values with growth multiplier
+ */
+function calculateQuarterlyWithGrowth(
+  baseQuarterly: { q1?: number; q2?: number; q3?: number; q4?: number } | undefined,
+  baseAmount: number,
+  growthMultiplier: number
+): { q1: number; q2: number; q3: number; q4: number; total: number } {
+  const defaultQuarter = baseAmount / 4;
+  const q1 = Math.round((baseQuarterly?.q1 || defaultQuarter) * growthMultiplier);
+  const q2 = Math.round((baseQuarterly?.q2 || defaultQuarter) * growthMultiplier);
+  const q3 = Math.round((baseQuarterly?.q3 || defaultQuarter) * growthMultiplier);
+  const q4 = Math.round((baseQuarterly?.q4 || defaultQuarter) * growthMultiplier);
+  return { q1, q2, q3, q4, total: q1 + q2 + q3 + q4 };
+}
+
+/**
+ * Sanitize filename by removing invalid characters
+ */
+function sanitizeFilename(name: string): string {
+  return name
+    .replace(/[<>:"/\\|?*\x00-\x1f]/g, '') // Remove invalid chars
+    .replace(/\s+/g, '_') // Replace spaces with underscores
+    .substring(0, 100); // Limit length
+}
+
+/**
+ * Safe division that returns default value when dividing by zero
+ */
+function safeDivide(numerator: number, denominator: number, defaultValue: number = 0): number {
+  return denominator !== 0 ? numerator / denominator : defaultValue;
+}
+
 // Helper functions
 const formatValue = (value: number, format: 'currency' | 'percent' | 'number'): string => {
   switch (format) {
@@ -427,7 +497,6 @@ function ScenarioComparisonContent() {
     }
   }, [urlScenarioA, urlScenarioB]);
   
-  const chartContainerRef = useRef<HTMLDivElement>(null);
   const quarterlyChartRef = useRef<HTMLDivElement>(null);
   const cumulativeChartRef = useRef<HTMLDivElement>(null);
   const presentationPdfRef = useRef<HTMLDivElement>(null);
@@ -691,13 +760,14 @@ function ScenarioComparisonContent() {
   // Sensitivity Analysis
   const sensitivityAnalysis = useMemo((): EnhancedSensitivityAnalysis | null => {
     if (!summaryB || !dealConfig) return null;
-    
+
     const scenarios = [-20, -10, 0, 10, 20];
+    const defaultQuarter = { scenarioBNet: 0 };
     const capitalNeeds = calculateCapitalNeeds({
-      q1: quarterlyComparison[0]?.scenarioBNet || 0,
-      q2: quarterlyComparison[1]?.scenarioBNet || 0,
-      q3: quarterlyComparison[2]?.scenarioBNet || 0,
-      q4: quarterlyComparison[3]?.scenarioBNet || 0
+      q1: safeArrayAccess(quarterlyComparison, 0, defaultQuarter).scenarioBNet,
+      q2: safeArrayAccess(quarterlyComparison, 1, defaultQuarter).scenarioBNet,
+      q3: safeArrayAccess(quarterlyComparison, 2, defaultQuarter).scenarioBNet,
+      q4: safeArrayAccess(quarterlyComparison, 3, defaultQuarter).scenarioBNet
     });
     
     return {
@@ -824,11 +894,11 @@ function ScenarioComparisonContent() {
       // Load edited projections from cache
       if (unifiedCachedInfo.editedRevenueProjection && unifiedCachedInfo.editedRevenueProjection.length > 0) {
         setEditableRevenueProjection(unifiedCachedInfo.editedRevenueProjection);
-        setOriginalRevenueProjection(JSON.parse(JSON.stringify(unifiedCachedInfo.editedRevenueProjection)));
+        setOriginalRevenueProjection(deepClone(unifiedCachedInfo.editedRevenueProjection));
       }
       if (unifiedCachedInfo.editedExpenseProjection && unifiedCachedInfo.editedExpenseProjection.length > 0) {
         setEditableExpenseProjection(unifiedCachedInfo.editedExpenseProjection);
-        setOriginalExpenseProjection(JSON.parse(JSON.stringify(unifiedCachedInfo.editedExpenseProjection)));
+        setOriginalExpenseProjection(deepClone(unifiedCachedInfo.editedExpenseProjection));
       }
     }
   }, [unifiedCachedInfo]);
@@ -893,33 +963,25 @@ function ScenarioComparisonContent() {
           userEdited: false
         }));
         setEditableRevenueProjection(revenueItems);
-        setOriginalRevenueProjection(JSON.parse(JSON.stringify(revenueItems)));
+        setOriginalRevenueProjection(deepClone(revenueItems));
       } else {
         // Fallback: AI itemized veri üretmediyse, dinamik çarpan ile senaryo verilerini kullan
         console.log('[Editable Sync] Fallback: Using scenario data with dynamic multiplier');
         const baseRevenue = scenarioA.revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
-        const aiTotalRevenue = projection.summary?.total_revenue || baseRevenue * 1.3;
-        const growthMultiplier = baseRevenue > 0 ? aiTotalRevenue / baseRevenue : 1.3;
-        
+        const aiTotalRevenue = projection.summary?.total_revenue || baseRevenue * DEFAULT_REVENUE_GROWTH_MULTIPLIER;
+        const growthMultiplier = safeDivide(aiTotalRevenue, baseRevenue, DEFAULT_REVENUE_GROWTH_MULTIPLIER);
+
         const revenueItems: EditableProjectionItem[] = scenarioA.revenues.map(r => {
-          const baseQ = r.projectedQuarterly || { q1: r.projectedAmount / 4, q2: r.projectedAmount / 4, q3: r.projectedAmount / 4, q4: r.projectedAmount / 4 };
-          const q1 = Math.round((baseQ.q1 || r.projectedAmount / 4) * growthMultiplier);
-          const q2 = Math.round((baseQ.q2 || r.projectedAmount / 4) * growthMultiplier);
-          const q3 = Math.round((baseQ.q3 || r.projectedAmount / 4) * growthMultiplier);
-          const q4 = Math.round((baseQ.q4 || r.projectedAmount / 4) * growthMultiplier);
+          const quarterly = calculateQuarterlyWithGrowth(r.projectedQuarterly, r.projectedAmount, growthMultiplier);
           return {
             category: r.category,
-            q1,
-            q2,
-            q3,
-            q4,
-            total: q1 + q2 + q3 + q4,
+            ...quarterly,
             aiGenerated: true,
             userEdited: false
           };
         });
         setEditableRevenueProjection(revenueItems);
-        setOriginalRevenueProjection(JSON.parse(JSON.stringify(revenueItems)));
+        setOriginalRevenueProjection(deepClone(revenueItems));
       }
       
       // YENİ: AI'dan gelen itemized expense veriler varsa bunları kullan
@@ -936,32 +998,24 @@ function ScenarioComparisonContent() {
           userEdited: false
         }));
         setEditableExpenseProjection(expenseItems);
-        setOriginalExpenseProjection(JSON.parse(JSON.stringify(expenseItems)));
+        setOriginalExpenseProjection(deepClone(expenseItems));
       } else {
         // Fallback: AI itemized veri üretmediyse, dinamik çarpan ile senaryo verilerini kullan
         const baseExpenses = scenarioA.expenses.reduce((sum, e) => sum + e.projectedAmount, 0);
-        const aiTotalExpenses = projection.summary?.total_expenses || baseExpenses * 1.15;
-        const expenseGrowthMultiplier = baseExpenses > 0 ? aiTotalExpenses / baseExpenses : 1.15;
-        
+        const aiTotalExpenses = projection.summary?.total_expenses || baseExpenses * DEFAULT_EXPENSE_GROWTH_MULTIPLIER;
+        const expenseGrowthMultiplier = safeDivide(aiTotalExpenses, baseExpenses, DEFAULT_EXPENSE_GROWTH_MULTIPLIER);
+
         const expenseItems: EditableProjectionItem[] = scenarioA.expenses.map(e => {
-          const baseQ = e.projectedQuarterly || { q1: e.projectedAmount / 4, q2: e.projectedAmount / 4, q3: e.projectedAmount / 4, q4: e.projectedAmount / 4 };
-          const q1 = Math.round((baseQ.q1 || e.projectedAmount / 4) * expenseGrowthMultiplier);
-          const q2 = Math.round((baseQ.q2 || e.projectedAmount / 4) * expenseGrowthMultiplier);
-          const q3 = Math.round((baseQ.q3 || e.projectedAmount / 4) * expenseGrowthMultiplier);
-          const q4 = Math.round((baseQ.q4 || e.projectedAmount / 4) * expenseGrowthMultiplier);
+          const quarterly = calculateQuarterlyWithGrowth(e.projectedQuarterly, e.projectedAmount, expenseGrowthMultiplier);
           return {
             category: e.category,
-            q1,
-            q2,
-            q3,
-            q4,
-            total: q1 + q2 + q3 + q4,
+            ...quarterly,
             aiGenerated: true,
             userEdited: false
           };
         });
         setEditableExpenseProjection(expenseItems);
-        setOriginalExpenseProjection(JSON.parse(JSON.stringify(expenseItems)));
+        setOriginalExpenseProjection(deepClone(expenseItems));
       }
     }
   }, [unifiedAnalysis?.next_year_projection, scenarioA]);
@@ -980,11 +1034,11 @@ function ScenarioComparisonContent() {
   }, []);
   
   const handleResetRevenueProjection = useCallback(() => {
-    setEditableRevenueProjection(JSON.parse(JSON.stringify(originalRevenueProjection)));
+    setEditableRevenueProjection(deepClone(originalRevenueProjection));
   }, [originalRevenueProjection]);
-  
+
   const handleResetExpenseProjection = useCallback(() => {
-    setEditableExpenseProjection(JSON.parse(JSON.stringify(originalExpenseProjection)));
+    setEditableExpenseProjection(deepClone(originalExpenseProjection));
   }, [originalExpenseProjection]);
   
   // Auto-save edited projections with debounce (2 seconds)
@@ -1023,9 +1077,9 @@ function ScenarioComparisonContent() {
   useEffect(() => {
     if (unifiedAnalysis?.pitch_deck) {
       setEditablePitchDeck({
-        slides: JSON.parse(JSON.stringify(unifiedAnalysis.pitch_deck.slides || [])),
-        executive_summary: typeof unifiedAnalysis.pitch_deck.executive_summary === 'string' 
-          ? unifiedAnalysis.pitch_deck.executive_summary 
+        slides: deepClone(unifiedAnalysis.pitch_deck.slides || []),
+        executive_summary: typeof unifiedAnalysis.pitch_deck.executive_summary === 'string'
+          ? unifiedAnalysis.pitch_deck.executive_summary
           : unifiedAnalysis.pitch_deck.executive_summary?.short_pitch || ''
       });
     }
@@ -1033,21 +1087,19 @@ function ScenarioComparisonContent() {
   
   // Pitch deck edit handlers
   const handlePitchSlideChange = useCallback((index: number, field: string, value: string | string[]) => {
-    if (!editablePitchDeck) return;
     setEditablePitchDeck(prev => {
       if (!prev) return prev;
       const newSlides = [...prev.slides];
       newSlides[index] = { ...newSlides[index], [field]: value };
       return { ...prev, slides: newSlides };
     });
-  }, [editablePitchDeck]);
+  }, []);
   
   const handleExecutiveSummaryChange = useCallback((value: string) => {
     setEditablePitchDeck(prev => prev ? { ...prev, executive_summary: value } : prev);
   }, []);
   
   const handleAddBullet = useCallback((slideIndex: number) => {
-    if (!editablePitchDeck) return;
     setEditablePitchDeck(prev => {
       if (!prev) return prev;
       const newSlides = [...prev.slides];
@@ -1055,10 +1107,9 @@ function ScenarioComparisonContent() {
       newSlides[slideIndex] = { ...newSlides[slideIndex], content_bullets: [...currentBullets, ''] };
       return { ...prev, slides: newSlides };
     });
-  }, [editablePitchDeck]);
+  }, []);
   
   const handleRemoveBullet = useCallback((slideIndex: number, bulletIndex: number) => {
-    if (!editablePitchDeck) return;
     setEditablePitchDeck(prev => {
       if (!prev) return prev;
       const newSlides = [...prev.slides];
@@ -1067,7 +1118,7 @@ function ScenarioComparisonContent() {
       newSlides[slideIndex] = { ...newSlides[slideIndex], content_bullets: currentBullets };
       return { ...prev, slides: newSlides };
     });
-  }, [editablePitchDeck]);
+  }, []);
 
   // Unified AI Analysis Handler - TEK BUTON, TÜM GÜÇ
   const handleUnifiedAnalysis = async () => {
@@ -1173,28 +1224,52 @@ function ScenarioComparisonContent() {
   // Create next year scenario from AI projection
   // PDF Presentation Handler - HTML yakalama ile (Türkçe karakter + grafik desteği)
   const handleExportPresentationPdf = useCallback(async () => {
-    if (!scenarioA || !scenarioB || !summaryA || !summaryB || !presentationPdfRef.current) {
-      toast.error('PDF için gerekli veriler eksik');
+    // Validation
+    if (!scenarioA || !scenarioB) {
+      toast.error('Senaryo verileri eksik');
       return;
     }
-    
+    if (!summaryA || !summaryB) {
+      toast.error('Senaryo özet verileri hesaplanamadı');
+      return;
+    }
+    if (!presentationPdfRef.current) {
+      toast.error('PDF içeriği yüklenemedi, sayfayı yenileyin');
+      return;
+    }
+
+    // Check if ref has content
+    if (!presentationPdfRef.current.innerHTML || presentationPdfRef.current.innerHTML.trim() === '') {
+      toast.error('PDF içeriği boş, lütfen bekleyin ve tekrar deneyin');
+      return;
+    }
+
     toast.info('PDF hazırlanıyor...');
-    
-    const success = await generatePdfFromElement(presentationPdfRef, {
-      filename: `Senaryo_Sunum_${scenarioA.name.replace(/\s+/g, '_')}_vs_${scenarioB.name.replace(/\s+/g, '_')}.pdf`,
-      orientation: 'landscape',
-      margin: 10,
-      scale: 2,
-      fitToPage: false,
-      onProgress: (stage, percent) => {
-        console.log(`[PDF] ${stage}: ${percent}%`);
+
+    try {
+      const safeNameA = sanitizeFilename(scenarioA.name);
+      const safeNameB = sanitizeFilename(scenarioB.name);
+      const filename = `Senaryo_Sunum_${safeNameA}_vs_${safeNameB}.pdf`;
+
+      const success = await generatePdfFromElement(presentationPdfRef, {
+        filename,
+        orientation: 'landscape',
+        margin: 10,
+        scale: 1.5, // Reduced from 2 for better performance
+        fitToPage: true, // Changed to true to prevent content cutoff
+        onProgress: (stage, percent) => {
+          console.log(`[PDF] ${stage}: ${percent}%`);
+        }
+      });
+
+      if (success) {
+        toast.success('PDF sunumu oluşturuldu!');
+      } else {
+        toast.error('PDF oluşturulamadı, lütfen tekrar deneyin');
       }
-    });
-    
-    if (success) {
-      toast.success('PDF sunumu oluşturuldu!');
-    } else {
-      toast.error('PDF oluşturulamadı');
+    } catch (error) {
+      console.error('[PDF Export Error]', error);
+      toast.error('PDF oluşturulurken hata oluştu: ' + (error instanceof Error ? error.message : 'Bilinmeyen hata'));
     }
   }, [scenarioA, scenarioB, summaryA, summaryB, generatePdfFromElement]);
 
@@ -2248,7 +2323,7 @@ function ScenarioComparisonContent() {
                 }}>
                   <p style={{ fontSize: '12px', color: '#64748b', marginBottom: '8px', textTransform: 'uppercase' }}>Pre-Money Valuation</p>
                   <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#1e3a8a' }}>
-                    ${((dealConfig.investmentAmount / dealConfig.equityPercentage) * 100 - dealConfig.investmentAmount).toLocaleString()}
+                    ${(safeDivide(dealConfig.investmentAmount, dealConfig.equityPercentage, 0) * 100 - dealConfig.investmentAmount).toLocaleString()}
                   </p>
                 </div>
                 <div style={{ 
