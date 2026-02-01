@@ -6,7 +6,12 @@ import { useOfficialDataStatus } from './useOfficialDataStatus';
 import { useOfficialIncomeStatement } from './useOfficialIncomeStatement';
 import { ServiceRevenue, CustomerRevenue, MonthlyDataPoint, MONTH_NAMES_SHORT_TR, CHART_COLORS } from '@/types/reports';
 
-export function useIncomeAnalysis(year: number) {
+interface IncomeAnalysisOptions {
+  forceRealtime?: boolean;
+}
+
+export function useIncomeAnalysis(year: number, options?: IncomeAnalysisOptions) {
+  const { forceRealtime = false } = options || {};
   const { transactions, isLoading: txLoading } = useBankTransactions(year);
   const { categories, isLoading: catLoading } = useCategories();
   const { receipts, isLoading: receiptLoading } = useReceipts(year);
@@ -31,8 +36,8 @@ export function useIncomeAnalysis(year: number) {
       return emptyResult;
     }
 
-    // PRIORITY 1: If official data is locked, use official income values
-    if (isAnyLocked && officialStatement) {
+    // PRIORITY 1: If official data is locked and forceRealtime is false, use official income values
+    if (!forceRealtime && isAnyLocked && officialStatement) {
       const grossSalesDomestic = officialStatement.gross_sales_domestic || 0;
       const grossSalesExport = officialStatement.gross_sales_export || 0;
       const grossSalesOther = officialStatement.gross_sales_other || 0;
@@ -283,7 +288,7 @@ export function useIncomeAnalysis(year: number) {
       worstMonth: { month: worstMonth.month, amount: worstMonth.income },
       isOfficial: false,
     };
-  }, [transactions, categories, receipts, isLoading, isAnyLocked, officialStatement]);
+  }, [transactions, categories, receipts, isLoading, isAnyLocked, officialStatement, forceRealtime]);
 
   return {
     ...analysis,
