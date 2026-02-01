@@ -64,10 +64,10 @@ import {
   Activity,
   Calculator,
 } from 'lucide-react';
-import { 
-  SimulationScenario, 
-  AnalysisHistoryItem, 
-  NextYearProjection, 
+import {
+  SimulationScenario,
+  AnalysisHistoryItem,
+  NextYearProjection,
   QuarterlyItemizedData,
   FinancialRatios,
   TrendAnalysisResult,
@@ -76,7 +76,8 @@ import {
   ProfessionalAnalysisData,
   FocusProjectInfo,
   EditableProjectionItem,
-  InvestmentAllocation
+  InvestmentAllocation,
+  YearlyBalanceSheet
 } from '@/types/simulation';
 import { FocusProjectSelector } from '@/components/simulation/FocusProjectSelector';
 import { EditableProjectionTable } from '@/components/simulation/EditableProjectionTable';
@@ -685,7 +686,7 @@ function ScenarioComparisonContent() {
   // =====================================================
 
   // Financial Ratios (from historical balance sheet)
-  const [historicalBalance, setHistoricalBalance] = useState<any>(null);
+  const [historicalBalance, setHistoricalBalance] = useState<YearlyBalanceSheet | null>(null);
   
   // Fetch historical balance when scenario changes
   useEffect(() => {
