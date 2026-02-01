@@ -93,3 +93,69 @@ export const CACHE_SETTINGS = {
   /** Analysis cache duration in milliseconds (10 minutes) */
   ANALYSIS_DURATION_MS: 10 * 60 * 1000,
 } as const;
+
+// =====================================================
+// GROWTH SIMULATION DEFAULTS
+// =====================================================
+export const SIMULATION_DEFAULTS = {
+  /** Default exchange rate (TRY/USD) when not fetched */
+  EXCHANGE_RATE: 45,
+  /** Minimum revenue threshold to include in projections (USD) */
+  MIN_REVENUE_THRESHOLD: 500,
+  /** Minimum expense threshold to include in projections (USD) */
+  MIN_EXPENSE_THRESHOLD: 300,
+} as const;
+
+// =====================================================
+// GROWTH RATES
+// =====================================================
+export const GROWTH_RATES = {
+  /** Expense growth as ratio of revenue growth (operating leverage) */
+  EXPENSE_TO_REVENUE_RATIO: 0.7,
+  /** Fallback growth rate when revenue is 0 */
+  FALLBACK_GROWTH: 0.15,
+  /** Threshold below which growth is considered "low" */
+  LOW_GROWTH_THRESHOLD: 0.05,
+  /** Fallback growth rate for low-growth scenarios */
+  LOW_GROWTH_FALLBACK: 0.20,
+  /** Operating leverage - expense growth ratio */
+  OPERATING_LEVERAGE: 0.60,
+} as const;
+
+// =====================================================
+// CATEGORY MAPPINGS (for GrowthSimulation)
+// =====================================================
+export const REVENUE_CATEGORY_MAP: Record<string, string> = {
+  'SBT': 'SBT Tracker',
+  'L&S': 'Leadership Denetim',
+  'PlannerDeck': 'PlannerDeck',
+  'Hizmet': 'Hizmet Gelirleri',
+  'Diğer': 'Diğer Gelirler',
+  'Danışmanlık': 'Danışmanlık',
+  'Eğitim': 'Eğitim Gelirleri',
+  'SaaS': 'SaaS Gelirleri',
+} as const;
+
+export const EXPENSE_CATEGORY_MAP: Record<string, string> = {
+  'PERSONEL': 'Personel (Brüt+SGK)',
+  'KIRA': 'Kira ve Aidat',
+  'PAZARLAMA': 'Pazarlama',
+  'YAZILIM': 'Yazılım ve Araçlar',
+  'PROFESYONEL': 'Profesyonel Hizmetler',
+  'SEYAHAT': 'Seyahat ve Konaklama',
+  'OFIS': 'Ofis Giderleri',
+  'İLETİŞİM': 'İletişim',
+  'SİGORTA': 'Sigorta',
+  'VERGİ': 'Vergi ve Harçlar',
+  'BAKIM': 'Bakım ve Onarım',
+  'EĞİTİM': 'Eğitim ve Gelişim',
+  'BANKA': 'Banka Masrafları',
+  'DİĞER': 'Diğer Giderler',
+} as const;
+
+/** Expense categories hidden from projections */
+export const HIDDEN_EXPENSE_CATEGORIES = [
+  'Amortisman',
+  'Faiz',
+  'Kambiyo',
+] as const;
