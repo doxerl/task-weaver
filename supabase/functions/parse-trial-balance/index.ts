@@ -75,7 +75,12 @@ Boş/eksik değerler = 0
 2. Alt hesap kodlarını OLDUĞU GİBİ döndür (boşlukları koru)
 3. Alt hesaplar için parentCode alanını DOLDURABİLİRSİN (ilk 3 hane)
 4. ASLA özetleme veya gruplama yapma
-5. Firma/kişi isimlerini tam olarak yaz`;
+5. Firma/kişi isimlerini tam olarak yaz
+
+## KRİTİK KURAL
+Ana hesap satırı (örneğin 320 SATICILAR) MUTLAKA ayrı bir kayıt olarak döndürülmeli.
+Alt hesaplar (320 001, 320 1 006) ana hesaptan AYRI kayıtlar olarak döndürülmeli.
+Ana hesabın toplam değeri, alt hesapların toplamından FARKLI olabilir - bu normaldir.`;
 
 // Function schema for structured output
 const PARSE_FUNCTION_SCHEMA = {
@@ -338,11 +343,21 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
     }
   }
 
-  // Attach sub-accounts to main accounts
+// Attach sub-accounts to main accounts
+  // If main account doesn't exist, create it from sub-accounts
   for (const baseCode of Object.keys(subAccountsTemp)) {
-    if (accounts[baseCode]) {
-      accounts[baseCode].subAccounts = subAccountsTemp[baseCode];
+    if (!accounts[baseCode]) {
+      // Create virtual main account from sub-accounts
+      const subs = subAccountsTemp[baseCode];
+      accounts[baseCode] = {
+        name: `Hesap ${baseCode}`,
+        debit: subs.reduce((sum, s) => sum + s.debit, 0),
+        credit: subs.reduce((sum, s) => sum + s.credit, 0),
+        debitBalance: subs.reduce((sum, s) => sum + s.debitBalance, 0),
+        creditBalance: subs.reduce((sum, s) => sum + s.creditBalance, 0),
+      };
     }
+    accounts[baseCode].subAccounts = subAccountsTemp[baseCode];
   }
 
   return {
@@ -562,10 +577,20 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
     }
 
     // Attach sub-accounts to main accounts
+    // If main account doesn't exist, create it from sub-accounts
     for (const baseCode of Object.keys(subAccountsTemp)) {
-      if (accounts[baseCode]) {
-        accounts[baseCode].subAccounts = subAccountsTemp[baseCode];
+      if (!accounts[baseCode]) {
+        // Create virtual main account from sub-accounts
+        const subs = subAccountsTemp[baseCode];
+        accounts[baseCode] = {
+          name: `Hesap ${baseCode}`,
+          debit: subs.reduce((sum, s) => sum + s.debit, 0),
+          credit: subs.reduce((sum, s) => sum + s.credit, 0),
+          debitBalance: subs.reduce((sum, s) => sum + s.debitBalance, 0),
+          creditBalance: subs.reduce((sum, s) => sum + s.creditBalance, 0),
+        };
       }
+      accounts[baseCode].subAccounts = subAccountsTemp[baseCode];
     }
 
     if (Object.keys(accounts).length === 0) {
