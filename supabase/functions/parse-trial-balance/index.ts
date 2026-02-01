@@ -49,10 +49,12 @@ ALT HESAPLARI DA AYRI AYRI ÇIKAR!
 - Alacak Bakiye: Alacak - Borç (pozitifse)
 
 ## ALT HESAPLAR (Muavin) - ÇOK ÖNEMLİ!
-- 3+ haneli kodlar alt hesaplardır (320.01, 320.001, 120.01.001)
+- 3+ haneli kodlar alt hesaplardır
+- Formatlar: 320.01, 320.001, 320 001, 320 1 006 (nokta VEYA boşluk ayırıcı)
 - Alt hesap isimleri genellikle firma/kişi isimleridir
 - HER ALT HESABI AYRI AYRI PARSE ET, ANA HESABA TOPLAMA!
-- parentCode alanına ana hesap kodunu yaz (örn: 320.01 için parentCode: "320")
+- parentCode alanına ana hesap kodunu yaz (örn: 320 001 için parentCode: "320")
+- Kod formatını olduğu gibi döndür (boşluk veya nokta fark etmez)
 
 ## SAYISAL FORMAT
 Türk formatı: 1.234.567,89 (nokta binlik, virgül ondalık)
@@ -172,16 +174,25 @@ function detectColumnIndices(headers: any[]): { code: number; name: number; debi
 
 function isValidAccountCode(code: string): boolean {
   const trimmed = code.trim();
-  // Accept 3-digit codes and sub-account codes with dots
-  return /^\d{3}(\.\d+)*$/.test(trimmed);
+  // Accept 3-digit codes and sub-account codes with dots or spaces
+  // Examples: 100, 320.001, 320 001, 320.1.006, 320 1 006
+  return /^\d{3}([\.\s]\d+)*$/.test(trimmed);
+}
+
+function normalizeAccountCode(code: string): string {
+  // Normalize account code: convert spaces to dots for consistent storage
+  // "320 1 006" → "320.1.006"
+  return code.trim().replace(/\s+/g, '.');
 }
 
 function getBaseAccountCode(code: string): string {
-  return code.split('.')[0].substring(0, 3);
+  // Get first 3 digits as base account code
+  return code.trim().split(/[\.\s]/)[0].substring(0, 3);
 }
 
 function isSubAccount(code: string): boolean {
-  return code.includes('.');
+  // Sub-accounts have separators (dots or spaces) after the main code
+  return /[\.\s]/.test(code.trim());
 }
 
 async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
@@ -237,19 +248,20 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
       }
       
       if (isSubAccount(code)) {
-        // This is a sub-account
+        // This is a sub-account - normalize code for consistent storage
+        const normalizedCode = normalizeAccountCode(code);
         if (!subAccountsTemp[baseCode]) {
           subAccountsTemp[baseCode] = [];
         }
         subAccountsTemp[baseCode].push({
-          code,
+          code: normalizedCode,
           name,
           debit,
           credit,
           debitBalance,
           creditBalance,
         });
-        
+
         // Also aggregate to main account
         if (accounts[baseCode]) {
           accounts[baseCode].debit += debit;
@@ -314,19 +326,20 @@ async function parseExcel(buffer: ArrayBuffer): Promise<ParseResult> {
       }
 
       if (isSubAccount(code)) {
-        // This is a sub-account
+        // This is a sub-account - normalize code for consistent storage
+        const normalizedCode = normalizeAccountCode(code);
         if (!subAccountsTemp[baseCode]) {
           subAccountsTemp[baseCode] = [];
         }
         subAccountsTemp[baseCode].push({
-          code,
+          code: normalizedCode,
           name,
           debit,
           credit,
           debitBalance,
           creditBalance,
         });
-        
+
         // Also aggregate to main account
         if (accounts[baseCode]) {
           accounts[baseCode].debit += debit;
@@ -552,19 +565,20 @@ async function parsePDFWithAI(buffer: ArrayBuffer): Promise<ParseResult> {
       const creditBalance = acc.creditBalance || 0;
 
       if (isSubAccount(code)) {
-        // This is a sub-account
+        // This is a sub-account - normalize code for consistent storage
+        const normalizedCode = normalizeAccountCode(code);
         if (!subAccountsTemp[baseCode]) {
           subAccountsTemp[baseCode] = [];
         }
         subAccountsTemp[baseCode].push({
-          code,
+          code: normalizedCode,
           name: acc.name || '',
           debit,
           credit,
           debitBalance,
           creditBalance,
         });
-        
+
         // Aggregate to main account
         if (accounts[baseCode]) {
           accounts[baseCode].debit += debit;
