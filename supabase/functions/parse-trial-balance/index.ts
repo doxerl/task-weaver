@@ -32,45 +32,50 @@ interface ParseResult {
 }
 
 // AI Prompt for parsing Turkish trial balance (Mizan)
-const MIZAN_PARSE_PROMPT = `Sen bir Türk muhasebe uzmanısın. 
+const MIZAN_PARSE_PROMPT = `Sen bir Türk muhasebe uzmanısın.
 PDF formatındaki mizan (trial balance) dosyalarını parse ediyorsun.
 
 ## GÖREV
-Mizan dosyasındaki TÜM hesapları çıkar ve parse_mizan fonksiyonunu çağır.
-ALT HESAPLARI DA AYRI AYRI ÇIKAR!
+Mizan dosyasındaki TÜM SATIRLARI AYRI AYRI çıkar ve parse_mizan fonksiyonunu çağır.
+
+⚠️ KRİTİK: HER SATIRI AYRI BİR HESAP OLARAK DÖNDÜR! TOPLAMA/ÖZETLEME!
 
 ## MİZAN YAPISI
-- Ana Hesap Kodu: 3 haneli (100, 102, 600, 632, vb.)
-- Alt Hesap Kodu: 3+ haneli (100.01, 320.001, 120.01.001, vb.)
-- Hesap Adı: Türkçe (Kasa, Bankalar, ABC Şirketi, vb.)
+- Ana Hesap Kodu: 3 haneli (100, 102, 320, 600, 632, vb.)
+- Alt Hesap Kodu: 3+ haneli, boşluk veya nokta ile ayrılmış
+  Örnekler: 320 001, 320 1 006, 320.001, 120.01.001
+- Hesap Adı: Türkçe (Kasa, Bankalar, firma/kişi isimleri vb.)
 - Borç: Dönem içi borç toplamı
-- Alacak: Dönem içi alacak toplamı  
+- Alacak: Dönem içi alacak toplamı
 - Borç Bakiye: Borç - Alacak (pozitifse)
 - Alacak Bakiye: Alacak - Borç (pozitifse)
 
-## ALT HESAPLAR (Muavin) - ÇOK ÖNEMLİ!
-- 3+ haneli kodlar alt hesaplardır
-- Formatlar: 320.01, 320.001, 320 001, 320 1 006 (nokta VEYA boşluk ayırıcı)
-- Alt hesap isimleri genellikle firma/kişi isimleridir
-- HER ALT HESABI AYRI AYRI PARSE ET, ANA HESABA TOPLAMA!
-- parentCode alanına ana hesap kodunu yaz (örn: 320 001 için parentCode: "320")
-- Kod formatını olduğu gibi döndür (boşluk veya nokta fark etmez)
+## ALT HESAPLAR (MUAVİN) - EN ÖNEMLİ KISIM!
+PDF'de şöyle satırlar göreceksin:
+\`\`\`
+320        SATICILAR              120.136,66    4.199.153,84
+320 001    METRO GROSMARKET        81.251,05       86.271,21
+320 1 006  RADSAN GRUP                    0      650.400,00
+320 1 007  DOĞRU GRUP                     0      209.400,00
+\`\`\`
+
+BU ÖRNEKTEKİ 4 SATIRIN HEPSİNİ AYRI AYRI DÖNDÜR:
+1. code: "320", name: "SATICILAR", parentCode: null
+2. code: "320 001", name: "METRO GROSMARKET", parentCode: "320"
+3. code: "320 1 006", name: "RADSAN GRUP", parentCode: "320"
+4. code: "320 1 007", name: "DOĞRU GRUP", parentCode: "320"
 
 ## SAYISAL FORMAT
 Türk formatı: 1.234.567,89 (nokta binlik, virgül ondalık)
 Tüm sayıları standart ondalık formata çevir (1234567.89)
 Boş/eksik değerler = 0
 
-## ÖNEMLİ HESAP KODLARI
-- 1xx-2xx: Aktifler (varlıklar)
-- 3xx-4xx: Pasifler (borçlar)
-- 5xx: Özkaynaklar
-- 6xx: Gelir/Gider hesapları
-
-## ÖNEMLİ
-- Hem 3 haneli ana hesapları hem de alt hesapları parse et
-- Alt hesaplar için parentCode belirt
-- Toplam satırlarını ATLAMA`;
+## ZORUNLU KURALLAR
+1. PDF'deki HER SATIRI ayrı bir hesap olarak döndür
+2. Alt hesap kodlarını OLDUĞU GİBİ döndür (boşlukları koru)
+3. Alt hesaplar için parentCode alanını DOLDURABİLİRSİN (ilk 3 hane)
+4. ASLA özetleme veya gruplama yapma
+5. Firma/kişi isimlerini tam olarak yaz`;
 
 // Function schema for structured output
 const PARSE_FUNCTION_SCHEMA = {
