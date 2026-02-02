@@ -1073,8 +1073,23 @@ serve(async (req) => {
       quarterlyItemized,
       exchangeRate,
       focusProjectInfo,
-      previousEditedProjections
+      previousEditedProjections,
+      language = 'tr' // Default to Turkish, can be 'en' for English
     } = await req.json();
+
+    // Language configuration for AI responses
+    const isEnglish = language === 'en';
+    const langConfig = {
+      aiLanguage: isEnglish ? 'English' : 'Turkish',
+      responseInstruction: isEnglish 
+        ? 'RESPOND IN ENGLISH ONLY. Use professional VC/investment terminology.'
+        : 'TÜRKÇE YANIT VER. Profesyonel VC/yatırım terminolojisi kullan.',
+      positiveScenario: isEnglish ? 'Positive Scenario' : 'Pozitif Senaryo',
+      negativeScenario: isEnglish ? 'Negative Scenario' : 'Negatif Senaryo',
+      withInvestment: isEnglish ? 'With Investment' : 'Yatırım Alırsak',
+      withoutInvestment: isEnglish ? 'Without Investment' : 'Yatırım Alamazsak',
+    };
+    console.log(`Language: ${language}, AI will respond in: ${langConfig.aiLanguage}`);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
     if (!LOVABLE_API_KEY) {
@@ -1446,7 +1461,10 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
       body: JSON.stringify({
         model: PRIMARY_MODEL_ID,
         messages: [
-          { role: "system", content: getUnifiedMasterPrompt(dynamicScenarioRules) },
+          { 
+            role: "system", 
+            content: getUnifiedMasterPrompt(dynamicScenarioRules) + `\n\n🌐 LANGUAGE INSTRUCTION: ${langConfig.responseInstruction}\nAll insights, recommendations, pitch deck slides, and strategy notes MUST be in ${langConfig.aiLanguage}.`
+          },
           { role: "user", content: userPrompt }
         ],
         tools: [getUnifiedAnalysisToolSchema()],
@@ -1491,7 +1509,10 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
         body: JSON.stringify({
           model: FALLBACK_MODEL_ID,
           messages: [
-            { role: "system", content: getUnifiedMasterPrompt(dynamicScenarioRules) },
+            { 
+              role: "system", 
+              content: getUnifiedMasterPrompt(dynamicScenarioRules) + `\n\n🌐 LANGUAGE INSTRUCTION: ${langConfig.responseInstruction}\nAll insights, recommendations, pitch deck slides, and strategy notes MUST be in ${langConfig.aiLanguage}.`
+            },
             { role: "user", content: userPrompt }
           ],
           tools: [getFallbackToolSchema()],  // Simpler schema for Claude fallback
