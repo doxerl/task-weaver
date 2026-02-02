@@ -1,0 +1,174 @@
+{
+  "dashboard": {
+    "title": "Finans",
+    "officialData": "Resmi Veri",
+    "tabs": {
+      "bank": "Banka",
+      "receipt": "Fiş",
+      "manual": "Manuel",
+      "official": "Resmi"
+    }
+  },
+  "categories": {
+    "title": "Kategoriler",
+    "types": {
+      "income": "Gelir",
+      "expense": "Gider",
+      "partner": "Ortak Cari",
+      "financing": "Finansman",
+      "investment": "Yatırım",
+      "excluded": "Hariç Tut"
+    },
+    "groups": {
+      "incomeFromPartner": "Ortaktan Gelen",
+      "expenseToPartner": "Ortağa Giden"
+    },
+    "form": {
+      "name": "Kategori Adı",
+      "code": "Kod",
+      "type": "Tür",
+      "parentCategory": "Üst Kategori",
+      "accountCode": "Hesap Kodu",
+      "subAccountCode": "Alt Hesap Kodu",
+      "costCenter": "Maliyet Merkezi",
+      "kkeg": "KKEG (Kanunen Kabul Edilmeyen Gider)",
+      "kkegDescription": "Vergiden indirilemez giderler için işaretleyin",
+      "icon": "İkon",
+      "color": "Renk",
+      "keywords": "Anahtar Kelimeler",
+      "vendorPatterns": "Satıcı Kalıpları",
+      "placeholders": {
+        "name": "örn: Personel Giderleri",
+        "code": "örn: PERSONEL",
+        "accountCode": "örn: 632.01.01",
+        "keywords": "örn: maaş, bordro, sgk",
+        "vendorPatterns": "örn: TURK TELEKOM, VODAFONE"
+      }
+    },
+    "toast": {
+      "updated": "Kategori güncellendi",
+      "added": "Kategori eklendi",
+      "deleted": "Kategori silindi"
+    }
+  },
+  "transactions": {
+    "title": "İşlemleri Etiketle",
+    "labeled": "{{count}}/{{total}} etiketli",
+    "selected": "{{count}} seçili",
+    "bulkCategory": "Toplu kategori ata",
+    "selectCategory": "Kategori seç",
+    "lowConfidence": "{{count}} işlem düşük güvenle kategorilendi. Sarı ile işaretli satırları kontrol edin.",
+    "types": {
+      "income": "Gelir (K/Z ↑)",
+      "expense": "Gider (K/Z ↓)",
+      "balanceSheet": "Bilanço",
+      "needsReview": "Kontrol Gereken",
+      "amountCorrected": "Tutar Düzeltildi"
+    },
+    "actions": {
+      "saveAsIncome": "Gelir olarak kaydet (+)",
+      "saveAsExpense": "Gider olarak kaydet (-)",
+      "correctAmount": "Tutarı düzelt"
+    },
+    "sort": {
+      "label": "Sırala",
+      "dateDesc": "Tarih (Yeni → Eski)",
+      "dateAsc": "Tarih (Eski → Yeni)",
+      "amountDesc": "Tutar (Büyük → Küçük)",
+      "amountAsc": "Tutar (Küçük → Büyük)",
+      "categoryAsc": "Kategori (A-Z)",
+      "categoryDesc": "Kategori (Z-A)",
+      "confidenceAsc": "Güven (Düşük → Yüksek)",
+      "confidenceDesc": "Güven (Yüksek → Düşük)"
+    },
+    "badges": {
+      "plAffecting": "K/Z",
+      "balanceOnly": "Bilanço",
+      "manual": "Manuel",
+      "corrected": "Düzeltildi"
+    }
+  },
+  "receipts": {
+    "title": "Faturalar",
+    "columns": {
+      "date": "Tarih",
+      "documentNo": "Belge No",
+      "seller": "Satıcı",
+      "buyer": "Alıcı",
+      "subtotal": "Ara Toplam",
+      "vat": "KDV",
+      "total": "Toplam",
+      "category": "Kategori",
+      "report": "Rapor",
+      "actions": "İşlem"
+    },
+    "grandTotal": "TOPLAM",
+    "delete": {
+      "title": "Faturayı Sil",
+      "confirm": "Bu faturayı silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+    },
+    "vatMissing": {
+      "title": "Eksik KDV Bilgisi",
+      "description": "{{count}} belgede KDV bilgisi bulunamadı. Bu durum KDV raporunun doğruluğunu etkileyebilir.",
+      "processing": "İşleniyor...",
+      "notFound": "KDV bulunamadı",
+      "rescanAll": "Tümünü Yeniden Tara"
+    },
+    "select": "Seç..."
+  },
+  "fixedExpenses": {
+    "title": "Sabit Gider Tanımları",
+    "description": "Aylık sabit giderlerinizi ve taksitli ödemelerinizi yönetin",
+    "addNew": "Yeni Sabit Gider Ekle",
+    "editTitle": "Sabit Gideri Düzenle",
+    "newTitle": "Yeni Sabit Gider",
+    "formDescription": "Aylık sabit gider veya taksitli ödeme tanımlayın",
+    "types": {
+      "fixed": "Sabit (Her ay aynı)",
+      "semiFix": "Yarı-Sabit (Değişken)",
+      "installment": "Taksitli (Toplam belirli)"
+    },
+    "fields": {
+      "name": "Gider Adı",
+      "type": "Gider Tipi",
+      "monthlyAmount": "Aylık Tutar",
+      "totalAmount": "Toplam Tutar",
+      "installmentCount": "Taksit Sayısı",
+      "paidInstallments": "Ödenen Taksit",
+      "startDate": "Başlangıç Tarihi",
+      "selectDate": "Tarih seçin"
+    },
+    "placeholders": {
+      "name": "örn. Ofis Kirası, Kredi Taksiti",
+      "amount": "örn. 120000",
+      "installmentCount": "örn. 12",
+      "paidInstallments": "örn. 3"
+    },
+    "summary": {
+      "monthlyFixed": "Aylık Sabit",
+      "monthlyInstallments": "Aylık Taksit",
+      "monthlyTotal": "Aylık Toplam",
+      "yearlyProjection": "Yıllık Projeksiyon"
+    }
+  },
+  "cashFlow": {
+    "title": "Nakit Akışı",
+    "sections": {
+      "operating": "A. İŞLETME FAALİYETLERİNDEN NAKİT AKIŞLARI",
+      "investing": "B. YATIRIM FAALİYETLERİNDEN NAKİT AKIŞLARI",
+      "financing": "C. FİNANSMAN FAALİYETLERİNDEN NAKİT AKIŞLARI"
+    },
+    "netCashFlow": "Net Nakit Akışı"
+  },
+  "currency": {
+    "try": "Türk Lirası",
+    "usd": "ABD Doları",
+    "rates": "Kurlar"
+  },
+  "vat": {
+    "none": "KDV Yok (%0)",
+    "rate1": "%1 KDV",
+    "rate10": "%10 KDV",
+    "rate20": "%20 KDV"
+  }
+}

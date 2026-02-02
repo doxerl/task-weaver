@@ -4,8 +4,12 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { LanguageProvider } from "@/contexts/LanguageContext";
 import { CurrencyProvider } from "@/contexts/CurrencyContext";
 import { YearProvider } from "@/contexts/YearContext";
+
+// Initialize i18n
+import "@/i18n";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
 import Auth from "./pages/Auth";
 import Today from "./pages/Today";
@@ -35,8 +39,9 @@ const App = () => (
   <QueryClientProvider client={queryClient}>
     <TooltipProvider>
       <AuthProvider>
-        <YearProvider>
-          <CurrencyProvider>
+        <LanguageProvider>
+          <YearProvider>
+            <CurrencyProvider>
             <Toaster />
             <Sonner position="top-center" />
             <BrowserRouter>
@@ -65,8 +70,9 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
             </BrowserRouter>
-          </CurrencyProvider>
-        </YearProvider>
+            </CurrencyProvider>
+          </YearProvider>
+        </LanguageProvider>
       </AuthProvider>
     </TooltipProvider>
   </QueryClientProvider>

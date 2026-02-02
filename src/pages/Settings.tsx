@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { GitHubIntegration } from '@/components/GitHubIntegration';
-import { ArrowLeft, Loader2, Save, User, Globe, Clock, Wallet, CreditCard, Plus, DollarSign, Building2 } from 'lucide-react';
+import { LanguageSelector } from '@/components/LanguageSelector';
+import { ArrowLeft, Loader2, Save, User, Globe, Clock, Wallet, CreditCard, Plus, DollarSign, Building2, Languages } from 'lucide-react';
 import { ExchangeRateEditor } from '@/components/finance/ExchangeRateEditor';
 import { toast } from 'sonner';
 import { useFixedExpenses, FixedExpenseDefinition } from '@/hooks/finance/useFixedExpenses';
@@ -199,6 +201,22 @@ export default function Settings() {
               <Input value={profile?.email || ''} disabled className="bg-muted" />
               <p className="text-xs text-muted-foreground">Email değiştirilemez</p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Language Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Languages className="h-5 w-5" />
+              Dil Ayarları
+            </CardTitle>
+            <CardDescription>
+              Uygulama dilini seçin
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <LanguageSelector showLabel={false} />
           </CardContent>
         </Card>
 
