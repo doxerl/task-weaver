@@ -2311,11 +2311,11 @@ serve(async (req) => {
       exchangeRate,
       focusProjectInfo,
       previousEditedProjections,
-      language = 'tr'
+      language = 'en'
     } = await req.json();
 
     // Select language labels
-    const L = PROMPT_LABELS[language as Language] || PROMPT_LABELS.tr;
+    const L = PROMPT_LABELS[language as Language] || PROMPT_LABELS.en;
     const isEnglish = language === 'en';
     
     const langConfig = {

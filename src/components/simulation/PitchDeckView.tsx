@@ -271,7 +271,7 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
           pdf.setFontSize(9);
           pdf.setFont('Helvetica', 'italic');
           pdf.setTextColor(117, 117, 117);
-          pdf.text('Konusmaci Notlari:', margin, notesY);
+          pdf.text(turkishToAscii(t('simulation:pitchDeck.speakerNotes') + ':'), margin, notesY);
           
           pdf.setFontSize(10);
           pdf.setFont('Helvetica', 'normal');
@@ -298,12 +298,12 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
         pdf.setTextColor(33, 33, 33);
         pdf.setFontSize(28);
         pdf.setFont('Helvetica', 'bold');
-        pdf.text('Executive Summary', margin, margin + 15);
-        
+        pdf.text(turkishToAscii(t('simulation:pitchDeck.executiveSummary')), margin, margin + 15);
+
         pdf.setFontSize(12);
         pdf.setFont('Helvetica', 'normal');
         pdf.setTextColor(117, 117, 117);
-        pdf.text('Yatirimciya gonderilecek e-posta ozeti', margin, margin + 25);
+        pdf.text(turkishToAscii(t('simulation:pitchDeck.emailSummaryDescription')), margin, margin + 25);
         
         // Light gray divider
         pdf.setDrawColor(224, 224, 224);

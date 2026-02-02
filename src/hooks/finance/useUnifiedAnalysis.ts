@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
 import type { Json } from '@/integrations/supabase/types';
+import i18n from '@/i18n';
 
 // Utility for exponential backoff delays
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
@@ -456,10 +457,10 @@ export function useUnifiedAnalysis() {
         allYears: exitPlan.allYears?.slice(0, 5) || []
       };
 
-      // Get current language from i18n (app uses 'language' key in localStorage)
+      // Get current language from i18n (prioritize i18n.language, fallback to localStorage, default to 'en')
       const currentLanguage = typeof window !== 'undefined'
-        ? (localStorage.getItem('language') || 'tr').substring(0, 2)
-        : 'tr';
+        ? (i18n.language || localStorage.getItem('language') || 'en').substring(0, 2)
+        : 'en';
 
       // Request body
       const requestBody = {
