@@ -92,6 +92,13 @@
     "thisMonth": "Bu Ay",
     "thisYear": "Bu Yıl"
   },
+  "units": {
+    "months": "ay",
+    "years": "yıl",
+    "days": "gün",
+    "hours": "saat",
+    "minutes": "dakika"
+  },
   "pagination": {
     "showing": "{{count}} kayıt gösteriliyor",
     "of": "/ {{total}}",

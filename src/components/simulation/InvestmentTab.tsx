@@ -1,4 +1,5 @@
 import React, { useMemo, memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -89,6 +90,8 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
   aiNextYearProjection,
   editedProjectionOverride,
 }) => {
+  const { t } = useTranslation(['simulation', 'common']);
+
   // Calculate capital needs for both scenarios
   const capitalNeedA = useMemo(() => calculateCapitalNeeds(quarterlyA), [quarterlyA]);
   const capitalNeedB = useMemo(() => calculateCapitalNeeds(quarterlyB), [quarterlyB]);
@@ -247,9 +250,9 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
 
   // Updated chart config - corrected labels
   const chartConfig: ChartConfig = {
-    withInvestment: { label: 'Yatırımlı (Pozitif Senaryo)', color: '#22c55e' },
-    withoutInvestment: { label: 'Yatırımsız (Negatif Senaryo)', color: '#ef4444' },
-    difference: { label: 'Fırsat Maliyeti', color: '#3b82f6' },
+    withInvestment: { label: t('simulation:investment.cashFlowRunway.withInvestmentLabel'), color: '#22c55e' },
+    withoutInvestment: { label: t('simulation:investment.cashFlowRunway.withoutInvestmentLabel'), color: '#ef4444' },
+    difference: { label: t('simulation:investment.cashFlowRunway.opportunityCost'), color: '#3b82f6' },
   };
 
   return (
@@ -259,16 +262,16 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <DollarSign className="h-4 w-4 text-primary" />
-            Yatırım Anlaşması Simülatörü
+            {t('simulation:investment.dealSimulator.title')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Yatırım tutarı ve hisse oranını ayarlayarak exit planını görün
+            {t('simulation:investment.dealSimulator.description')}
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="grid grid-cols-3 gap-4">
             <div className="space-y-2">
-              <Label className="text-xs">Yatırım Tutarı</Label>
+              <Label className="text-xs">{t('simulation:investment.dealSimulator.investmentAmount')}</Label>
               <div className="relative">
                 <DollarSign className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
                 <Input
@@ -279,30 +282,30 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
                 />
               </div>
               <p className="text-xs text-muted-foreground">
-                Önerilen: {formatCompactUSD(capitalNeedB.requiredInvestment)}
+                {t('simulation:investment.dealSimulator.suggested')}: {formatCompactUSD(capitalNeedB.requiredInvestment)}
                 {capitalNeedB.calculationBasis && capitalNeedB.calculationBasis !== 'none' && (
                   <span className="text-[10px] ml-1 opacity-70">
-                    ({capitalNeedB.calculationBasis === 'death_valley' ? 'Death Valley' : 'Yıl Sonu Açığı'} bazlı)
+                    ({capitalNeedB.calculationBasis === 'death_valley' ? t('simulation:investment.dealSimulator.deathValleyBased') : t('simulation:investment.dealSimulator.yearEndDeficitBased')})
                   </span>
                 )}
               </p>
-              {/* Yıl bazlı ek sermaye önerileri */}
+              {/* Year-based additional capital suggestions */}
               {multiYearCapitalPlan.years.length > 1 && multiYearCapitalPlan.years[1]?.requiredCapital > 0 && (
                 <p className="text-xs text-amber-500">
                   <strong>{multiYearCapitalPlan.years[1]?.year}:</strong> {formatCompactUSD(multiYearCapitalPlan.years[1]?.requiredCapital)}
-                  <span className="text-[10px] ml-1">(ek sermaye)</span>
+                  <span className="text-[10px] ml-1">({t('simulation:investment.dealSimulator.additionalCapital')})</span>
                 </p>
               )}
               {multiYearCapitalPlan.selfSustainingFromYear && (
                 <p className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
                   <CheckCircle2 className="h-3 w-3" />
-                  {multiYearCapitalPlan.selfSustainingFromYear}'dan itibaren kendi kendini finanse ediyor
+                  {t('simulation:investment.dealSimulator.selfFinancing')} ({multiYearCapitalPlan.selfSustainingFromYear}+)
                 </p>
               )}
             </div>
-            
+
             <div className="space-y-2">
-              <Label className="text-xs">Hisse Oranı: %{dealConfig.equityPercentage}</Label>
+              <Label className="text-xs">{t('simulation:investment.dealSimulator.equityRatio')}: %{dealConfig.equityPercentage}</Label>
               <Slider
                 value={[dealConfig.equityPercentage]}
                 onValueChange={([value]) => onDealConfigChange({ equityPercentage: value })}
@@ -312,12 +315,12 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
                 className="mt-3"
               />
               <p className="text-xs text-muted-foreground">
-                Değerleme: {formatCompactUSD(exitPlan.postMoneyValuation)}
+                {t('simulation:investment.dealSimulator.valuation')}: {formatCompactUSD(exitPlan.postMoneyValuation)}
               </p>
             </div>
-            
+
             <div className="space-y-2">
-              <Label className="text-xs">Sektör Çarpanı</Label>
+              <Label className="text-xs">{t('simulation:investment.dealSimulator.sectorMultiple')}</Label>
               <Select 
                 value={String(dealConfig.sectorMultiple)}
                 onValueChange={(v) => onDealConfigChange({ sectorMultiple: Number(v) })}
@@ -338,16 +341,16 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
         </CardContent>
       </Card>
 
-      {/* Investment Tier Selector - 3 Seçenekli Yatırım Önerisi */}
+      {/* Investment Tier Selector - 3 options */}
       {capitalNeedB.investmentTiers && !capitalNeedB.selfSustaining && (
         <Card className="border-blue-500/20 bg-blue-500/5">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Target className="h-4 w-4 text-blue-400" />
-              Yatırım Seçenekleri
+              {t('simulation:investment.options.title')}
             </CardTitle>
             <CardDescription className="text-xs">
-              İş ihtiyaçlarınıza göre uygun yatırım tutarını seçin
+              {t('simulation:investment.options.description')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -423,7 +426,7 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
             {capitalNeedA.selfSustaining ? (
               <div className="flex items-center gap-2">
                 <CheckCircle2 className="h-5 w-5 text-emerald-500" />
-                <span className="text-sm font-medium text-emerald-400">Kendi Kendini Finanse Ediyor</span>
+                <span className="text-sm font-medium text-emerald-400">{t('simulation:investment.dealSimulator.selfFinancing')}</span>
               </div>
             ) : (
               <>
@@ -431,32 +434,32 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
                   {formatCompactUSD(capitalNeedA.requiredInvestment)}
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Kritik Çeyrek: {capitalNeedA.criticalQuarter}
+                  {t('simulation:investment.capitalComparison.criticalQuarter')}: {capitalNeedA.criticalQuarter}
                 </p>
               </>
             )}
-            
-            {/* Ek Metrikler */}
+
+            {/* Additional Metrics */}
             <div className="mt-3 pt-3 border-t border-border/50 space-y-1">
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Yıl Sonu:</span>
+                <span className="text-muted-foreground">{t('simulation:investment.capitalComparison.yearEnd')}:</span>
                 <span className={capitalNeedA.yearEndDeficit ? 'text-red-400' : 'text-emerald-400'}>
                   {formatCompactUSD(capitalNeedA.yearEndBalance)}
                 </span>
               </div>
               {capitalNeedA.breakEvenQuarter && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Break-even:</span>
+                  <span className="text-muted-foreground">{t('simulation:investment.capitalComparison.breakEven')}:</span>
                   <span className="text-blue-400">{capitalNeedA.breakEvenQuarter}</span>
                 </div>
               )}
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Runway:</span>
-                <span>{capitalNeedA.runwayMonths < 999 ? `${capitalNeedA.runwayMonths} ay` : '∞'}</span>
+                <span className="text-muted-foreground">{t('simulation:investment.capitalComparison.runway')}:</span>
+                <span>{capitalNeedA.runwayMonths < 999 ? `${capitalNeedA.runwayMonths} ${t('common:units.months')}` : '∞'}</span>
               </div>
               {capitalNeedA.extendedRunway && capitalNeedA.extendedRunway.combinedDeathValley < 0 && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">2Y Death Valley:</span>
+                  <span className="text-muted-foreground">{t('simulation:investment.capitalComparison.twoYearDeathValley')}:</span>
                   <span className="text-orange-400">
                     {formatCompactUSD(capitalNeedA.extendedRunway.combinedDeathValley)}
                   </span>
@@ -468,40 +471,40 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
 
         <Card className="border-red-500/30 bg-red-500/5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-muted-foreground">{scenarioB.targetYear} {scenarioB.name} İhtiyacı</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground">{scenarioB.targetYear} {scenarioB.name} {t('simulation:investment.capitalComparison.requirement')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-red-400">
               {formatCompactUSD(capitalNeedB.requiredInvestment)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Kritik Çeyrek: {capitalNeedB.criticalQuarter}
+              {t('simulation:investment.capitalComparison.criticalQuarter')}: {capitalNeedB.criticalQuarter}
             </p>
             <p className="text-xs text-muted-foreground">
-              Aylık Burn: {formatCompactUSD(capitalNeedB.burnRateMonthly)}
+              {t('simulation:investment.capitalComparison.monthlyBurn')}: {formatCompactUSD(capitalNeedB.burnRateMonthly)}
             </p>
-            
-            {/* Ek Metrikler */}
+
+            {/* Additional Metrics */}
             <div className="mt-3 pt-3 border-t border-border/50 space-y-1">
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Yıl Sonu:</span>
+                <span className="text-muted-foreground">{t('simulation:investment.capitalComparison.yearEnd')}:</span>
                 <span className={capitalNeedB.yearEndDeficit ? 'text-red-400' : 'text-emerald-400'}>
                   {formatCompactUSD(capitalNeedB.yearEndBalance)}
                 </span>
               </div>
               {capitalNeedB.breakEvenQuarter && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">Break-even:</span>
+                  <span className="text-muted-foreground">{t('simulation:investment.capitalComparison.breakEven')}:</span>
                   <span className="text-blue-400">{capitalNeedB.breakEvenQuarter}</span>
                 </div>
               )}
               <div className="flex justify-between text-xs">
-                <span className="text-muted-foreground">Runway:</span>
-                <span>{capitalNeedB.runwayMonths < 999 ? `${capitalNeedB.runwayMonths} ay` : '∞'}</span>
+                <span className="text-muted-foreground">{t('simulation:investment.capitalComparison.runway')}:</span>
+                <span>{capitalNeedB.runwayMonths < 999 ? `${capitalNeedB.runwayMonths} ${t('common:units.months')}` : '∞'}</span>
               </div>
               {capitalNeedB.extendedRunway && capitalNeedB.extendedRunway.combinedDeathValley < 0 && (
                 <div className="flex justify-between text-xs">
-                  <span className="text-muted-foreground">2Y Death Valley:</span>
+                  <span className="text-muted-foreground">{t('simulation:investment.capitalComparison.twoYearDeathValley')}:</span>
                   <span className="text-orange-400">
                     {formatCompactUSD(capitalNeedB.extendedRunway.combinedDeathValley)}
                   </span>
@@ -513,14 +516,14 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
 
         <Card className="border-blue-500/30 bg-blue-500/5">
           <CardHeader className="pb-2">
-            <CardTitle className="text-xs text-muted-foreground">Fırsat Maliyeti</CardTitle>
+            <CardTitle className="text-xs text-muted-foreground">{t('simulation:investment.capitalComparison.opportunityCostCard')}</CardTitle>
           </CardHeader>
           <CardContent>
             <div className="text-2xl font-bold text-blue-400">
               {formatCompactUSD(opportunityCost)}
             </div>
             <p className="text-xs text-muted-foreground">
-              Yatırım almazsanız masada bırakacağınız potansiyel gelir
+              {t('simulation:investment.capitalComparison.opportunityCostDesc')}
             </p>
           </CardContent>
         </Card>
@@ -531,10 +534,10 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <TrendingUp className="h-4 w-4" />
-            Nakit Akışı Runway Grafiği
+            {t('simulation:investment.cashFlowRunway.title')}
           </CardTitle>
           <CardDescription className="text-xs">
-            Yatırımlı ve yatırımsız senaryo karşılaştırması
+            {t('simulation:investment.cashFlowRunway.description')}
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -546,8 +549,8 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
               <ChartTooltip content={<ChartTooltipContent />} />
               <ChartLegend content={<ChartLegendContent />} />
               <ReferenceLine y={0} stroke="#ef4444" strokeDasharray="5 5" />
-              <Line type="monotone" dataKey="withInvestment" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e' }} name="Yatırımlı (Pozitif Senaryo)" />
-              <Line type="monotone" dataKey="withoutInvestment" stroke="#ef4444" strokeWidth={2} dot={{ fill: '#ef4444' }} name="Yatırımsız (Negatif Senaryo)" />
+              <Line type="monotone" dataKey="withInvestment" stroke="#22c55e" strokeWidth={2} dot={{ fill: '#22c55e' }} name={t('simulation:investment.cashFlowRunway.withInvestmentLabel')} />
+              <Line type="monotone" dataKey="withoutInvestment" stroke="#ef4444" strokeWidth={2} dot={{ fill: '#ef4444' }} name={t('simulation:investment.cashFlowRunway.withoutInvestmentLabel')} />
             </LineChart>
           </ChartContainer>
         </CardContent>
@@ -559,34 +562,34 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
           <CardContent className="p-4">
             <div className="flex items-center gap-2 mb-3">
               <TrendingUp className="h-4 w-4 text-blue-500" />
-              <span className="font-medium text-sm">İki Aşamalı Büyüme Modeli</span>
+              <span className="font-medium text-sm">{t('simulation:investment.twoStageGrowth.title')}</span>
             </div>
-            
+
             <div className="grid grid-cols-2 gap-4 text-sm">
               <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                <p className="text-xs text-muted-foreground mb-1">Year 1-2 (Agresif)</p>
+                <p className="text-xs text-muted-foreground mb-1">{t('simulation:investment.twoStageGrowth.year1to2')}</p>
                 <p className="font-semibold text-amber-600">
                   %{(exitPlan.growthConfig.aggressiveGrowthRate * 100).toFixed(0)}
                 </p>
                 {exitPlan.growthConfig.rawUserGrowthRate > 1.0 && (
                   <p className="text-xs text-amber-500 mt-1">
-                    Hedef: %{(exitPlan.growthConfig.rawUserGrowthRate * 100).toFixed(0)} → %100 cap
+                    {t('simulation:investment.exitPlan.targetGrowth')}: %{(exitPlan.growthConfig.rawUserGrowthRate * 100).toFixed(0)} → %100 cap
                   </p>
                 )}
               </div>
               <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20">
-                <p className="text-xs text-muted-foreground mb-1">Year 3-5 (Normalize)</p>
+                <p className="text-xs text-muted-foreground mb-1">{t('simulation:investment.twoStageGrowth.year3to5')}</p>
                 <p className="font-semibold text-green-600">
                   %{(exitPlan.growthConfig.normalizedGrowthRate * 100).toFixed(0)}
                 </p>
-                <p className="text-xs text-muted-foreground mt-1">Sektör ortalaması</p>
+                <p className="text-xs text-muted-foreground mt-1">{t('simulation:investment.twoStageGrowth.sectorAverage')}</p>
               </div>
             </div>
-            
+
             {exitPlan.growthConfig.rawUserGrowthRate > 1.0 && (
               <div className="mt-3 p-2 rounded bg-amber-500/10 text-xs text-amber-600 flex items-center gap-2">
                 <AlertTriangle className="h-3 w-3 flex-shrink-0" />
-                Agresif aşama %100 ile sınırlandı (orijinal hedef: %{(exitPlan.growthConfig.rawUserGrowthRate * 100).toFixed(0)})
+                {t('simulation:investment.twoStageGrowth.capWarningDetail', { original: (exitPlan.growthConfig.rawUserGrowthRate * 100).toFixed(0) })}
               </div>
             )}
           </CardContent>
@@ -598,25 +601,25 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
         <CardHeader className="pb-2">
           <CardTitle className="text-sm flex items-center gap-2">
             <Rocket className="h-4 w-4 text-amber-400" />
-            Exit Planı - Yatırımcı Getiri Projeksiyonu
+            {t('simulation:investment.exitPlan.title')} - {t('simulation:investment.exitPlan.subtitle')}
           </CardTitle>
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-3 gap-4">
             {/* Entry */}
             <div className="p-4 rounded-lg bg-muted/50 border">
-              <h4 className="text-xs font-semibold text-muted-foreground mb-2">GİRİŞ</h4>
+              <h4 className="text-xs font-semibold text-muted-foreground mb-2">{t('simulation:investment.exitPlan.entry')}</h4>
               <div className="space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-xs text-muted-foreground">Yatırım:</span>
+                  <span className="text-xs text-muted-foreground">{t('simulation:investment.exitPlan.investment')}:</span>
                   <span className="font-mono font-bold">{formatCompactUSD(dealConfig.investmentAmount)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-xs text-muted-foreground">Hisse:</span>
+                  <span className="text-xs text-muted-foreground">{t('simulation:investment.exitPlan.share')}:</span>
                   <span className="font-mono font-bold">%{dealConfig.equityPercentage}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-xs text-muted-foreground">Değerleme:</span>
+                  <span className="text-xs text-muted-foreground">{t('simulation:investment.dealSimulator.valuation')}:</span>
                   <span className="font-mono font-bold">{formatCompactUSD(exitPlan.postMoneyValuation)}</span>
                 </div>
               </div>
@@ -624,18 +627,18 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
 
             {/* Year 3 */}
             <div className="p-4 rounded-lg bg-blue-500/10 border border-blue-500/30">
-              <h4 className="text-xs font-semibold text-blue-400 mb-2">3. YIL ({exitPlan.yearLabels?.moic3Year})</h4>
+              <h4 className="text-xs font-semibold text-blue-400 mb-2">{t('simulation:investment.exitPlan.year3')} ({exitPlan.yearLabels?.moic3Year})</h4>
               <div className="space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-xs text-muted-foreground">Şirket Değeri:</span>
+                  <span className="text-xs text-muted-foreground">{t('simulation:investment.exitPlan.companyValue')}:</span>
                   <span className="font-mono font-bold">{formatCompactUSD(exitPlan.year3Projection.companyValuation)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-xs text-muted-foreground">Yatırımcı Payı:</span>
+                  <span className="text-xs text-muted-foreground">{t('simulation:investment.exitPlan.investorShare')}:</span>
                   <span className="font-mono font-bold">{formatCompactUSD(exitPlan.investorShare3Year)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">MOIC:</span>
+                  <span className="text-xs text-muted-foreground">{t('simulation:investment.exitPlan.moic')}:</span>
                   <Badge className="bg-blue-500/20 text-blue-400 border-blue-500/30">
                     {exitPlan.moic3Year.toFixed(1)}x
                   </Badge>
@@ -645,18 +648,18 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
 
             {/* Year 5 */}
             <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
-              <h4 className="text-xs font-semibold text-emerald-400 mb-2">5. YIL ({exitPlan.yearLabels?.moic5Year}) 🚀</h4>
+              <h4 className="text-xs font-semibold text-emerald-400 mb-2">{t('simulation:investment.exitPlan.year5')} ({exitPlan.yearLabels?.moic5Year}) 🚀</h4>
               <div className="space-y-1">
                 <div className="flex justify-between">
-                  <span className="text-xs text-muted-foreground">Şirket Değeri:</span>
+                  <span className="text-xs text-muted-foreground">{t('simulation:investment.exitPlan.companyValue')}:</span>
                   <span className="font-mono font-bold">{formatCompactUSD(exitPlan.year5Projection.companyValuation)}</span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="text-xs text-muted-foreground">Yatırımcı Payı:</span>
+                  <span className="text-xs text-muted-foreground">{t('simulation:investment.exitPlan.investorShare')}:</span>
                   <span className="font-mono font-bold">{formatCompactUSD(exitPlan.investorShare5Year)}</span>
                 </div>
                 <div className="flex justify-between items-center">
-                  <span className="text-xs text-muted-foreground">MOIC:</span>
+                  <span className="text-xs text-muted-foreground">{t('simulation:investment.exitPlan.moic')}:</span>
                   <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
                     {exitPlan.moic5Year.toFixed(1)}x 🚀
                   </Badge>
@@ -668,31 +671,31 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
           {/* Key Metrics */}
           <div className="mt-4 pt-4 border-t grid grid-cols-3 gap-4 text-center">
             <div>
-              <div className="text-xs text-muted-foreground">Sermaye Verimliliği</div>
+              <div className="text-xs text-muted-foreground">{t('simulation:investment.exitPlan.capitalEfficiency')}</div>
               <div className="text-lg font-bold text-primary">
                 {isFinite(capitalEfficiency) ? `${capitalEfficiency.toFixed(1)}x` : '∞'}
               </div>
-              <div className="text-xs text-muted-foreground">Her $1 için gelir</div>
+              <div className="text-xs text-muted-foreground">{t('simulation:investment.exitPlan.revenuePerDollar')}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Hedef Büyüme</div>
+              <div className="text-xs text-muted-foreground">{t('simulation:investment.exitPlan.targetGrowth')}</div>
               <div className="text-lg font-bold text-primary">
                 %{(growthRate * 100).toFixed(0)}
               </div>
-              <div className="text-xs text-muted-foreground">Senaryo hedefi</div>
+              <div className="text-xs text-muted-foreground">{t('simulation:scenario.title')}</div>
             </div>
             <div>
-              <div className="text-xs text-muted-foreground">Break-even</div>
+              <div className="text-xs text-muted-foreground">{t('simulation:investment.exitPlan.breakEven')}</div>
               <div className="text-lg font-bold text-primary">
-                {exitPlan.breakEvenYear ? `Yıl ${exitPlan.breakEvenYear}` : 'N/A'}
+                {exitPlan.breakEvenYear ? t('simulation:investment.exitPlan.yearN', { year: exitPlan.breakEvenYear }) : 'N/A'}
               </div>
-              <div className="text-xs text-muted-foreground">Başabaş noktası</div>
+              <div className="text-xs text-muted-foreground">{t('simulation:investment.exitPlan.breakEvenPoint')}</div>
             </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Valuation Methods Card - 4 farklı değerleme metodunun karşılaştırması */}
+      {/* Valuation Methods Card - comparison of 4 valuation methods */}
       {exitPlan.allYears && exitPlan.allYears.length > 0 && exitPlan.allYears[4]?.valuations && (
         <ValuationMethodsCard
           valuations={exitPlan.allYears[4].valuations}
@@ -709,32 +712,32 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Target className="h-4 w-4 text-primary" />
-              5 Yıllık Projeksiyon Detayı
+              {t('simulation:investment.fiveYearProjection.title')}
               {multiYearCapitalPlan.selfSustainingFromYear && (
                 <Badge variant="outline" className="ml-2 text-emerald-500 border-emerald-500/30">
                   <CheckCircle2 className="h-3 w-3 mr-1" />
-                  {multiYearCapitalPlan.selfSustainingFromYear}'dan itibaren kendi kendini finanse ediyor
+                  {t('simulation:investment.dealSimulator.selfFinancing')} ({multiYearCapitalPlan.selfSustainingFromYear}+)
                 </Badge>
               )}
             </CardTitle>
             <CardDescription className="text-xs">
-              Yıl bağımlı sermaye hesaplaması: Devir kar → Çeyreklik death valley → Ek yatırım ihtiyacı
+              {t('simulation:investment.fiveYearProjection.description')}
             </CardDescription>
           </CardHeader>
           <CardContent className="overflow-x-auto">
             <Table>
               <TableHeader>
                 <TableRow>
-                  <TableHead className="w-[70px]">Yıl</TableHead>
-                  <TableHead className="text-right">Açılış</TableHead>
-                  <TableHead className="text-right">Gelir</TableHead>
-                  <TableHead className="text-right">Gider</TableHead>
-                  <TableHead className="text-right">Net Kar</TableHead>
-                  <TableHead className="text-right">Death Valley</TableHead>
-                  <TableHead className="text-right">Sermaye İhtiyacı</TableHead>
-                  <TableHead className="text-right">Yıl Sonu</TableHead>
-                  <TableHead className="text-right">Değerleme</TableHead>
-                  <TableHead className="text-right">MOIC</TableHead>
+                  <TableHead className="w-[70px]">{t('simulation:investment.fiveYearProjection.year')}</TableHead>
+                  <TableHead className="text-right">{t('simulation:investment.fiveYearProjection.opening')}</TableHead>
+                  <TableHead className="text-right">{t('simulation:investment.fiveYearProjection.revenue')}</TableHead>
+                  <TableHead className="text-right">{t('simulation:investment.fiveYearProjection.expense')}</TableHead>
+                  <TableHead className="text-right">{t('simulation:investment.fiveYearProjection.netProfit')}</TableHead>
+                  <TableHead className="text-right">{t('simulation:investment.fiveYearProjection.deathValley')}</TableHead>
+                  <TableHead className="text-right">{t('simulation:investment.fiveYearProjection.capitalNeed')}</TableHead>
+                  <TableHead className="text-right">{t('simulation:investment.fiveYearProjection.yearEnd')}</TableHead>
+                  <TableHead className="text-right">{t('simulation:investment.fiveYearProjection.valuation')}</TableHead>
+                  <TableHead className="text-right">{t('simulation:investment.exitPlan.moic')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
