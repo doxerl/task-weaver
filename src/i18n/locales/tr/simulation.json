@@ -390,11 +390,31 @@
     "next": "Sonraki",
     "executiveSummary": "Executive Summary",
     "emailSummary": "Yatırımcıya gönderilecek e-posta özeti",
+    "emailSummaryDescription": "Yatırımcıya gönderilecek e-posta özeti",
     "copied": "Kopyalandı!",
+    "copy": "Kopyala",
+    "summaryCopied": "Executive summary kopyalandı!",
+    "copyFailed": "Kopyalama başarısız",
     "downloadSuccess": "PDF olarak indirildi!",
     "downloadError": "PDF oluşturma hatası",
+    "pdfDownloaded": "Pitch Deck PDF olarak indirildi!",
+    "pdfError": "PDF oluşturulurken hata oluştu",
+    "pdfFilename": "Yatirimci_Pitch_Deck",
+    "createdDate": "Oluşturulma Tarihi",
+    "investorPresentation": "Yatırımcı Sunumu",
     "slide": "Slayt",
-    "of": "/"
+    "of": "/",
+    "slideTitle": "Başlık",
+    "slideTitlePlaceholder": "Slayt başlığı...",
+    "keyMessage": "Ana Mesaj",
+    "keyMessagePlaceholder": "Ana mesaj...",
+    "contentItems": "İçerik Maddeleri",
+    "addItem": "Madde Ekle",
+    "item": "Madde",
+    "preview": "Önizleme",
+    "downloadPowerpoint": "PowerPoint İndir",
+    "emailSummaryPlaceholder": "Yatırımcıya gönderilecek özet...",
+    "speakerNotesPlaceholder": "Sunumcunun söylemesi gerekenler..."
   },
   "summary": {
     "baseYear": "{{year}} Baz Yıl",
@@ -432,7 +452,9 @@
     "notSelfSustaining": "Yatırım Gerekli",
     "peakDeficit": "Peak Deficit",
     "twoYearDeathValley": "2Y Death Valley",
-    "notReachedInYear": "Yıl içinde ulaşılamadı"
+    "notReachedInYear": "Yıl içinde ulaşılamadı",
+    "none": "Yok",
+    "total": "TOPLAM"
   },
   "investmentTiers": {
     "title": "Yatırım Seçenekleri",

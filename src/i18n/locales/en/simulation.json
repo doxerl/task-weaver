@@ -390,11 +390,31 @@
     "next": "Next",
     "executiveSummary": "Executive Summary",
     "emailSummary": "Email summary for investor",
+    "emailSummaryDescription": "Email summary to send to investor",
     "copied": "Copied!",
+    "copy": "Copy",
+    "summaryCopied": "Executive summary copied!",
+    "copyFailed": "Copy failed",
     "downloadSuccess": "Downloaded as PDF!",
     "downloadError": "PDF creation error",
+    "pdfDownloaded": "Pitch Deck downloaded as PDF!",
+    "pdfError": "Error creating PDF",
+    "pdfFilename": "Investor_Pitch_Deck",
+    "createdDate": "Created Date",
+    "investorPresentation": "Investor Presentation",
     "slide": "Slide",
-    "of": "/"
+    "of": "/",
+    "slideTitle": "Title",
+    "slideTitlePlaceholder": "Slide title...",
+    "keyMessage": "Key Message",
+    "keyMessagePlaceholder": "Key message...",
+    "contentItems": "Content Items",
+    "addItem": "Add Item",
+    "item": "Item",
+    "preview": "Preview",
+    "downloadPowerpoint": "Download PowerPoint",
+    "emailSummaryPlaceholder": "Summary to send to investor...",
+    "speakerNotesPlaceholder": "What the presenter should say..."
   },
   "summary": {
     "baseYear": "{{year}} Base Year",
@@ -432,7 +452,9 @@
     "notSelfSustaining": "Investment Required",
     "peakDeficit": "Peak Deficit",
     "twoYearDeathValley": "2Y Death Valley",
-    "notReachedInYear": "Not reached within year"
+    "notReachedInYear": "Not reached within year",
+    "none": "None",
+    "total": "TOTAL"
   },
   "investmentTiers": {
     "title": "Investment Options",

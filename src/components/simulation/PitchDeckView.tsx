@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -97,6 +98,7 @@ const slideIconLabels: Record<number, string> = {
 };
 
 export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
+  const { t, i18n } = useTranslation(['simulation', 'common']);
   const [currentSlide, setCurrentSlide] = useState(0);
   const [showSpeakerNotes, setShowSpeakerNotes] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -122,10 +124,10 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
       const summaryText = getExecutiveSummaryText(pitchDeck.executive_summary);
       await navigator.clipboard.writeText(summaryText);
       setCopied(true);
-      toast.success('Executive summary kopyalandı!');
+      toast.success(t('simulation:pitchDeck.summaryCopied'));
       setTimeout(() => setCopied(false), 2000);
     } catch {
-      toast.error('Kopyalama başarısız');
+      toast.error(t('simulation:pitchDeck.copyFailed'));
     }
   };
 
@@ -322,16 +324,17 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
         // Footer
         pdf.setFontSize(9);
         pdf.setTextColor(158, 158, 158);
-        const dateText = `Olusturulma Tarihi: ${new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}`;
+        const dateLocale = i18n.language === 'tr' ? 'tr-TR' : 'en-US';
+        const dateText = `${t('simulation:pitchDeck.createdDate')}: ${new Date().toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}`;
         pdf.text(turkishToAscii(dateText), pageWidth / 2, pageHeight - 10, { align: 'center' });
       }
-      
-      pdf.save('Yatirimci_Pitch_Deck.pdf');
-      toast.success('Pitch Deck PDF olarak indirildi!');
-      
+
+      pdf.save(t('simulation:pitchDeck.pdfFilename') + '.pdf');
+      toast.success(t('simulation:pitchDeck.pdfDownloaded'));
+
     } catch (error) {
-      console.error('PDF olusturma hatasi:', error);
-      toast.error('PDF olusturulurken hata olustu');
+      console.error('PDF creation error:', error);
+      toast.error(t('simulation:pitchDeck.pdfError'));
     } finally {
       setIsGeneratingPdf(false);
     }
@@ -341,7 +344,7 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
     return (
       <Card className="p-8 text-center">
         <Presentation className="h-12 w-12 mx-auto mb-4 text-muted-foreground opacity-50" />
-        <p className="text-muted-foreground">Henüz pitch deck oluşturulmadı</p>
+        <p className="text-muted-foreground">{t('simulation:pitchDeck.noPitchDeck')}</p>
       </Card>
     );
   }
@@ -352,7 +355,7 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <Presentation className="h-5 w-5 text-primary" />
-          <span className="font-medium">Yatırımcı Sunumu</span>
+          <span className="font-medium">{t('simulation:pitchDeck.investorPresentation')}</span>
           <Badge variant="secondary" className="ml-2">
             {currentSlide + 1} / {slides.length}
           </Badge>
@@ -365,7 +368,7 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
             className="gap-2"
           >
             <MessageSquare className="h-4 w-4" />
-            {showSpeakerNotes ? 'Notları Gizle' : 'Konuşmacı Notları'}
+            {showSpeakerNotes ? t('simulation:pitchDeck.hideNotes') : t('simulation:pitchDeck.speakerNotes')}
           </Button>
           <Button
             variant="outline"
@@ -379,7 +382,7 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
             ) : (
               <Download className="h-4 w-4" />
             )}
-            PDF İndir
+            {t('simulation:pitchDeck.downloadPdf')}
           </Button>
         </div>
       </div>
@@ -438,7 +441,7 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
                 <div className="bg-background/50 rounded-lg p-4">
                   <div className="flex items-center gap-2 mb-2 text-sm font-medium text-muted-foreground">
                     <MessageSquare className="h-4 w-4" />
-                    Konuşmacı Notları
+                    {t('simulation:pitchDeck.speakerNotes')}
                   </div>
                   <p className="text-sm italic">{slide.speaker_notes}</p>
                 </div>
@@ -457,7 +460,7 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
           className="gap-2"
         >
           <ChevronLeft className="h-4 w-4" />
-          Önceki
+          {t('simulation:pitchDeck.previous')}
         </Button>
         <div className="flex gap-1">
           {slides.map((_, index) => (
@@ -476,7 +479,7 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
           disabled={currentSlide === slides.length - 1}
           className="gap-2"
         >
-          Sonraki
+          {t('simulation:pitchDeck.next')}
           <ChevronRight className="h-4 w-4" />
         </Button>
       </div>
@@ -487,7 +490,7 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
           <div className="flex items-center justify-between">
             <CardTitle className="text-sm flex items-center gap-2">
               <FileText className="h-4 w-4" />
-              Executive Summary
+              {t('simulation:pitchDeck.executiveSummary')}
             </CardTitle>
             <Button
               variant="ghost"
@@ -498,17 +501,17 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
               {copied ? (
                 <>
                   <Check className="h-4 w-4 text-green-500" />
-                  Kopyalandı
+                  {t('simulation:pitchDeck.copied')}
                 </>
               ) : (
                 <>
                   <Copy className="h-4 w-4" />
-                  Kopyala
+                  {t('simulation:pitchDeck.copy')}
                 </>
               )}
             </Button>
           </div>
-          <CardDescription>Yatırımcıya gönderilecek e-posta özeti</CardDescription>
+          <CardDescription>{t('simulation:pitchDeck.emailSummaryDescription')}</CardDescription>
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-32">

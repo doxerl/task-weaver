@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -6,12 +7,12 @@ import { Button } from '@/components/ui/button';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
-  Download, 
-  Plus, 
-  Trash2, 
-  Presentation, 
-  ChevronLeft, 
+import {
+  Download,
+  Plus,
+  Trash2,
+  Presentation,
+  ChevronLeft,
   ChevronRight,
   Edit2,
   Eye
@@ -38,17 +39,18 @@ export const PitchDeckEditor = ({
   onAddBullet,
   onRemoveBullet
 }: PitchDeckEditorProps) => {
+  const { t } = useTranslation(['simulation', 'common']);
   const [activeSlide, setActiveSlide] = useState(0);
   const [isPreviewMode, setIsPreviewMode] = useState(false);
-  
+
   const currentSlide = slides[activeSlide];
-  
+
   const handleBulletChange = (bulletIndex: number, value: string) => {
     const newBullets = [...(currentSlide?.content_bullets || [])];
     newBullets[bulletIndex] = value;
     onSlideChange(activeSlide, 'content_bullets', newBullets);
   };
-  
+
   const slideTypeLabels: Record<number, string> = {
     1: 'THE HOOK',
     2: 'DEATH VALLEY',
@@ -56,14 +58,14 @@ export const PitchDeckEditor = ({
     4: 'THE MATH',
     5: 'THE EXIT'
   };
-  
+
   if (!slides || slides.length === 0) {
     return (
       <Card className="p-8 text-center">
         <Presentation className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-        <p className="text-muted-foreground">Henüz pitch deck oluşturulmadı.</p>
+        <p className="text-muted-foreground">{t('simulation:pitchDeck.noPitchDeck')}</p>
         <p className="text-xs text-muted-foreground mt-1">
-          Önce AI analizi çalıştırın.
+          {t('simulation:pitchDeck.runAiFirst')}
         </p>
       </Card>
     );
@@ -81,7 +83,7 @@ export const PitchDeckEditor = ({
             className="gap-1"
           >
             <Edit2 className="h-3 w-3" />
-            Düzenle
+            {t('simulation:pitchDeck.edit')}
           </Button>
           <Button
             variant={isPreviewMode ? "default" : "outline"}
@@ -90,13 +92,13 @@ export const PitchDeckEditor = ({
             className="gap-1"
           >
             <Eye className="h-3 w-3" />
-            Önizleme
+            {t('simulation:pitchDeck.preview')}
           </Button>
         </div>
         {onExportPPT && (
           <Button onClick={onExportPPT} size="sm" className="gap-1">
             <Download className="h-3 w-3" />
-            PowerPoint İndir
+            {t('simulation:pitchDeck.downloadPowerpoint')}
           </Button>
         )}
       </div>
@@ -128,7 +130,7 @@ export const PitchDeckEditor = ({
                   <div className="min-w-0">
                     <p className="text-xs font-medium truncate">{slide.title}</p>
                     <p className="text-[10px] text-muted-foreground mt-0.5">
-                      {slideTypeLabels[slide.slide_number] || 'Slayt'}
+                      {slideTypeLabels[slide.slide_number] || t('simulation:pitchDeck.slide')}
                     </p>
                   </div>
                 </div>
@@ -157,9 +159,9 @@ export const PitchDeckEditor = ({
           {activeSlide === -1 ? (
             /* Executive Summary Editor */
             <Card className="p-4">
-              <Label className="text-sm font-medium mb-2 block">Executive Summary</Label>
+              <Label className="text-sm font-medium mb-2 block">{t('simulation:pitchDeck.executiveSummary')}</Label>
               <p className="text-xs text-muted-foreground mb-3">
-                Yatırımcıya gönderilecek özet e-posta metni
+                {t('simulation:pitchDeck.emailSummaryDescription')}
               </p>
               {isPreviewMode ? (
                 <div className="p-4 bg-muted/30 rounded-lg text-sm whitespace-pre-wrap">
@@ -171,7 +173,7 @@ export const PitchDeckEditor = ({
                   onChange={(e) => onExecutiveSummaryChange(e.target.value)}
                   rows={8}
                   className="text-sm"
-                  placeholder="Yatırımcıya gönderilecek özet..."
+                  placeholder={t('simulation:pitchDeck.emailSummaryPlaceholder')}
                 />
               )}
             </Card>
@@ -195,7 +197,7 @@ export const PitchDeckEditor = ({
                     </ul>
                   </div>
                   <div className="bg-muted/30 rounded-lg p-4">
-                    <p className="text-xs text-muted-foreground mb-1">Konuşmacı Notları:</p>
+                    <p className="text-xs text-muted-foreground mb-1">{t('simulation:pitchDeck.speakerNotes')}:</p>
                     <p className="text-sm">{currentSlide.speaker_notes}</p>
                   </div>
                 </div>
@@ -204,43 +206,43 @@ export const PitchDeckEditor = ({
                 <div className="space-y-4">
                   <div className="flex items-center justify-between">
                     <Badge variant="outline">
-                      Slayt {currentSlide.slide_number} - {slideTypeLabels[currentSlide.slide_number]}
+                      {t('simulation:pitchDeck.slide')} {currentSlide.slide_number} - {slideTypeLabels[currentSlide.slide_number]}
                     </Badge>
                   </div>
-                  
+
                   <div>
-                    <Label className="text-xs">Başlık</Label>
+                    <Label className="text-xs">{t('simulation:pitchDeck.slideTitle')}</Label>
                     <Input
                       value={currentSlide.title}
                       onChange={(e) => onSlideChange(activeSlide, 'title', e.target.value)}
                       className="mt-1"
-                      placeholder="Slayt başlığı..."
+                      placeholder={t('simulation:pitchDeck.slideTitlePlaceholder')}
                     />
                   </div>
-                  
+
                   <div>
-                    <Label className="text-xs">Ana Mesaj</Label>
+                    <Label className="text-xs">{t('simulation:pitchDeck.keyMessage')}</Label>
                     <Textarea
                       value={currentSlide.key_message}
                       onChange={(e) => onSlideChange(activeSlide, 'key_message', e.target.value)}
                       rows={2}
                       className="mt-1"
-                      placeholder="Ana mesaj..."
+                      placeholder={t('simulation:pitchDeck.keyMessagePlaceholder')}
                     />
                   </div>
-                  
+
                   <div>
                     <div className="flex items-center justify-between mb-1">
-                      <Label className="text-xs">İçerik Maddeleri</Label>
+                      <Label className="text-xs">{t('simulation:pitchDeck.contentItems')}</Label>
                       {onAddBullet && (
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
+                        <Button
+                          variant="ghost"
+                          size="sm"
                           onClick={() => onAddBullet(activeSlide)}
                           className="h-6 text-xs gap-1"
                         >
                           <Plus className="h-3 w-3" />
-                          Madde Ekle
+                          {t('simulation:pitchDeck.addItem')}
                         </Button>
                       )}
                     </div>
@@ -251,11 +253,11 @@ export const PitchDeckEditor = ({
                             value={bullet}
                             onChange={(e) => handleBulletChange(bIndex, e.target.value)}
                             className="flex-1"
-                            placeholder={`Madde ${bIndex + 1}...`}
+                            placeholder={`${t('simulation:pitchDeck.item')} ${bIndex + 1}...`}
                           />
                           {onRemoveBullet && currentSlide.content_bullets.length > 1 && (
-                            <Button 
-                              variant="ghost" 
+                            <Button
+                              variant="ghost"
                               size="sm"
                               onClick={() => onRemoveBullet(activeSlide, bIndex)}
                               className="h-8 w-8 p-0 text-destructive"
@@ -267,15 +269,15 @@ export const PitchDeckEditor = ({
                       ))}
                     </div>
                   </div>
-                  
+
                   <div>
-                    <Label className="text-xs">Konuşmacı Notları</Label>
+                    <Label className="text-xs">{t('simulation:pitchDeck.speakerNotes')}</Label>
                     <Textarea
                       value={currentSlide.speaker_notes}
                       onChange={(e) => onSlideChange(activeSlide, 'speaker_notes', e.target.value)}
                       rows={3}
                       className="mt-1"
-                      placeholder="Sunumcunun söylemesi gerekenler..."
+                      placeholder={t('simulation:pitchDeck.speakerNotesPlaceholder')}
                     />
                   </div>
                 </div>
@@ -291,7 +293,7 @@ export const PitchDeckEditor = ({
                   className="gap-1"
                 >
                   <ChevronLeft className="h-4 w-4" />
-                  Önceki
+                  {t('simulation:pitchDeck.previous')}
                 </Button>
                 <span className="text-xs text-muted-foreground">
                   {activeSlide + 1} / {slides.length}
@@ -303,7 +305,7 @@ export const PitchDeckEditor = ({
                   onClick={() => setActiveSlide(prev => Math.min(slides.length - 1, prev + 1))}
                   className="gap-1"
                 >
-                  Sonraki
+                  {t('simulation:pitchDeck.next')}
                   <ChevronRight className="h-4 w-4" />
                 </Button>
               </div>
