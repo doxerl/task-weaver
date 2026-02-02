@@ -2,6 +2,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Minus, AlertTriangle, Activity } from 'lucide-react';
 import { TrendAnalysisResult } from '@/types/simulation';
+import { useTranslation } from 'react-i18next';
 
 interface ItemTrendCardsProps {
   analysis: TrendAnalysisResult;
@@ -9,8 +10,10 @@ interface ItemTrendCardsProps {
 }
 
 export function ItemTrendCards({ analysis, type }: ItemTrendCardsProps) {
+  const { t } = useTranslation(['simulation']);
   const items = type === 'revenues' ? analysis.revenues : analysis.expenses;
-  const title = type === 'revenues' ? 'Gelir Kalemleri Trend Analizi' : 'Gider Kalemleri Trend Analizi';
+  const title = type === 'revenues' ? t('itemTrend.revenueItems') : t('itemTrend.expenseItems');
+  const typeLabel = type === 'revenues' ? t('summary.metrics.revenue').toLowerCase() : t('summary.metrics.expense').toLowerCase();
 
   const getTrendIcon = (trend: string) => {
     switch (trend) {
@@ -26,11 +29,11 @@ export function ItemTrendCards({ analysis, type }: ItemTrendCardsProps) {
   const getTrendLabel = (trend: string) => {
     switch (trend) {
       case 'increasing':
-        return 'Büyüyor';
+        return t('itemTrend.trend.increasing');
       case 'decreasing':
-        return 'Azalıyor';
+        return t('itemTrend.trend.decreasing');
       default:
-        return 'Stabil';
+        return t('itemTrend.trend.stable');
     }
   };
 
@@ -48,11 +51,11 @@ export function ItemTrendCards({ analysis, type }: ItemTrendCardsProps) {
   const getVolatilityLabel = (level: string) => {
     switch (level) {
       case 'high':
-        return 'Yüksek Volatilite';
+        return t('itemTrend.volatility.high');
       case 'medium':
-        return 'Orta Volatilite';
+        return t('itemTrend.volatility.medium');
       default:
-        return 'Düşük Volatilite';
+        return t('itemTrend.volatility.low');
     }
   };
 
@@ -78,12 +81,12 @@ export function ItemTrendCards({ analysis, type }: ItemTrendCardsProps) {
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   <span className="text-xs text-muted-foreground">
-                    Pay: %{item.shareOfTotal.toFixed(1)}
+                    {t('itemTrend.share')}: %{item.shareOfTotal.toFixed(1)}
                   </span>
                   {item.shareOfTotal > 50 && (
                     <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20">
                       <AlertTriangle className="h-3 w-3 mr-1" />
-                      Konsantrik
+                      {t('itemTrend.concentrated')}
                     </Badge>
                   )}
                 </div>
@@ -107,8 +110,8 @@ export function ItemTrendCards({ analysis, type }: ItemTrendCardsProps) {
           <div className="mt-3 p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
             <p className="text-xs text-amber-400 flex items-center gap-1">
               <AlertTriangle className="h-3 w-3" />
-              <span className="font-medium">Konsantrasyon Riski:</span>
-              Tek bir kalem toplam {type === 'revenues' ? 'gelirin' : 'giderin'} %50'sinden fazlasını oluşturuyor
+              <span className="font-medium">{t('itemTrend.concentrationRisk')}:</span>
+              {t('itemTrend.concentrationWarning', { type: typeLabel })}
             </p>
           </div>
         )}
