@@ -614,6 +614,13 @@ function ScenarioComparisonContent() {
   const summaryA = useMemo(() => scenarioA ? calculateScenarioSummary(scenarioA) : null, [scenarioA]);
   const summaryB = useMemo(() => scenarioB ? calculateScenarioSummary(scenarioB) : null, [scenarioB]);
 
+  // Check if scenarios are in wrong order (A should be positive/higher profit, B should be negative/lower profit)
+  const isScenarioOrderWrong = useMemo(() => {
+    if (!summaryA || !summaryB) return false;
+    // If scenario B has higher profit than A, they should swap
+    return summaryB.netProfit > summaryA.netProfit;
+  }, [summaryA, summaryB]);
+
   const metrics = useMemo(() => {
     if (!summaryA || !summaryB) return [];
     return [
@@ -1163,7 +1170,6 @@ function ScenarioComparisonContent() {
     // Validate quarterlyComparison array has required length
     if (!quarterlyComparison || quarterlyComparison.length < 4) {
       toast.error(t('simulation:toast.quarterlyDataMissing'));
-      setIsAnalyzing(false);
       return;
     }
 
@@ -1495,7 +1501,7 @@ function ScenarioComparisonContent() {
               <>
                 {/* Data changed warning */}
                 {unifiedDataChanged && unifiedCachedInfo && (
-                  <DataChangedWarning onReanalyze={handleUnifiedAnalysis} isLoading={unifiedLoading} t={t} />
+                  <DataChangedWarning onReanalyze={handleUnifiedAnalysis} isLoading={unifiedLoading} />
                 )}
                 
                 {/* Calculate projection year dynamically: max(A.year, B.year) + 1 */}
@@ -1536,8 +1542,6 @@ function ScenarioComparisonContent() {
                   isLoading={unifiedHistoryLoading}
                   onSelectHistory={handleSelectUnifiedHistory}
                   analysisType="scenario_comparison"
-                  t={t}
-                  dateLocale={dateLocale}
                 />
               </>
             )}
@@ -1792,8 +1796,6 @@ function ScenarioComparisonContent() {
         onClose={() => setSelectedHistoricalAnalysis(null)}
         onRestore={handleRestoreHistory}
         analysisType={historySheetType}
-        t={t}
-        dateLocale={dateLocale}
       />
       
       {/* Pitch Deck Sheet - Editable */}
