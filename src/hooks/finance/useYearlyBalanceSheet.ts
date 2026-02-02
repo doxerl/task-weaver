@@ -133,23 +133,28 @@ export function useYearlyBalanceSheet(year: number) {
   });
 
   // Memoize the callback functions to prevent dependency array issues
+  // Use the mutation object reference instead of .mutate directly
   const upsertBalance = useCallback(
     (data: Partial<YearlyBalanceSheet>) => upsertMutation.mutate(data),
-    [upsertMutation.mutate]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [upsertMutation]
   );
 
   const lockBalance = useCallback(
     (lock: boolean) => lockMutation.mutate(lock),
-    [lockMutation.mutate]
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [lockMutation]
   );
 
-  // Memoize the return value
+  const isUpdating = upsertMutation.isPending || lockMutation.isPending;
+
+  // Memoize the return value with stable references
   return useMemo(() => ({
     yearlyBalance,
     isLoading,
     isLocked: yearlyBalance?.is_locked ?? false,
     upsertBalance,
     lockBalance,
-    isUpdating: upsertMutation.isPending || lockMutation.isPending,
-  }), [yearlyBalance, isLoading, upsertBalance, lockBalance, upsertMutation.isPending, lockMutation.isPending]);
+    isUpdating,
+  }), [yearlyBalance, isLoading, upsertBalance, lockBalance, isUpdating]);
 }
