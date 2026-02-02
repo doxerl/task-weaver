@@ -91,7 +91,6 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
   editedProjectionOverride,
 }) => {
   const { t } = useTranslation(['simulation', 'common']);
-
   // Calculate capital needs for both scenarios
   const capitalNeedA = useMemo(() => calculateCapitalNeeds(quarterlyA), [quarterlyA]);
   const capitalNeedB = useMemo(() => calculateCapitalNeeds(quarterlyB), [quarterlyB]);

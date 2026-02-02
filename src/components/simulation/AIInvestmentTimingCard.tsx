@@ -12,6 +12,7 @@ import {
 } from 'lucide-react';
 import { CapitalRequirement } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
+import { useTranslation } from 'react-i18next';
 
 interface OptimalInvestmentTiming {
   recommendedQuarter: string;
@@ -39,8 +40,15 @@ export const AIInvestmentTimingCard: React.FC<AIInvestmentTimingCardProps> = ({
   capitalNeedB,
   targetYear = 2026,
 }) => {
+  const { t, i18n } = useTranslation(['simulation']);
+  const isEnglish = i18n.language === 'en';
+
+  // Month names based on language
+  const monthMap: Record<string, string> = isEnglish 
+    ? { 'Q1': 'March', 'Q2': 'June', 'Q3': 'September' }
+    : { 'Q1': 'Mart', 'Q2': 'Haziran', 'Q3': 'Eylül' };
+
   // Calculate optimal investment timing based on NEGATIVE scenario cash flow
-  // Investment transforms negative scenario into positive - so timing must be based on when deficits occur
   const timing = useMemo<OptimalInvestmentTiming>(() => {
     const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
     const flowsB = [quarterlyB.q1, quarterlyB.q2, quarterlyB.q3, quarterlyB.q4];
@@ -59,7 +67,7 @@ export const AIInvestmentTimingCard: React.FC<AIInvestmentTimingCardProps> = ({
       // Track quarterly capital needs
       quarterlyNeeds.push(cumulative < 0 ? Math.abs(cumulative) : 0);
       
-      // Find FIRST deficit quarter - this is when investment becomes critical
+      // Find FIRST deficit quarter
       if (cumulative < 0 && !firstDeficitQuarter) {
         firstDeficitQuarter = quarters[i];
         firstDeficitAmount = Math.abs(cumulative);
@@ -73,55 +81,49 @@ export const AIInvestmentTimingCard: React.FC<AIInvestmentTimingCardProps> = ({
     }
     
     // 2. Investment timing - Must be BEFORE first deficit
-    // Because investment funds the growth expenses that create positive scenario
     let recommendedQuarter: string;
     let recommendedTiming: string;
     
     if (!firstDeficitQuarter) {
-      // No deficit - company is self-sustaining
-      recommendedQuarter = 'İsteğe Bağlı';
-      recommendedTiming = 'Büyüme hızlandırma için yıl içinde herhangi bir zamanda';
+      recommendedQuarter = t('aiTiming.optional');
+      recommendedTiming = t('aiTiming.anyTime');
     } else if (firstDeficitQuarter === 'Q1') {
-      // Deficit starts in Q1 - investment needed BEFORE year starts
-      recommendedQuarter = 'Yıl Başı';
-      recommendedTiming = `Ocak ${targetYear} öncesi`;
+      recommendedQuarter = t('aiTiming.yearStart');
+      recommendedTiming = t('aiTiming.before', { date: `${isEnglish ? 'January' : 'Ocak'} ${targetYear}` });
     } else {
-      // Get quarter before first deficit
       const firstDeficitIndex = quarters.indexOf(firstDeficitQuarter);
       recommendedQuarter = quarters[firstDeficitIndex - 1];
-      const monthMap: Record<string, string> = { 'Q1': 'Mart', 'Q2': 'Haziran', 'Q3': 'Eylül' };
-      recommendedTiming = `${monthMap[recommendedQuarter]} ${targetYear} sonuna kadar`;
+      recommendedTiming = t('aiTiming.byEnd', { date: `${monthMap[recommendedQuarter]} ${targetYear}` });
     }
     
-    // 3. URGENCY - Based on FIRST deficit, not Death Valley
-    // If Q1 has deficit, urgency is critical because we need money NOW
+    // 3. URGENCY
     let urgencyLevel: 'critical' | 'high' | 'medium' | 'low';
     
     if (!firstDeficitQuarter) {
       urgencyLevel = 'low';
     } else if (firstDeficitQuarter === 'Q1') {
-      urgencyLevel = 'critical'; // Deficit starts immediately
+      urgencyLevel = 'critical';
     } else if (firstDeficitQuarter === 'Q2') {
-      urgencyLevel = 'high'; // 3 months until deficit
+      urgencyLevel = 'high';
     } else if (firstDeficitQuarter === 'Q3') {
-      urgencyLevel = 'medium'; // 6 months until deficit
+      urgencyLevel = 'medium';
     } else {
-      urgencyLevel = 'low'; // 9+ months
+      urgencyLevel = 'low';
     }
     
-    // 4. Reason and risk explanations - Explain the cause-effect relationship
+    // 4. Reason and risk explanations
     let reason: string;
     let riskIfDelayed: string;
     
     if (!firstDeficitQuarter) {
-      reason = 'Şirket öz sermaye ile operasyonları sürdürebilir. Yatırım büyümeyi hızlandırmak için kullanılabilir.';
-      riskIfDelayed = 'Büyüme fırsatları kaçırılabilir ama operasyonlar devam eder.';
+      reason = t('aiTiming.reasons.selfSustaining');
+      riskIfDelayed = t('aiTiming.risks.selfSustaining');
     } else if (firstDeficitQuarter === 'Q1') {
-      reason = `Q1'de ${formatCompactUSD(firstDeficitAmount)} nakit açığı başlıyor. Bu açık kapatılmadan planlanan büyüme harcamaları (fuar, personel, pazarlama) yapılamaz.`;
-      riskIfDelayed = 'Yatırım olmadan pozitif senaryoya geçiş mümkün değil. Büyüme stratejisi ertelenir, pazar payı kaybedilir.';
+      reason = t('aiTiming.reasons.q1Deficit', { amount: formatCompactUSD(firstDeficitAmount) });
+      riskIfDelayed = t('aiTiming.risks.q1Deficit');
     } else {
-      reason = `${firstDeficitQuarter}'de ${formatCompactUSD(firstDeficitAmount)} nakit açığı başlayacak. Bu tarihten önce sermaye güvence altına alınmalı.`;
-      riskIfDelayed = `${firstDeficitQuarter} sonrasında büyüme için planlanan harcamalar yapılamaz hale gelir. Pozitif senaryo gerçekleşmez.`;
+      reason = t('aiTiming.reasons.futureDeficit', { quarter: firstDeficitQuarter, amount: formatCompactUSD(firstDeficitAmount) });
+      riskIfDelayed = t('aiTiming.risks.futureDeficit', { quarter: firstDeficitQuarter });
     }
     
     // 5. Required investment = Max deficit + 20% safety margin
@@ -134,12 +136,12 @@ export const AIInvestmentTimingCard: React.FC<AIInvestmentTimingCardProps> = ({
       riskIfDelayed,
       requiredInvestment,
       quarterlyNeeds,
-      firstDeficitQuarter: firstDeficitQuarter || 'Yok',
-      maxDeficitQuarter: maxDeficitQuarter || 'Yok',
+      firstDeficitQuarter: firstDeficitQuarter || t('aiTiming.none'),
+      maxDeficitQuarter: maxDeficitQuarter || t('aiTiming.none'),
       urgencyLevel,
       confidenceScore: firstDeficitQuarter ? 90 : 60
     };
-  }, [quarterlyB, capitalNeedB, targetYear]);
+  }, [quarterlyB, capitalNeedB, targetYear, t, isEnglish, monthMap]);
 
   const urgencyColors = {
     critical: 'bg-red-500/20 text-red-400 border-red-500/30',
@@ -149,17 +151,17 @@ export const AIInvestmentTimingCard: React.FC<AIInvestmentTimingCardProps> = ({
   };
 
   const urgencyLabels = {
-    critical: 'Kritik',
-    high: 'Yüksek',
-    medium: 'Orta',
-    low: 'Düşük',
+    critical: t('aiTiming.urgencyLevels.critical'),
+    high: t('aiTiming.urgencyLevels.high'),
+    medium: t('aiTiming.urgencyLevels.medium'),
+    low: t('aiTiming.urgencyLevels.low'),
   };
 
   const urgencyDescriptions = {
-    critical: "Q1'de açık başlıyor - Şu an yatırım gerekli",
-    high: '3 ay içinde açık başlayacak',
-    medium: '6 ay içinde açık başlayacak',
-    low: 'Nakit pozisyonu güçlü',
+    critical: t('aiTiming.urgencyDescriptions.critical'),
+    high: t('aiTiming.urgencyDescriptions.high'),
+    medium: t('aiTiming.urgencyDescriptions.medium'),
+    low: t('aiTiming.urgencyDescriptions.low'),
   };
 
   const maxNeed = Math.max(...timing.quarterlyNeeds, 1);
@@ -169,10 +171,10 @@ export const AIInvestmentTimingCard: React.FC<AIInvestmentTimingCardProps> = ({
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           <Zap className="h-4 w-4 text-purple-400" />
-          AI Optimal Yatırım Zamanlaması
+          {t('aiTiming.title')}
         </CardTitle>
         <CardDescription className="text-xs">
-          {targetYear || ''} Negatif senaryo nakit açıklarına göre optimal yatırım zamanı
+          {t('aiTiming.description', { year: targetYear })}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -182,7 +184,7 @@ export const AIInvestmentTimingCard: React.FC<AIInvestmentTimingCardProps> = ({
           <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
             <div className="flex items-center justify-center gap-1 mb-1">
               <Clock className="h-3 w-3 text-blue-400" />
-              <span className="text-xs text-muted-foreground">Önerilen</span>
+              <span className="text-xs text-muted-foreground">{t('aiTiming.recommended')}</span>
             </div>
             <div className="text-2xl font-bold text-blue-400">{timing.recommendedQuarter}</div>
             <div className="text-xs text-muted-foreground">{timing.recommendedTiming}</div>
@@ -192,7 +194,7 @@ export const AIInvestmentTimingCard: React.FC<AIInvestmentTimingCardProps> = ({
           <div className="p-3 rounded-lg bg-muted/30 border text-center">
             <div className="flex items-center justify-center gap-1 mb-1">
               <AlertTriangle className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Aciliyet</span>
+              <span className="text-xs text-muted-foreground">{t('aiTiming.urgency')}</span>
             </div>
             <Badge className={`${urgencyColors[timing.urgencyLevel]} text-sm`}>
               {urgencyLabels[timing.urgencyLevel]}
@@ -206,12 +208,12 @@ export const AIInvestmentTimingCard: React.FC<AIInvestmentTimingCardProps> = ({
           <div className="p-3 rounded-lg bg-muted/30 border text-center">
             <div className="flex items-center justify-center gap-1 mb-1">
               <Target className="h-3 w-3 text-muted-foreground" />
-              <span className="text-xs text-muted-foreground">Gerekli Sermaye</span>
+              <span className="text-xs text-muted-foreground">{t('aiTiming.requiredCapital')}</span>
             </div>
             <div className="text-xl font-bold text-foreground">
               {formatCompactUSD(timing.requiredInvestment)}
             </div>
-            <div className="text-xs text-muted-foreground">%20 güvenlik dahil</div>
+            <div className="text-xs text-muted-foreground">{t('aiTiming.safetyIncluded')}</div>
           </div>
         </div>
 
@@ -219,7 +221,7 @@ export const AIInvestmentTimingCard: React.FC<AIInvestmentTimingCardProps> = ({
         {timing.quarterlyNeeds.some(n => n > 0) && (
           <div className="p-3 rounded-lg bg-muted/20 border space-y-2">
             <p className="text-xs font-medium text-muted-foreground">
-              Çeyreklik Kümülatif Sermaye İhtiyacı (Negatif Senaryo)
+              {t('aiTiming.quarterlyCumulativeNeed')}
             </p>
             <div className="space-y-1.5">
               {['Q1', 'Q2', 'Q3', 'Q4'].map((q, i) => (
@@ -242,7 +244,7 @@ export const AIInvestmentTimingCard: React.FC<AIInvestmentTimingCardProps> = ({
                   </span>
                   {timing.firstDeficitQuarter === q && (
                     <Badge variant="destructive" className="text-[10px] px-1 py-0 h-4">
-                      İlk Açık
+                      {t('aiTiming.firstDeficit')}
                     </Badge>
                   )}
                 </div>
@@ -261,7 +263,7 @@ export const AIInvestmentTimingCard: React.FC<AIInvestmentTimingCardProps> = ({
           <div className="flex items-start gap-2">
             <TrendingDown className="h-4 w-4 text-red-400 mt-0.5 flex-shrink-0" />
             <p className="text-sm text-muted-foreground">
-              <span className="text-red-400 font-medium">Erteleme riski:</span> {timing.riskIfDelayed}
+              <span className="text-red-400 font-medium">{t('aiTiming.delayRisk')}:</span> {timing.riskIfDelayed}
             </p>
           </div>
         </div>
@@ -269,13 +271,13 @@ export const AIInvestmentTimingCard: React.FC<AIInvestmentTimingCardProps> = ({
         {/* Footer Info */}
         <div className="flex items-center justify-between text-xs text-muted-foreground pt-1 border-t">
           <div className="flex items-center gap-1">
-            <span>Analiz Güveni: {timing.confidenceScore}%</span>
+            <span>{t('aiTiming.analysisConfidence')}: {timing.confidenceScore}%</span>
           </div>
           <div className="flex items-center gap-1">
             <ArrowRight className="h-3 w-3" />
-            <span>İlk açık: {timing.firstDeficitQuarter}</span>
+            <span>{t('aiTiming.firstDeficitLabel')}: {timing.firstDeficitQuarter}</span>
             <span className="mx-1">•</span>
-            <span>Max açık: {timing.maxDeficitQuarter}</span>
+            <span>{t('aiTiming.maxDeficitLabel')}: {timing.maxDeficitQuarter}</span>
           </div>
         </div>
       </CardContent>

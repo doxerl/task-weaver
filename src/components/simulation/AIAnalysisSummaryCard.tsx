@@ -1,4 +1,5 @@
 import React, { memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -57,6 +58,8 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
   summaryB,
   projectionYear,
 }) => {
+  const { t } = useTranslation(['simulation', 'common']);
+  
   // Calculate display year for next year button
   // Priority: projectionYear from AI > targetYear + 1 > fallback
   const nextYearDisplay = projectionYear || 
@@ -92,7 +95,7 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
         <div className="flex items-center justify-between">
           <CardTitle className="text-sm flex items-center gap-2">
             <Brain className="h-4 w-4 text-purple-400" />
-            🧠 Kapsamlı AI Analizi (Gemini Pro 3)
+            {t('ai.title')}
           </CardTitle>
           <div className="flex items-center gap-2">
             {cachedAt && (
@@ -113,24 +116,24 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
               {isLoading ? (
                 <>
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
-                  Analiz Ediliyor...
+                  {t('ai.analyzing')}
                 </>
               ) : unifiedAnalysis ? (
                 <>
                   <RefreshCw className="h-4 w-4 mr-2" />
-                  Yeniden Analiz
+                  {t('ai.reanalyze')}
                 </>
               ) : (
                 <>
                   <Sparkles className="h-4 w-4 mr-2" />
-                  Yatırımcı Sunumu Oluştur
+                  {t('ai.createPresentation')}
                 </>
               )}
             </Button>
           </div>
         </div>
         <CardDescription className="text-xs">
-          Senaryo verilerini analiz ederek yatırımcı sunumu, deal skoru ve gelecek yıl projeksiyonu oluşturur
+          {t('ai.aiDescription')}
         </CardDescription>
       </CardHeader>
       <CardContent>
@@ -147,7 +150,7 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
             {/* Top Revenue Items - Before deal score */}
             {topRevenues.length > 0 && (
               <div className="text-xs text-muted-foreground border-b border-purple-500/10 pb-2">
-                📊 <span className="font-medium">Gelir Kalemleri:</span>{' '}
+                📊 <span className="font-medium">{t('ai.revenueItems')}:</span>{' '}
                 {topRevenues.map((r, i) => (
                   <span key={r.id}>
                     {r.category} ({formatCompactUSD(r.projectedAmount)})
@@ -169,7 +172,7 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
                   </div>
                   <div className="text-foreground font-semibold">{formatCompactUSD(summaryA.totalRevenue)}</div>
                   <div className="text-muted-foreground">
-                    Kâr: {formatCompactUSD(summaryA.netProfit)}
+                    {t('ai.profit')}: {formatCompactUSD(summaryA.netProfit)}
                   </div>
                 </div>
                 <div className="bg-red-500/10 p-2.5 rounded-lg border border-red-500/20">
@@ -181,7 +184,7 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
                   </div>
                   <div className="text-foreground font-semibold">{formatCompactUSD(summaryB.totalRevenue)}</div>
                   <div className="text-muted-foreground">
-                    Kâr: {formatCompactUSD(summaryB.netProfit)}
+                    {t('ai.profit')}: {formatCompactUSD(summaryB.netProfit)}
                   </div>
                 </div>
               </div>
@@ -192,10 +195,10 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
               <div className="bg-amber-500/10 border border-amber-500/20 rounded-lg p-2.5 text-xs flex items-start gap-2">
                 <AlertTriangle className="h-4 w-4 text-amber-400 flex-shrink-0 mt-0.5" />
                 <div>
-                  <span className="font-medium text-amber-400">Yatırım Alamazsak:</span>{' '}
+                  <span className="font-medium text-amber-400">{t('ai.withoutInvestment')}:</span>{' '}
                   <span className="text-foreground">
-                    {formatCompactUSD(investmentImpact.revenueGap)} daha az gelir 
-                    ({investmentImpact.percentGap.toFixed(0)}% kayıp)
+                    {formatCompactUSD(investmentImpact.revenueGap)} {t('ai.lessRevenue')} 
+                    ({investmentImpact.percentGap.toFixed(0)}% {t('ai.loss')})
                   </span>
                 </div>
               </div>
@@ -208,7 +211,7 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
                   <div className="flex items-center gap-3">
                     <div className="flex items-center gap-2">
                       <Target className="h-4 w-4 text-purple-400" />
-                      <span className="text-sm font-medium">Deal Skoru:</span>
+                      <span className="text-sm font-medium">{t('ai.dealScore')}:</span>
                     </div>
                     <Badge className={`text-lg px-3 py-1 ${
                       unifiedAnalysis.deal_analysis.deal_score >= 7 ? 'bg-emerald-600' :
@@ -221,8 +224,8 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
                       unifiedAnalysis.deal_analysis.valuation_verdict === 'premium' ? 'border-red-500 text-red-400' :
                       'border-amber-500 text-amber-400'
                     }`}>
-                      {unifiedAnalysis.deal_analysis.valuation_verdict === 'cheap' ? '💎 Ucuz' :
-                       unifiedAnalysis.deal_analysis.valuation_verdict === 'premium' ? '💰 Pahalı' : '⚖️ Adil'}
+                      {unifiedAnalysis.deal_analysis.valuation_verdict === 'cheap' ? t('ai.valuation.cheap') :
+                       unifiedAnalysis.deal_analysis.valuation_verdict === 'premium' ? t('ai.valuation.premium') : t('ai.valuation.fair')}
                     </Badge>
                   </div>
                 </div>
@@ -242,12 +245,12 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
                         )}
                         {unifiedAnalysis.deal_analysis.score_components.margin_score !== undefined && (
                           <Badge variant="secondary" className="text-[9px]">
-                            Marj: {unifiedAnalysis.deal_analysis.score_components.margin_score}/10
+                            Margin: {unifiedAnalysis.deal_analysis.score_components.margin_score}/10
                           </Badge>
                         )}
                         {unifiedAnalysis.deal_analysis.score_components.growth_score !== undefined && (
                           <Badge variant="secondary" className="text-[9px]">
-                            Büyüme: {unifiedAnalysis.deal_analysis.score_components.growth_score}/10
+                            Growth: {unifiedAnalysis.deal_analysis.score_components.growth_score}/10
                           </Badge>
                         )}
                         {unifiedAnalysis.deal_analysis.score_components.risk_score !== undefined && (
@@ -290,19 +293,19 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
                       <div className="text-sm font-bold text-blue-400">
                         {formatCompactUSD(unifiedAnalysis.next_year_projection.summary.total_revenue)}
                       </div>
-                      <div className="text-xs text-muted-foreground">{nextYearDisplay || 'Gelecek Yıl'} Gelir</div>
+                      <div className="text-xs text-muted-foreground">{t('ai.yearRevenue', { year: nextYearDisplay || t('ai.nextYear') })}</div>
                     </div>
                     <div>
                       <div className="text-sm font-bold text-red-400">
                         {formatCompactUSD(unifiedAnalysis.next_year_projection.summary.total_expenses)}
                       </div>
-                      <div className="text-xs text-muted-foreground">Gider</div>
+                      <div className="text-xs text-muted-foreground">{t('ai.expense')}</div>
                     </div>
                     <div>
                       <div className="text-sm font-bold text-emerald-400">
                         {formatCompactUSD(unifiedAnalysis.next_year_projection.summary.net_profit)}
                       </div>
-                      <div className="text-xs text-muted-foreground">Net Kâr</div>
+                      <div className="text-xs text-muted-foreground">{t('ai.netProfit')}</div>
                     </div>
                   </div>
                 )}
@@ -312,15 +315,15 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
               <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/30">
                 <div className="flex items-center gap-2 text-amber-400 mb-2">
                   <AlertTriangle className="h-4 w-4" />
-                  <span className="text-sm font-medium">Eksik Analiz Verileri</span>
+                  <span className="text-sm font-medium">{t('ai.incompleteData')}</span>
                 </div>
                 <p className="text-xs text-muted-foreground">
-                  Bu analiz eski formatta kaydedilmiş. Tam sonuçlar için yukarıdaki "Yeniden Analiz" butonuna tıklayın.
+                  {t('ai.incompleteDataDescription')}
                 </p>
                 {/* Show existing insights if available */}
                 {unifiedAnalysis.insights && unifiedAnalysis.insights.length > 0 && (
                   <div className="space-y-1.5 border-t border-amber-500/20 pt-3 mt-3">
-                    <p className="text-xs font-medium text-muted-foreground">📊 Mevcut Analizler ({unifiedAnalysis.insights.length}):</p>
+                    <p className="text-xs font-medium text-muted-foreground">📊 {t('ai.existingAnalyses')} ({unifiedAnalysis.insights.length}):</p>
                     {unifiedAnalysis.insights.slice(0, 3).map((insight, i) => (
                       <div key={i} className="text-xs text-muted-foreground">
                         • {insight.title}
@@ -341,8 +344,8 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
                 <CardContent className="p-4 flex items-center gap-3">
                   <Presentation className="h-8 w-8 text-purple-400" />
                   <div>
-                    <h4 className="font-medium text-sm">Pitch Deck</h4>
-                    <p className="text-xs text-muted-foreground">5 slaytlık yatırımcı sunumu</p>
+                    <h4 className="font-medium text-sm">{t('ai.pitchDeck')}</h4>
+                    <p className="text-xs text-muted-foreground">{t('ai.pitchDeckDescription')}</p>
                   </div>
                 </CardContent>
               </Card>
@@ -356,8 +359,8 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
                   <CardContent className="p-4 flex items-center gap-3">
                     <Rocket className="h-8 w-8 text-emerald-400" />
                     <div>
-                      <h4 className="font-medium text-sm">{nextYearDisplay || 'Sonraki Yıl'}'e Geç</h4>
-                      <p className="text-xs text-muted-foreground">AI projeksiyonuyla yeni yıl</p>
+                      <h4 className="font-medium text-sm">{t('ai.goToYear', { year: nextYearDisplay || t('ai.nextYear') })}</h4>
+                      <p className="text-xs text-muted-foreground">{t('ai.nextYearDescription')}</p>
                     </div>
                   </CardContent>
                 </Card>
@@ -368,10 +371,10 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
           <div className="text-center py-6">
             <Brain className="h-12 w-12 mx-auto mb-3 text-purple-400/30" />
             <p className="text-sm text-muted-foreground">
-              Aşağıdaki yatırım ayarlarını yapın ve <strong>Yatırımcı Sunumu Oluştur</strong> butonuna tıklayın.
+              {t('ai.setupInstructions')}
             </p>
             <p className="text-xs text-muted-foreground mt-2">
-              🤖 Gemini Pro 3 ile derin analiz, pitch deck ve gelecek yıl projeksiyonu oluşturulacak.
+              {t('ai.geminiNote')}
             </p>
           </div>
         )}

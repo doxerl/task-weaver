@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
@@ -49,6 +50,7 @@ function fromKValue(kValue: string): number {
 }
 
 export function ProjectionTable({ title, items, onUpdate, onRemove, type, baseYear, targetYear }: ProjectionTableProps) {
+  const { t } = useTranslation(['simulation', 'common']);
   const [expandedRows, setExpandedRows] = useState<Set<string>>(new Set());
   
   // Dinamik yıl etiketleri
@@ -115,13 +117,13 @@ export function ProjectionTable({ title, items, onUpdate, onRemove, type, baseYe
           <TableHeader>
             <TableRow className="bg-muted/50">
               <TableHead className="w-8"></TableHead>
-              <TableHead>Kalem</TableHead>
+              <TableHead>{t('projection.item')}</TableHead>
               <TableHead className="text-right w-24">{displayBaseYear}</TableHead>
               <TableHead className="text-right w-24 text-xs">Q1 (K)</TableHead>
               <TableHead className="text-right w-24 text-xs">Q2 (K)</TableHead>
               <TableHead className="text-right w-24 text-xs">Q3 (K)</TableHead>
               <TableHead className="text-right w-24 text-xs">Q4 (K)</TableHead>
-              <TableHead className="text-right w-28">{displayTargetYear} Toplam</TableHead>
+              <TableHead className="text-right w-28">{displayTargetYear} {t('common:total')}</TableHead>
               <TableHead className="text-right w-20">Δ%</TableHead>
               <TableHead className="w-10"></TableHead>
             </TableRow>
@@ -158,7 +160,7 @@ export function ProjectionTable({ title, items, onUpdate, onRemove, type, baseYe
                       <div className="flex items-center gap-2">
                         <span className="font-medium text-sm">{item.category}</span>
                         {item.isNew && (
-                          <Badge variant="secondary" className="text-xs">Yeni</Badge>
+                          <Badge variant="secondary" className="text-xs">{t('common:new')}</Badge>
                         )}
                       </div>
                     </TableCell>
@@ -234,7 +236,7 @@ export function ProjectionTable({ title, items, onUpdate, onRemove, type, baseYe
                           size="sm"
                           className="h-6 w-6 p-0"
                           onClick={() => handleDistributeEvenly(item.id, calculatedTotal)}
-                          title="Eşit böl"
+                          title={t('projection.distributeEvenly')}
                         >
                           <Divide className="h-3 w-3" />
                         </Button>
@@ -258,7 +260,7 @@ export function ProjectionTable({ title, items, onUpdate, onRemove, type, baseYe
                         <Textarea
                           value={item.description}
                           onChange={(e) => onUpdate(item.id, { description: e.target.value })}
-                          placeholder="Açıklama ekleyin... (örn: 2 yazılımcı alacağım, Q2'den itibaren aylık $4K x2)"
+                          placeholder={t('projection.descriptionPlaceholder')}
                           className="min-h-[50px] text-sm"
                         />
                       </TableCell>
@@ -271,7 +273,7 @@ export function ProjectionTable({ title, items, onUpdate, onRemove, type, baseYe
             {/* Total Row */}
             <TableRow className="bg-muted/50 font-semibold">
               <TableCell></TableCell>
-              <TableCell>TOPLAM</TableCell>
+              <TableCell>{t('common:total').toUpperCase()}</TableCell>
               <TableCell className="text-right">{formatCompact(total2025)}</TableCell>
               <TableCell className="text-right text-sm">{formatCompact(quarterlyTotals.q1)}</TableCell>
               <TableCell className="text-right text-sm">{formatCompact(quarterlyTotals.q2)}</TableCell>

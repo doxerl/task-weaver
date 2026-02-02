@@ -2,7 +2,7 @@ import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
-import { tr, enUS } from 'date-fns/locale';
+import { tr, enUS, Locale } from 'date-fns/locale';
 import {
   Select,
   SelectContent,
@@ -477,35 +477,54 @@ function ScenarioComparisonContent() {
   const dateLocale = i18n.language === 'tr' ? tr : enUS;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
-  const { scenarios, isLoading: scenariosLoading, currentScenarioId, saveScenario, createNextYearFromAI } = useScenarios();
   
-  // URL State: Senaryo ID'lerini URL'den al veya varsayılan kullan
+  // URL'den senaryo ID'lerini oku
   const urlScenarioA = searchParams.get('a');
   const urlScenarioB = searchParams.get('b');
   
-  const [scenarioAId, setScenarioAIdState] = useState<string | null>(urlScenarioA || currentScenarioId);
-  const [scenarioBId, setScenarioBIdState] = useState<string | null>(urlScenarioB);
+  // Kendi state'lerimiz - URL ile senkronize
+  const [scenarioAIdState, setScenarioAIdState] = useState<string | null>(urlScenarioA);
+  const [scenarioBIdState, setScenarioBIdState] = useState<string | null>(urlScenarioB);
   
-  // URL State Sync: Senaryo değiştiğinde URL'i güncelle
+  const scenarioAId = scenarioAIdState;
+  const scenarioBId = scenarioBIdState;
+  
+  const { 
+    scenarios, 
+    isLoading: scenariosLoading, 
+    createNextYearFromAI 
+  } = useScenarios();
+  
+  // Senaryoları karlılığa göre sırala (en karlı önce)
+  const scenariosWithProfit = useMemo(() => {
+    return [...scenarios].map(s => ({
+      ...s,
+      profit: calculateScenarioSummary(s).netProfit
+    })).sort((a, b) => b.profit - a.profit);
+  }, [scenarios]);
+  
+  // ID değiştiğinde URL'i güncelle
   const setScenarioAId = useCallback((id: string | null) => {
     setScenarioAIdState(id);
+    const newParams = new URLSearchParams(searchParams);
     if (id) {
-      setSearchParams(prev => {
-        prev.set('a', id);
-        return prev;
-      }, { replace: true });
+      newParams.set('a', id);
+    } else {
+      newParams.delete('a');
     }
-  }, [setSearchParams]);
+    setSearchParams(newParams, { replace: true });
+  }, [searchParams, setSearchParams]);
   
   const setScenarioBId = useCallback((id: string | null) => {
     setScenarioBIdState(id);
+    const newParams = new URLSearchParams(searchParams);
     if (id) {
-      setSearchParams(prev => {
-        prev.set('b', id);
-        return prev;
-      }, { replace: true });
+      newParams.set('b', id);
+    } else {
+      newParams.delete('b');
     }
-  }, [setSearchParams]);
+    setSearchParams(newParams, { replace: true });
+  }, [searchParams, setSearchParams]);
   
   // URL'den gelen değerleri senkronize et
   useEffect(() => {
@@ -861,7 +880,7 @@ function ScenarioComparisonContent() {
       monthsToBreakEven: breakEvenIdx >= 0 ? breakEvenIdx + 1 : 13,
       requiredMonthlyRevenue: summaryB.totalExpense / 12
     };
-  }, [scenarioB, quarterlyComparison, summaryB]);
+  }, [scenarioB, quarterlyComparison, summaryB, t]);
 
   // Bundle professional analysis data
   const professionalAnalysisData = useMemo((): ProfessionalAnalysisData => ({
@@ -910,57 +929,23 @@ function ScenarioComparisonContent() {
   useEffect(() => {
     if (unifiedCachedInfo) {
       // Load focus project settings from cache
-      if (unifiedCachedInfo.focusProjects && unifiedCachedInfo.focusProjects.length > 0) {
-        setFocusProjects(unifiedCachedInfo.focusProjects);
-      }
-      if (unifiedCachedInfo.focusProjectPlan) {
-        setFocusProjectPlan(unifiedCachedInfo.focusProjectPlan);
-      }
-      if (unifiedCachedInfo.investmentAllocation) {
-        setInvestmentAllocation(unifiedCachedInfo.investmentAllocation);
-      }
-      // Load edited projections from cache
-      if (unifiedCachedInfo.editedRevenueProjection && unifiedCachedInfo.editedRevenueProjection.length > 0) {
-        setEditableRevenueProjection(unifiedCachedInfo.editedRevenueProjection);
-        setOriginalRevenueProjection(deepClone(unifiedCachedInfo.editedRevenueProjection));
-      }
-      if (unifiedCachedInfo.editedExpenseProjection && unifiedCachedInfo.editedExpenseProjection.length > 0) {
-        setEditableExpenseProjection(unifiedCachedInfo.editedExpenseProjection);
-        setOriginalExpenseProjection(deepClone(unifiedCachedInfo.editedExpenseProjection));
-      }
     }
   }, [unifiedCachedInfo]);
-
-  // Check for data changes when scenarios are loaded
+  
+  // Check data changes when scenarios or analysis updates
   useEffect(() => {
     if (scenarioA && scenarioB && unifiedCachedInfo) {
       checkUnifiedDataChanges(scenarioA, scenarioB);
     }
   }, [scenarioA, scenarioB, unifiedCachedInfo, checkUnifiedDataChanges]);
-  
-  // Senaryo net kâr bilgisini hesapla - dropdown'da göstermek için
-  const scenariosWithProfit = useMemo(() => {
-    return scenarios.map(s => {
-      const summary = calculateScenarioSummary(s);
-      return { ...s, netProfit: summary.netProfit };
-    }).sort((a, b) => b.netProfit - a.netProfit); // Yüksek kârdan düşüğe
-  }, [scenarios]);
-  
-  // Otomatik senaryo ataması - sayfa ilk açıldığında
-  useEffect(() => {
-    if (scenariosWithProfit.length >= 2 && !scenarioAId && !scenarioBId) {
-      // En yüksek kârlı senaryoyu A'ya, en düşük kârlıyı B'ye ata
-      setScenarioAId(scenariosWithProfit[0].id!);
-      setScenarioBId(scenariosWithProfit[scenariosWithProfit.length - 1].id!);
-    }
-  }, [scenariosWithProfit, scenarioAId, scenarioBId]);
-  
-  // Senaryo sıralaması hatalı mı? (uyarı banner'ı için)
-  const isScenarioOrderWrong = useMemo(() => {
+
+  // Wrong order detection
+  const wrongOrder = useMemo(() => {
     if (!summaryA || !summaryB) return false;
+    // Senaryo A (pozitif) daha düşük kârda olmamalı
     return summaryA.netProfit < summaryB.netProfit;
   }, [summaryA, summaryB]);
-  
+
   // Senaryoları yer değiştir
   const swapScenarios = useCallback(() => {
     if (!scenarioAId || !scenarioBId) return;
@@ -970,7 +955,7 @@ function ScenarioComparisonContent() {
     navigate(`/finance/simulation/compare?${newParams.toString()}`, { replace: true });
     toast.success(t('simulation:toast.scenarioOrderFixed'));
   }, [scenarioAId, scenarioBId, navigate, t]);
-  
+
   // Editable Projection Sync - AI analizi tamamlandığında düzenlenebilir tabloya aktar
   // UPDATED: AI'ın itemized_revenues/expenses verilerini öncelikli olarak kullan
   // UPDATED: Kullanıcı düzenlemelerini koruma seçeneği eklendi
@@ -1057,7 +1042,7 @@ function ScenarioComparisonContent() {
         setOriginalExpenseProjection(deepClone(expenseItems));
       }
     }
-  }, [unifiedAnalysis?.next_year_projection, scenarioA]);
+  }, [unifiedAnalysis?.next_year_projection, scenarioA, preserveUserEdits, hasUserEdits, t]);
   
   // Editable projection handlers
   const handleRevenueProjectionChange = useCallback((index: number, field: 'q1' | 'q2' | 'q3' | 'q4', value: number) => {
@@ -1467,7 +1452,7 @@ function ScenarioComparisonContent() {
                 </Select>
               </div>
             </div>
-            
+
             {/* Wrong Order Warning Banner */}
             {isScenarioOrderWrong && (
               <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-center gap-3">
@@ -1510,7 +1495,7 @@ function ScenarioComparisonContent() {
               <>
                 {/* Data changed warning */}
                 {unifiedDataChanged && unifiedCachedInfo && (
-                  <DataChangedWarning onReanalyze={handleUnifiedAnalysis} isLoading={unifiedLoading} />
+                  <DataChangedWarning onReanalyze={handleUnifiedAnalysis} isLoading={unifiedLoading} t={t} />
                 )}
                 
                 {/* Calculate projection year dynamically: max(A.year, B.year) + 1 */}
@@ -1551,6 +1536,8 @@ function ScenarioComparisonContent() {
                   isLoading={unifiedHistoryLoading}
                   onSelectHistory={handleSelectUnifiedHistory}
                   analysisType="scenario_comparison"
+                  t={t}
+                  dateLocale={dateLocale}
                 />
               </>
             )}
@@ -1805,6 +1792,8 @@ function ScenarioComparisonContent() {
         onClose={() => setSelectedHistoricalAnalysis(null)}
         onRestore={handleRestoreHistory}
         analysisType={historySheetType}
+        t={t}
+        dateLocale={dateLocale}
       />
       
       {/* Pitch Deck Sheet - Editable */}

@@ -6,8 +6,158 @@
       "bank": "Bank",
       "receipt": "Receipt",
       "manual": "Manual",
-      "official": "Official"
+      "official": "Official",
+      "vat": "VAT",
+      "report": "Report"
+    },
+    "revenueSummary": "Revenue Summary",
+    "grossRevenue": "Gross Revenue (incl. VAT)",
+    "netRevenue": "Net Revenue (excl. VAT)",
+    "grossExpense": "Gross Expense (incl. VAT)",
+    "netExpense": "Net Expense (excl. VAT)",
+    "netProfit": "Net Profit",
+    "margin": "Margin",
+    "partnerBalance": "Partner Balance",
+    "given": "Given",
+    "received": "Received",
+    "vatSummary": "VAT Summary",
+    "calculated": "Calculated",
+    "deductible": "Deductible",
+    "netDebt": "Net Debt",
+    "netCredit": "Net Credit",
+    "transactions": "transactions",
+    "kkegWarning": "Non-Deductible Warning",
+    "notDeductible": "Cannot be deducted from tax base",
+    "estimatedTax": "Estimated additional tax",
+    "costCenter": "Cost Center",
+    "delivery": "Delivery",
+    "admin": "Admin",
+    "sales": "Sales",
+    "financing": "Financing",
+    "notIncluded": "* Not included in totals",
+    "balanceSummary": "Balance Sheet Summary",
+    "assets": "Assets",
+    "liabilities": "Liabilities",
+    "equity": "Equity",
+    "uncategorizedWarning": "{{count}} uncategorized transactions",
+    "growthSimulation": "{{year}} Growth Simulation",
+    "bankTransactions": "Bank Transactions",
+    "receiptsLink": "Receipts/Invoices"
+  },
+  "reports": {
+    "title": "Financial Report",
+    "netIncome": "Net Income (excl. VAT)",
+    "netExpense": "Net Expense (excl. VAT)",
+    "netProfit": "Net Profit",
+    "profitMargin": "Profit Margin",
+    "fullReport": "Full Report",
+    "simulation": "{{year}} Simulation",
+    "calculatedVat": "Calculated VAT",
+    "deductibleVat": "Deductible VAT",
+    "netVat": "Net VAT",
+    "payable": "Payable",
+    "deferred": "Deferred",
+    "uncategorizedTitle": "Uncategorized Transactions",
+    "uncategorizedDetail": "{{count}} transactions ({{amount}}) are not categorized. These are not included in financial reports.",
+    "goToCategorize": "Go to Categorization",
+    "exchangeWarning": "Exchange rate data missing for {{count}} months. Only {{available}} months converted to USD.",
+    "incomeDistribution": "Income Distribution",
+    "expenseDistribution": "Expense Distribution",
+    "incomeStatement": "Income Statement",
+    "detailedIncome": "Detailed Income Statement",
+    "balanceSheet": "Balance Sheet",
+    "cashFlow": "Cash Flow Statement",
+    "financingSummary": "Financing Summary",
+    "partnerAccount": "Partner Account",
+    "partnerDeposit": "Partner Deposit",
+    "partnerWithdraw": "Partner Withdrawal",
+    "netBalance": "Net Balance",
+    "creditTracking": "Credit Tracking",
+    "totalCredit": "Total Credit",
+    "paidInstallment": "Paid Installments",
+    "leasingPayment": "Leasing Payment",
+    "interestPayment": "Interest Payment",
+    "remainingDebt": "Remaining Debt",
+    "investments": "Investments",
+    "vehicles": "Vehicles",
+    "equipment": "Equipment",
+    "fixtures": "Fixtures",
+    "other": "Other",
+    "totalInvestment": "Total Investment",
+    "fixedExpensesTracking": "Fixed Expense Tracking",
+    "monthlyFixed": "Monthly Fixed Expense",
+    "monthlyInstallments": "Monthly Installments",
+    "totalMonthly": "Total Monthly",
+    "yearlyProjection": "Yearly Projection",
+    "monthlyTrend": "Monthly Trend",
+    "pdfCreated": "PDF created",
+    "pdfFailed": "Failed to create PDF",
+    "tabs": {
+      "summary": "Summary",
+      "official": "Official",
+      "financing": "Financing",
+      "cashflow": "Cash Flow"
+    },
+    "charts": {
+      "monthlyTrend": "Monthly Income vs Expense",
+      "serviceRevenue": "Service-Based Revenue",
+      "expenseCategories": "Expense Categories",
+      "chartPdf": "Chart PDF"
     }
+  },
+  "vat": {
+    "title": "VAT Report",
+    "calculatedVat": "Calculated VAT",
+    "deductibleVat": "Deductible VAT",
+    "netVatDebt": "Net VAT Debt",
+    "netVatCredit": "Net VAT Credit",
+    "monthlyDetail": "Monthly VAT Detail",
+    "combined": "Combined",
+    "receiptsOnly": "Invoices",
+    "bankOnly": "Bank",
+    "month": "Month",
+    "total": "TOTAL",
+    "none": "No VAT (0%)",
+    "rate1": "1% VAT",
+    "rate10": "10% VAT",
+    "rate20": "20% VAT"
+  },
+  "balanceSheet": {
+    "title": "Balance Sheet",
+    "assets": "Assets",
+    "liabilities": "Liabilities",
+    "equity": "Equity",
+    "summary": "Summary",
+    "detailed": "Detailed",
+    "charts": "Charts",
+    "settings": "Balance Sheet Settings"
+  },
+  "bankTransactions": {
+    "title": "Bank Transactions",
+    "deleteAll": "Delete All",
+    "selectCategory": "Select category...",
+    "income": "Income",
+    "expense": "Expense"
+  },
+  "simulation": {
+    "title": "{{year}} Growth Simulation",
+    "scenarioName": "Scenario Name",
+    "assumedRate": "Assumed Rate (TRY/USD)",
+    "notes": "Notes",
+    "revenueProjections": "Revenue Projections",
+    "expenseProjections": "Expense Projections",
+    "baseYear": "Base Year",
+    "actualData": "Actual Data",
+    "projection": "Projection",
+    "capitalAnalysis": "Capital Analysis",
+    "investmentNeed": "Investment Need",
+    "investments": "Investments",
+    "estimatedProfit": "Estimated Profit",
+    "netNeed": "Net Need",
+    "tryEquivalent": "TRY Equivalent",
+    "revenue": "Revenue",
+    "expense": "Expense",
+    "profitMargin": "Profit Margin"
   },
   "categories": {
     "title": "Categories",
@@ -72,36 +222,7 @@
     "selected": "{{count}} selected",
     "bulkCategory": "Bulk assign category",
     "selectCategory": "Select category",
-    "lowConfidence": "{{count}} transactions categorized with low confidence. Check rows marked in yellow.",
-    "types": {
-      "income": "Income (P&L ↑)",
-      "expense": "Expense (P&L ↓)",
-      "balanceSheet": "Balance Sheet",
-      "needsReview": "Needs Review",
-      "amountCorrected": "Amount Corrected"
-    },
-    "actions": {
-      "saveAsIncome": "Save as income (+)",
-      "saveAsExpense": "Save as expense (-)",
-      "correctAmount": "Correct amount"
-    },
-    "sort": {
-      "label": "Sort",
-      "dateDesc": "Date (New → Old)",
-      "dateAsc": "Date (Old → New)",
-      "amountDesc": "Amount (High → Low)",
-      "amountAsc": "Amount (Low → High)",
-      "categoryAsc": "Category (A-Z)",
-      "categoryDesc": "Category (Z-A)",
-      "confidenceAsc": "Confidence (Low → High)",
-      "confidenceDesc": "Confidence (High → Low)"
-    },
-    "badges": {
-      "plAffecting": "P&L",
-      "balanceOnly": "Balance",
-      "manual": "Manual",
-      "corrected": "Corrected"
-    }
+    "lowConfidence": "{{count}} transactions categorized with low confidence. Check rows marked in yellow."
   },
   "receipts": {
     "title": "Receipts",
@@ -117,54 +238,12 @@
       "report": "Report",
       "actions": "Actions"
     },
-    "grandTotal": "TOTAL",
-    "delete": {
-      "title": "Delete Receipt",
-      "confirm": "Are you sure you want to delete this receipt? This action cannot be undone."
-    },
-    "vatMissing": {
-      "title": "Missing VAT Information",
-      "description": "VAT information not found in {{count}} documents. This may affect VAT report accuracy.",
-      "processing": "Processing...",
-      "notFound": "VAT not found",
-      "rescanAll": "Rescan All"
-    },
-    "select": "Select..."
+    "grandTotal": "TOTAL"
   },
   "fixedExpenses": {
     "title": "Fixed Expense Definitions",
     "description": "Manage your monthly fixed expenses and installment payments",
-    "addNew": "Add New Fixed Expense",
-    "editTitle": "Edit Fixed Expense",
-    "newTitle": "New Fixed Expense",
-    "formDescription": "Define a monthly fixed expense or installment payment",
-    "types": {
-      "fixed": "Fixed (Same every month)",
-      "semiFix": "Semi-Fixed (Variable)",
-      "installment": "Installment (Total defined)"
-    },
-    "fields": {
-      "name": "Expense Name",
-      "type": "Expense Type",
-      "monthlyAmount": "Monthly Amount",
-      "totalAmount": "Total Amount",
-      "installmentCount": "Installment Count",
-      "paidInstallments": "Paid Installments",
-      "startDate": "Start Date",
-      "selectDate": "Select date"
-    },
-    "placeholders": {
-      "name": "e.g. Office Rent, Loan Payment",
-      "amount": "e.g. 120000",
-      "installmentCount": "e.g. 12",
-      "paidInstallments": "e.g. 3"
-    },
-    "summary": {
-      "monthlyFixed": "Monthly Fixed",
-      "monthlyInstallments": "Monthly Installments",
-      "monthlyTotal": "Monthly Total",
-      "yearlyProjection": "Yearly Projection"
-    }
+    "addNew": "Add New Fixed Expense"
   },
   "cashFlow": {
     "title": "Cash Flow",
@@ -179,11 +258,5 @@
     "try": "Turkish Lira",
     "usd": "US Dollar",
     "rates": "Rates"
-  },
-  "vat": {
-    "none": "No VAT (0%)",
-    "rate1": "1% VAT",
-    "rate10": "10% VAT",
-    "rate20": "20% VAT"
   }
 }

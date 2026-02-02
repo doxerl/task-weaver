@@ -10,6 +10,7 @@ import {
   DollarSign
 } from 'lucide-react';
 import { formatCompactUSD } from '@/lib/formatters';
+import { useTranslation } from 'react-i18next';
 
 interface QuarterlyCapitalTableProps {
   quarterlyRevenueA: { q1: number; q2: number; q3: number; q4: number };
@@ -40,6 +41,8 @@ export const QuarterlyCapitalTable: React.FC<QuarterlyCapitalTableProps> = ({
   scenarioAName,
   scenarioBName,
 }) => {
+  const { t } = useTranslation(['simulation']);
+
   // Calculate quarterly data for both scenarios
   const { investedData, uninvestedData, summary } = useMemo(() => {
     const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
@@ -138,7 +141,7 @@ export const QuarterlyCapitalTable: React.FC<QuarterlyCapitalTableProps> = ({
         </span>
         {isInvested && (
           <Badge variant="outline" className="text-xs text-emerald-400 border-emerald-500/30">
-            +{formatCompactUSD(investmentAmount)} başlangıç
+            {t('quarterlyTable.startingBalance', { amount: formatCompactUSD(investmentAmount) })}
           </Badge>
         )}
       </div>
@@ -146,12 +149,12 @@ export const QuarterlyCapitalTable: React.FC<QuarterlyCapitalTableProps> = ({
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead className="w-[60px]">Çeyrek</TableHead>
-            <TableHead className="text-right">Gelir</TableHead>
-            <TableHead className="text-right">Gider</TableHead>
-            <TableHead className="text-right">Net Akış</TableHead>
-            <TableHead className="text-right">Kümülatif</TableHead>
-            {!isInvested && <TableHead className="text-right">İhtiyaç</TableHead>}
+            <TableHead className="w-[60px]">{t('quarterlyTable.quarter')}</TableHead>
+            <TableHead className="text-right">{t('quarterlyTable.revenue')}</TableHead>
+            <TableHead className="text-right">{t('quarterlyTable.expense')}</TableHead>
+            <TableHead className="text-right">{t('quarterlyTable.netFlow')}</TableHead>
+            <TableHead className="text-right">{t('quarterlyTable.cumulative')}</TableHead>
+            {!isInvested && <TableHead className="text-right">{t('quarterlyTable.need')}</TableHead>}
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -199,13 +202,13 @@ export const QuarterlyCapitalTable: React.FC<QuarterlyCapitalTableProps> = ({
       {/* Table footer with summary */}
       <div className="flex items-center justify-between text-xs text-muted-foreground px-2 pt-2 border-t">
         <span>
-          Yıl Sonu: <span className={isInvested ? 'text-emerald-400 font-medium' : (summary.uninvestedYearEnd >= 0 ? 'text-emerald-400' : 'text-red-400') + ' font-medium'}>
+          {t('quarterlyTable.yearEnd')}: <span className={isInvested ? 'text-emerald-400 font-medium' : (summary.uninvestedYearEnd >= 0 ? 'text-emerald-400' : 'text-red-400') + ' font-medium'}>
             {formatCompactUSD(isInvested ? summary.investedYearEnd : summary.uninvestedYearEnd)}
           </span>
         </span>
         {!isInvested && summary.maxCapitalNeed > 0 && (
           <span>
-            Max İhtiyaç: <span className="text-red-400 font-medium">{formatCompactUSD(summary.maxCapitalNeed)}</span>
+            {t('quarterlyTable.maxNeed')}: <span className="text-red-400 font-medium">{formatCompactUSD(summary.maxCapitalNeed)}</span>
           </span>
         )}
       </div>
@@ -217,29 +220,27 @@ export const QuarterlyCapitalTable: React.FC<QuarterlyCapitalTableProps> = ({
       <CardHeader className="pb-2">
         <CardTitle className="text-sm flex items-center gap-2">
           <DollarSign className="h-4 w-4 text-primary" />
-          Çeyreklik Nakit Akışı Karşılaştırması
+          {t('quarterlyTable.title')}
         </CardTitle>
         <CardDescription className="text-xs">
-          Yatırımlı (pozitif) ve yatırımsız (negatif) senaryo çeyreklik detayları
+          {t('quarterlyTable.description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-6">
         {/* Invested Scenario (Positive/A) */}
-        {renderTable(investedData, `Yatırımlı (${scenarioAName})`, true)}
+        {renderTable(investedData, t('quarterlyTable.invested', { name: scenarioAName }), true)}
         
         {/* Uninvested Scenario (Negative/B) */}
-        {renderTable(uninvestedData, `Yatırımsız (${scenarioBName})`, false)}
+        {renderTable(uninvestedData, t('quarterlyTable.uninvested', { name: scenarioBName }), false)}
         
         {/* Summary Banner */}
         <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
           <div className="flex items-center gap-2 mb-1">
             <TrendingUp className="h-4 w-4 text-blue-400" />
-            <span className="text-sm font-medium text-blue-400">Fırsat Maliyeti</span>
+            <span className="text-sm font-medium text-blue-400">{t('quarterlyTable.opportunityCost')}</span>
           </div>
           <p className="text-sm text-muted-foreground">
-            Yatırımlı senaryo yıl sonunda{' '}
-            <span className="text-blue-400 font-bold">{formatCompactUSD(summary.difference)}</span>
-            {' '}daha iyi pozisyonda.
+            {t('quarterlyTable.betterPosition', { amount: formatCompactUSD(summary.difference) })}
           </p>
         </div>
       </CardContent>

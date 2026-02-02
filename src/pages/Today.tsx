@@ -1,5 +1,7 @@
 import { useState, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { VoiceInput } from '@/components/VoiceInput';
@@ -9,16 +11,17 @@ import { CompareView } from '@/components/CompareView';
 import { QuickChips } from '@/components/QuickChips';
 import { MobileInputSheet } from '@/components/MobileInputSheet';
 import { BottomTabBar } from '@/components/BottomTabBar';
+import { AppHeader } from '@/components/AppHeader';
 import { useDayData } from '@/hooks/useDayData';
 import { Settings, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addDays, subDays } from 'date-fns';
-import { tr } from 'date-fns/locale';
-import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { getISOWeekData } from '@/lib/weekUtils';
 import { useIsMobile } from '@/hooks/use-mobile';
 
 export default function Today() {
+  const { t } = useTranslation('common');
+  const { dateLocale } = useLanguage();
   const navigate = useNavigate();
   const isMobile = useIsMobile();
   const { profile } = useAuthContext();
@@ -53,27 +56,20 @@ export default function Today() {
 
   return (
     <div className="min-h-screen bg-background pb-36 md:pb-72">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-        <div className="container flex h-14 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-primary" />
-            <span className="font-semibold text-foreground text-sm md:text-base truncate max-w-[150px] md:max-w-none">
-              {profile?.first_name ? `Merhaba, ${profile.first_name}` : 'Sesli Planlama'}
-            </span>
-          </div>
-          
-          {/* Settings button */}
+      <AppHeader
+        title={profile?.first_name ? `${t('planner.hello')}, ${profile.first_name}` : t('planner.voicePlanning')}
+        icon={<Calendar className="h-5 w-5 text-primary" />}
+        rightContent={
           <Button 
             variant="ghost" 
             size="icon" 
             onClick={() => navigate('/settings')}
-            title="Ayarlar"
+            title={t('settings.title')}
           >
             <Settings className="h-5 w-5" />
           </Button>
-        </div>
-      </header>
+        }
+      />
 
       {/* Date Navigation */}
       <div className="border-b bg-muted/30 px-4 py-2 md:py-3">
@@ -83,16 +79,16 @@ export default function Today() {
           </Button>
           <div className="text-center">
             <span className="text-sm text-muted-foreground block">
-              {weekNumber}. Hafta {weekYear}
+              {t('planner.week')} {weekNumber} {weekYear}
             </span>
             <button 
               onClick={handleToday}
               className="text-base md:text-lg font-medium text-foreground hover:text-primary transition-colors"
             >
-              {format(selectedDate, 'd MMMM yyyy, EEEE', { locale: tr })}
+              {format(selectedDate, 'd MMMM yyyy, EEEE', { locale: dateLocale })}
             </button>
             {!isToday && (
-              <p className="text-xs text-muted-foreground">Bugüne dönmek için tıklayın</p>
+              <p className="text-xs text-muted-foreground">{t('planner.clickToReturn')}</p>
             )}
           </div>
           <Button variant="ghost" size="icon" onClick={handleNextDay}>
@@ -105,8 +101,7 @@ export default function Today() {
       {isPastDay && (
         <div className="mx-4 mt-2 p-2 bg-amber-500/10 border border-amber-500/20 rounded-lg">
           <p className="text-sm text-amber-600 dark:text-amber-400 text-center">
-            {format(selectedDate, 'd MMMM', { locale: tr })} için kayıt ekliyorsunuz. 
-            Lütfen saat belirtin (örn: "Sabah 9'da toplantı yaptım")
+            {t('planner.pastDayWarning', { date: format(selectedDate, 'd MMMM', { locale: dateLocale }) })}
           </p>
         </div>
       )}
@@ -116,13 +111,13 @@ export default function Today() {
         <Tabs defaultValue="plan" className="w-full">
           <TabsList className="grid w-full grid-cols-3 mb-4">
             <TabsTrigger value="plan" className="text-sm">
-              Plan ({planItems.length})
+              {t('planner.plan')} ({planItems.length})
             </TabsTrigger>
             <TabsTrigger value="actual" className="text-sm">
-              Gerçek ({actualEntries.length})
+              {t('planner.actual')} ({actualEntries.length})
             </TabsTrigger>
             <TabsTrigger value="compare" className="text-sm">
-              Karşılaştır
+              {t('planner.compare')}
             </TabsTrigger>
           </TabsList>
 
@@ -184,7 +179,7 @@ export default function Today() {
                   disabled={isPastDay}
                   className="flex-1 h-9 text-sm"
                 >
-                  Plan
+                  {t('planner.plan')}
                 </Button>
                 <Button
                   variant={inputMode === 'actual' ? 'default' : 'outline'}
@@ -192,11 +187,11 @@ export default function Today() {
                   onClick={() => setInputMode('actual')}
                   className="flex-1 h-9 text-sm"
                 >
-                  Gerçek
+                  {t('planner.actual')}
                 </Button>
               </div>
               <span className="text-xs text-muted-foreground">
-                {inputMode === 'plan' ? 'Ne yapacaksın?' : 'Ne yaptın?'}
+                {inputMode === 'plan' ? t('planner.whatWillYouDo') : t('planner.whatDidYouDo')}
               </span>
             </div>
             

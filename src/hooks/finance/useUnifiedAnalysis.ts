@@ -1,6 +1,7 @@
 import { useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { toast } from 'sonner';
+import type { Json } from '@/integrations/supabase/types';
 
 // Utility for exponential backoff delays
 const sleep = (ms: number): Promise<void> => new Promise(resolve => setTimeout(resolve, ms));
@@ -283,9 +284,9 @@ export function useUnifiedAnalysis() {
         scenario_a_id: scenarioA.id,
         scenario_b_id: scenarioB.id,
         analysis_type: 'unified' as const,
-        insights: result.insights,
-        recommendations: result.recommendations,
-        quarterly_analysis: result.quarterly_analysis,
+        insights: result.insights as unknown as Json,
+        recommendations: result.recommendations as unknown as Json,
+        quarterly_analysis: result.quarterly_analysis as unknown as Json,
         investor_analysis: {
           deal_score: result.deal_analysis.deal_score,
           valuation_verdict: result.deal_analysis.valuation_verdict,
@@ -293,15 +294,15 @@ export function useUnifiedAnalysis() {
           risk_factors: result.deal_analysis.risk_factors,
           pitch_deck: result.pitch_deck,
           next_year_projection: result.next_year_projection
-        },
-        deal_config: dealConfig,
+        } as unknown as Json,
+        deal_config: dealConfig as unknown as Json,
         scenario_a_data_hash: generateScenarioHash(scenarioA),
         scenario_b_data_hash: generateScenarioHash(scenarioB)
       };
 
       const { error: insertError } = await supabase
         .from('scenario_analysis_history')
-        .insert(historyInsertData as Record<string, unknown>);
+        .insert(historyInsertData);
       
       if (insertError) {
         console.error('History insert failed:', insertError);
@@ -335,30 +336,30 @@ export function useUnifiedAnalysis() {
         scenario_a_id: scenarioA.id,
         scenario_b_id: scenarioB.id,
         analysis_type: 'unified' as const,
-        insights: result.insights,
-        recommendations: result.recommendations,
-        quarterly_analysis: result.quarterly_analysis,
+        insights: result.insights as unknown as Json,
+        recommendations: result.recommendations as unknown as Json,
+        quarterly_analysis: result.quarterly_analysis as unknown as Json,
         deal_score: Math.round(result.deal_analysis.deal_score),
         valuation_verdict: result.deal_analysis.valuation_verdict,
         investor_analysis: {
           investor_attractiveness: result.deal_analysis.investor_attractiveness,
           risk_factors: result.deal_analysis.risk_factors
-        },
-        pitch_deck: result.pitch_deck,
-        next_year_projection: result.next_year_projection,
-        deal_config_snapshot: dealConfig,
+        } as unknown as Json,
+        pitch_deck: result.pitch_deck as unknown as Json,
+        next_year_projection: result.next_year_projection as unknown as Json,
+        deal_config_snapshot: dealConfig as unknown as Json,
         scenario_a_data_hash: generateScenarioHash(scenarioA),
         scenario_b_data_hash: generateScenarioHash(scenarioB),
         // Focus project settings (new columns)
         focus_projects: focusProjectInfo?.projects?.map(p => p.projectName) || [],
         focus_project_plan: focusProjectInfo?.growthPlan || '',
-        investment_allocation: focusProjectInfo?.investmentAllocation || defaultInvestmentAllocation,
+        investment_allocation: (focusProjectInfo?.investmentAllocation || defaultInvestmentAllocation) as unknown as Json,
         updated_at: new Date().toISOString()
       };
 
       const { data, error: upsertError } = await supabase
         .from('scenario_ai_analyses')
-        .upsert(upsertData as Record<string, unknown>, {
+        .upsert(upsertData, {
           onConflict: 'user_id,scenario_a_id,scenario_b_id,analysis_type'
         })
         .select()
@@ -455,6 +456,11 @@ export function useUnifiedAnalysis() {
         allYears: exitPlan.allYears?.slice(0, 5) || []
       };
 
+      // Get current language from i18n
+      const currentLanguage = typeof window !== 'undefined' 
+        ? (localStorage.getItem('i18nextLng') || 'tr').substring(0, 2) 
+        : 'tr';
+
       // Request body
       const requestBody = {
         scenarioA,
@@ -473,7 +479,8 @@ export function useUnifiedAnalysis() {
         historicalBalance,
         quarterlyItemized,
         exchangeRate,
-        focusProjectInfo
+        focusProjectInfo,
+        language: currentLanguage // 'en' or 'tr'
       };
 
       // Retry wrapper for Edge Function call with exponential backoff
@@ -538,7 +545,8 @@ export function useUnifiedAnalysis() {
       // Save to database with focus project info
       await saveAnalysis(result, scenarioA, scenarioB, dealConfig, focusProjectInfo);
       
-      toast.success('Kapsamlı AI analizi tamamlandı!');
+      const successMsg = currentLanguage === 'en' ? 'Comprehensive AI analysis completed!' : 'Kapsamlı AI analizi tamamlandı!';
+      toast.success(successMsg);
       return result;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Analiz sırasında bir hata oluştu';

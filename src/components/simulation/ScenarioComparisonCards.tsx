@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, AlertTriangle, ArrowLeftRight, Target } from 'lucide-react';
 import { QuarterlyItemizedData } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
+import { useTranslation } from 'react-i18next';
 
 interface ScenarioComparisonCardsProps {
   quarterlyItemized: QuarterlyItemizedData;
@@ -35,12 +36,13 @@ export function ScenarioComparisonCards({
   scenarioAName,
   scenarioBName
 }: ScenarioComparisonCardsProps) {
-  const title = type === 'revenues' ? 'Gelir Kalemleri Senaryo Karşılaştırması' : 'Gider Kalemleri Senaryo Karşılaştırması';
+  const { t } = useTranslation(['simulation']);
+  const title = type === 'revenues' ? t('scenarioCards.revenueComparison') : t('scenarioCards.expenseComparison');
   const isRevenue = type === 'revenues';
   
   // Determine scenario labels with years
-  const labelA = scenarioAYear ? `${scenarioAYear} ${scenarioAName || 'Pozitif'}` : 'Pozitif (A)';
-  const labelB = scenarioBYear ? `${scenarioBYear} ${scenarioBName || 'Negatif'}` : 'Negatif (B)';
+  const labelA = scenarioAYear ? `${scenarioAYear} ${scenarioAName || t('scenario.positive')}` : `${t('scenario.positive')} (A)`;
+  const labelB = scenarioBYear ? `${scenarioBYear} ${scenarioBName || t('scenario.negative')}` : `${t('scenario.negative')} (B)`;
   
   const comparisonItems = useMemo((): ComparisonItem[] => {
     const itemsA = type === 'revenues' ? quarterlyItemized.scenarioA.revenues : quarterlyItemized.scenarioA.expenses;
@@ -108,11 +110,11 @@ export function ScenarioComparisonCards({
   const getRiskLabel = (level: string) => {
     switch (level) {
       case 'high':
-        return 'Yüksek Fark';
+        return t('scenarioCards.riskLevel.high');
       case 'medium':
-        return 'Orta Fark';
+        return t('scenarioCards.riskLevel.medium');
       default:
-        return 'Düşük Fark';
+        return t('scenarioCards.riskLevel.low');
     }
   };
 
@@ -122,21 +124,21 @@ export function ScenarioComparisonCards({
     if (trend === 'increasing') {
       return isRevenue ? (
         <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1">
-          <TrendingUp className="h-3 w-3" />↗️ Artan Fark
+          <TrendingUp className="h-3 w-3" />{t('scenarioCards.divergence.increasingGood')}
         </Badge>
       ) : (
         <Badge variant="outline" className="text-xs bg-red-500/10 text-red-400 border-red-500/20 gap-1">
-          <TrendingUp className="h-3 w-3" />↗️ Artan Risk
+          <TrendingUp className="h-3 w-3" />{t('scenarioCards.divergence.increasingBad')}
         </Badge>
       );
     } else if (trend === 'decreasing') {
       return isRevenue ? (
         <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20 gap-1">
-          <TrendingDown className="h-3 w-3" />↘️ Azalan Fark
+          <TrendingDown className="h-3 w-3" />{t('scenarioCards.divergence.decreasingBad')}
         </Badge>
       ) : (
         <Badge variant="outline" className="text-xs bg-emerald-500/10 text-emerald-400 border-emerald-500/20 gap-1">
-          <TrendingDown className="h-3 w-3" />↘️ Azalan Risk
+          <TrendingDown className="h-3 w-3" />{t('scenarioCards.divergence.decreasingGood')}
         </Badge>
       );
     }
@@ -166,7 +168,7 @@ export function ScenarioComparisonCards({
           <ArrowLeftRight className="h-4 w-4 text-primary" />
           {title}
         </CardTitle>
-        <p className="text-xs text-muted-foreground">{labelA} vs {labelB} senaryo karşılaştırması</p>
+        <p className="text-xs text-muted-foreground">{t('scenarioCards.vsComparison', { labelA, labelB })}</p>
       </CardHeader>
       <CardContent className="space-y-3">
         {comparisonItems.map((item, idx) => (
@@ -199,7 +201,7 @@ export function ScenarioComparisonCards({
                 <p className="text-sm font-semibold text-red-400">{formatCompactUSD(item.scenarioB.total)}</p>
               </div>
               <div className="text-center">
-                <p className="text-xs text-muted-foreground">Toplam Fark</p>
+                <p className="text-xs text-muted-foreground">{t('scenarioCards.totalDifference')}</p>
                 <p className={`text-sm font-semibold ${item.diffs.total >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
                   {item.diffs.total >= 0 ? '+' : ''}{formatCompactUSD(item.diffs.total)}
                 </p>
@@ -242,8 +244,8 @@ export function ScenarioComparisonCards({
           <div className="mt-3 p-2 bg-amber-500/10 rounded-lg border border-amber-500/20">
             <p className="text-xs text-amber-400 flex items-center gap-1">
               <AlertTriangle className="h-3 w-3" />
-              <span className="font-medium">Yüksek Fark Uyarısı:</span>
-              {comparisonItems.filter(i => i.riskLevel === 'high').map(i => i.category).join(', ')} kalemlerinde senaryolar arası fark %40'ın üzerinde
+              <span className="font-medium">{t('scenarioCards.highDiffWarning')}:</span>
+              {t('scenarioCards.itemsOver40', { items: comparisonItems.filter(i => i.riskLevel === 'high').map(i => i.category).join(', ') })}
             </p>
           </div>
         )}

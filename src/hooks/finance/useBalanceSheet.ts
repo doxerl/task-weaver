@@ -33,8 +33,19 @@ export function useBalanceSheet(year: number): {
   const hub = useFinancialDataHub(year, manualBankBalance);
   const incomeStatement = useIncomeStatement(year);
 
+  // Extract stable references to avoid undefined access in useMemo deps
+  const hubIsLoading = hub.isLoading;
+  const hubBalanceData = hub.balanceData;
+  const hubUncategorizedCount = hub.uncategorizedCount;
+  const hubUncategorizedTotal = hub.uncategorizedTotal;
+  const hubOperatingProfit = hub.operatingProfit;
+  const hubIncomeSummaryNet = hub.incomeSummary?.net ?? 0;
+  const hubExpenseSummaryNet = hub.expenseSummary?.net ?? 0;
+  const hubCashFlowSummary = hub.cashFlowSummary;
+  const incomeStatementNetProfit = incomeStatement.statement?.netProfit;
+
   return useMemo(() => {
-    const loading = hub.isLoading || isYearlyLoading;
+    const loading = hubIsLoading || isYearlyLoading;
     
     if (loading) {
       const emptyBalanceSheet: BalanceSheet = {
@@ -148,10 +159,10 @@ export function useBalanceSheet(year: number): {
         saveYearlyBalance: upsertBalance,
         isUpdating,
         // Use hub data even for locked years to show historical cash flow
-        operatingProfit: hub.operatingProfit,
-        incomeSummaryNet: hub.incomeSummary.net,
-        expenseSummaryNet: hub.expenseSummary.net,
-        cashFlowSummary: hub.cashFlowSummary,
+        operatingProfit: hubOperatingProfit,
+        incomeSummaryNet: hubIncomeSummaryNet,
+        expenseSummaryNet: hubExpenseSummaryNet,
+        cashFlowSummary: hubCashFlowSummary,
       };
     }
 
@@ -198,7 +209,7 @@ export function useBalanceSheet(year: number): {
     };
 
     // Dönem karını gelir tablosundan al (tutarlılık için)
-    const currentProfitFromIncomeStatement = incomeStatement.statement?.netProfit ?? balanceData.currentProfit;
+    const currentProfitFromIncomeStatement = incomeStatementNetProfit ?? balanceData.currentProfit;
     
     const equity = {
       paidCapital: balanceData.paidCapital,
@@ -230,16 +241,16 @@ export function useBalanceSheet(year: number): {
     return { 
       balanceSheet, 
       isLoading: false, 
-      uncategorizedCount: hub.uncategorizedCount, 
-      uncategorizedTotal: hub.uncategorizedTotal,
+      uncategorizedCount: hubUncategorizedCount, 
+      uncategorizedTotal: hubUncategorizedTotal,
       isLocked: false,
       lockBalance,
       saveYearlyBalance: upsertBalance,
       isUpdating,
-      operatingProfit: hub.operatingProfit,
-      incomeSummaryNet: hub.incomeSummary.net,
-      expenseSummaryNet: hub.expenseSummary.net,
-      cashFlowSummary: hub.cashFlowSummary,
+      operatingProfit: hubOperatingProfit,
+      incomeSummaryNet: hubIncomeSummaryNet,
+      expenseSummaryNet: hubExpenseSummaryNet,
+      cashFlowSummary: hubCashFlowSummary,
     };
-  }, [hub.isLoading, hub.balanceData, hub.uncategorizedCount, hub.uncategorizedTotal, hub.operatingProfit, hub.incomeSummary.net, hub.expenseSummary.net, hub.cashFlowSummary, year, isYearlyLoading, isLocked, yearlyBalance, lockBalance, upsertBalance, isUpdating, incomeStatement.statement?.netProfit]);
+  }, [hubIsLoading, hubBalanceData, hubUncategorizedCount, hubUncategorizedTotal, hubOperatingProfit, hubIncomeSummaryNet, hubExpenseSummaryNet, hubCashFlowSummary, year, isYearlyLoading, isLocked, yearlyBalance, lockBalance, upsertBalance, isUpdating, incomeStatementNetProfit]);
 }
