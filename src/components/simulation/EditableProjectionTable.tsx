@@ -7,6 +7,7 @@ import { Badge } from '@/components/ui/badge';
 import { RotateCcw, Edit2, Check } from 'lucide-react';
 import { EditableProjectionItem } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
+import { useTranslation } from 'react-i18next';
 
 interface EditableProjectionTableProps {
   title: string;
@@ -25,6 +26,7 @@ export const EditableProjectionTable = ({
   onReset,
   type
 }: EditableProjectionTableProps) => {
+  const { t } = useTranslation(['simulation']);
   const [editingCell, setEditingCell] = useState<{ index: number; field: string } | null>(null);
   
   const handleInputChange = (index: number, field: 'q1' | 'q2' | 'q3' | 'q4', value: string) => {
@@ -57,7 +59,7 @@ export const EditableProjectionTable = ({
             {hasEdits && (
               <Badge variant="outline" className="text-xs bg-amber-500/10 text-amber-400 border-amber-500/20">
                 <Edit2 className="h-3 w-3 mr-1" />
-                Düzenlendi
+                {t('editableTable.edited')}
               </Badge>
             )}
           </CardTitle>
@@ -68,7 +70,7 @@ export const EditableProjectionTable = ({
         {hasEdits && (
           <Button variant="ghost" size="sm" onClick={onReset} className="gap-1 text-xs">
             <RotateCcw className="h-3 w-3" />
-            AI Değerlerine Sıfırla
+            {t('editableTable.resetToAI')}
           </Button>
         )}
       </CardHeader>
@@ -76,12 +78,12 @@ export const EditableProjectionTable = ({
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[180px]">Kalem</TableHead>
-              <TableHead className="text-right w-[90px]">Q1</TableHead>
-              <TableHead className="text-right w-[90px]">Q2</TableHead>
-              <TableHead className="text-right w-[90px]">Q3</TableHead>
-              <TableHead className="text-right w-[90px]">Q4</TableHead>
-              <TableHead className="text-right w-[100px]">Toplam</TableHead>
+              <TableHead className="w-[180px]">{t('editableTable.item')}</TableHead>
+              <TableHead className="text-right w-[90px]">{t('quarters.q1')}</TableHead>
+              <TableHead className="text-right w-[90px]">{t('quarters.q2')}</TableHead>
+              <TableHead className="text-right w-[90px]">{t('quarters.q3')}</TableHead>
+              <TableHead className="text-right w-[90px]">{t('quarters.q4')}</TableHead>
+              <TableHead className="text-right w-[100px]">{t('editableTable.total')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -124,7 +126,7 @@ export const EditableProjectionTable = ({
             {/* Totals Row */}
             <TableRow className="border-t-2 bg-muted/30">
               <TableCell className="font-bold text-sm">
-                Toplam {type === 'revenue' ? 'Gelir' : 'Gider'}
+                {type === 'revenue' ? t('editableTable.totalRevenue') : t('editableTable.totalExpense')}
               </TableCell>
               <TableCell className="text-right font-bold text-sm">{formatCompactUSD(totalQ1)}</TableCell>
               <TableCell className="text-right font-bold text-sm">{formatCompactUSD(totalQ2)}</TableCell>

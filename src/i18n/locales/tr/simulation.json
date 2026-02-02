@@ -302,5 +302,264 @@
     "createSimulation": "{{year}} Simülasyonu Oluştur",
     "pdfSuccess": "PDF başarıyla oluşturuldu",
     "pdfError": "PDF oluşturulurken hata oluştu"
+  },
+  "investment": {
+    "dealSimulator": "Yatırım Anlaşması Simülatörü",
+    "dealSimulatorDesc": "Yatırım tutarı ve hisse oranını ayarlayarak exit planını görün",
+    "investmentAmount": "Yatırım Tutarı",
+    "suggested": "Önerilen",
+    "basis": {
+      "deathValley": "Death Valley bazlı",
+      "yearEndDeficit": "Yıl sonu açığı bazlı"
+    },
+    "additionalCapital": "ek sermaye",
+    "selfFinancing": "{{year}}'dan itibaren kendi kendini finanse ediyor",
+    "equityRatio": "Hisse Oranı",
+    "valuation": "Değerleme",
+    "sectorMultiple": "Sektör Çarpanı",
+    "tiers": {
+      "title": "Yatırım Seçenekleri",
+      "selectBased": "İş ihtiyaçlarınıza göre uygun yatırım tutarını seçin",
+      "minimum": "Minimum (Survival)",
+      "recommended": "Önerilen (Growth)",
+      "aggressive": "Agresif (Scale)",
+      "runway": "{{months}} ay runway"
+    },
+    "capitalNeeds": {
+      "title": "Sermaye İhtiyacı Karşılaştırması",
+      "selfSustaining": "Kendi Kendini Finanse Ediyor",
+      "required": "Gerekli",
+      "criticalQuarter": "Kritik Çeyrek",
+      "monthlyBurn": "Aylık Burn",
+      "yearEnd": "Yıl Sonu",
+      "breakEven": "Break-even",
+      "runway": "Runway",
+      "months": "{{count}} ay",
+      "twoYearDeathValley": "2Y Death Valley"
+    },
+    "opportunityCost": {
+      "title": "Fırsat Maliyeti",
+      "description": "Yatırım almazsanız masada bırakacağınız potansiyel gelir"
+    },
+    "runwayChart": {
+      "title": "Nakit Akışı Runway Grafiği",
+      "description": "Yatırımlı ve yatırımsız senaryo karşılaştırması",
+      "withInvestment": "Yatırımlı (Pozitif Senaryo)",
+      "withoutInvestment": "Yatırımsız (Negatif Senaryo)"
+    },
+    "growthModel": {
+      "title": "İki Aşamalı Büyüme Modeli",
+      "aggressivePhase": "Yıl 1-2 (Agresif)",
+      "normalizedPhase": "Yıl 3-5 (Normalize)",
+      "target": "Hedef",
+      "cap": "cap",
+      "sectorAverage": "Sektör ortalaması",
+      "capped": "Agresif aşama %100 ile sınırlandı (orijinal hedef: %{{percent}})"
+    },
+    "exitPlan": {
+      "title": "Exit Planı - Yatırımcı Getiri Projeksiyonu",
+      "entry": "GİRİŞ",
+      "investment": "Yatırım",
+      "equity": "Hisse",
+      "valuation": "Değerleme",
+      "year3": "3. YIL",
+      "year5": "5. YIL",
+      "companyValue": "Şirket Değeri",
+      "investorShare": "Yatırımcı Payı",
+      "moic": "MOIC"
+    },
+    "metrics": {
+      "capitalEfficiency": "Sermaye Verimliliği",
+      "perDollarRevenue": "Her $1 için gelir",
+      "targetGrowth": "Hedef Büyüme",
+      "scenarioTarget": "Senaryo hedefi",
+      "breakEven": "Break-even",
+      "breakEvenPoint": "Başabaş noktası",
+      "yearN": "Yıl {{n}}"
+    },
+    "projectionTable": {
+      "title": "5 Yıllık Projeksiyon Detayı",
+      "yearDependent": "Yıl bağımlı sermaye hesaplaması: Devir kar → Çeyreklik death valley → Ek yatırım ihtiyacı",
+      "year": "Yıl",
+      "opening": "Açılış",
+      "revenue": "Gelir",
+      "expense": "Gider",
+      "netProfit": "Net Kar",
+      "deathValley": "Death Valley",
+      "capitalNeed": "Sermaye İhtiyacı",
+      "yearEnd": "Yıl Sonu",
+      "valuation": "Değerleme",
+      "moic": "MOIC"
+    }
+  },
+  "focusProject": {
+    "title": "Yatırım Odak Projeleri",
+    "projectsSelected": "{{count}} proje seçili",
+    "description": "Yatırımın hangi projeler için kullanılacağını belirtin (max 2 proje). AI analizi seçili projelere odaklanacak.",
+    "investmentProjects": "Yatırım Projeleri (max 2 seçim)",
+    "selectedSummary": "Seçili Projeler Özeti",
+    "totalCurrent": "Toplam Mevcut",
+    "totalTarget": "Toplam Hedef",
+    "selectAtLeast": "En az 1 proje seçin",
+    "growthPlan": "Büyüme Planı",
+    "growthPlanPlaceholder": "Seçili projeler için büyüme planınızı açıklayın. Örn: SBT Tracker'ı tekstil sektörü dışına genişletme, ISO 14064 modülü ekleme, enterprise müşterilere odaklanma...",
+    "aiUsageNote": "Bu açıklama AI analizinde kullanılacak ve projeksiyonlara yansıtılacak.",
+    "allocationTitle": "Yatırım Kullanım Dağılımı",
+    "total": "Toplam",
+    "productDev": "Ürün Geliştirme",
+    "marketing": "Pazarlama",
+    "personnel": "Personel",
+    "operational": "Operasyonel",
+    "allocationWarning": "Toplam dağılım %100 olmalıdır. Şu an: %{{percent}}"
+  },
+  "financialRatios": {
+    "title": "Finansal Oranlar (B2B Services Benchmark)",
+    "liquidity": "Likidite Oranları",
+    "leverage": "Borçluluk Oranları",
+    "profitability": "Karlılık Oranları",
+    "currentRatio": "Cari Oran",
+    "quickRatio": "Asit-Test Oranı",
+    "cashRatio": "Nakit Oranı",
+    "debtToEquity": "Borç/Özkaynak",
+    "debtToAssets": "Borç/Varlık",
+    "receivablesRatio": "Alacak/Varlık",
+    "roa": "ROA",
+    "roe": "ROE",
+    "netMargin": "Net Marj",
+    "status": {
+      "good": "İyi",
+      "average": "Orta",
+      "poor": "Dikkat"
+    },
+    "tooltips": {
+      "currentRatio": "Dönen Varlık / Kısa Vadeli Borç",
+      "quickRatio": "(Dönen Varlık - Stok) / Kısa Vadeli Borç",
+      "cashRatio": "Nakit / Kısa Vadeli Borç",
+      "debtToEquity": "Toplam Borç / Özkaynak",
+      "debtToAssets": "Toplam Borç / Toplam Varlık",
+      "receivablesRatio": "Ticari Alacaklar / Toplam Varlık",
+      "roa": "Net Kâr / Toplam Varlık",
+      "roe": "Net Kâr / Özkaynak",
+      "netMargin": "Net Kâr / Gelir"
+    },
+    "benchmarkNote": "Benchmark: B2B Services sektör ortalamaları referans alınmıştır"
+  },
+  "sensitivity": {
+    "title": "Duyarlılık Analizi",
+    "description": "Gelir değişiminin ana metriklere etkisi",
+    "revenueChange": "Gelir Değişimi",
+    "netProfit": "Net Kâr",
+    "margin": "Marj",
+    "valuation": "Değerleme",
+    "moic": "MOIC",
+    "runway": "Runway",
+    "months": "{{count}} ay",
+    "loss": "zarar",
+    "criticalVariable": "Kritik Değişken",
+    "ifRevenueDrops": "Gelir %20 düşerse kâr {{amount}} olur"
+  },
+  "itemTrend": {
+    "revenueItems": "Gelir Kalemleri Trend Analizi",
+    "expenseItems": "Gider Kalemleri Trend Analizi",
+    "share": "Pay",
+    "concentrated": "Konsantrik",
+    "trend": {
+      "increasing": "Büyüyor",
+      "decreasing": "Azalıyor",
+      "stable": "Stabil"
+    },
+    "volatility": {
+      "high": "Yüksek Volatilite",
+      "medium": "Orta Volatilite",
+      "low": "Düşük Volatilite"
+    },
+    "concentrationRisk": "Konsantrasyon Riski",
+    "concentrationWarning": "Tek bir kalem toplam {{type}} %50'sinden fazlasını oluşturuyor"
+  },
+  "scenarioCards": {
+    "revenueComparison": "Gelir Kalemleri Senaryo Karşılaştırması",
+    "expenseComparison": "Gider Kalemleri Senaryo Karşılaştırması",
+    "vsComparison": "{{labelA}} vs {{labelB}} senaryo karşılaştırması",
+    "riskLevel": {
+      "high": "Yüksek Fark",
+      "medium": "Orta Fark",
+      "low": "Düşük Fark"
+    },
+    "divergence": {
+      "increasingGood": "↗️ Artan Fark",
+      "increasingBad": "↗️ Artan Risk",
+      "decreasingGood": "↘️ Azalan Risk",
+      "decreasingBad": "↘️ Azalan Fark"
+    },
+    "totalDifference": "Toplam Fark",
+    "highDiffWarning": "Yüksek Fark Uyarısı",
+    "itemsOver40": "{{items}} kalemlerinde senaryolar arası fark %40'ın üzerinde"
+  },
+  "quarterlyTable": {
+    "title": "Çeyreklik Nakit Akışı Karşılaştırması",
+    "description": "Yatırımlı (pozitif) ve yatırımsız (negatif) senaryo çeyreklik detayları",
+    "invested": "Yatırımlı ({{name}})",
+    "uninvested": "Yatırımsız ({{name}})",
+    "startingBalance": "+{{amount}} başlangıç",
+    "quarter": "Çeyrek",
+    "revenue": "Gelir",
+    "expense": "Gider",
+    "netFlow": "Net Akış",
+    "cumulative": "Kümülatif",
+    "need": "İhtiyaç",
+    "yearEnd": "Yıl Sonu",
+    "maxNeed": "Max İhtiyaç",
+    "opportunityCost": "Fırsat Maliyeti",
+    "betterPosition": "Yatırımlı senaryo yıl sonunda {{amount}} daha iyi pozisyonda."
+  },
+  "aiTiming": {
+    "title": "AI Optimal Yatırım Zamanlaması",
+    "description": "{{year}} Negatif senaryo nakit açıklarına göre optimal yatırım zamanı",
+    "recommended": "Önerilen",
+    "urgency": "Aciliyet",
+    "requiredCapital": "Gerekli Sermaye",
+    "safetyIncluded": "%20 güvenlik dahil",
+    "optional": "İsteğe Bağlı",
+    "yearStart": "Yıl Başı",
+    "before": "{{date}} öncesi",
+    "byEnd": "{{date}} sonuna kadar",
+    "urgencyLevels": {
+      "critical": "Kritik",
+      "high": "Yüksek",
+      "medium": "Orta",
+      "low": "Düşük"
+    },
+    "urgencyDescriptions": {
+      "critical": "Q1'de açık başlıyor - Şu an yatırım gerekli",
+      "high": "3 ay içinde açık başlayacak",
+      "medium": "6 ay içinde açık başlayacak",
+      "low": "Nakit pozisyonu güçlü"
+    },
+    "quarterlyCumulativeNeed": "Çeyreklik Kümülatif Sermaye İhtiyacı (Negatif Senaryo)",
+    "firstDeficit": "İlk Açık",
+    "delayRisk": "Erteleme riski",
+    "analysisConfidence": "Analiz Güveni",
+    "firstDeficitLabel": "İlk açık",
+    "maxDeficitLabel": "Max açık",
+    "none": "Yok",
+    "anyTime": "Büyüme hızlandırma için yıl içinde herhangi bir zamanda",
+    "reasons": {
+      "selfSustaining": "Şirket öz sermaye ile operasyonları sürdürebilir. Yatırım büyümeyi hızlandırmak için kullanılabilir.",
+      "q1Deficit": "Q1'de {{amount}} nakit açığı başlıyor. Bu açık kapatılmadan planlanan büyüme harcamaları (fuar, personel, pazarlama) yapılamaz.",
+      "futureDeficit": "{{quarter}}'de {{amount}} nakit açığı başlayacak. Bu tarihten önce sermaye güvence altına alınmalı."
+    },
+    "risks": {
+      "selfSustaining": "Büyüme fırsatları kaçırılabilir ama operasyonlar devam eder.",
+      "q1Deficit": "Yatırım olmadan pozitif senaryoya geçiş mümkün değil. Büyüme stratejisi ertelenir, pazar payı kaybedilir.",
+      "futureDeficit": "{{quarter}} sonrasında büyüme için planlanan harcamalar yapılamaz hale gelir. Pozitif senaryo gerçekleşmez."
+    }
+  },
+  "editableTable": {
+    "edited": "Düzenlendi",
+    "resetToAI": "AI Değerlerine Sıfırla",
+    "item": "Kalem",
+    "total": "Toplam",
+    "totalRevenue": "Toplam Gelir",
+    "totalExpense": "Toplam Gider"
   }
 }

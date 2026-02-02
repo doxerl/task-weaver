@@ -8,6 +8,7 @@ import { Badge } from '@/components/ui/badge';
 import { Target, TrendingUp, DollarSign, Users, Megaphone, Settings, AlertCircle } from 'lucide-react';
 import { ProjectionItem, InvestmentAllocation } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
+import { useTranslation } from 'react-i18next';
 
 interface FocusProjectSelectorProps {
   revenues: ProjectionItem[];
@@ -28,6 +29,8 @@ export const FocusProjectSelector = ({
   onFocusProjectPlanChange,
   onInvestmentAllocationChange
 }: FocusProjectSelectorProps) => {
+  const { t } = useTranslation(['simulation']);
+  
   // Fallback for undefined props
   const safeProjects = focusProjects || [];
   const safeRevenues = revenues || [];
@@ -63,10 +66,10 @@ export const FocusProjectSelector = ({
   };
   
   const allocationItems = [
-    { key: 'product' as const, label: 'Ürün Geliştirme', icon: Settings, color: 'text-blue-400' },
-    { key: 'marketing' as const, label: 'Pazarlama', icon: Megaphone, color: 'text-purple-400' },
-    { key: 'hiring' as const, label: 'Personel', icon: Users, color: 'text-green-400' },
-    { key: 'operations' as const, label: 'Operasyonel', icon: DollarSign, color: 'text-orange-400' },
+    { key: 'product' as const, label: t('focusProject.productDev'), icon: Settings, color: 'text-blue-400' },
+    { key: 'marketing' as const, label: t('focusProject.marketing'), icon: Megaphone, color: 'text-purple-400' },
+    { key: 'hiring' as const, label: t('focusProject.personnel'), icon: Users, color: 'text-green-400' },
+    { key: 'operations' as const, label: t('focusProject.operational'), icon: DollarSign, color: 'text-orange-400' },
   ];
   
   return (
@@ -74,21 +77,21 @@ export const FocusProjectSelector = ({
       <CardHeader className="pb-3">
         <CardTitle className="flex items-center gap-2 text-base">
           <Target className="h-4 w-4 text-primary" />
-          Yatırım Odak Projeleri
+          {t('focusProject.title')}
           {safeProjects.length > 0 && (
             <Badge variant="secondary" className="ml-2">
-              {safeProjects.length} proje seçili
+              {t('focusProject.projectsSelected', { count: safeProjects.length })}
             </Badge>
           )}
         </CardTitle>
         <CardDescription className="text-xs">
-          Yatırımın hangi projeler için kullanılacağını belirtin (max 2 proje). AI analizi seçili projelere odaklanacak.
+          {t('focusProject.description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
         {/* Project Selection - Checkbox List */}
         <div className="space-y-2">
-          <Label className="text-xs">Yatırım Projeleri (max 2 seçim)</Label>
+          <Label className="text-xs">{t('focusProject.investmentProjects')}</Label>
           <div className="space-y-2 max-h-48 overflow-y-auto pr-2">
             {safeRevenues.map(r => {
               const isSelected = safeProjects.includes(r.category);
@@ -133,7 +136,7 @@ export const FocusProjectSelector = ({
         {/* Selected Projects Summary */}
         {selectedRevenues.length > 0 && (
           <div className="space-y-3">
-            <Label className="text-xs">Seçili Projeler Özeti</Label>
+            <Label className="text-xs">{t('focusProject.selectedSummary')}</Label>
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
               {selectedRevenues.map(r => (
                 <div key={r.category} className="p-2 bg-primary/5 border border-primary/20 rounded-lg">
@@ -150,12 +153,12 @@ export const FocusProjectSelector = ({
             {/* Combined Totals */}
             <div className="flex items-center gap-4 p-3 bg-emerald-500/10 border border-emerald-500/30 rounded-lg">
               <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Toplam Mevcut</p>
+                <p className="text-xs text-muted-foreground">{t('focusProject.totalCurrent')}</p>
                 <p className="font-semibold">{formatCompactUSD(combinedCurrentRevenue)}</p>
               </div>
               <TrendingUp className="h-5 w-5 text-emerald-400" />
               <div className="flex-1">
-                <p className="text-xs text-muted-foreground">Toplam Hedef</p>
+                <p className="text-xs text-muted-foreground">{t('focusProject.totalTarget')}</p>
                 <p className="font-semibold text-emerald-400">{formatCompactUSD(combinedProjectedRevenue)}</p>
               </div>
               <Badge variant="outline" className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
@@ -168,31 +171,31 @@ export const FocusProjectSelector = ({
         {safeProjects.length === 0 && (
           <div className="flex items-center gap-2 p-3 bg-amber-500/10 border border-amber-500/30 rounded-lg">
             <AlertCircle className="h-4 w-4 text-amber-400" />
-            <p className="text-xs text-amber-400">En az 1 proje seçin</p>
+            <p className="text-xs text-amber-400">{t('focusProject.selectAtLeast')}</p>
           </div>
         )}
         
         {/* Growth Plan */}
         <div className="space-y-2">
-          <Label className="text-xs">Büyüme Planı</Label>
+          <Label className="text-xs">{t('focusProject.growthPlan')}</Label>
           <Textarea
             value={focusProjectPlan}
             onChange={(e) => onFocusProjectPlanChange(e.target.value)}
-            placeholder="Seçili projeler için büyüme planınızı açıklayın. Örn: SBT Tracker'ı tekstil sektörü dışına genişletme, ISO 14064 modülü ekleme, enterprise müşterilere odaklanma..."
+            placeholder={t('focusProject.growthPlanPlaceholder')}
             rows={3}
             className="text-sm"
           />
           <p className="text-[10px] text-muted-foreground">
-            Bu açıklama AI analizinde kullanılacak ve projeksiyonlara yansıtılacak.
+            {t('focusProject.aiUsageNote')}
           </p>
         </div>
         
         {/* Investment Allocation */}
         <div className="space-y-3">
           <div className="flex items-center justify-between">
-            <Label className="text-xs">Yatırım Kullanım Dağılımı</Label>
+            <Label className="text-xs">{t('focusProject.allocationTitle')}</Label>
             <span className={`text-xs font-medium ${totalAllocation === 100 ? 'text-emerald-400' : 'text-amber-400'}`}>
-              Toplam: %{totalAllocation}
+              {t('focusProject.total')}: %{totalAllocation}
             </span>
           </div>
           
@@ -237,7 +240,7 @@ export const FocusProjectSelector = ({
           
           {totalAllocation !== 100 && (
             <p className="text-[10px] text-amber-400">
-              ⚠️ Toplam dağılım %100 olmalıdır. Şu an: %{totalAllocation}
+              ⚠️ {t('focusProject.allocationWarning', { percent: totalAllocation })}
             </p>
           )}
         </div>

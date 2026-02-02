@@ -3,23 +3,25 @@ import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
 import { TrendingUp, TrendingDown, AlertTriangle, CheckCircle2 } from 'lucide-react';
 import { FinancialRatios, SECTOR_BENCHMARKS_DATA } from '@/types/simulation';
+import { useTranslation } from 'react-i18next';
 
 interface FinancialRatiosPanelProps {
   ratios: FinancialRatios;
 }
 
 export function FinancialRatiosPanel({ ratios }: FinancialRatiosPanelProps) {
+  const { t } = useTranslation(['simulation']);
   const benchmarks = SECTOR_BENCHMARKS_DATA['B2B Services'];
   
   const getRatioStatus = (value: number, benchmark: { good: number; average: number; poor: number }, higherIsBetter: boolean = true) => {
     if (higherIsBetter) {
-      if (value >= benchmark.good) return { status: 'good', label: 'İyi', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' };
-      if (value >= benchmark.average) return { status: 'average', label: 'Orta', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' };
-      return { status: 'poor', label: 'Dikkat', color: 'bg-red-500/20 text-red-400 border-red-500/30' };
+      if (value >= benchmark.good) return { status: 'good', label: t('financialRatios.status.good'), color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' };
+      if (value >= benchmark.average) return { status: 'average', label: t('financialRatios.status.average'), color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' };
+      return { status: 'poor', label: t('financialRatios.status.poor'), color: 'bg-red-500/20 text-red-400 border-red-500/30' };
     } else {
-      if (value <= benchmark.good) return { status: 'good', label: 'İyi', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' };
-      if (value <= benchmark.average) return { status: 'average', label: 'Orta', color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' };
-      return { status: 'poor', label: 'Dikkat', color: 'bg-red-500/20 text-red-400 border-red-500/30' };
+      if (value <= benchmark.good) return { status: 'good', label: t('financialRatios.status.good'), color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' };
+      if (value <= benchmark.average) return { status: 'average', label: t('financialRatios.status.average'), color: 'bg-yellow-500/20 text-yellow-400 border-yellow-500/30' };
+      return { status: 'poor', label: t('financialRatios.status.poor'), color: 'bg-red-500/20 text-red-400 border-red-500/30' };
     }
   };
 
@@ -29,92 +31,92 @@ export function FinancialRatiosPanel({ ratios }: FinancialRatiosPanelProps) {
 
   const ratioGroups = [
     {
-      title: 'Likidite Oranları',
+      title: t('financialRatios.liquidity'),
       icon: <TrendingUp className="h-4 w-4 text-blue-400" />,
       items: [
         { 
-          label: 'Cari Oran', 
+          label: t('financialRatios.currentRatio'), 
           value: ratios.liquidity.currentRatio,
           format: (v: number) => v.toFixed(2),
           benchmark: benchmarks.currentRatio,
           higherIsBetter: true,
-          tooltip: 'Dönen Varlık / Kısa Vadeli Borç'
+          tooltip: t('financialRatios.tooltips.currentRatio')
         },
         { 
-          label: 'Asit-Test Oranı', 
+          label: t('financialRatios.quickRatio'), 
           value: ratios.liquidity.quickRatio,
           format: (v: number) => v.toFixed(2),
           benchmark: benchmarks.quickRatio,
           higherIsBetter: true,
-          tooltip: '(Dönen Varlık - Stok) / Kısa Vadeli Borç'
+          tooltip: t('financialRatios.tooltips.quickRatio')
         },
         { 
-          label: 'Nakit Oranı', 
+          label: t('financialRatios.cashRatio'), 
           value: ratios.liquidity.cashRatio,
           format: (v: number) => v.toFixed(2),
           benchmark: { good: 0.5, average: 0.3, poor: 0.1 },
           higherIsBetter: true,
-          tooltip: 'Nakit / Kısa Vadeli Borç'
+          tooltip: t('financialRatios.tooltips.cashRatio')
         },
       ]
     },
     {
-      title: 'Borçluluk Oranları',
+      title: t('financialRatios.leverage'),
       icon: <AlertTriangle className="h-4 w-4 text-amber-400" />,
       items: [
         { 
-          label: 'Borç/Özkaynak', 
+          label: t('financialRatios.debtToEquity'), 
           value: ratios.leverage.debtToEquity,
           format: (v: number) => v.toFixed(2),
           benchmark: benchmarks.debtToEquity,
           higherIsBetter: false,
-          tooltip: 'Toplam Borç / Özkaynak'
+          tooltip: t('financialRatios.tooltips.debtToEquity')
         },
         { 
-          label: 'Borç/Varlık', 
+          label: t('financialRatios.debtToAssets'), 
           value: ratios.leverage.debtToAssets,
           format: (v: number) => `%${(v * 100).toFixed(0)}`,
           benchmark: { good: 0.3, average: 0.5, poor: 0.7 },
           higherIsBetter: false,
-          tooltip: 'Toplam Borç / Toplam Varlık'
+          tooltip: t('financialRatios.tooltips.debtToAssets')
         },
         { 
-          label: 'Alacak/Varlık', 
+          label: t('financialRatios.receivablesRatio'), 
           value: ratios.leverage.receivablesRatio,
           format: (v: number) => `%${(v * 100).toFixed(0)}`,
           benchmark: { good: 0.15, average: 0.25, poor: 0.35 },
           higherIsBetter: false,
-          tooltip: 'Ticari Alacaklar / Toplam Varlık'
+          tooltip: t('financialRatios.tooltips.receivablesRatio')
         },
       ]
     },
     {
-      title: 'Karlılık Oranları',
+      title: t('financialRatios.profitability'),
       icon: <CheckCircle2 className="h-4 w-4 text-emerald-400" />,
       items: [
         { 
-          label: 'ROA', 
+          label: t('financialRatios.roa'), 
           value: ratios.profitability.returnOnAssets,
           format: (v: number) => `%${v.toFixed(1)}`,
           benchmark: { good: 15, average: 10, poor: 5 },
           higherIsBetter: true,
-          tooltip: 'Net Kâr / Toplam Varlık'
+          tooltip: t('financialRatios.tooltips.roa')
         },
         { 
-          label: 'ROE', 
+          label: t('financialRatios.roe'), 
           value: ratios.profitability.returnOnEquity,
           format: (v: number) => `%${v.toFixed(1)}`,
           benchmark: benchmarks.returnOnEquity,
           higherIsBetter: true,
-          tooltip: 'Net Kâr / Özkaynak'
+          tooltip: t('financialRatios.tooltips.roe')
         },
         { 
-          label: 'Net Marj', 
+          label: t('financialRatios.netMargin'), 
           value: ratios.profitability.netMargin,
           format: (v: number) => `%${v.toFixed(1)}`,
           benchmark: benchmarks.netMargin,
           higherIsBetter: true,
-          tooltip: 'Net Kâr / Gelir'
+          tooltip: t('financialRatios.tooltips.netMargin')
         },
       ]
     },
@@ -124,7 +126,7 @@ export function FinancialRatiosPanel({ ratios }: FinancialRatiosPanelProps) {
     <Card>
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium">
-          Finansal Oranlar (B2B Services Benchmark)
+          {t('financialRatios.title')}
         </CardTitle>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -161,7 +163,7 @@ export function FinancialRatiosPanel({ ratios }: FinancialRatiosPanelProps) {
         
         <div className="pt-2 border-t">
           <p className="text-xs text-muted-foreground">
-            <span className="font-medium">Benchmark:</span> B2B Services sektör ortalamaları referans alınmıştır
+            {t('financialRatios.benchmarkNote')}
           </p>
         </div>
       </CardContent>

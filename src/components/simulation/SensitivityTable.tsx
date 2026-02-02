@@ -4,6 +4,7 @@ import { Badge } from '@/components/ui/badge';
 import { TrendingUp, TrendingDown, Minus, AlertTriangle } from 'lucide-react';
 import { EnhancedSensitivityAnalysis } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
+import { useTranslation } from 'react-i18next';
 
 interface SensitivityTableProps {
   analysis: EnhancedSensitivityAnalysis;
@@ -11,6 +12,8 @@ interface SensitivityTableProps {
 }
 
 export function SensitivityTable({ analysis, baseProfit }: SensitivityTableProps) {
+  const { t } = useTranslation(['simulation']);
+
   const getColorClass = (value: number, isProfit: boolean) => {
     if (isProfit) {
       if (value > 0) return 'text-emerald-400 bg-emerald-500/10';
@@ -38,22 +41,22 @@ export function SensitivityTable({ analysis, baseProfit }: SensitivityTableProps
       <CardHeader className="pb-2">
         <CardTitle className="text-sm font-medium flex items-center gap-2">
           <AlertTriangle className="h-4 w-4 text-amber-500" />
-          Duyarlılık Analizi
+          {t('sensitivity.title')}
         </CardTitle>
         <p className="text-xs text-muted-foreground">
-          Gelir değişiminin ana metriklere etkisi
+          {t('sensitivity.description')}
         </p>
       </CardHeader>
       <CardContent>
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[100px]">Gelir Değişimi</TableHead>
-              <TableHead className="text-right">Net Kâr</TableHead>
-              <TableHead className="text-right">Marj</TableHead>
-              <TableHead className="text-right">Değerleme</TableHead>
-              <TableHead className="text-right">MOIC</TableHead>
-              <TableHead className="text-right">Runway</TableHead>
+              <TableHead className="w-[100px]">{t('sensitivity.revenueChange')}</TableHead>
+              <TableHead className="text-right">{t('sensitivity.netProfit')}</TableHead>
+              <TableHead className="text-right">{t('sensitivity.margin')}</TableHead>
+              <TableHead className="text-right">{t('sensitivity.valuation')}</TableHead>
+              <TableHead className="text-right">{t('sensitivity.moic')}</TableHead>
+              <TableHead className="text-right">{t('sensitivity.runway')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -93,7 +96,7 @@ export function SensitivityTable({ analysis, baseProfit }: SensitivityTableProps
                 </TableCell>
                 <TableCell className="text-right">
                   <span className={`px-2 py-0.5 rounded ${getColorClass(scenario.runway, false)}`}>
-                    {scenario.runway > 99 ? '∞' : `${scenario.runway} ay`}
+                    {scenario.runway > 99 ? '∞' : t('sensitivity.months', { count: scenario.runway })}
                   </span>
                 </TableCell>
               </TableRow>
@@ -103,10 +106,10 @@ export function SensitivityTable({ analysis, baseProfit }: SensitivityTableProps
         
         <div className="mt-4 p-3 bg-muted/30 rounded-lg">
           <p className="text-xs text-muted-foreground">
-            <span className="font-medium text-foreground">Kritik Değişken:</span>{' '}
-            Gelir %20 düşerse kâr {formatCompactUSD(analysis.revenueImpact[0]?.profit || 0)} olur
+            <span className="font-medium text-foreground">{t('sensitivity.criticalVariable')}:</span>{' '}
+            {t('sensitivity.ifRevenueDrops', { amount: formatCompactUSD(analysis.revenueImpact[0]?.profit || 0) })}
             {(analysis.revenueImpact[0]?.profit || 0) < 0 && (
-              <span className="text-red-400"> (zarar)</span>
+              <span className="text-red-400"> ({t('sensitivity.loss')})</span>
             )}
           </p>
         </div>

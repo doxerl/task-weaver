@@ -1,4 +1,5 @@
 import React, { useMemo, memo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
@@ -89,6 +90,7 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
   aiNextYearProjection,
   editedProjectionOverride,
 }) => {
+  const { t } = useTranslation(['simulation']);
   // Calculate capital needs for both scenarios
   const capitalNeedA = useMemo(() => calculateCapitalNeeds(quarterlyA), [quarterlyA]);
   const capitalNeedB = useMemo(() => calculateCapitalNeeds(quarterlyB), [quarterlyB]);
@@ -247,9 +249,9 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
 
   // Updated chart config - corrected labels
   const chartConfig: ChartConfig = {
-    withInvestment: { label: 'Yatırımlı (Pozitif Senaryo)', color: '#22c55e' },
-    withoutInvestment: { label: 'Yatırımsız (Negatif Senaryo)', color: '#ef4444' },
-    difference: { label: 'Fırsat Maliyeti', color: '#3b82f6' },
+    withInvestment: { label: t('investment.runwayChart.withInvestment'), color: '#22c55e' },
+    withoutInvestment: { label: t('investment.runwayChart.withoutInvestment'), color: '#ef4444' },
+    difference: { label: t('investment.opportunityCost.title'), color: '#3b82f6' },
   };
 
   return (
