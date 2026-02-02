@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useForm } from 'react-hook-form';
+import { useTranslation } from 'react-i18next';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { Button } from '@/components/ui/button';
@@ -38,22 +39,6 @@ const COLOR_PALETTE = [
   '#22c55e', '#3b82f6', '#ef4444', '#f59e0b', '#8b5cf6',
   '#ec4899', '#14b8a6', '#6b7280', '#0ea5e9', '#84cc16',
   '#f97316', '#06b6d4', '#a855f7', '#10b981', '#dc2626'
-];
-
-const categoryTypes: { value: CategoryType; label: string }[] = [
-  { value: 'INCOME', label: 'Gelir' },
-  { value: 'EXPENSE', label: 'Gider' },
-  { value: 'PARTNER', label: 'Ortak Cari' },
-  { value: 'FINANCING', label: 'Finansman' },
-  { value: 'INVESTMENT', label: 'Yatırım' },
-  { value: 'EXCLUDED', label: 'Hariç' },
-];
-
-const costCenterOptions: { value: CostCenter; label: string }[] = [
-  { value: null, label: 'Belirtilmemiş' },
-  { value: 'DELIVERY', label: 'Teslimat' },
-  { value: 'ADMIN', label: 'Yönetim' },
-  { value: 'SALES', label: 'Satış' },
 ];
 
 const accountCodeOptions = [
@@ -98,9 +83,26 @@ interface CategoryFormProps {
 }
 
 export function CategoryForm({ category, onSave, onCancel, isLoading }: CategoryFormProps) {
+  const { t } = useTranslation(['finance', 'common', 'validation']);
   const [selectedEmoji, setSelectedEmoji] = useState(category?.icon || '💰');
   const [selectedColor, setSelectedColor] = useState(category?.color || '#6b7280');
   const { parentCategories } = useCategories();
+
+  const categoryTypes: { value: CategoryType; label: string }[] = [
+    { value: 'INCOME', label: t('finance:categories.types.income') },
+    { value: 'EXPENSE', label: t('finance:categories.types.expense') },
+    { value: 'PARTNER', label: t('finance:categories.types.partner') },
+    { value: 'FINANCING', label: t('finance:categories.types.financing') },
+    { value: 'INVESTMENT', label: t('finance:categories.types.investment') },
+    { value: 'EXCLUDED', label: t('finance:categories.types.excluded') },
+  ];
+
+  const costCenterOptions: { value: CostCenter; label: string }[] = [
+    { value: null, label: t('finance:categories.form.costCenterOptions.none') },
+    { value: 'DELIVERY', label: t('finance:categories.form.costCenterOptions.delivery') },
+    { value: 'ADMIN', label: t('finance:categories.form.costCenterOptions.admin') },
+    { value: 'SALES', label: t('finance:categories.form.costCenterOptions.sales') },
+  ];
 
   const form = useForm<CategoryFormData>({
     resolver: zodResolver(categorySchema),
@@ -161,9 +163,9 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
           name="name"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Kategori Adı</FormLabel>
+              <FormLabel>{t('finance:categories.form.name')}</FormLabel>
               <FormControl>
-                <Input placeholder="örn: Personel Giderleri" {...field} />
+                <Input placeholder={t('finance:categories.form.placeholders.name')} {...field} />
               </FormControl>
               <FormMessage />
             </FormItem>
@@ -175,10 +177,10 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
           name="code"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Kod</FormLabel>
+              <FormLabel>{t('finance:categories.form.code')}</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="örn: PERSONEL"
+                  placeholder={t('finance:categories.form.placeholders.code')}
                   {...field}
                   onChange={handleCodeChange}
                 />
@@ -193,11 +195,11 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
           name="type"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Tür</FormLabel>
+              <FormLabel>{t('finance:categories.form.type')}</FormLabel>
               <Select onValueChange={field.onChange} defaultValue={field.value}>
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Tür seçin" />
+                    <SelectValue placeholder={t('finance:categories.form.type')} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -219,18 +221,18 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
           name="parent_category_id"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Üst Kategori (opsiyonel)</FormLabel>
-              <Select 
-                onValueChange={(v) => field.onChange(v === 'none' ? null : v)} 
+              <FormLabel>{t('finance:categories.form.parentCategory')} ({t('common:labels.optional')})</FormLabel>
+              <Select
+                onValueChange={(v) => field.onChange(v === 'none' ? null : v)}
                 value={field.value || 'none'}
               >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Üst kategori seçin" />
+                    <SelectValue placeholder={t('finance:categories.form.parentCategory')} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
-                  <SelectItem value="none">— Ana Kategori —</SelectItem>
+                  <SelectItem value="none">— {t('finance:categories.form.mainCategory')} —</SelectItem>
                   {filteredParentCategories.map((cat) => (
                     <SelectItem key={cat.id} value={cat.id}>
                       {cat.icon} {cat.name}
@@ -239,7 +241,7 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
                 </SelectContent>
               </Select>
               <FormDescription>
-                Alt kategori oluşturmak için üst kategori seçin
+                {t('finance:categories.form.parentCategoryHint')}
               </FormDescription>
               <FormMessage />
             </FormItem>
@@ -253,14 +255,14 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
             name="account_code"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Hesap Kodu</FormLabel>
-                <Select 
-                  onValueChange={(v) => field.onChange(v === 'none' ? null : v)} 
+                <FormLabel>{t('finance:categories.form.accountCode')}</FormLabel>
+                <Select
+                  onValueChange={(v) => field.onChange(v === 'none' ? null : v)}
                   value={field.value || 'none'}
                 >
                   <FormControl>
                     <SelectTrigger>
-                      <SelectValue placeholder="Hesap kodu" />
+                      <SelectValue placeholder={t('finance:categories.form.accountCode')} />
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
@@ -282,10 +284,10 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
             name="account_subcode"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Alt Hesap Kodu</FormLabel>
+                <FormLabel>{t('finance:categories.form.subAccountCode')}</FormLabel>
                 <FormControl>
                   <Input
-                    placeholder="örn: 632.01.01"
+                    placeholder={t('finance:categories.form.placeholders.accountCode')}
                     {...field}
                     value={field.value || ''}
                   />
@@ -302,14 +304,14 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
           name="cost_center"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Maliyet Merkezi</FormLabel>
-              <Select 
-                onValueChange={(v) => field.onChange(v === 'none' ? null : v)} 
+              <FormLabel>{t('finance:categories.form.costCenter')}</FormLabel>
+              <Select
+                onValueChange={(v) => field.onChange(v === 'none' ? null : v)}
                 value={field.value || 'none'}
               >
                 <FormControl>
                   <SelectTrigger>
-                    <SelectValue placeholder="Maliyet merkezi" />
+                    <SelectValue placeholder={t('finance:categories.form.costCenter')} />
                   </SelectTrigger>
                 </FormControl>
                 <SelectContent>
@@ -338,9 +340,9 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
                 />
               </FormControl>
               <div className="space-y-1 leading-none">
-                <FormLabel>KKEG (Kanunen Kabul Edilmeyen Gider)</FormLabel>
+                <FormLabel>{t('finance:categories.form.kkeg')}</FormLabel>
                 <FormDescription>
-                  Vergiden indirilemez giderler için işaretleyin
+                  {t('finance:categories.form.kkegDescription')}
                 </FormDescription>
               </div>
             </FormItem>
@@ -348,7 +350,7 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
         />
 
         <div className="space-y-2">
-          <Label>İkon</Label>
+          <Label>{t('finance:categories.form.icon')}</Label>
           <div className="flex flex-wrap gap-2 p-2 border rounded-lg max-h-32 overflow-y-auto">
             {COMMON_EMOJIS.map((emoji) => (
               <button
@@ -366,7 +368,7 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
         </div>
 
         <div className="space-y-2">
-          <Label>Renk</Label>
+          <Label>{t('finance:categories.form.color')}</Label>
           <div className="flex flex-wrap gap-2">
             {COLOR_PALETTE.map((color) => (
               <button
@@ -387,15 +389,15 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
           name="keywords"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Anahtar Kelimeler (opsiyonel)</FormLabel>
+              <FormLabel>{t('finance:categories.form.keywords')} ({t('common:labels.optional')})</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="örn: maaş, bordro, sgk"
+                  placeholder={t('finance:categories.form.placeholders.keywords')}
                   {...field}
                 />
               </FormControl>
               <p className="text-xs text-muted-foreground">
-                AI eşleştirme için virgülle ayrılmış kelimeler
+                {t('finance:categories.form.keywordsHint')}
               </p>
               <FormMessage />
             </FormItem>
@@ -407,15 +409,15 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
           name="vendor_patterns"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Satıcı Kalıpları (opsiyonel)</FormLabel>
+              <FormLabel>{t('finance:categories.form.vendorPatterns')} ({t('common:labels.optional')})</FormLabel>
               <FormControl>
                 <Input
-                  placeholder="örn: TURK TELEKOM, VODAFONE"
+                  placeholder={t('finance:categories.form.placeholders.vendorPatterns')}
                   {...field}
                 />
               </FormControl>
               <p className="text-xs text-muted-foreground">
-                Otomatik eşleşme için satıcı isimleri
+                {t('finance:categories.form.vendorPatternsHint')}
               </p>
               <FormMessage />
             </FormItem>
@@ -425,10 +427,10 @@ export function CategoryForm({ category, onSave, onCancel, isLoading }: Category
         <div className="flex gap-2 pt-4">
           <Button type="submit" className="flex-1" disabled={isLoading}>
             {isLoading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            {category ? 'Güncelle' : 'Ekle'}
+            {category ? t('common:buttons.update') : t('common:buttons.add')}
           </Button>
           <Button type="button" variant="outline" onClick={onCancel}>
-            İptal
+            {t('common:buttons.cancel')}
           </Button>
         </div>
       </form>

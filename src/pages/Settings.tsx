@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -8,7 +9,8 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
 import { GitHubIntegration } from '@/components/GitHubIntegration';
-import { ArrowLeft, Loader2, Save, User, Globe, Clock, Wallet, CreditCard, Plus, DollarSign, Building2 } from 'lucide-react';
+import { LanguageSelector } from '@/components/LanguageSelector';
+import { ArrowLeft, Loader2, Save, User, Globe, Clock, Wallet, CreditCard, Plus, DollarSign, Building2, Languages } from 'lucide-react';
 import { ExchangeRateEditor } from '@/components/finance/ExchangeRateEditor';
 import { toast } from 'sonner';
 import { useFixedExpenses, FixedExpenseDefinition } from '@/hooks/finance/useFixedExpenses';
@@ -47,6 +49,7 @@ const WORKING_HOURS = [
 
 export default function Settings() {
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
   const { profile, updateProfile, signOut } = useAuthContext();
   
   const [firstName, setFirstName] = useState(profile?.first_name || '');
@@ -76,7 +79,7 @@ export default function Settings() {
 
   const handleSaveProfile = async () => {
     if (!firstName.trim() || !lastName.trim()) {
-      toast.error('Ad ve soyad zorunlu');
+      toast.error(t('settings.toast.requiredFields'));
       return;
     }
 
@@ -91,11 +94,11 @@ export default function Settings() {
     setIsSaving(false);
 
     if (error) {
-      toast.error('Profil güncellenemedi');
+      toast.error(t('settings.toast.profileUpdateFailed'));
       return;
     }
 
-    toast.success('Profil güncellendi');
+    toast.success(t('settings.toast.profileUpdated'));
   };
 
   const handleSignOut = async () => {
@@ -156,7 +159,7 @@ export default function Settings() {
           <Button variant="ghost" size="icon" onClick={() => navigate('/today')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
-          <h1 className="text-lg font-semibold">Ayarlar</h1>
+          <h1 className="text-lg font-semibold">{t('settings.title')}</h1>
         </div>
       </header>
 
@@ -166,39 +169,55 @@ export default function Settings() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <User className="h-5 w-5" />
-              Profil Bilgileri
+              {t('settings.profile.title')}
             </CardTitle>
             <CardDescription>
-              Kişisel bilgilerinizi düzenleyin
+              {t('settings.profile.description')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
-                <Label htmlFor="firstName">Ad</Label>
+                <Label htmlFor="firstName">{t('settings.profile.firstName')}</Label>
                 <Input
                   id="firstName"
                   value={firstName}
                   onChange={(e) => setFirstName(e.target.value)}
-                  placeholder="Adınız"
+                  placeholder={t('settings.profile.firstName')}
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Soyad</Label>
+                <Label htmlFor="lastName">{t('settings.profile.lastName')}</Label>
                 <Input
                   id="lastName"
                   value={lastName}
                   onChange={(e) => setLastName(e.target.value)}
-                  placeholder="Soyadınız"
+                  placeholder={t('settings.profile.lastName')}
                 />
               </div>
             </div>
-            
+
             <div className="space-y-2">
-              <Label>Email</Label>
+              <Label>{t('settings.profile.email')}</Label>
               <Input value={profile?.email || ''} disabled className="bg-muted" />
-              <p className="text-xs text-muted-foreground">Email değiştirilemez</p>
+              <p className="text-xs text-muted-foreground">{t('settings.profile.emailHint')}</p>
             </div>
+          </CardContent>
+        </Card>
+
+        {/* Language Settings */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Languages className="h-5 w-5" />
+              {t('settings.language.title')}
+            </CardTitle>
+            <CardDescription>
+              {t('settings.language.description')}
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <LanguageSelector showLabel={false} />
           </CardContent>
         </Card>
 
@@ -207,18 +226,18 @@ export default function Settings() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Globe className="h-5 w-5" />
-              Zaman Ayarları
+              {t('settings.timezone.title')}
             </CardTitle>
             <CardDescription>
-              Timezone ve çalışma saatlerinizi ayarlayın
+              {t('settings.timezone.description')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label>Timezone</Label>
+              <Label>{t('settings.timezone.label')}</Label>
               <Select value={timezone} onValueChange={setTimezone}>
                 <SelectTrigger>
-                  <SelectValue placeholder="Timezone seçin" />
+                  <SelectValue placeholder={t('settings.timezone.label')} />
                 </SelectTrigger>
                 <SelectContent>
                   {TIMEZONES.map((tz) => (
@@ -234,7 +253,7 @@ export default function Settings() {
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  Çalışma Başlangıcı
+                  {t('settings.timezone.start')}
                 </Label>
                 <Select value={workingStart} onValueChange={setWorkingStart}>
                   <SelectTrigger>
@@ -252,7 +271,7 @@ export default function Settings() {
               <div className="space-y-2">
                 <Label className="flex items-center gap-2">
                   <Clock className="h-4 w-4" />
-                  Çalışma Bitişi
+                  {t('settings.timezone.end')}
                 </Label>
                 <Select value={workingEnd} onValueChange={setWorkingEnd}>
                   <SelectTrigger>
@@ -272,20 +291,20 @@ export default function Settings() {
         </Card>
 
         {/* Save Button */}
-        <Button 
-          onClick={handleSaveProfile} 
+        <Button
+          onClick={handleSaveProfile}
           disabled={isSaving}
           className="w-full"
         >
           {isSaving ? (
             <>
               <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-              Kaydediliyor...
+              {t('buttons.saving')}
             </>
           ) : (
             <>
               <Save className="mr-2 h-4 w-4" />
-              Değişiklikleri Kaydet
+              {t('buttons.save')}
             </>
           )}
         </Button>
@@ -297,23 +316,23 @@ export default function Settings() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <CreditCard className="h-5 w-5" />
-              Sabit Gider Tanımları
+              {t('settings.fixedExpenses.title')}
             </CardTitle>
             <CardDescription>
-              Aylık sabit giderlerinizi ve taksitli ödemelerinizi yönetin
+              {t('settings.fixedExpenses.description')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            <Button 
-              variant="outline" 
-              className="w-full" 
+            <Button
+              variant="outline"
+              className="w-full"
               onClick={() => {
                 setEditingExpense(null);
                 setShowExpenseForm(true);
               }}
             >
               <Plus className="mr-2 h-4 w-4" />
-              Yeni Sabit Gider Ekle
+              {t('settings.fixedExpenses.addNew')}
             </Button>
 
             {definitions.length > 0 ? (
@@ -333,7 +352,7 @@ export default function Settings() {
               </div>
             ) : (
               <p className="text-sm text-muted-foreground text-center py-4">
-                Henüz sabit gider tanımı eklenmemiş
+                {t('settings.fixedExpenses.noExpenses')}
               </p>
             )}
 
@@ -371,10 +390,10 @@ export default function Settings() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <DollarSign className="h-5 w-5" />
-              Döviz Kurları (USD/TRY)
+              {t('settings.exchangeRates.title')}
             </CardTitle>
             <CardDescription>
-              Aylık ortalama USD/TRY kurlarını yönetin
+              {t('settings.exchangeRates.description')}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -389,15 +408,15 @@ export default function Settings() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Building2 className="h-5 w-5" />
-              Bilanço Ayarları
+              {t('settings.balanceSheet.title')}
             </CardTitle>
             <CardDescription>
-              Açılış bakiyesi ve varlık alım tarihlerini yönetin
+              {t('settings.balanceSheet.description')}
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="openingCashOnHand">2024 Yıl Sonu Kasa Bakiyesi (Açılış) (₺)</Label>
+              <Label htmlFor="openingCashOnHand">{t('settings.balanceSheet.openingCash')}</Label>
               <Input
                 id="openingCashOnHand"
                 type="number"
@@ -405,13 +424,10 @@ export default function Settings() {
                 onChange={(e) => setBalanceSettings(p => ({ ...p, opening_cash_on_hand: Number(e.target.value) }))}
                 placeholder="0"
               />
-              <p className="text-xs text-muted-foreground">
-                2025 yılı başındaki kasa bakiyenizi girin (resmi bilanço değeri: ₺33.118,55).
-              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="openingBankBalance">2024 Yıl Sonu Banka Bakiyesi (Açılış) (₺)</Label>
+              <Label htmlFor="openingBankBalance">{t('settings.balanceSheet.openingBankBalance')}</Label>
               <Input
                 id="openingBankBalance"
                 type="number"
@@ -419,41 +435,32 @@ export default function Settings() {
                 onChange={(e) => setBalanceSettings(p => ({ ...p, opening_bank_balance: Number(e.target.value) }))}
                 placeholder="0"
               />
-              <p className="text-xs text-muted-foreground">
-                2025 yılı başındaki banka bakiyenizi girin (resmi bilanço değeri: ₺68.194,77).
-              </p>
             </div>
 
             <Separator />
 
             <div className="space-y-2">
-              <Label htmlFor="vehiclesPurchaseDate">Taşıtlar Alım Tarihi</Label>
+              <Label htmlFor="vehiclesPurchaseDate">{t('settings.balanceSheet.vehiclesPurchaseDate')}</Label>
               <Input
                 id="vehiclesPurchaseDate"
                 type="date"
                 value={balanceSettings.vehicles_purchase_date}
                 onChange={(e) => setBalanceSettings(p => ({ ...p, vehicles_purchase_date: e.target.value }))}
               />
-              <p className="text-xs text-muted-foreground">
-                Mevcut taşıtlarınızın ortalama alım tarihi. Amortisman hesaplaması için gereklidir.
-              </p>
             </div>
 
             <div className="space-y-2">
-              <Label htmlFor="fixturesPurchaseDate">Demirbaşlar Alım Tarihi</Label>
+              <Label htmlFor="fixturesPurchaseDate">{t('settings.balanceSheet.fixturesPurchaseDate')}</Label>
               <Input
                 id="fixturesPurchaseDate"
                 type="date"
                 value={balanceSettings.fixtures_purchase_date}
                 onChange={(e) => setBalanceSettings(p => ({ ...p, fixtures_purchase_date: e.target.value }))}
               />
-              <p className="text-xs text-muted-foreground">
-                Mevcut demirbaşlarınızın ortalama alım tarihi. Amortisman hesaplaması için gereklidir.
-              </p>
             </div>
 
-            <Button 
-              onClick={handleSaveBalanceSettings} 
+            <Button
+              onClick={handleSaveBalanceSettings}
               disabled={upsertFinancialSettings.isPending}
               className="w-full"
             >
@@ -462,7 +469,7 @@ export default function Settings() {
               ) : (
                 <Save className="mr-2 h-4 w-4" />
               )}
-              Bilanço Ayarlarını Kaydet
+              {t('buttons.save')}
             </Button>
           </CardContent>
         </Card>
@@ -474,15 +481,15 @@ export default function Settings() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2">
               <Wallet className="h-5 w-5" />
-              Finans Ayarları
+              {t('settings.finance.title')}
             </CardTitle>
             <CardDescription>
-              Finansal kategorileri ve ayarları yönetin
+              {t('settings.finance.description')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button variant="outline" className="w-full justify-between" onClick={() => navigate('/finance/categories')}>
-              <span>Kategorileri Yönet</span>
+              <span>{t('settings.finance.manageCategories')}</span>
               <ArrowLeft className="h-4 w-4 rotate-180" />
             </Button>
           </CardContent>
@@ -498,14 +505,14 @@ export default function Settings() {
         {/* Sign Out */}
         <Card className="border-destructive/50">
           <CardHeader>
-            <CardTitle className="text-destructive">Çıkış Yap</CardTitle>
+            <CardTitle className="text-destructive">{t('settings.account.signOut')}</CardTitle>
             <CardDescription>
-              Hesabınızdan çıkış yapın
+              {t('settings.account.signOutDescription')}
             </CardDescription>
           </CardHeader>
           <CardContent>
             <Button variant="destructive" onClick={handleSignOut}>
-              Çıkış Yap
+              {t('settings.account.signOut')}
             </Button>
           </CardContent>
         </Card>
@@ -528,14 +535,14 @@ export default function Settings() {
       <AlertDialog open={!!deletingExpenseId} onOpenChange={(open) => !open && setDeletingExpenseId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Sabit Gideri Sil</AlertDialogTitle>
+            <AlertDialogTitle>{t('confirm.deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Bu sabit gider tanımını silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+              {t('confirm.deleteDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>İptal</AlertDialogCancel>
-            <AlertDialogAction onClick={handleDeleteExpense}>Sil</AlertDialogAction>
+            <AlertDialogCancel>{t('buttons.cancel')}</AlertDialogCancel>
+            <AlertDialogAction onClick={handleDeleteExpense}>{t('buttons.delete')}</AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>

@@ -1,0 +1,161 @@
+{
+  "buttons": {
+    "save": "Save",
+    "cancel": "Cancel",
+    "add": "Add",
+    "update": "Update",
+    "delete": "Delete",
+    "edit": "Edit",
+    "close": "Close",
+    "selectAll": "Select All",
+    "saving": "Saving...",
+    "loading": "Loading...",
+    "confirm": "Confirm",
+    "back": "Back",
+    "next": "Next",
+    "submit": "Submit",
+    "reset": "Reset",
+    "search": "Search",
+    "filter": "Filter",
+    "export": "Export",
+    "import": "Import",
+    "refresh": "Refresh",
+    "retry": "Retry",
+    "create": "Create",
+    "duplicate": "Duplicate",
+    "view": "View",
+    "download": "Download"
+  },
+  "labels": {
+    "date": "Date",
+    "amount": "Amount",
+    "category": "Category",
+    "description": "Description",
+    "notes": "Notes",
+    "total": "Total",
+    "balance": "Balance",
+    "name": "Name",
+    "type": "Type",
+    "status": "Status",
+    "actions": "Actions",
+    "details": "Details",
+    "summary": "Summary",
+    "settings": "Settings",
+    "language": "Language",
+    "year": "Year",
+    "month": "Month",
+    "quarter": "Quarter",
+    "from": "From",
+    "to": "To",
+    "select": "Select",
+    "selected": "selected",
+    "all": "All",
+    "none": "None",
+    "unknown": "Unknown",
+    "optional": "optional",
+    "required": "required"
+  },
+  "toast": {
+    "saveSuccess": "Saved successfully",
+    "saveFailed": "Failed to save",
+    "deleteSuccess": "Deleted",
+    "deleteFailed": "Failed to delete",
+    "updateSuccess": "Updated",
+    "updateFailed": "Failed to update",
+    "loadFailed": "Failed to load",
+    "copySuccess": "Copied",
+    "exportSuccess": "Exported",
+    "importSuccess": "Imported",
+    "error": "An error occurred"
+  },
+  "confirm": {
+    "delete": "Are you sure you want to delete this item?",
+    "deleteTitle": "Confirm Delete",
+    "deleteDescription": "This action cannot be undone.",
+    "unsavedChanges": "You have unsaved changes. Are you sure you want to leave?"
+  },
+  "empty": {
+    "noData": "No data found",
+    "noResults": "No results found",
+    "noItems": "No items yet"
+  },
+  "navigation": {
+    "finance": "Finance",
+    "today": "Today",
+    "week": "Week",
+    "settings": "Settings"
+  },
+  "time": {
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "thisWeek": "This Week",
+    "thisMonth": "This Month",
+    "thisYear": "This Year"
+  },
+  "pagination": {
+    "showing": "Showing {{count}} records",
+    "of": "of {{total}}",
+    "page": "Page",
+    "perPage": "Per page"
+  },
+  "settings": {
+    "title": "Settings",
+    "profile": {
+      "title": "Profile Information",
+      "description": "Edit your personal information",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "email": "Email",
+      "emailHint": "Email cannot be changed"
+    },
+    "language": {
+      "title": "Language Settings",
+      "description": "Select application language"
+    },
+    "timezone": {
+      "title": "Time Settings",
+      "description": "Set your timezone and working hours",
+      "label": "Timezone",
+      "workingHours": "Working Hours",
+      "start": "Start",
+      "end": "End"
+    },
+    "fixedExpenses": {
+      "title": "Fixed Expense Definitions",
+      "description": "Manage your monthly fixed expenses and installment payments",
+      "addNew": "Add New Fixed Expense",
+      "noExpenses": "No fixed expenses defined yet"
+    },
+    "exchangeRates": {
+      "title": "Exchange Rates",
+      "description": "Set exchange rates for projection calculations"
+    },
+    "balanceSheet": {
+      "title": "Balance Sheet Settings",
+      "description": "Opening balances and fixed asset dates",
+      "openingBankBalance": "Opening Bank Balance",
+      "openingCash": "Opening Cash",
+      "vehiclesPurchaseDate": "Vehicles Purchase Date",
+      "fixturesPurchaseDate": "Fixtures Purchase Date"
+    },
+    "integrations": {
+      "title": "Integrations",
+      "description": "Connect with external services"
+    },
+    "finance": {
+      "title": "Finance Settings",
+      "description": "Manage financial categories and settings",
+      "manageCategories": "Manage Categories"
+    },
+    "account": {
+      "title": "Account",
+      "signOut": "Sign Out",
+      "signOutDescription": "Sign out of your account"
+    },
+    "toast": {
+      "profileUpdated": "Profile updated",
+      "profileUpdateFailed": "Failed to update profile",
+      "requiredFields": "First name and last name are required"
+    }
+  }
+}

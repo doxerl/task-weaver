@@ -1,0 +1,189 @@
+{
+  "dashboard": {
+    "title": "Finance",
+    "officialData": "Official Data",
+    "tabs": {
+      "bank": "Bank",
+      "receipt": "Receipt",
+      "manual": "Manual",
+      "official": "Official"
+    }
+  },
+  "categories": {
+    "title": "Categories",
+    "types": {
+      "income": "Income",
+      "expense": "Expense",
+      "partner": "Partner Account",
+      "financing": "Financing",
+      "investment": "Investment",
+      "excluded": "Excluded"
+    },
+    "groups": {
+      "incomeFromPartner": "From Partner",
+      "expenseToPartner": "To Partner"
+    },
+    "form": {
+      "name": "Category Name",
+      "code": "Code",
+      "type": "Type",
+      "parentCategory": "Parent Category",
+      "mainCategory": "Main Category",
+      "parentCategoryHint": "Select parent category to create sub-category",
+      "accountCode": "Account Code",
+      "subAccountCode": "Sub Account Code",
+      "costCenter": "Cost Center",
+      "costCenterOptions": {
+        "none": "Not specified",
+        "delivery": "Delivery",
+        "admin": "Administration",
+        "sales": "Sales"
+      },
+      "kkeg": "Non-deductible Expense",
+      "kkegDescription": "Check for expenses not deductible from taxes",
+      "icon": "Icon",
+      "color": "Color",
+      "keywords": "Keywords",
+      "keywordsHint": "Comma-separated words for AI matching",
+      "vendorPatterns": "Vendor Patterns",
+      "vendorPatternsHint": "Vendor names for automatic matching",
+      "placeholders": {
+        "name": "e.g. Personnel Expenses",
+        "code": "e.g. PERSONNEL",
+        "accountCode": "e.g. 632.01.01",
+        "keywords": "e.g. salary, payroll, insurance",
+        "vendorPatterns": "e.g. TURK TELEKOM, VODAFONE"
+      }
+    },
+    "toast": {
+      "updated": "Category updated",
+      "added": "Category added",
+      "deleted": "Category deleted"
+    },
+    "noCategoriesInType": "No categories in this type",
+    "editCategory": "Edit Category",
+    "newCategory": "New Category",
+    "deleteCategory": "Delete Category",
+    "deleteConfirmation": "Are you sure you want to delete the \"{{name}}\" category? Transactions assigned to this category will become uncategorized."
+  },
+  "transactions": {
+    "title": "Label Transactions",
+    "labeled": "{{count}}/{{total}} labeled",
+    "selected": "{{count}} selected",
+    "bulkCategory": "Bulk assign category",
+    "selectCategory": "Select category",
+    "lowConfidence": "{{count}} transactions categorized with low confidence. Check rows marked in yellow.",
+    "types": {
+      "income": "Income (P&L ↑)",
+      "expense": "Expense (P&L ↓)",
+      "balanceSheet": "Balance Sheet",
+      "needsReview": "Needs Review",
+      "amountCorrected": "Amount Corrected"
+    },
+    "actions": {
+      "saveAsIncome": "Save as income (+)",
+      "saveAsExpense": "Save as expense (-)",
+      "correctAmount": "Correct amount"
+    },
+    "sort": {
+      "label": "Sort",
+      "dateDesc": "Date (New → Old)",
+      "dateAsc": "Date (Old → New)",
+      "amountDesc": "Amount (High → Low)",
+      "amountAsc": "Amount (Low → High)",
+      "categoryAsc": "Category (A-Z)",
+      "categoryDesc": "Category (Z-A)",
+      "confidenceAsc": "Confidence (Low → High)",
+      "confidenceDesc": "Confidence (High → Low)"
+    },
+    "badges": {
+      "plAffecting": "P&L",
+      "balanceOnly": "Balance",
+      "manual": "Manual",
+      "corrected": "Corrected"
+    }
+  },
+  "receipts": {
+    "title": "Receipts",
+    "columns": {
+      "date": "Date",
+      "documentNo": "Document No",
+      "seller": "Seller",
+      "buyer": "Buyer",
+      "subtotal": "Subtotal",
+      "vat": "VAT",
+      "total": "Total",
+      "category": "Category",
+      "report": "Report",
+      "actions": "Actions"
+    },
+    "grandTotal": "TOTAL",
+    "delete": {
+      "title": "Delete Receipt",
+      "confirm": "Are you sure you want to delete this receipt? This action cannot be undone."
+    },
+    "vatMissing": {
+      "title": "Missing VAT Information",
+      "description": "VAT information not found in {{count}} documents. This may affect VAT report accuracy.",
+      "processing": "Processing...",
+      "notFound": "VAT not found",
+      "rescanAll": "Rescan All"
+    },
+    "select": "Select..."
+  },
+  "fixedExpenses": {
+    "title": "Fixed Expense Definitions",
+    "description": "Manage your monthly fixed expenses and installment payments",
+    "addNew": "Add New Fixed Expense",
+    "editTitle": "Edit Fixed Expense",
+    "newTitle": "New Fixed Expense",
+    "formDescription": "Define a monthly fixed expense or installment payment",
+    "types": {
+      "fixed": "Fixed (Same every month)",
+      "semiFix": "Semi-Fixed (Variable)",
+      "installment": "Installment (Total defined)"
+    },
+    "fields": {
+      "name": "Expense Name",
+      "type": "Expense Type",
+      "monthlyAmount": "Monthly Amount",
+      "totalAmount": "Total Amount",
+      "installmentCount": "Installment Count",
+      "paidInstallments": "Paid Installments",
+      "startDate": "Start Date",
+      "selectDate": "Select date"
+    },
+    "placeholders": {
+      "name": "e.g. Office Rent, Loan Payment",
+      "amount": "e.g. 120000",
+      "installmentCount": "e.g. 12",
+      "paidInstallments": "e.g. 3"
+    },
+    "summary": {
+      "monthlyFixed": "Monthly Fixed",
+      "monthlyInstallments": "Monthly Installments",
+      "monthlyTotal": "Monthly Total",
+      "yearlyProjection": "Yearly Projection"
+    }
+  },
+  "cashFlow": {
+    "title": "Cash Flow",
+    "sections": {
+      "operating": "A. CASH FLOWS FROM OPERATING ACTIVITIES",
+      "investing": "B. CASH FLOWS FROM INVESTING ACTIVITIES",
+      "financing": "C. CASH FLOWS FROM FINANCING ACTIVITIES"
+    },
+    "netCashFlow": "Net Cash Flow"
+  },
+  "currency": {
+    "try": "Turkish Lira",
+    "usd": "US Dollar",
+    "rates": "Rates"
+  },
+  "vat": {
+    "none": "No VAT (0%)",
+    "rate1": "1% VAT",
+    "rate10": "10% VAT",
+    "rate20": "20% VAT"
+  }
+}

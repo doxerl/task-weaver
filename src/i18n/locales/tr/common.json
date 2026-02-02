@@ -1,0 +1,161 @@
+{
+  "buttons": {
+    "save": "Kaydet",
+    "cancel": "İptal",
+    "add": "Ekle",
+    "update": "Güncelle",
+    "delete": "Sil",
+    "edit": "Düzenle",
+    "close": "Kapat",
+    "selectAll": "Tümünü Seç",
+    "saving": "Kaydediliyor...",
+    "loading": "Yükleniyor...",
+    "confirm": "Onayla",
+    "back": "Geri",
+    "next": "İleri",
+    "submit": "Gönder",
+    "reset": "Sıfırla",
+    "search": "Ara",
+    "filter": "Filtrele",
+    "export": "Dışa Aktar",
+    "import": "İçe Aktar",
+    "refresh": "Yenile",
+    "retry": "Tekrar Dene",
+    "create": "Oluştur",
+    "duplicate": "Kopyala",
+    "view": "Görüntüle",
+    "download": "İndir"
+  },
+  "labels": {
+    "date": "Tarih",
+    "amount": "Tutar",
+    "category": "Kategori",
+    "description": "Açıklama",
+    "notes": "Notlar",
+    "total": "Toplam",
+    "balance": "Bakiye",
+    "name": "Ad",
+    "type": "Tür",
+    "status": "Durum",
+    "actions": "İşlemler",
+    "details": "Detaylar",
+    "summary": "Özet",
+    "settings": "Ayarlar",
+    "language": "Dil",
+    "year": "Yıl",
+    "month": "Ay",
+    "quarter": "Çeyrek",
+    "from": "Başlangıç",
+    "to": "Bitiş",
+    "select": "Seç",
+    "selected": "seçili",
+    "all": "Tümü",
+    "none": "Hiçbiri",
+    "unknown": "Bilinmiyor",
+    "optional": "opsiyonel",
+    "required": "zorunlu"
+  },
+  "toast": {
+    "saveSuccess": "Başarıyla kaydedildi",
+    "saveFailed": "Kaydedilemedi",
+    "deleteSuccess": "Silindi",
+    "deleteFailed": "Silinemedi",
+    "updateSuccess": "Güncellendi",
+    "updateFailed": "Güncellenemedi",
+    "loadFailed": "Yüklenemedi",
+    "copySuccess": "Kopyalandı",
+    "exportSuccess": "Dışa aktarıldı",
+    "importSuccess": "İçe aktarıldı",
+    "error": "Bir hata oluştu"
+  },
+  "confirm": {
+    "delete": "Bu öğeyi silmek istediğinizden emin misiniz?",
+    "deleteTitle": "Silme Onayı",
+    "deleteDescription": "Bu işlem geri alınamaz.",
+    "unsavedChanges": "Kaydedilmemiş değişiklikler var. Çıkmak istediğinizden emin misiniz?"
+  },
+  "empty": {
+    "noData": "Veri bulunamadı",
+    "noResults": "Sonuç bulunamadı",
+    "noItems": "Henüz öğe yok"
+  },
+  "navigation": {
+    "finance": "Finans",
+    "today": "Bugün",
+    "week": "Hafta",
+    "settings": "Ayarlar"
+  },
+  "time": {
+    "today": "Bugün",
+    "yesterday": "Dün",
+    "thisWeek": "Bu Hafta",
+    "thisMonth": "Bu Ay",
+    "thisYear": "Bu Yıl"
+  },
+  "pagination": {
+    "showing": "{{count}} kayıt gösteriliyor",
+    "of": "/ {{total}}",
+    "page": "Sayfa",
+    "perPage": "Sayfa başına"
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "profile": {
+      "title": "Profil Bilgileri",
+      "description": "Kişisel bilgilerinizi düzenleyin",
+      "firstName": "Ad",
+      "lastName": "Soyad",
+      "email": "Email",
+      "emailHint": "Email değiştirilemez"
+    },
+    "language": {
+      "title": "Dil Ayarları",
+      "description": "Uygulama dilini seçin"
+    },
+    "timezone": {
+      "title": "Zaman Ayarları",
+      "description": "Timezone ve çalışma saatlerinizi ayarlayın",
+      "label": "Timezone",
+      "workingHours": "Çalışma Saatleri",
+      "start": "Başlangıç",
+      "end": "Bitiş"
+    },
+    "fixedExpenses": {
+      "title": "Sabit Gider Tanımları",
+      "description": "Aylık sabit giderlerinizi ve taksitli ödemelerinizi yönetin",
+      "addNew": "Yeni Sabit Gider Ekle",
+      "noExpenses": "Henüz sabit gider tanımlanmadı"
+    },
+    "exchangeRates": {
+      "title": "Döviz Kurları",
+      "description": "Projeksiyon hesaplamalarında kullanılacak döviz kurlarını ayarlayın"
+    },
+    "balanceSheet": {
+      "title": "Bilanço Ayarları",
+      "description": "Açılış bakiyeleri ve duran varlık tarihleri",
+      "openingBankBalance": "Açılış Banka Bakiyesi",
+      "openingCash": "Açılış Kasa",
+      "vehiclesPurchaseDate": "Taşıtlar Alış Tarihi",
+      "fixturesPurchaseDate": "Demirbaş Alış Tarihi"
+    },
+    "integrations": {
+      "title": "Entegrasyonlar",
+      "description": "Harici servisler ile bağlantı kurun"
+    },
+    "finance": {
+      "title": "Finans Ayarları",
+      "description": "Finansal kategorileri ve ayarları yönetin",
+      "manageCategories": "Kategorileri Yönet"
+    },
+    "account": {
+      "title": "Hesap",
+      "signOut": "Çıkış Yap",
+      "signOutDescription": "Hesabınızdan çıkış yapın"
+    },
+    "toast": {
+      "profileUpdated": "Profil güncellendi",
+      "profileUpdateFailed": "Profil güncellenemedi",
+      "requiredFields": "Ad ve soyad zorunlu"
+    }
+  }
+}
