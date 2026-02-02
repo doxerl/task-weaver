@@ -1,25 +1,33 @@
 {
   "scenario": {
     "title": "Senaryo",
-    "types": {
-      "positive": "Pozitif",
-      "negative": "Negatif"
-    },
-    "labels": {
-      "withInvestment": "Yatırım Alırsak",
-      "withoutInvestment": "Yatırım Alamazsak"
-    },
-    "create": {
-      "title": "Yeni Senaryo Oluştur",
-      "name": "Senaryo Adı",
-      "type": "Senaryo Tipi"
-    }
+    "scenarios": "Senaryolar",
+    "createNew": "Yeni Senaryo Oluştur",
+    "name": "Senaryo Adı",
+    "namePlaceholder": "2026 Yatırım Senaryosu",
+    "type": "Senaryo Tipi",
+    "positive": "Pozitif",
+    "positiveDescription": "Yatırım Alırsak",
+    "negative": "Negatif",
+    "negativeDescription": "Yatırım Alamazsak",
+    "create": "Senaryo Oluştur",
+    "noSaved": "Kayıtlı senaryo yok",
+    "positiveScenarios": "Pozitif Senaryolar",
+    "negativeScenarios": "Negatif Senaryolar",
+    "deleteTitle": "Senaryoyu Sil",
+    "deleteDescription": "Bu senaryoyu silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+  },
+  "projection": {
+    "item": "Kalem",
+    "distributeEvenly": "Eşit böl",
+    "descriptionPlaceholder": "Açıklama ekleyin... (örn: 2 yazılımcı alacağım, Q2'den itibaren aylık $4K x2)"
   },
   "summary": {
-    "baseYear": "Baz Yıl",
+    "baseYear": "{{year}} Baz Yıl",
     "actualData": "Gerçek Veriler",
-    "projection": "Projeksiyon",
+    "projection": "{{year}} Projeksiyon",
     "targetYear": "Hedef Yıl",
+    "profitMargin": "Kar Marjı",
     "metrics": {
       "revenue": "Gelir",
       "expense": "Gider",
@@ -34,6 +42,10 @@
   "capital": {
     "title": "Sermaye Analizi",
     "investmentNeed": "Yatırım İhtiyacı",
+    "investments": "Yatırımlar",
+    "projectedProfit": "Tahmini Kar",
+    "netNeed": "Net İhtiyaç",
+    "tryEquivalent": "TL Karşılığı",
     "deathValley": "Death Valley",
     "runway": "Runway",
     "breakEven": "Break-even",

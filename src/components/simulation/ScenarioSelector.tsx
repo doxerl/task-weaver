@@ -1,4 +1,6 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { useLanguage } from '@/contexts/LanguageContext';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -31,7 +33,6 @@ import {
 } from 'lucide-react';
 import { SimulationScenario } from '@/types/simulation';
 import { format } from 'date-fns';
-import { tr } from 'date-fns/locale';
 import { getScenarioTypeBadge } from '@/utils/scenarioLabels';
 
 interface ScenarioSelectorProps {
@@ -51,6 +52,8 @@ export function ScenarioSelector({
   onDelete,
   onDuplicate,
 }: ScenarioSelectorProps) {
+  const { t } = useTranslation(['simulation', 'common']);
+  const { dateLocale } = useLanguage();
   const [deleteId, setDeleteId] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [duplicatingId, setDuplicatingId] = useState<string | null>(null);
@@ -113,7 +116,7 @@ export function ScenarioSelector({
           <div className="flex items-center gap-2 mt-0.5">
             {scenario.updatedAt && (
               <span className="text-xs text-muted-foreground">
-                {format(new Date(scenario.updatedAt), 'd MMM yyyy HH:mm', { locale: tr })}
+                {format(new Date(scenario.updatedAt), 'd MMM yyyy HH:mm', { locale: dateLocale })}
               </span>
             )}
           </div>
@@ -154,7 +157,7 @@ export function ScenarioSelector({
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="sm" className="gap-2" disabled={isLoading}>
             <FolderOpen className="h-4 w-4" />
-            Senaryolar
+            {t('scenario.scenarios')}
             {isLoading ? (
               <Loader2 className="h-3 w-3 animate-spin" />
             ) : (
@@ -165,7 +168,7 @@ export function ScenarioSelector({
         <DropdownMenuContent align="end" className="w-80">
           {scenarios.length === 0 ? (
             <div className="p-4 text-center text-sm text-muted-foreground">
-              Kayıtlı senaryo yok
+              {t('scenario.noSaved')}
             </div>
           ) : (
             <>
@@ -173,7 +176,7 @@ export function ScenarioSelector({
                 <>
                   <div className="px-2 py-1.5 text-xs font-medium text-green-600 flex items-center gap-1">
                     <TrendingUp className="h-3 w-3" />
-                    Pozitif Senaryolar
+                    {t('scenario.positiveScenarios')}
                   </div>
                   {positiveScenarios.map(renderScenarioItem)}
                 </>
@@ -187,7 +190,7 @@ export function ScenarioSelector({
                 <>
                   <div className="px-2 py-1.5 text-xs font-medium text-red-600 flex items-center gap-1">
                     <TrendingDown className="h-3 w-3" />
-                    Negatif Senaryolar
+                    {t('scenario.negativeScenarios')}
                   </div>
                   {negativeScenarios.map(renderScenarioItem)}
                 </>
@@ -200,13 +203,13 @@ export function ScenarioSelector({
       <AlertDialog open={!!deleteId} onOpenChange={(open) => !open && setDeleteId(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Senaryoyu Sil</AlertDialogTitle>
+            <AlertDialogTitle>{t('scenario.deleteTitle')}</AlertDialogTitle>
             <AlertDialogDescription>
-              Bu senaryoyu silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.
+              {t('scenario.deleteDescription')}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel disabled={isDeleting}>İptal</AlertDialogCancel>
+            <AlertDialogCancel disabled={isDeleting}>{t('common:cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               disabled={isDeleting}
@@ -215,7 +218,7 @@ export function ScenarioSelector({
               {isDeleting ? (
                 <Loader2 className="h-4 w-4 animate-spin mr-2" />
               ) : null}
-              Sil
+              {t('common:delete')}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

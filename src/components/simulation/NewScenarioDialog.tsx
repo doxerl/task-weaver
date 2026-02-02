@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   Dialog,
   DialogContent,
@@ -23,6 +24,7 @@ export function NewScenarioDialog({
   onOpenChange,
   onConfirm,
 }: NewScenarioDialogProps) {
+  const { t } = useTranslation(['simulation', 'common']);
   const [name, setName] = useState('');
   const [type, setType] = useState<'positive' | 'negative'>('positive');
 
@@ -44,23 +46,23 @@ export function NewScenarioDialog({
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>Yeni Senaryo Oluştur</DialogTitle>
+          <DialogTitle>{t('scenario.createNew')}</DialogTitle>
         </DialogHeader>
         
         <div className="space-y-4 py-4">
           <div className="space-y-2">
-            <Label htmlFor="scenarioName">Senaryo Adı</Label>
+            <Label htmlFor="scenarioName">{t('scenario.name')}</Label>
             <Input
               id="scenarioName"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="2026 Yatırım Senaryosu"
+              placeholder={t('scenario.namePlaceholder')}
               autoFocus
             />
           </div>
 
           <div className="space-y-2">
-            <Label>Senaryo Tipi</Label>
+            <Label>{t('scenario.type')}</Label>
             <div className="grid grid-cols-2 gap-3">
               <button
                 type="button"
@@ -81,10 +83,10 @@ export function NewScenarioDialog({
                     "font-medium text-sm",
                     type === 'positive' ? "text-green-500" : "text-foreground"
                   )}>
-                    Pozitif
+                    {t('scenario.positive')}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Yatırım Alırsak
+                    {t('scenario.positiveDescription')}
                   </p>
                 </div>
               </button>
@@ -108,10 +110,10 @@ export function NewScenarioDialog({
                     "font-medium text-sm",
                     type === 'negative' ? "text-red-500" : "text-foreground"
                   )}>
-                    Negatif
+                    {t('scenario.negative')}
                   </p>
                   <p className="text-xs text-muted-foreground">
-                    Yatırım Alamazsak
+                    {t('scenario.negativeDescription')}
                   </p>
                 </div>
               </button>
@@ -121,10 +123,10 @@ export function NewScenarioDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={handleCancel}>
-            İptal
+            {t('common:cancel')}
           </Button>
           <Button onClick={handleConfirm} disabled={!name.trim()}>
-            Senaryo Oluştur
+            {t('scenario.create')}
           </Button>
         </DialogFooter>
       </DialogContent>

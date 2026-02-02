@@ -1,25 +1,33 @@
 {
   "scenario": {
     "title": "Scenario",
-    "types": {
-      "positive": "Positive",
-      "negative": "Negative"
-    },
-    "labels": {
-      "withInvestment": "With Investment",
-      "withoutInvestment": "Without Investment"
-    },
-    "create": {
-      "title": "Create New Scenario",
-      "name": "Scenario Name",
-      "type": "Scenario Type"
-    }
+    "scenarios": "Scenarios",
+    "createNew": "Create New Scenario",
+    "name": "Scenario Name",
+    "namePlaceholder": "2026 Investment Scenario",
+    "type": "Scenario Type",
+    "positive": "Positive",
+    "positiveDescription": "With Investment",
+    "negative": "Negative",
+    "negativeDescription": "Without Investment",
+    "create": "Create Scenario",
+    "noSaved": "No saved scenarios",
+    "positiveScenarios": "Positive Scenarios",
+    "negativeScenarios": "Negative Scenarios",
+    "deleteTitle": "Delete Scenario",
+    "deleteDescription": "Are you sure you want to delete this scenario? This action cannot be undone."
+  },
+  "projection": {
+    "item": "Item",
+    "distributeEvenly": "Distribute evenly",
+    "descriptionPlaceholder": "Add description... (e.g., hiring 2 developers, $4K/month each starting Q2)"
   },
   "summary": {
-    "baseYear": "Base Year",
+    "baseYear": "{{year}} Base Year",
     "actualData": "Actual Data",
-    "projection": "Projection",
+    "projection": "{{year}} Projection",
     "targetYear": "Target Year",
+    "profitMargin": "Profit Margin",
     "metrics": {
       "revenue": "Revenue",
       "expense": "Expense",
@@ -34,6 +42,10 @@
   "capital": {
     "title": "Capital Analysis",
     "investmentNeed": "Investment Need",
+    "investments": "Investments",
+    "projectedProfit": "Projected Profit",
+    "netNeed": "Net Need",
+    "tryEquivalent": "TRY Equivalent",
     "deathValley": "Death Valley",
     "runway": "Runway",
     "breakEven": "Break-even",
