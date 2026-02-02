@@ -9,11 +9,11 @@ import { CompareView } from '@/components/CompareView';
 import { QuickChips } from '@/components/QuickChips';
 import { MobileInputSheet } from '@/components/MobileInputSheet';
 import { BottomTabBar } from '@/components/BottomTabBar';
+import { AppHeader } from '@/components/AppHeader';
 import { useDayData } from '@/hooks/useDayData';
 import { Settings, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addDays, subDays } from 'date-fns';
 import { tr } from 'date-fns/locale';
-import { toast } from 'sonner';
 import { useNavigate } from 'react-router-dom';
 import { getISOWeekData } from '@/lib/weekUtils';
 import { useIsMobile } from '@/hooks/use-mobile';
@@ -53,17 +53,10 @@ export default function Today() {
 
   return (
     <div className="min-h-screen bg-background pb-36 md:pb-72">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-        <div className="container flex h-14 items-center justify-between px-4">
-          <div className="flex items-center gap-2">
-            <Calendar className="h-5 w-5 text-primary" />
-            <span className="font-semibold text-foreground text-sm md:text-base truncate max-w-[150px] md:max-w-none">
-              {profile?.first_name ? `Merhaba, ${profile.first_name}` : 'Sesli Planlama'}
-            </span>
-          </div>
-          
-          {/* Settings button */}
+      <AppHeader
+        title={profile?.first_name ? `Merhaba, ${profile.first_name}` : 'Sesli Planlama'}
+        icon={<Calendar className="h-5 w-5 text-primary" />}
+        rightContent={
           <Button 
             variant="ghost" 
             size="icon" 
@@ -72,8 +65,8 @@ export default function Today() {
           >
             <Settings className="h-5 w-5" />
           </Button>
-        </div>
-      </header>
+        }
+      />
 
       {/* Date Navigation */}
       <div className="border-b bg-muted/30 px-4 py-2 md:py-3">

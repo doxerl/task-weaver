@@ -15,6 +15,7 @@ import { supabase } from '@/integrations/supabase/client';
 import { toast } from '@/hooks/use-toast';
 import { getISOWeekData } from '@/lib/weekUtils';
 import { BottomTabBar } from '@/components/BottomTabBar';
+import { AppHeader } from '@/components/AppHeader';
 import { WeeklyRetro } from '@/components/retrospective/WeeklyRetro';
 import { AutoInsights } from '@/components/retrospective/AutoInsights';
 import { ZombieTaskAlert } from '@/components/retrospective/ZombieTaskAlert';
@@ -113,19 +114,15 @@ export default function Week() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container max-w-7xl mx-auto px-4 py-3 flex flex-col md:flex-row md:items-center justify-between gap-3">
-          <div className="flex items-center justify-between md:justify-start gap-4">
-            <h1 className="text-lg md:text-xl font-semibold">
-              Merhaba, {profile?.first_name || 'Kullanıcı'}
-            </h1>
-            {/* Week Badge - Large and prominent */}
-            <Badge variant="outline" className="text-sm md:text-base px-3 py-1 font-bold">
-              {weekYear}-W{weekNumber.toString().padStart(2, '0')}
-            </Badge>
-          </div>
-          <div className="flex items-center gap-2 justify-end">
+      <AppHeader
+        title={`Merhaba, ${profile?.first_name || 'Kullanıcı'}`}
+        badge={
+          <Badge variant="outline" className="text-sm px-3 py-1 font-bold">
+            {weekYear}-W{weekNumber.toString().padStart(2, '0')}
+          </Badge>
+        }
+        rightContent={
+          <div className="flex items-center gap-2">
             {showRetroButton && (
               <Button 
                 variant="outline" 
@@ -148,8 +145,8 @@ export default function Week() {
               <Settings className="h-4 w-4" />
             </Button>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <div className="container max-w-7xl mx-auto py-4 md:py-6 px-4">
         {/* Week Navigation */}

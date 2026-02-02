@@ -11,6 +11,7 @@ import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
 import { useCostCenterAnalysis } from '@/hooks/finance/useCostCenterAnalysis';
 import { useIncomeStatement } from '@/hooks/finance/useIncomeStatement';
 import { BottomTabBar } from '@/components/BottomTabBar';
+import { AppHeader } from '@/components/AppHeader';
 
 const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
 const formatCompact = (n: number) => new Intl.NumberFormat('tr-TR', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
@@ -25,17 +26,16 @@ export default function FinanceDashboard() {
 
   return (
     <div className="min-h-screen bg-background pb-20">
-      <div className="p-4 space-y-6">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <h1 className="text-2xl font-bold">Finans</h1>
-            {incomeStatement.isOfficial && (
-              <Badge variant="default" className="bg-green-600">
-                <Shield className="h-3 w-3 mr-1" />
-                Resmi Veri
-              </Badge>
-            )}
-          </div>
+      <AppHeader
+        title="Finans"
+        icon={<Wallet className="h-5 w-5 text-primary" />}
+        badge={incomeStatement.isOfficial && (
+          <Badge variant="default" className="bg-green-600">
+            <Shield className="h-3 w-3 mr-1" />
+            Resmi Veri
+          </Badge>
+        )}
+        rightContent={
           <Select value={String(year)} onValueChange={v => setYear(Number(v))}>
             <SelectTrigger className="w-24">
               <SelectValue />
@@ -44,7 +44,9 @@ export default function FinanceDashboard() {
               {[2026, 2025, 2024].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
             </SelectContent>
           </Select>
-        </div>
+        }
+      />
+      <div className="p-4 space-y-6">
 
         {/* Quick Actions */}
         <div className="grid grid-cols-6 gap-2">
