@@ -2,6 +2,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
+import { useCallback, useMemo } from 'react';
 
 export interface YearlyBalanceSheet {
   id: string;
@@ -131,12 +132,24 @@ export function useYearlyBalanceSheet(year: number) {
     },
   });
 
-  return {
+  // Memoize the callback functions to prevent dependency array issues
+  const upsertBalance = useCallback(
+    (data: Partial<YearlyBalanceSheet>) => upsertMutation.mutate(data),
+    [upsertMutation.mutate]
+  );
+
+  const lockBalance = useCallback(
+    (lock: boolean) => lockMutation.mutate(lock),
+    [lockMutation.mutate]
+  );
+
+  // Memoize the return value
+  return useMemo(() => ({
     yearlyBalance,
     isLoading,
     isLocked: yearlyBalance?.is_locked ?? false,
-    upsertBalance: upsertMutation.mutate,
-    lockBalance: (lock: boolean) => lockMutation.mutate(lock),
+    upsertBalance,
+    lockBalance,
     isUpdating: upsertMutation.isPending || lockMutation.isPending,
-  };
+  }), [yearlyBalance, isLoading, upsertBalance, lockBalance, upsertMutation.isPending, lockMutation.isPending]);
 }
