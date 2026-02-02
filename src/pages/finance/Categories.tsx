@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowLeft, Loader2, Plus, Pencil, Trash2, Lock } from 'lucide-react';
@@ -25,17 +26,18 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 
-const typeLabels: Record<string, string> = {
-  INCOME: 'Gelir',
-  EXPENSE: 'Gider',
-  PARTNER: 'Ortak Cari',
-  FINANCING: 'Finansman',
-  INVESTMENT: 'Yatırım',
-  EXCLUDED: 'Hariç'
-};
-
 export default function Categories() {
+  const { t } = useTranslation(['finance', 'common']);
   const { grouped, isLoading, createCategory, updateCategory, deleteCategory } = useCategories();
+
+  const typeLabels: Record<string, string> = {
+    INCOME: t('finance:categories.types.income'),
+    EXPENSE: t('finance:categories.types.expense'),
+    PARTNER: t('finance:categories.types.partner'),
+    FINANCING: t('finance:categories.types.financing'),
+    INVESTMENT: t('finance:categories.types.investment'),
+    EXCLUDED: t('finance:categories.types.excluded')
+  };
   const [isFormOpen, setIsFormOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<TransactionCategory | null>(null);
   const [deletingCategory, setDeletingCategory] = useState<TransactionCategory | null>(null);
@@ -44,15 +46,15 @@ export default function Categories() {
     try {
       if (editingCategory) {
         await updateCategory.mutateAsync({ id: editingCategory.id, ...data });
-        toast.success('Kategori güncellendi');
+        toast.success(t('common:toast.updateSuccess'));
       } else {
         await createCategory.mutateAsync(data);
-        toast.success('Kategori eklendi');
+        toast.success(t('common:toast.saveSuccess'));
       }
       setIsFormOpen(false);
       setEditingCategory(null);
     } catch (error) {
-      toast.error('Bir hata oluştu');
+      toast.error(t('common:toast.error'));
     }
   };
 
@@ -65,10 +67,10 @@ export default function Categories() {
     if (!deletingCategory) return;
     try {
       await deleteCategory.mutateAsync(deletingCategory.id);
-      toast.success('Kategori silindi');
+      toast.success(t('common:toast.deleteSuccess'));
       setDeletingCategory(null);
     } catch (error) {
-      toast.error('Bir hata oluştu');
+      toast.error(t('common:toast.error'));
     }
   };
 
@@ -85,11 +87,11 @@ export default function Categories() {
             <Link to="/finance" className="p-2 hover:bg-accent rounded-lg">
               <ArrowLeft className="h-5 w-5" />
             </Link>
-            <h1 className="text-xl font-bold">Kategoriler</h1>
+            <h1 className="text-xl font-bold">{t('finance:categories.title')}</h1>
           </div>
           <Button size="sm" onClick={() => setIsFormOpen(true)}>
             <Plus className="h-4 w-4 mr-1" />
-            Ekle
+            {t('common:buttons.add')}
           </Button>
         </div>
 
@@ -186,7 +188,7 @@ export default function Categories() {
                       })}
                       {parentCats.length === 0 && (
                         <p className="text-sm text-muted-foreground text-center py-4">
-                          Bu türde kategori yok
+                          {t('finance:categories.noCategoriesInType')}
                         </p>
                       )}
                     </CardContent>
@@ -202,7 +204,7 @@ export default function Categories() {
         <SheetContent side="bottom" className="h-[85vh] overflow-y-auto">
           <SheetHeader>
             <SheetTitle>
-              {editingCategory ? 'Kategori Düzenle' : 'Yeni Kategori'}
+              {editingCategory ? t('finance:categories.editCategory') : t('finance:categories.newCategory')}
             </SheetTitle>
           </SheetHeader>
           <div className="mt-4">
@@ -219,14 +221,13 @@ export default function Categories() {
       <AlertDialog open={!!deletingCategory} onOpenChange={() => setDeletingCategory(null)}>
         <AlertDialogContent>
           <AlertDialogHeader>
-            <AlertDialogTitle>Kategoriyi Sil</AlertDialogTitle>
+            <AlertDialogTitle>{t('finance:categories.deleteCategory')}</AlertDialogTitle>
             <AlertDialogDescription>
-              "{deletingCategory?.name}" kategorisini silmek istediğinize emin misiniz?
-              Bu kategoriye atanmış işlemler kategorisiz kalacaktır.
+              {t('finance:categories.deleteConfirmation', { name: deletingCategory?.name })}
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel>İptal</AlertDialogCancel>
+            <AlertDialogCancel>{t('common:buttons.cancel')}</AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
               className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
@@ -234,7 +235,7 @@ export default function Categories() {
               {deleteCategory.isPending ? (
                 <Loader2 className="h-4 w-4 animate-spin" />
               ) : (
-                'Sil'
+                t('common:buttons.delete')
               )}
             </AlertDialogAction>
           </AlertDialogFooter>

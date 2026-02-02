@@ -49,7 +49,12 @@
       "updated": "Category updated",
       "added": "Category added",
       "deleted": "Category deleted"
-    }
+    },
+    "noCategoriesInType": "No categories in this type",
+    "editCategory": "Edit Category",
+    "newCategory": "New Category",
+    "deleteCategory": "Delete Category",
+    "deleteConfirmation": "Are you sure you want to delete the \"{{name}}\" category? Transactions assigned to this category will become uncategorized."
   },
   "transactions": {
     "title": "Label Transactions",

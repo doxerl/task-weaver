@@ -49,7 +49,12 @@
       "updated": "Kategori güncellendi",
       "added": "Kategori eklendi",
       "deleted": "Kategori silindi"
-    }
+    },
+    "noCategoriesInType": "Bu türde kategori yok",
+    "editCategory": "Kategori Düzenle",
+    "newCategory": "Yeni Kategori",
+    "deleteCategory": "Kategoriyi Sil",
+    "deleteConfirmation": "\"{{name}}\" kategorisini silmek istediğinize emin misiniz? Bu kategoriye atanmış işlemler kategorisiz kalacaktır."
   },
   "transactions": {
     "title": "İşlemleri Etiketle",
