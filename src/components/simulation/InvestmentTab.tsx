@@ -778,7 +778,7 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
                           </Badge>
                         ) : (
                           <Badge className="bg-emerald-500/20 text-emerald-400 border-emerald-500/30">
-                            Yok
+                            {t('simulation:capital.none')}
                           </Badge>
                         )}
                       </TableCell>
@@ -798,7 +798,7 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
                 })}
                 {/* Total Row */}
                 <TableRow className="bg-muted/50 font-bold border-t-2">
-                  <TableCell>TOPLAM</TableCell>
+                  <TableCell>{t('simulation:capital.total')}</TableCell>
                   <TableCell className="text-right">-</TableCell>
                   <TableCell className="text-right font-mono">
                     {formatCompactUSD(multiYearCapitalPlan.years.reduce((sum, y) => sum + y.projectedRevenue, 0))}

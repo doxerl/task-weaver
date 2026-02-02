@@ -456,9 +456,9 @@ export function useUnifiedAnalysis() {
         allYears: exitPlan.allYears?.slice(0, 5) || []
       };
 
-      // Get current language from i18n
-      const currentLanguage = typeof window !== 'undefined' 
-        ? (localStorage.getItem('i18nextLng') || 'tr').substring(0, 2) 
+      // Get current language from i18n (app uses 'language' key in localStorage)
+      const currentLanguage = typeof window !== 'undefined'
+        ? (localStorage.getItem('language') || 'tr').substring(0, 2)
         : 'tr';
 
       // Request body
