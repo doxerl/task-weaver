@@ -1,154 +1,212 @@
 
-## Dil Değiştirme Toggle'ı - Her Sayfada Header'da Görünme Planı
+## i18n Tam Entegrasyon Planı - Tüm UI Route'larını İngilizce Desteğine Bağlama
 
-### Mevcut Durum
-- `LanguageToggle` component'i hazır (`src/components/LanguageSelector.tsx`)
-- Her sayfa kendi header'ını yönetiyor (ortak layout yok)
-- BottomTabBar tüm sayfalarda ortak kullanılıyor
+### Mevcut Durum Analizi
 
-### Çözüm Yaklaşımı
-`LanguageToggle`'ı mevcut her header'a manuel eklemek yerine, yeniden kullanılabilir bir `AppHeader` component'i oluşturup tüm sayfalarda kullanacağız.
+| Durum | Dosya Sayısı | Detay |
+|-------|-------------|-------|
+| ✅ i18n Entegre | 5 dosya | `Settings.tsx`, `Categories.tsx`, `CategoryForm.tsx`, `BottomTabBar.tsx`, `LanguageContext.tsx` |
+| ❌ Hardcoded Türkçe | 25+ dosya | Tüm finance, simulation, today/week sayfaları |
 
-### Oluşturulacak Dosya
+**Çeviri Dosyaları Durumu:**
+- `tr/common.json`, `en/common.json` - ✅ Ortak butonlar, etiketler, ayarlar mevcut
+- `tr/finance.json`, `en/finance.json` - ✅ Dashboard, categories, transactions, receipts, cashFlow mevcut
+- `tr/simulation.json`, `en/simulation.json` - ✅ Scenario, summary, capital, valuation mevcut
+- ❌ **Eksik:** Reports, VatReport, BalanceSheet, Today/Week çevirileri
 
-**`src/components/AppHeader.tsx`**
-- Props: `title`, `subtitle?`, `backPath?`, `backLabel?`, `rightContent?`, `children?`
-- Otomatik olarak sağ üstte LanguageToggle içerecek
-- Sticky header styling (backdrop-blur)
-- Responsive tasarım
+---
 
-```
-┌─────────────────────────────────────────────────────┐
-│  ← Geri   [Sayfa Başlığı]     🌐🇹🇷  [Ek Butonlar]  │
-└─────────────────────────────────────────────────────┘
-```
+### Uygulama Planı
 
-### Güncellenecek Sayfalar
+#### Faz 1: Eksik Çeviri Key'lerini Ekle
 
-| Sayfa | Dosya | Header Değişikliği |
-|-------|-------|-------------------|
-| Finance Dashboard | `src/pages/finance/FinanceDashboard.tsx` | Header yok → AppHeader ekle |
-| Growth Simulation | `src/pages/finance/GrowthSimulation.tsx` | Mevcut header → AppHeader |
-| Scenario Comparison | `src/pages/finance/ScenarioComparisonPage.tsx` | Mevcut header → AppHeader |
-| Today | `src/pages/Today.tsx` | Mevcut header → AppHeader |
-| Week | `src/pages/Week.tsx` | Mevcut header → AppHeader |
-| Settings | `src/pages/Settings.tsx` | Mevcut header → AppHeader |
-
-### Teknik Detaylar
-
-**1. AppHeader Component Yapısı:**
-```tsx
-// src/components/AppHeader.tsx
-interface AppHeaderProps {
-  title: string;
-  subtitle?: string;
-  backPath?: string;
-  backLabel?: string;
-  rightContent?: React.ReactNode;
-  icon?: React.ReactNode;
-  badge?: React.ReactNode;
-}
-
-export function AppHeader({
-  title,
-  subtitle,
-  backPath,
-  backLabel,
-  rightContent,
-  icon,
-  badge
-}: AppHeaderProps) {
-  return (
-    <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-      <div className="container mx-auto px-4 py-3">
-        <div className="flex items-center justify-between">
-          {/* Left: Back + Title */}
-          <div className="flex items-center gap-4">
-            {backPath && (
-              <Link to={backPath}>
-                <Button variant="ghost" size="sm">
-                  <ArrowLeft className="h-4 w-4" />
-                  {backLabel}
-                </Button>
-              </Link>
-            )}
-            <div className="flex items-center gap-2">
-              {icon}
-              <div>
-                <div className="flex items-center gap-2">
-                  <h1 className="text-xl font-bold">{title}</h1>
-                  {badge}
-                </div>
-                {subtitle && (
-                  <p className="text-sm text-muted-foreground">{subtitle}</p>
-                )}
-              </div>
-            </div>
-          </div>
-          
-          {/* Right: Language Toggle + Custom Content */}
-          <div className="flex items-center gap-2">
-            <LanguageToggle />
-            {rightContent}
-          </div>
-        </div>
-      </div>
-    </header>
-  );
+**1.1. `finance.json` dosyalarına yeni keyler:**
+```json
+{
+  "reports": {
+    "title": "Finansal Rapor / Financial Report",
+    "netIncome": "Net Gelir / Net Income",
+    "netExpense": "Net Gider / Net Expense",
+    "netProfit": "Net Kâr / Net Profit",
+    "profitMargin": "Kâr Marjı / Profit Margin",
+    "fullReport": "Tam Rapor / Full Report",
+    "simulation2026": "2026 Simülasyon / 2026 Simulation",
+    "uncategorizedWarning": "Kategorisiz İşlem Var / Uncategorized Transactions",
+    "uncategorizedDetail": "X adet işlem kategorilendirilememiş / X transactions not categorized"
+  },
+  "vat": {
+    "title": "KDV Raporu / VAT Report",
+    "calculatedVat": "Hesaplanan KDV / Calculated VAT",
+    "deductibleVat": "İndirilecek KDV / Deductible VAT",
+    "netVatDebt": "Net KDV Borcu / Net VAT Debt",
+    "netVatCredit": "Net KDV Alacağı / Net VAT Credit",
+    "monthlyDetail": "Aylık KDV Detayı / Monthly VAT Detail"
+  },
+  "balanceSheet": {
+    "title": "Bilanço / Balance Sheet",
+    "assets": "Varlıklar / Assets",
+    "liabilities": "Borçlar / Liabilities",
+    "equity": "Özkaynak / Equity"
+  },
+  "simulation": {
+    "growthSimulation": "Büyüme Simülasyonu / Growth Simulation",
+    "scenarioName": "Senaryo Adı / Scenario Name",
+    "exchangeRate": "Varsayılan Kur / Assumed Exchange Rate",
+    "revenueProjections": "Gelir Projeksiyonları / Revenue Projections",
+    "expenseProjections": "Gider Projeksiyonları / Expense Projections"
+  }
 }
 ```
 
-**2. Sayfa Güncelleme Örneği (FinanceDashboard):**
-```tsx
-// Önce:
-<div className="min-h-screen bg-background pb-20">
-  <div className="p-4 space-y-6">
-    <div className="flex items-center justify-between">
-      <h1 className="text-2xl font-bold">Finans</h1>
-      ...
-    </div>
-
-// Sonra:
-<div className="min-h-screen bg-background pb-20">
-  <AppHeader 
-    title="Finans" 
-    icon={<Wallet className="h-5 w-5 text-primary" />}
-    badge={incomeStatement.isOfficial && <Badge>Resmi Veri</Badge>}
-    rightContent={
-      <Select value={String(year)} onValueChange={...}>
-        ...
-      </Select>
-    }
-  />
-  <div className="p-4 space-y-6">
+**1.2. `common.json` dosyalarına yeni keyler:**
+```json
+{
+  "planner": {
+    "hello": "Merhaba / Hello",
+    "voicePlanning": "Sesli Planlama / Voice Planning",
+    "plan": "Plan",
+    "actual": "Gerçek / Actual",
+    "compare": "Karşılaştır / Compare",
+    "week": "Hafta / Week",
+    "whatWillYouDo": "Ne yapacaksın? / What will you do?",
+    "whatDidYouDo": "Ne yaptın? / What did you do?",
+    "pastDayWarning": "X tarihi için kayıt ekliyorsunuz"
+  },
+  "months": {
+    "jan": "Oca / Jan",
+    "feb": "Şub / Feb",
     ...
+  }
+}
 ```
 
-### Uygulama Sırası
+---
 
-1. **AppHeader component oluştur** → `src/components/AppHeader.tsx`
-2. **FinanceDashboard güncelle** (en basit sayfa)
-3. **GrowthSimulation güncelle** (kompleks header)
-4. **ScenarioComparisonPage güncelle**
-5. **Today sayfası güncelle**
-6. **Week sayfası güncelle**
-7. **Settings sayfası güncelle**
+#### Faz 2: Finance Sayfalarını Refactör Et
 
-### Görsel Sonuç
+**2.1. `FinanceDashboard.tsx`** (~50 hardcoded string)
+```tsx
+// ÖNCE:
+<span className="text-xs font-medium text-center">Banka</span>
+<span className="text-sm font-medium">Ciro Özeti</span>
 
-Her sayfada sağ üstte şu görünüm olacak:
-
-```
-🌐 🇹🇷   [Diğer Butonlar]
+// SONRA:
+const { t } = useTranslation(['finance', 'common']);
+<span className="text-xs font-medium text-center">{t('dashboard.tabs.bank')}</span>
+<span className="text-sm font-medium">{t('dashboard.revenueSummary')}</span>
 ```
 
-Tıklandığında:
-```
-🌐 🇬🇧   [Diğer Butonlar]
+**2.2. `Reports.tsx`** (~80 hardcoded string)
+```tsx
+// ÖNCE:
+<h1 className="text-xl font-bold flex-1">Finansal Rapor</h1>
+<p className="text-xs text-muted-foreground">Net Gelir (KDV Hariç)</p>
+
+// SONRA:
+const { t } = useTranslation(['finance', 'common']);
+<h1 className="text-xl font-bold flex-1">{t('reports.title')}</h1>
+<p className="text-xs text-muted-foreground">{t('reports.netIncome')}</p>
 ```
 
-### Avantajlar
-- Tek component, tüm sayfalarda tutarlı görünüm
-- Gelecekte header'a eklenen her özellik otomatik tüm sayfalara yansır
-- LanguageToggle her zaman aynı pozisyonda
-- Mevcut sayfa-özel butonlar `rightContent` ile korunur
+**2.3. `VatReport.tsx`** (~40 hardcoded string)
+```tsx
+const { t } = useTranslation(['finance', 'common']);
+<h1 className="text-xl font-bold">{t('vat.title')}</h1>
+<span className="text-xs">{t('vat.calculatedVat')}</span>
+```
+
+**2.4. `BalanceSheet.tsx`** (~30 hardcoded string)
+
+**2.5. `BankTransactions.tsx`** (~25 hardcoded string)
+
+**2.6. `GrowthSimulation.tsx`** (~60 hardcoded string)
+
+---
+
+#### Faz 3: Planner Sayfalarını Refactör Et
+
+**3.1. `Today.tsx`** (~20 hardcoded string)
+```tsx
+// ÖNCE:
+<AppHeader title={profile?.first_name ? `Merhaba, ${profile.first_name}` : 'Sesli Planlama'} />
+<TabsTrigger value="plan">Plan ({planItems.length})</TabsTrigger>
+<TabsTrigger value="actual">Gerçek ({actualEntries.length})</TabsTrigger>
+
+// SONRA:
+const { t } = useTranslation('common');
+<AppHeader title={profile?.first_name ? `${t('planner.hello')}, ${profile.first_name}` : t('planner.voicePlanning')} />
+<TabsTrigger value="plan">{t('planner.plan')} ({planItems.length})</TabsTrigger>
+<TabsTrigger value="actual">{t('planner.actual')} ({actualEntries.length})</TabsTrigger>
+```
+
+**3.2. `Week.tsx`** (~15 hardcoded string)
+
+---
+
+#### Faz 4: Simulation Component'larını Refactör Et
+
+**4.1. `SummaryCards.tsx`**
+**4.2. `ProjectionTable.tsx`**
+**4.3. `ScenarioSelector.tsx`**
+**4.4. `NewScenarioDialog.tsx`**
+
+---
+
+#### Faz 5: Tarih Formatlarını i18n'e Bağla
+
+```tsx
+// ÖNCE (sadece Türkçe):
+import { tr } from 'date-fns/locale';
+format(selectedDate, 'd MMMM yyyy, EEEE', { locale: tr })
+
+// SONRA (dil bağımlı):
+import { useLanguage } from '@/contexts/LanguageContext';
+const { dateLocale } = useLanguage();
+format(selectedDate, 'd MMMM yyyy, EEEE', { locale: dateLocale })
+```
+
+---
+
+### Dosya Güncelleme Listesi
+
+| Dosya | Tip | Hardcoded String Sayısı |
+|-------|-----|------------------------|
+| `src/i18n/locales/tr/finance.json` | Çeviri Ekle | +50 key |
+| `src/i18n/locales/en/finance.json` | Çeviri Ekle | +50 key |
+| `src/i18n/locales/tr/common.json` | Çeviri Ekle | +30 key |
+| `src/i18n/locales/en/common.json` | Çeviri Ekle | +30 key |
+| `src/pages/finance/FinanceDashboard.tsx` | Refactör | ~50 string |
+| `src/pages/finance/Reports.tsx` | Refactör | ~80 string |
+| `src/pages/finance/VatReport.tsx` | Refactör | ~40 string |
+| `src/pages/finance/BalanceSheet.tsx` | Refactör | ~30 string |
+| `src/pages/finance/BankTransactions.tsx` | Refactör | ~25 string |
+| `src/pages/finance/GrowthSimulation.tsx` | Refactör | ~60 string |
+| `src/pages/Today.tsx` | Refactör | ~20 string |
+| `src/pages/Week.tsx` | Refactör | ~15 string |
+| `src/components/simulation/SummaryCards.tsx` | Refactör | ~15 string |
+| `src/components/simulation/NewScenarioDialog.tsx` | Refactör | ~10 string |
+| `src/components/AppHeader.tsx` | Refactör | Dinamik title desteği |
+
+---
+
+### Uygulama Sırası (Öneri)
+
+1. **Çeviri Dosyalarını Genişlet** - Tüm eksik key'leri ekle
+2. **FinanceDashboard.tsx** - Ana dashboard
+3. **Reports.tsx** - En çok string içeren sayfa
+4. **VatReport.tsx** - KDV raporu
+5. **GrowthSimulation.tsx** - Simülasyon sayfası
+6. **Today.tsx & Week.tsx** - Planner sayfaları
+7. **Diğer finance sayfaları** - BalanceSheet, BankTransactions vb.
+8. **Simulation component'ları** - SummaryCards, ProjectionTable vb.
+
+---
+
+### Sonuç
+
+Bu refactör sonrasında:
+- ✅ Tüm UI metinleri `t()` fonksiyonu ile çeviri sistemine bağlı olacak
+- ✅ Header'daki LanguageToggle ile anında TR/EN geçişi yapılabilecek
+- ✅ Tarih formatları kullanıcının dil tercihine göre değişecek
+- ✅ Toast mesajları çoklu dil destekleyecek
+- ✅ Gelecekte yeni dil eklemek için sadece JSON dosyası oluşturmak yeterli olacak
