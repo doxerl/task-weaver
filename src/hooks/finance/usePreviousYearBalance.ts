@@ -44,13 +44,18 @@ export interface PreviousYearBalance {
 export function usePreviousYearBalance(year: number) {
   const { user } = useAuthContext();
   
+  // Stabilize userId to prevent hook state corruption during auth changes
+  const userId = user?.id ?? null;
+  
   const queryResult = useQuery({
-    queryKey: ['previous-year-balance', user?.id, year],
+    queryKey: ['previous-year-balance', userId, year] as const,
     queryFn: async () => {
+      if (!userId) return null;
+      
       const { data, error } = await supabase
         .from('yearly_balance_sheets')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', userId)
         .eq('year', year)
         .eq('is_locked', true)
         .maybeSingle();
@@ -99,7 +104,7 @@ export function usePreviousYearBalance(year: number) {
         total_liabilities: data.total_liabilities ?? 0,
       } as PreviousYearBalance;
     },
-    enabled: !!user?.id && !!year,
+    enabled: !!userId && !!year,
     staleTime: 10 * 60 * 1000, // 10 minutes
   });
 
