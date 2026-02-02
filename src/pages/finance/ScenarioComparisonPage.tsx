@@ -1,7 +1,8 @@
 import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { format } from 'date-fns';
-import { tr } from 'date-fns/locale';
+import { tr, enUS, Locale } from 'date-fns/locale';
 import {
   Select,
   SelectContent,
@@ -261,13 +262,13 @@ const DiffBadge = ({ diff, format, higherIsBetter }: { diff: { absolute: number;
 };
 
 // Cache info badge component
-const CacheInfoBadge = ({ cachedInfo }: { cachedInfo: { id: string; updatedAt: Date } | null }) => {
+const CacheInfoBadge = ({ cachedInfo, t, dateLocale }: { cachedInfo: { id: string; updatedAt: Date } | null; t: (key: string) => string; dateLocale: Locale }) => {
   if (!cachedInfo) return null;
   
   return (
     <Badge variant="outline" className="gap-1 text-xs bg-blue-500/10 text-blue-400 border-blue-500/20">
       <History className="h-3 w-3" />
-      Son analiz: {format(cachedInfo.updatedAt, 'dd MMM HH:mm', { locale: tr })}
+      {t('comparison.current')}: {format(cachedInfo.updatedAt, 'dd MMM HH:mm', { locale: dateLocale })}
     </Badge>
   );
 };
@@ -465,6 +466,8 @@ const HistoricalAnalysisSheet = ({
 };
 
 function ScenarioComparisonContent() {
+  const { t, i18n } = useTranslation(['simulation', 'common']);
+  const dateLocale = i18n.language === 'en' ? enUS : tr;
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
   const { scenarios, isLoading: scenariosLoading, currentScenarioId, saveScenario, createNextYearFromAI } = useScenarios();
@@ -1365,12 +1368,12 @@ function ScenarioComparisonContent() {
               <Link to="/finance/simulation">
                 <Button variant="ghost" size="sm" className="gap-2">
                   <ArrowLeft className="h-4 w-4" />
-                  Simülasyona Dön
+                  {t('common:back')}
                 </Button>
               </Link>
               <div className="flex items-center gap-2">
                 <ArrowLeftRight className="h-5 w-5 text-primary" />
-                <h1 className="text-xl font-bold">Senaryo Karşılaştırma</h1>
+                <h1 className="text-xl font-bold">{t('comparison.title')}</h1>
               </div>
             </div>
             {canCompare && (
@@ -1382,7 +1385,7 @@ function ScenarioComparisonContent() {
                 onClick={handleExportPresentationPdf}
               >
                 {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Presentation className="h-4 w-4" />}
-                PDF Sunum
+                {t('pdf.export')}
               </Button>
             )}
           </div>
