@@ -456,6 +456,11 @@ export function useUnifiedAnalysis() {
         allYears: exitPlan.allYears?.slice(0, 5) || []
       };
 
+      // Get current language from i18n
+      const currentLanguage = typeof window !== 'undefined' 
+        ? (localStorage.getItem('i18nextLng') || 'tr').substring(0, 2) 
+        : 'tr';
+
       // Request body
       const requestBody = {
         scenarioA,
@@ -474,7 +479,8 @@ export function useUnifiedAnalysis() {
         historicalBalance,
         quarterlyItemized,
         exchangeRate,
-        focusProjectInfo
+        focusProjectInfo,
+        language: currentLanguage // 'en' or 'tr'
       };
 
       // Retry wrapper for Edge Function call with exponential backoff
@@ -539,7 +545,8 @@ export function useUnifiedAnalysis() {
       // Save to database with focus project info
       await saveAnalysis(result, scenarioA, scenarioB, dealConfig, focusProjectInfo);
       
-      toast.success('Kapsamlı AI analizi tamamlandı!');
+      const successMsg = currentLanguage === 'en' ? 'Comprehensive AI analysis completed!' : 'Kapsamlı AI analizi tamamlandı!';
+      toast.success(successMsg);
       return result;
     } catch (err) {
       const message = err instanceof Error ? err.message : 'Analiz sırasında bir hata oluştu';
