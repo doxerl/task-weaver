@@ -1,212 +1,275 @@
 
-## i18n Tam Entegrasyon Planı - Tüm UI Route'larını İngilizce Desteğine Bağlama
+## i18n Tam Entegrasyon Planı - Reports, Simulation ve AI Çıktıları
 
-### Mevcut Durum Analizi
+### Sorun Analizi
 
-| Durum | Dosya Sayısı | Detay |
-|-------|-------------|-------|
-| ✅ i18n Entegre | 5 dosya | `Settings.tsx`, `Categories.tsx`, `CategoryForm.tsx`, `BottomTabBar.tsx`, `LanguageContext.tsx` |
-| ❌ Hardcoded Türkçe | 25+ dosya | Tüm finance, simulation, today/week sayfaları |
+| Sayfa/Bileşen | Durum | Hardcoded String |
+|---------------|-------|------------------|
+| `/finance/reports` (Reports.tsx) | ❌ Türkçe | ~150+ string |
+| `/finance/simulation` (GrowthSimulation.tsx) | ❌ Türkçe | ~60+ string |
+| `/finance/simulation/compare` (ScenarioComparisonPage.tsx) | ❌ Türkçe | ~200+ string |
+| `AIAnalysisSummaryCard.tsx` | ❌ Türkçe | ~40 string |
+| `AIAnalysisDetails.tsx` | ❌ Türkçe | ~30+ string |
+| Edge Function (unified-scenario-analysis) | ❌ Türkçe prompt | AI yanıtları Türkçe |
 
-**Çeviri Dosyaları Durumu:**
-- `tr/common.json`, `en/common.json` - ✅ Ortak butonlar, etiketler, ayarlar mevcut
-- `tr/finance.json`, `en/finance.json` - ✅ Dashboard, categories, transactions, receipts, cashFlow mevcut
-- `tr/simulation.json`, `en/simulation.json` - ✅ Scenario, summary, capital, valuation mevcut
-- ❌ **Eksik:** Reports, VatReport, BalanceSheet, Today/Week çevirileri
+### Merkezi Çözüm Yaklaşımı
+
+**Prensip:** Bir defa değiştir → tüm sayfalar etkilensin
+
+1. **Çeviri dosyalarına yeni key'ler ekle** (`simulation.json`, `finance.json`)
+2. **Sayfalara `useTranslation` hook entegrasyonu**
+3. **AI Edge Function'a dil parametresi** - Kullanıcı dilini backend'e gönder
 
 ---
 
-### Uygulama Planı
+### Faz 1: Çeviri Dosyalarını Genişlet
 
-#### Faz 1: Eksik Çeviri Key'lerini Ekle
+**`simulation.json` - Yeni key'ler:**
+```json
+{
+  "comparison": {
+    "title": "Senaryo Karşılaştırması / Scenario Comparison",
+    "selectScenarios": "Karşılaştırılacak senaryoları seçin / Select scenarios to compare",
+    "scenarioA": "Senaryo A / Scenario A",
+    "scenarioB": "Senaryo B / Scenario B",
+    "noScenarios": "Karşılaştırma için en az 2 senaryo gerekli / Need at least 2 scenarios"
+  },
+  "ai": {
+    "title": "Kapsamlı AI Analizi (Gemini Pro 3) / Comprehensive AI Analysis",
+    "analyzing": "Analiz Ediliyor... / Analyzing...",
+    "reanalyze": "Yeniden Analiz / Reanalyze",
+    "createPresentation": "Yatırımcı Sunumu Oluştur / Create Investor Presentation",
+    "dealScore": "Deal Skoru / Deal Score",
+    "pitchDeck": "Pitch Deck",
+    "nextYear": "Sonraki Yıla Geç / Go to Next Year",
+    "incompleteData": "Eksik Analiz Verileri / Incomplete Analysis Data",
+    "cachedAt": "Son analiz / Last analysis",
+    "dataChanged": "Senaryo verileri güncellendi / Scenario data updated"
+  },
+  "growthSimulation": {
+    "title": "Büyüme Simülasyonu / Growth Simulation",
+    "basedOn": "USD verileri baz alınarak / Based on USD data",
+    "scenarioName": "Senaryo Adı / Scenario Name",
+    "assumedRate": "Varsayılan Kur / Assumed Exchange Rate",
+    "notes": "Notlar / Notes",
+    "revenueProjections": "Gelir Projeksiyonları / Revenue Projections",
+    "expenseProjections": "Gider Projeksiyonları / Expense Projections",
+    "new": "Yeni / New",
+    "save": "Kaydet / Save",
+    "reset": "Sıfırla / Reset",
+    "riskAnalysis": "Risk Analizi / Risk Analysis",
+    "growth": "Büyüme / Growth",
+    "pdfCreating": "PDF Oluşturuluyor / Creating PDF",
+    "scenarioSaved": "Senaryo Kaydedildi / Scenario Saved",
+    "createNextYear": "Sonraki Yıl Simülasyonu Oluştur / Create Next Year Simulation"
+  }
+}
+```
 
-**1.1. `finance.json` dosyalarına yeni keyler:**
+**`finance.json` - Reports için yeni key'ler:**
 ```json
 {
   "reports": {
     "title": "Finansal Rapor / Financial Report",
-    "netIncome": "Net Gelir / Net Income",
-    "netExpense": "Net Gider / Net Expense",
+    "officialData": "Resmi Veri / Official Data",
+    "simulation2026": "2026 Simülasyon / 2026 Simulation",
+    "fullReport": "Tam Rapor / Full Report",
+    "netIncome": "Net Gelir (KDV Hariç) / Net Income (excl. VAT)",
+    "netExpense": "Net Gider (KDV Hariç) / Net Expense (excl. VAT)",
     "netProfit": "Net Kâr / Net Profit",
     "profitMargin": "Kâr Marjı / Profit Margin",
-    "fullReport": "Tam Rapor / Full Report",
-    "simulation2026": "2026 Simülasyon / 2026 Simulation",
-    "uncategorizedWarning": "Kategorisiz İşlem Var / Uncategorized Transactions",
-    "uncategorizedDetail": "X adet işlem kategorilendirilememiş / X transactions not categorized"
-  },
-  "vat": {
-    "title": "KDV Raporu / VAT Report",
     "calculatedVat": "Hesaplanan KDV / Calculated VAT",
     "deductibleVat": "İndirilecek KDV / Deductible VAT",
-    "netVatDebt": "Net KDV Borcu / Net VAT Debt",
-    "netVatCredit": "Net KDV Alacağı / Net VAT Credit",
-    "monthlyDetail": "Aylık KDV Detayı / Monthly VAT Detail"
-  },
-  "balanceSheet": {
-    "title": "Bilanço / Balance Sheet",
-    "assets": "Varlıklar / Assets",
-    "liabilities": "Borçlar / Liabilities",
-    "equity": "Özkaynak / Equity"
-  },
-  "simulation": {
-    "growthSimulation": "Büyüme Simülasyonu / Growth Simulation",
-    "scenarioName": "Senaryo Adı / Scenario Name",
-    "exchangeRate": "Varsayılan Kur / Assumed Exchange Rate",
-    "revenueProjections": "Gelir Projeksiyonları / Revenue Projections",
-    "expenseProjections": "Gider Projeksiyonları / Expense Projections"
-  }
-}
-```
-
-**1.2. `common.json` dosyalarına yeni keyler:**
-```json
-{
-  "planner": {
-    "hello": "Merhaba / Hello",
-    "voicePlanning": "Sesli Planlama / Voice Planning",
-    "plan": "Plan",
-    "actual": "Gerçek / Actual",
-    "compare": "Karşılaştır / Compare",
-    "week": "Hafta / Week",
-    "whatWillYouDo": "Ne yapacaksın? / What will you do?",
-    "whatDidYouDo": "Ne yaptın? / What did you do?",
-    "pastDayWarning": "X tarihi için kayıt ekliyorsunuz"
-  },
-  "months": {
-    "jan": "Oca / Jan",
-    "feb": "Şub / Feb",
-    ...
+    "netVat": "Net KDV / Net VAT",
+    "payable": "Ödenecek / Payable",
+    "deferred": "Devreden / Deferred",
+    "tabs": {
+      "summary": "Özet / Summary",
+      "official": "Resmi / Official",
+      "financing": "Finans / Financing",
+      "cashflow": "Nakit / Cash Flow"
+    },
+    "charts": {
+      "monthlyTrend": "Aylık Gelir vs Gider / Monthly Income vs Expense",
+      "serviceRevenue": "Hizmet Bazlı Gelir / Service-Based Revenue",
+      "expenseCategories": "Gider Kategorileri / Expense Categories",
+      "chartPdf": "Grafik PDF / Chart PDF"
+    },
+    "financing": {
+      "partnerAccount": "Ortak Cari Hesabı / Partner Account",
+      "partnerDeposit": "Ortaktan Tahsilat / Partner Deposit",
+      "partnerWithdrawal": "Ortağa Ödeme / Partner Payment",
+      "netBalance": "Net Bakiye / Net Balance",
+      "creditTracking": "Kredi Takibi / Credit Tracking",
+      "totalCredit": "Toplam Kredi / Total Credit",
+      "paidInstallments": "Ödenen Taksit / Paid Installments",
+      "leasingPayment": "Leasing Ödemesi / Leasing Payment",
+      "remainingDebt": "Kalan Borç / Remaining Debt",
+      "paymentProgress": "Ödeme İlerlemesi / Payment Progress",
+      "monthlyInstallment": "Aylık Taksit / Monthly Installment",
+      "investments": "Yatırımlar / Investments",
+      "vehicles": "Araçlar / Vehicles",
+      "equipment": "Ekipman / Equipment",
+      "other": "Diğer / Other",
+      "totalInvestment": "Toplam Yatırım / Total Investment",
+      "fixedExpenseTracking": "Sabit Gider Takibi / Fixed Expense Tracking",
+      "monthlyFixed": "Aylık Sabit Gider / Monthly Fixed Expense",
+      "monthlyInstallments": "Aylık Taksitler / Monthly Installments",
+      "totalMonthly": "Toplam Aylık / Total Monthly",
+      "yearlyProjection": "Yıllık Projeksiyon / Yearly Projection",
+      "activeInstallments": "Aktif Taksitler / Active Installments",
+      "remaining": "Kalan / Remaining"
+    },
+    "warnings": {
+      "missingExchangeRate": "{{count}} ay için kur verisi bulunmuyor / Missing exchange rate for {{count}} months",
+      "uncategorized": "Kategorisiz İşlem Var / Uncategorized Transactions",
+      "uncategorizedDetail": "{{count}} adet işlem kategorilendirilememiş / {{count}} transactions not categorized",
+      "goToCategories": "Kategorilendirmeye Git / Go to Categorization"
+    }
   }
 }
 ```
 
 ---
 
-#### Faz 2: Finance Sayfalarını Refactör Et
+### Faz 2: Sayfa Refactörleri
 
-**2.1. `FinanceDashboard.tsx`** (~50 hardcoded string)
-```tsx
-// ÖNCE:
-<span className="text-xs font-medium text-center">Banka</span>
-<span className="text-sm font-medium">Ciro Özeti</span>
-
-// SONRA:
-const { t } = useTranslation(['finance', 'common']);
-<span className="text-xs font-medium text-center">{t('dashboard.tabs.bank')}</span>
-<span className="text-sm font-medium">{t('dashboard.revenueSummary')}</span>
-```
-
-**2.2. `Reports.tsx`** (~80 hardcoded string)
+**2.1. Reports.tsx (~150 string)**
 ```tsx
 // ÖNCE:
 <h1 className="text-xl font-bold flex-1">Finansal Rapor</h1>
+<TabsTrigger value="dashboard">Özet</TabsTrigger>
 <p className="text-xs text-muted-foreground">Net Gelir (KDV Hariç)</p>
 
 // SONRA:
+import { useTranslation } from 'react-i18next';
 const { t } = useTranslation(['finance', 'common']);
+
 <h1 className="text-xl font-bold flex-1">{t('reports.title')}</h1>
+<TabsTrigger value="dashboard">{t('reports.tabs.summary')}</TabsTrigger>
 <p className="text-xs text-muted-foreground">{t('reports.netIncome')}</p>
 ```
 
-**2.3. `VatReport.tsx`** (~40 hardcoded string)
-```tsx
-const { t } = useTranslation(['finance', 'common']);
-<h1 className="text-xl font-bold">{t('vat.title')}</h1>
-<span className="text-xs">{t('vat.calculatedVat')}</span>
-```
-
-**2.4. `BalanceSheet.tsx`** (~30 hardcoded string)
-
-**2.5. `BankTransactions.tsx`** (~25 hardcoded string)
-
-**2.6. `GrowthSimulation.tsx`** (~60 hardcoded string)
-
----
-
-#### Faz 3: Planner Sayfalarını Refactör Et
-
-**3.1. `Today.tsx`** (~20 hardcoded string)
+**2.2. GrowthSimulation.tsx (~60 string)**
 ```tsx
 // ÖNCE:
-<AppHeader title={profile?.first_name ? `Merhaba, ${profile.first_name}` : 'Sesli Planlama'} />
-<TabsTrigger value="plan">Plan ({planItems.length})</TabsTrigger>
-<TabsTrigger value="actual">Gerçek ({actualEntries.length})</TabsTrigger>
+<AppHeader title={`${targetYear} Büyüme Simülasyonu`} subtitle={`${baseYear} USD verileri baz alınarak`} />
+<Button><Plus /> Yeni</Button>
+<Button><Save /> Kaydet</Button>
 
 // SONRA:
-const { t } = useTranslation('common');
-<AppHeader title={profile?.first_name ? `${t('planner.hello')}, ${profile.first_name}` : t('planner.voicePlanning')} />
-<TabsTrigger value="plan">{t('planner.plan')} ({planItems.length})</TabsTrigger>
-<TabsTrigger value="actual">{t('planner.actual')} ({actualEntries.length})</TabsTrigger>
+import { useTranslation } from 'react-i18next';
+const { t } = useTranslation(['simulation', 'common']);
+
+<AppHeader 
+  title={t('growthSimulation.title', { year: targetYear })}
+  subtitle={t('growthSimulation.basedOn', { year: baseYear })}
+/>
+<Button><Plus /> {t('growthSimulation.new')}</Button>
+<Button><Save /> {t('growthSimulation.save')}</Button>
 ```
 
-**3.2. `Week.tsx`** (~15 hardcoded string)
-
----
-
-#### Faz 4: Simulation Component'larını Refactör Et
-
-**4.1. `SummaryCards.tsx`**
-**4.2. `ProjectionTable.tsx`**
-**4.3. `ScenarioSelector.tsx`**
-**4.4. `NewScenarioDialog.tsx`**
-
----
-
-#### Faz 5: Tarih Formatlarını i18n'e Bağla
-
+**2.3. ScenarioComparisonPage.tsx (~200 string)**
 ```tsx
-// ÖNCE (sadece Türkçe):
-import { tr } from 'date-fns/locale';
-format(selectedDate, 'd MMMM yyyy, EEEE', { locale: tr })
+// ÖNCE:
+<CardTitle>🧠 Kapsamlı AI Analizi (Gemini Pro 3)</CardTitle>
+<p>Senaryo verileri güncellendi</p>
+<Button>Yeniden Analiz</Button>
 
-// SONRA (dil bağımlı):
+// SONRA:
+import { useTranslation } from 'react-i18next';
+const { t } = useTranslation(['simulation', 'common']);
+
+<CardTitle>{t('ai.title')}</CardTitle>
+<p>{t('ai.dataChanged')}</p>
+<Button>{t('ai.reanalyze')}</Button>
+```
+
+**2.4. AIAnalysisSummaryCard.tsx (~40 string)**
+```tsx
+// ÖNCE:
+<CardTitle>🧠 Kapsamlı AI Analizi (Gemini Pro 3)</CardTitle>
+<Button>Yatırımcı Sunumu Oluştur</Button>
+<Badge>💎 Ucuz</Badge>
+
+// SONRA:
+const { t } = useTranslation(['simulation', 'common']);
+
+<CardTitle>{t('ai.title')}</CardTitle>
+<Button>{t('ai.createPresentation')}</Button>
+```
+
+---
+
+### Faz 3: AI Edge Function - Dil Desteği
+
+**Problem:** `unified-scenario-analysis` edge function Türkçe prompt kullanıyor, AI yanıtları hep Türkçe.
+
+**Çözüm:** Frontend'den dil parametresi gönder, prompt'u dinamik yap.
+
+**3.1. Hook Güncelleme (useUnifiedAnalysis.ts):**
+```tsx
 import { useLanguage } from '@/contexts/LanguageContext';
-const { dateLocale } = useLanguage();
-format(selectedDate, 'd MMMM yyyy, EEEE', { locale: dateLocale })
+
+const { language } = useLanguage();
+
+const runUnifiedAnalysis = async (params) => {
+  const response = await supabase.functions.invoke('unified-scenario-analysis', {
+    body: { 
+      ...params, 
+      language: language // 'en' veya 'tr'
+    }
+  });
+};
+```
+
+**3.2. Edge Function Güncelleme:**
+```typescript
+// unified-scenario-analysis/index.ts
+const { language = 'tr' } = await req.json();
+
+const systemPrompt = language === 'en' 
+  ? `You are a financial analyst. Respond in ENGLISH...`
+  : `Sen bir finansal analistsin. TÜRKÇE yanıt ver...`;
+
+// Slide titles, insights, recommendations hepsi seçilen dilde üretilecek
 ```
 
 ---
 
 ### Dosya Güncelleme Listesi
 
-| Dosya | Tip | Hardcoded String Sayısı |
-|-------|-----|------------------------|
-| `src/i18n/locales/tr/finance.json` | Çeviri Ekle | +50 key |
-| `src/i18n/locales/en/finance.json` | Çeviri Ekle | +50 key |
-| `src/i18n/locales/tr/common.json` | Çeviri Ekle | +30 key |
-| `src/i18n/locales/en/common.json` | Çeviri Ekle | +30 key |
-| `src/pages/finance/FinanceDashboard.tsx` | Refactör | ~50 string |
-| `src/pages/finance/Reports.tsx` | Refactör | ~80 string |
-| `src/pages/finance/VatReport.tsx` | Refactör | ~40 string |
-| `src/pages/finance/BalanceSheet.tsx` | Refactör | ~30 string |
-| `src/pages/finance/BankTransactions.tsx` | Refactör | ~25 string |
+| Dosya | İşlem | Satır Değişikliği |
+|-------|-------|-------------------|
+| `src/i18n/locales/tr/simulation.json` | Genişlet | +100 key |
+| `src/i18n/locales/en/simulation.json` | Genişlet | +100 key |
+| `src/i18n/locales/tr/finance.json` | Genişlet | +80 key |
+| `src/i18n/locales/en/finance.json` | Genişlet | +80 key |
+| `src/pages/finance/Reports.tsx` | Refactör | ~150 string |
 | `src/pages/finance/GrowthSimulation.tsx` | Refactör | ~60 string |
-| `src/pages/Today.tsx` | Refactör | ~20 string |
-| `src/pages/Week.tsx` | Refactör | ~15 string |
-| `src/components/simulation/SummaryCards.tsx` | Refactör | ~15 string |
-| `src/components/simulation/NewScenarioDialog.tsx` | Refactör | ~10 string |
-| `src/components/AppHeader.tsx` | Refactör | Dinamik title desteği |
+| `src/pages/finance/ScenarioComparisonPage.tsx` | Refactör | ~200 string |
+| `src/components/simulation/AIAnalysisSummaryCard.tsx` | Refactör | ~40 string |
+| `src/components/simulation/AIAnalysisDetails.tsx` | Refactör | ~30 string |
+| `src/hooks/finance/useUnifiedAnalysis.ts` | Dil parametresi ekle | ~5 satır |
+| `supabase/functions/unified-scenario-analysis/index.ts` | Çift dilli prompt | ~50 satır |
 
 ---
 
-### Uygulama Sırası (Öneri)
+### Uygulama Sırası
 
-1. **Çeviri Dosyalarını Genişlet** - Tüm eksik key'leri ekle
-2. **FinanceDashboard.tsx** - Ana dashboard
-3. **Reports.tsx** - En çok string içeren sayfa
-4. **VatReport.tsx** - KDV raporu
-5. **GrowthSimulation.tsx** - Simülasyon sayfası
-6. **Today.tsx & Week.tsx** - Planner sayfaları
-7. **Diğer finance sayfaları** - BalanceSheet, BankTransactions vb.
-8. **Simulation component'ları** - SummaryCards, ProjectionTable vb.
+1. **Çeviri dosyalarını genişlet** - simulation.json ve finance.json
+2. **Reports.tsx** - En büyük etki
+3. **GrowthSimulation.tsx** - Simülasyon sayfası
+4. **ScenarioComparisonPage.tsx** - Karşılaştırma sayfası
+5. **AI bileşenleri** - AIAnalysisSummaryCard, AIAnalysisDetails
+6. **Edge function** - AI yanıtları için dil desteği
 
 ---
 
 ### Sonuç
 
 Bu refactör sonrasında:
-- ✅ Tüm UI metinleri `t()` fonksiyonu ile çeviri sistemine bağlı olacak
-- ✅ Header'daki LanguageToggle ile anında TR/EN geçişi yapılabilecek
-- ✅ Tarih formatları kullanıcının dil tercihine göre değişecek
-- ✅ Toast mesajları çoklu dil destekleyecek
-- ✅ Gelecekte yeni dil eklemek için sadece JSON dosyası oluşturmak yeterli olacak
+- ✅ Header'daki dil toggle'ı ile Reports, Simulation, Compare sayfaları anında TR/EN geçiş yapacak
+- ✅ AI analiz çıktıları (insights, recommendations, pitch deck) seçilen dilde üretilecek
+- ✅ Merkezi çeviri - tek dosyada değişiklik tüm sayfaları etkiliyor
+- ✅ Toast mesajları, validasyon hataları, tüm UI elementleri çoklu dil destekleyecek
