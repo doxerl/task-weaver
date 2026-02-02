@@ -1,206 +1,405 @@
 
-## ScenarioComparisonPage.tsx i18n Tam Entegrasyon Planı
 
-### Problem Analizi
+## /finance/simulation/compare Sayfası Tam i18n Entegrasyonu
 
-Sayfa `useTranslation` hook'unu kullanıyor ancak birçok element hala hardcoded Türkçe string içeriyor. Mevcut çeviri dosyasında key'ler var ancak sayfada kullanılmıyor.
+### Problem Özeti
 
-### Tespit Edilen Hardcoded Stringler
+`ScenarioComparisonPage.tsx` sayfasının kendisi çoğunlukla çeviriye bağlı ancak alt bileşenlerinin büyük çoğunluğunda hardcoded Türkçe stringler var. Toplam **~350+ hardcoded string** tespit edildi.
 
-| Satır | Mevcut Türkçe String | Eksik i18n Key |
-|-------|---------------------|----------------|
-| 283-286 | "Senaryo verileri güncellendi", "Son analizden bu yana veriler değişti..." | `comparison.dataChanged`, `comparison.reanalyzeSuggestion` |
-| 297 | "Yeniden Analiz" | `ai.reanalyze` |
-| 324 | "Analiz Geçmişi" | `comparison.analysisHistory` |
-| 336-338 | "Henüz analiz geçmişi yok" | `comparison.noHistory` |
-| 350-358 | "Yatırımcı analizi", "Kapsamlı analiz", "çıkarım", "öneri" | Yeni key'ler gerekli |
-| 364 | "Güncel" | `comparison.current` |
-| 398-400 | "Geçmiş Analiz" | `comparison.historicalAnalysis` |
-| 407 | "Çıkarımlar" | `aiDetails.insights` |
-| 417 | "Öneriler" | `aiDetails.recommendationsTitle` |
-| 421 | "Öncelik" | Yeni: `comparison.priority` |
-| 437-445 | "Sermaye Hikayesi", "Yatırımcı Getirisi", "Çıkış Senaryosu" | Yeni key'ler |
-| 460 | "Bu Analizi Geri Yükle" | `comparison.restoreAnalysis` |
-| 531 | "En fazla 2 proje seçebilirsiniz" | Yeni: `comparison.maxProjects` |
-| 594-597 | "Toplam Gelir", "Toplam Gider", "Net Kâr", "Kâr Marjı" | `scenarioImpact.metrics.*` |
-| 849 | "Yıl içinde ulaşılamadı" | Yeni: `comparison.breakEvenNotReached` |
-| 964 | "Senaryo sıralaması düzeltildi" | Yeni: `comparison.orderFixed` |
-| 980 | "Kullanıcı düzenlemeleri korundu..." | Yeni: `comparison.userEditsPreserved` |
-| 1173 | "Çeyreklik veri eksik..." | Yeni: `comparison.quarterlyDataMissing` |
-| 1267-1311 | PDF toast mesajları | `pdf.*` key'leri |
-| 1330 | "yılı senaryosu oluşturuldu!" | Yeni: `comparison.scenarioCreated` |
-| 1350-1351 | Chart config labels ("Kümülatif") | Yeni: `comparison.cumulative` |
-| 1403-1405 | "Büyüme", "Pozitif", "Senaryo A" | `scenario.positive`, `comparison.scenarioA` |
-| 1408 | "Senaryo seçin..." | Yeni: `comparison.selectScenario` |
-| 1422 | "Negatif", "Pozitif" badge | `scenario.negative`, `scenario.positive` |
-| 1433-1435 | "Baz", "Negatif", "Senaryo B" | Yeni: `comparison.base`, `comparison.scenarioB` |
-| 1467-1471 | "Senaryo Sıralaması Hatalı", açıklama | Yeni: `comparison.wrongOrder*` |
-| 1481 | "Düzelt" | Yeni: `comparison.fix` |
-| 1490 | "Karşılaştırma için en az 2 kayıtlı senaryo gerekli" | `comparison.noScenarios` |
-| 1498 | "Önceki analiz yükleniyor..." | Yeni: `comparison.loadingPreviousAnalysis` |
-| 1590 | "Çeyreklik Net Kâr" | Yeni: `comparison.quarterlyNetProfit` |
-| 1612 | "Kümülatif Nakit Akışı" | Yeni: `comparison.cumulativeCashFlow` |
-| 1637 | "Profesyonel Analiz Metrikleri" | Yeni: `comparison.professionalMetrics` |
-| 1647-1649 | "Senaryo Karşılaştırması", "kalem" | `comparison.title`, Yeni: `comparison.items` |
-| 1688 | "Kalem Trend Analizi" | Yeni: `comparison.itemTrendAnalysis` |
-| 1700 | "Finansal Oranlar" | Yeni: `comparison.financialRatios` |
-| 1715 | "Duyarlılık Analizi" | Yeni: `comparison.sensitivityAnalysis` |
-| 1770-1778 | "Gelir Projeksiyonu", "Gider Projeksiyonu" | Yeni: `comparison.revenueProjection`, `comparison.expenseProjection` |
-| 1771 | "AI tarafından oluşturuldu - düzenleyebilirsiniz" | Yeni: `comparison.aiGeneratedEditable` |
-| 1809-1812 | "Yatırımcı Pitch Deck", "AI tarafından oluşturulan 5 slaytlık..." | Yeni: `pitchDeck.*` |
-| 1822 | "Görüntüleme" / "Düzenleme" | Yeni: `pitchDeck.view`, `pitchDeck.edit` |
-| 1841-1842 | "Henüz pitch deck oluşturulmadı", "Önce AI analizi çalıştırın" | Yeni: `pitchDeck.noPitchDeck`, `pitchDeck.runAIFirst` |
+### Tespit Edilen Hardcoded Bileşenler
+
+| Bileşen | Hardcoded String Sayısı | Durum |
+|---------|------------------------|-------|
+| `InvestmentTab.tsx` | ~120 | ❌ Hiç i18n yok |
+| `FocusProjectSelector.tsx` | ~25 | ❌ Hiç i18n yok |
+| `FinancialRatiosPanel.tsx` | ~35 | ❌ Hiç i18n yok |
+| `SensitivityTable.tsx` | ~15 | ❌ Hiç i18n yok |
+| `ItemTrendCards.tsx` | ~20 | ❌ Hiç i18n yok |
+| `ScenarioComparisonCards.tsx` | ~25 | ❌ Hiç i18n yok |
+| `QuarterlyCapitalTable.tsx` | ~30 | ❌ Hiç i18n yok |
+| `AIInvestmentTimingCard.tsx` | ~40 | ❌ Hiç i18n yok |
+| `EditableProjectionTable.tsx` | ~15 | ❌ Hiç i18n yok |
 
 ---
 
-### Çözüm: Faz 1 - Çeviri Dosyalarını Genişlet
+### Çözüm: Çeviri Dosyası Genişletme
 
-**`simulation.json` - Yeni key'ler eklenecek:**
+#### Yeni Key'ler (`simulation.json`)
 
 ```json
 {
-  "comparison": {
-    // Mevcut key'ler korunacak
-    "loadingPreviousAnalysis": "Loading previous analysis... / Önceki analiz yükleniyor...",
-    "selectScenario": "Select scenario... / Senaryo seçin...",
-    "base": "Base / Baz",
-    "wrongOrderTitle": "Scenario Order Incorrect / Senaryo Sıralaması Hatalı",
-    "wrongOrderDescription": "Scenario A should be positive (higher profit), Scenario B should be negative (lower profit). / Senaryo A pozitif (yüksek kâr), Senaryo B negatif (düşük kâr) olmalıdır.",
-    "fix": "Fix / Düzelt",
-    "orderFixed": "Scenario order fixed / Senaryo sıralaması düzeltildi",
-    "maxProjects": "You can select up to 2 projects / En fazla 2 proje seçebilirsiniz",
-    "userEditsPreserved": "User edits preserved. Use \"Reset Edits\" to see new AI projection. / Kullanıcı düzenlemeleri korundu. Yeni AI projeksiyonunu görmek için \"Düzenlemeleri Sıfırla\" kullanın.",
-    "quarterlyDataMissing": "Quarterly data missing. Please check scenarios. / Çeyreklik veri eksik. Lütfen senaryoları kontrol edin.",
-    "breakEvenNotReached": "Not reached within year / Yıl içinde ulaşılamadı",
-    "scenarioCreated": "{{year}} scenario created! / {{year}} yılı senaryosu oluşturuldu!",
-    "cumulative": "Cumulative / Kümülatif",
-    "quarterlyNetProfit": "Quarterly Net Profit / Çeyreklik Net Kâr",
-    "cumulativeCashFlow": "Cumulative Cash Flow / Kümülatif Nakit Akışı",
-    "professionalMetrics": "Professional Analysis Metrics / Profesyonel Analiz Metrikleri",
-    "items": "items / kalem",
-    "itemTrendAnalysis": "Item Trend Analysis / Kalem Trend Analizi",
-    "financialRatios": "Financial Ratios / Finansal Oranlar",
-    "sensitivityAnalysis": "Sensitivity Analysis / Duyarlılık Analizi",
-    "revenueProjection": "Revenue Projection / Gelir Projeksiyonu",
-    "expenseProjection": "Expense Projection / Gider Projeksiyonu",
-    "aiGeneratedEditable": "AI generated - you can edit / AI tarafından oluşturuldu - düzenleyebilirsiniz",
-    "priority": "Priority / Öncelik",
-    "capitalStory": "Capital Story / Sermaye Hikayesi",
-    "investorReturn": "Investor Return / Yatırımcı Getirisi",
-    "exitScenario": "Exit Scenario / Çıkış Senaryosu",
-    "investorAnalysis": "Investor analysis / Yatırımcı analizi",
-    "comprehensiveAnalysis": "Comprehensive analysis / Kapsamlı analiz",
-    "insightsCount": "{{count}} insights / {{count}} çıkarım",
-    "recommendationsCount": "{{count}} recommendations / {{count}} öneri"
+  "investment": {
+    "dealSimulator": "Investment Deal Simulator",
+    "dealSimulatorDesc": "Adjust investment amount and equity ratio to see exit plan",
+    "investmentAmount": "Investment Amount",
+    "suggested": "Suggested",
+    "basis": {
+      "deathValley": "Death Valley based",
+      "yearEndDeficit": "Year-end deficit based"
+    },
+    "additionalCapital": "additional capital",
+    "selfFinancing": "Self-financing from {{year}} onwards",
+    "equityRatio": "Equity Ratio",
+    "valuation": "Valuation",
+    "sectorMultiple": "Sector Multiple",
+    "tiers": {
+      "title": "Investment Options",
+      "selectBased": "Select appropriate investment amount based on your business needs",
+      "minimum": "Minimum (Survival)",
+      "recommended": "Recommended (Growth)",
+      "aggressive": "Aggressive (Scale)",
+      "runway": "{{months}} months runway"
+    },
+    "capitalNeeds": {
+      "title": "Capital Needs Comparison",
+      "selfSustaining": "Self-Sustaining",
+      "required": "Required",
+      "criticalQuarter": "Critical Quarter",
+      "monthlyBurn": "Monthly Burn",
+      "yearEnd": "Year End",
+      "breakEven": "Break-even",
+      "runway": "Runway",
+      "months": "{{count}} months",
+      "twoYearDeathValley": "2Y Death Valley"
+    },
+    "opportunityCost": {
+      "title": "Opportunity Cost",
+      "description": "Potential revenue left on table if not investing"
+    },
+    "runwayChart": {
+      "title": "Cash Flow Runway Chart",
+      "description": "Invested vs uninvested scenario comparison",
+      "withInvestment": "With Investment (Positive Scenario)",
+      "withoutInvestment": "Without Investment (Negative Scenario)"
+    },
+    "growthModel": {
+      "title": "Two-Phase Growth Model",
+      "aggressivePhase": "Year 1-2 (Aggressive)",
+      "normalizedPhase": "Year 3-5 (Normalized)",
+      "target": "Target",
+      "cap": "cap",
+      "sectorAverage": "Sector average",
+      "capped": "Aggressive phase capped at 100% (original target: {{percent}}%)"
+    },
+    "exitPlan": {
+      "title": "Exit Plan - Investor Return Projection",
+      "entry": "ENTRY",
+      "investment": "Investment",
+      "equity": "Equity",
+      "valuation": "Valuation",
+      "year3": "YEAR 3",
+      "year5": "YEAR 5",
+      "companyValue": "Company Value",
+      "investorShare": "Investor Share",
+      "moic": "MOIC"
+    },
+    "metrics": {
+      "capitalEfficiency": "Capital Efficiency",
+      "perDollarRevenue": "Revenue per $1",
+      "targetGrowth": "Target Growth",
+      "scenarioTarget": "Scenario target",
+      "breakEven": "Break-even",
+      "breakEvenPoint": "Break-even point",
+      "yearN": "Year {{n}}"
+    },
+    "projectionTable": {
+      "title": "5-Year Projection Details",
+      "yearDependent": "Year-dependent capital calculation: Carry-over profit → Quarterly death valley → Additional investment need",
+      "year": "Year",
+      "opening": "Opening",
+      "revenue": "Revenue",
+      "expense": "Expense",
+      "netProfit": "Net Profit",
+      "deathValley": "Death Valley",
+      "capitalNeed": "Capital Need",
+      "yearEnd": "Year End",
+      "valuation": "Valuation",
+      "moic": "MOIC"
+    }
   },
-  "pitchDeck": {
-    "title": "Investor Pitch Deck / Yatırımcı Pitch Deck",
-    "description": "5-slide investor presentation created by AI - you can edit / AI tarafından oluşturulan 5 slaytlık yatırımcı sunumu - düzenleyebilirsiniz",
-    "view": "View / Görüntüleme",
-    "edit": "Edit / Düzenleme",
-    "noPitchDeck": "No pitch deck created yet. / Henüz pitch deck oluşturulmadı.",
-    "runAIFirst": "Run AI analysis first. / Önce AI analizi çalıştırın."
+  "focusProject": {
+    "title": "Investment Focus Projects",
+    "projectsSelected": "{{count}} projects selected",
+    "description": "Specify which projects will use the investment (max 2 projects). AI analysis will focus on selected projects.",
+    "investmentProjects": "Investment Projects (max 2 selection)",
+    "selectedSummary": "Selected Projects Summary",
+    "totalCurrent": "Total Current",
+    "totalTarget": "Total Target",
+    "selectAtLeast": "Select at least 1 project",
+    "growthPlan": "Growth Plan",
+    "growthPlanPlaceholder": "Explain your growth plan for selected projects. E.g.: Expand SBT Tracker beyond textile sector, add ISO 14064 module, focus on enterprise customers...",
+    "aiUsageNote": "This description will be used in AI analysis and reflected in projections.",
+    "allocationTitle": "Investment Usage Allocation",
+    "total": "Total",
+    "productDev": "Product Development",
+    "marketing": "Marketing",
+    "personnel": "Personnel",
+    "operational": "Operational",
+    "allocationWarning": "Total allocation should be 100%. Current: {{percent}}%"
+  },
+  "financialRatios": {
+    "title": "Financial Ratios (B2B Services Benchmark)",
+    "liquidity": "Liquidity Ratios",
+    "leverage": "Leverage Ratios",
+    "profitability": "Profitability Ratios",
+    "currentRatio": "Current Ratio",
+    "quickRatio": "Quick Ratio",
+    "cashRatio": "Cash Ratio",
+    "debtToEquity": "Debt/Equity",
+    "debtToAssets": "Debt/Assets",
+    "receivablesRatio": "Receivables/Assets",
+    "roa": "ROA",
+    "roe": "ROE",
+    "netMargin": "Net Margin",
+    "status": {
+      "good": "Good",
+      "average": "Average",
+      "poor": "Attention"
+    },
+    "tooltips": {
+      "currentRatio": "Current Assets / Short-term Debt",
+      "quickRatio": "(Current Assets - Inventory) / Short-term Debt",
+      "cashRatio": "Cash / Short-term Debt",
+      "debtToEquity": "Total Debt / Equity",
+      "debtToAssets": "Total Debt / Total Assets",
+      "receivablesRatio": "Trade Receivables / Total Assets",
+      "roa": "Net Profit / Total Assets",
+      "roe": "Net Profit / Equity",
+      "netMargin": "Net Profit / Revenue"
+    },
+    "benchmarkNote": "Benchmark: B2B Services sector averages used as reference"
+  },
+  "sensitivity": {
+    "title": "Sensitivity Analysis",
+    "description": "Impact of revenue change on main metrics",
+    "revenueChange": "Revenue Change",
+    "netProfit": "Net Profit",
+    "margin": "Margin",
+    "valuation": "Valuation",
+    "moic": "MOIC",
+    "runway": "Runway",
+    "months": "{{count}} months",
+    "loss": "loss",
+    "criticalVariable": "Critical Variable",
+    "ifRevenueDrops": "If revenue drops 20%, profit becomes {{amount}}"
+  },
+  "itemTrend": {
+    "revenueItems": "Revenue Items Trend Analysis",
+    "expenseItems": "Expense Items Trend Analysis",
+    "share": "Share",
+    "concentrated": "Concentrated",
+    "trend": {
+      "increasing": "Growing",
+      "decreasing": "Declining",
+      "stable": "Stable"
+    },
+    "volatility": {
+      "high": "High Volatility",
+      "medium": "Medium Volatility",
+      "low": "Low Volatility"
+    },
+    "concentrationRisk": "Concentration Risk",
+    "concentrationWarning": "A single item accounts for more than 50% of total {{type}}"
+  },
+  "scenarioCards": {
+    "revenueComparison": "Revenue Items Scenario Comparison",
+    "expenseComparison": "Expense Items Scenario Comparison",
+    "vsComparison": "{{labelA}} vs {{labelB}} scenario comparison",
+    "riskLevel": {
+      "high": "High Difference",
+      "medium": "Medium Difference",
+      "low": "Low Difference"
+    },
+    "divergence": {
+      "increasingGood": "↗️ Increasing Difference",
+      "increasingBad": "↗️ Increasing Risk",
+      "decreasingGood": "↘️ Decreasing Risk",
+      "decreasingBad": "↘️ Decreasing Difference"
+    },
+    "totalDifference": "Total Difference",
+    "highDiffWarning": "High Difference Warning",
+    "itemsOver40": "{{items}} items have over 40% difference between scenarios"
+  },
+  "quarterlyTable": {
+    "title": "Quarterly Cash Flow Comparison",
+    "description": "Invested (positive) and uninvested (negative) scenario quarterly details",
+    "invested": "Invested ({{name}})",
+    "uninvested": "Uninvested ({{name}})",
+    "startingBalance": "+{{amount}} starting",
+    "quarter": "Quarter",
+    "revenue": "Revenue",
+    "expense": "Expense",
+    "netFlow": "Net Flow",
+    "cumulative": "Cumulative",
+    "need": "Need",
+    "yearEnd": "Year End",
+    "maxNeed": "Max Need",
+    "opportunityCost": "Opportunity Cost",
+    "betterPosition": "Invested scenario is in better position by {{amount}} at year end."
+  },
+  "aiTiming": {
+    "title": "AI Optimal Investment Timing",
+    "description": "{{year}} Optimal investment time based on negative scenario cash deficits",
+    "recommended": "Recommended",
+    "urgency": "Urgency",
+    "requiredCapital": "Required Capital",
+    "safetyIncluded": "20% safety included",
+    "optional": "Optional",
+    "yearStart": "Year Start",
+    "before": "Before {{date}}",
+    "byEnd": "By end of {{date}}",
+    "urgencyLevels": {
+      "critical": "Critical",
+      "high": "High",
+      "medium": "Medium",
+      "low": "Low"
+    },
+    "urgencyDescriptions": {
+      "critical": "Deficit starts in Q1 - Investment needed now",
+      "high": "Deficit will start within 3 months",
+      "medium": "Deficit will start within 6 months",
+      "low": "Cash position is strong"
+    },
+    "quarterlyCumulativeNeed": "Quarterly Cumulative Capital Need (Negative Scenario)",
+    "firstDeficit": "First Deficit",
+    "delayRisk": "Delay risk",
+    "analysisConfidence": "Analysis Confidence",
+    "firstDeficitLabel": "First deficit",
+    "maxDeficitLabel": "Max deficit",
+    "none": "None",
+    "reasons": {
+      "selfSustaining": "Company can sustain operations with equity. Investment can be used to accelerate growth.",
+      "q1Deficit": "Cash deficit of {{amount}} starts in Q1. Growth expenses (trade shows, personnel, marketing) cannot be made without closing this gap.",
+      "futureDeficit": "Cash deficit of {{amount}} will start in {{quarter}}. Capital must be secured before this date."
+    },
+    "risks": {
+      "selfSustaining": "Growth opportunities may be missed but operations continue.",
+      "q1Deficit": "Transition to positive scenario is not possible without investment. Growth strategy is delayed, market share is lost.",
+      "futureDeficit": "Planned growth expenses after {{quarter}} become impossible. Positive scenario does not materialize."
+    }
+  },
+  "editableTable": {
+    "edited": "Edited",
+    "resetToAI": "Reset to AI Values",
+    "item": "Item",
+    "total": "Total",
+    "totalRevenue": "Total Revenue",
+    "totalExpense": "Total Expense"
   }
 }
 ```
 
 ---
 
-### Çözüm: Faz 2 - Sayfa Refaktörü
+### Uygulama Adımları
 
-**Güncellenmesi gereken dosyalar:**
+#### Faz 1: Çeviri Dosyalarını Güncelle
+- `src/i18n/locales/en/simulation.json` - ~150 yeni key
+- `src/i18n/locales/tr/simulation.json` - ~150 yeni key (Türkçe çeviriler)
 
-| Dosya | Değişiklik Sayısı |
-|-------|------------------|
-| `src/pages/finance/ScenarioComparisonPage.tsx` | ~100 string |
+#### Faz 2: Bileşenleri Güncelle (Büyükten Küçüğe)
 
-**Örnek dönüşümler:**
+**1. InvestmentTab.tsx (~120 string)**
+- `useTranslation(['simulation'])` ekle
+- Chart config label'larını `t()` ile değiştir
+- Card title/description'ları `t()` ile değiştir
+- Metric label'larını `t()` ile değiştir
+- Table header'larını `t()` ile değiştir
 
+**2. AIInvestmentTimingCard.tsx (~40 string)**
+- `useTranslation` hook'u ekle
+- `urgencyLabels`, `urgencyDescriptions` objelerini `t()` fonksiyonlarına dönüştür
+- Reason/risk açıklamalarını `t()` ile değiştir
+
+**3. QuarterlyCapitalTable.tsx (~30 string)**
+- `useTranslation` hook'u ekle
+- Table header'larını `t()` ile değiştir
+- Summary banner textlerini `t()` ile değiştir
+
+**4. FocusProjectSelector.tsx (~25 string)**
+- `useTranslation` hook'u ekle
+- `allocationItems` label'larını `t()` ile değiştir
+- Card title/description'ları `t()` ile değiştir
+
+**5. ScenarioComparisonCards.tsx (~25 string)**
+- `useTranslation` hook'u ekle
+- `getRiskLabel`, `getDivergenceIcon` fonksiyonlarını `t()` ile değiştir
+- Title ve description'ları `t()` ile değiştir
+
+**6. FinancialRatiosPanel.tsx (~35 string)**
+- `useTranslation` hook'u ekle
+- `getRatioStatus` label'larını `t()` ile değiştir
+- `ratioGroups` title ve label'larını `t()` ile değiştir
+- Tooltip açıklamalarını `t()` ile değiştir
+
+**7. ItemTrendCards.tsx (~20 string)**
+- `useTranslation` hook'u ekle
+- `getTrendLabel`, `getVolatilityLabel` fonksiyonlarını `t()` ile değiştir
+- Title ve warning mesajlarını `t()` ile değiştir
+
+**8. SensitivityTable.tsx (~15 string)**
+- `useTranslation` hook'u ekle
+- Table header'larını `t()` ile değiştir
+- Critical variable açıklamasını `t()` ile değiştir
+
+**9. EditableProjectionTable.tsx (~15 string)**
+- `useTranslation` hook'u ekle
+- Badge label'larını `t()` ile değiştir
+- Table header'larını `t()` ile değiştir
+- Button text'lerini `t()` ile değiştir
+
+---
+
+### Teknik Notlar
+
+1. **Hook Kullanımı**
 ```tsx
-// ÖNCE (Satır 283-286):
-<p className="text-sm font-medium text-amber-400">
-  Senaryo verileri güncellendi
-</p>
-<p className="text-xs text-muted-foreground">
-  Son analizden bu yana veriler değişti...
-</p>
+import { useTranslation } from 'react-i18next';
 
-// SONRA:
-<p className="text-sm font-medium text-amber-400">
-  {t('comparison.dataChanged')}
-</p>
-<p className="text-xs text-muted-foreground">
-  {t('comparison.reanalyzeSuggestion')}
-</p>
+const { t } = useTranslation(['simulation', 'common']);
 ```
 
+2. **Parametre Geçirme**
 ```tsx
-// ÖNCE (Satır 594-597):
-return [
-  { label: 'Toplam Gelir', scenarioA: summaryA.totalRevenue, ... },
-  { label: 'Toplam Gider', scenarioA: summaryA.totalExpense, ... },
-  { label: 'Net Kâr', scenarioA: summaryA.netProfit, ... },
-  { label: 'Kâr Marjı', scenarioA: summaryA.profitMargin, ... },
-];
+// Önceki:
+<span>{capitalEfficiency.toFixed(1)}x</span>
 
-// SONRA:
-return [
-  { label: t('scenarioImpact.metrics.totalRevenue'), scenarioA: summaryA.totalRevenue, ... },
-  { label: t('scenarioImpact.metrics.netProfit'), scenarioA: summaryA.totalExpense, ... },
-  { label: t('scenarioImpact.metrics.netProfit'), scenarioA: summaryA.netProfit, ... },
-  { label: t('scenarioImpact.metrics.profitMargin'), scenarioA: summaryA.profitMargin, ... },
-];
+// Sonraki:
+<span>{t('investment.metrics.perDollarRevenue')}: {capitalEfficiency.toFixed(1)}x</span>
 ```
 
+3. **Dinamik String'ler**
 ```tsx
-// ÖNCE (Satır 1350-1351):
-const cumulativeChartConfig: ChartConfig = {
-  scenarioACumulative: { label: `${scenarioA?.name || 'A'} Kümülatif`, color: '#2563eb' },
-  scenarioBCumulative: { label: `${scenarioB?.name || 'B'} Kümülatif`, color: '#16a34a' },
-};
+// Önceki:
+`${multiYearCapitalPlan.selfSustainingFromYear}'dan itibaren kendi kendini finanse ediyor`
 
-// SONRA:
-const cumulativeChartConfig: ChartConfig = {
-  scenarioACumulative: { label: `${scenarioA?.name || 'A'} ${t('comparison.cumulative')}`, color: '#2563eb' },
-  scenarioBCumulative: { label: `${scenarioB?.name || 'B'} ${t('comparison.cumulative')}`, color: '#16a34a' },
-};
+// Sonraki:
+t('investment.selfFinancing', { year: multiYearCapitalPlan.selfSustainingFromYear })
 ```
 
 ---
 
-### Teknik Detaylar
-
-**1. Hook Kullanımı (mevcut, satır 469):**
-```tsx
-const { t, i18n } = useTranslation(['simulation', 'common']);
-```
-
-**2. Bileşen İçi Fonksiyonlara `t` Geçirme:**
-
-`DataChangedWarning`, `AnalysisHistoryPanel`, `HistoricalAnalysisSheet` bileşenleri sayfa içinde tanımlı ve `t` fonksiyonunu prop olarak almalı veya kendi `useTranslation` hook'larını kullanmalı.
-
-**3. metrics useMemo Refaktörü:**
-`metrics` array'i `t` fonksiyonuna bağımlı olacağından, dependency array'e `t` eklenecek.
-
----
-
-### Dosya Güncelleme Listesi
+### Dosya Listesi
 
 | Dosya | İşlem |
 |-------|-------|
-| `src/i18n/locales/en/simulation.json` | +30 yeni key |
-| `src/i18n/locales/tr/simulation.json` | +30 yeni key |
-| `src/pages/finance/ScenarioComparisonPage.tsx` | ~100 string → t() dönüşümü |
+| `src/i18n/locales/en/simulation.json` | +150 key ekle |
+| `src/i18n/locales/tr/simulation.json` | +150 key ekle |
+| `src/components/simulation/InvestmentTab.tsx` | i18n entegre et |
+| `src/components/simulation/FocusProjectSelector.tsx` | i18n entegre et |
+| `src/components/simulation/FinancialRatiosPanel.tsx` | i18n entegre et |
+| `src/components/simulation/SensitivityTable.tsx` | i18n entegre et |
+| `src/components/simulation/ItemTrendCards.tsx` | i18n entegre et |
+| `src/components/simulation/ScenarioComparisonCards.tsx` | i18n entegre et |
+| `src/components/simulation/QuarterlyCapitalTable.tsx` | i18n entegre et |
+| `src/components/simulation/AIInvestmentTimingCard.tsx` | i18n entegre et |
+| `src/components/simulation/EditableProjectionTable.tsx` | i18n entegre et |
 
 ---
 
-### Uygulama Sırası
+### Beklenen Sonuç
 
-1. Çeviri dosyalarına yeni key'ler ekle
-2. `DataChangedWarning` bileşenine `t` prop'u ekle
-3. `AnalysisHistoryPanel` bileşenine `t` prop'u ekle  
-4. `HistoricalAnalysisSheet` bileşenine `t` prop'u ekle
-5. `metrics` useMemo'yu refaktör et
-6. Chart config'leri refaktör et
-7. Tüm JSX içindeki hardcoded stringleri `t()` ile değiştir
-8. Toast mesajlarını `t()` ile değiştir
+- Tüm UI elementleri dil toggle'ına göre değişecek
+- Türkçe → İngilizce geçişte tüm metinler güncellenecek
+- Chart label'ları, table header'ları, badge'ler, button'lar dahil
+- Toast mesajları ve açıklamalar dahil
