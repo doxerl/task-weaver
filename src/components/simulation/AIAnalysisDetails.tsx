@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -16,7 +17,6 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { UnifiedAnalysisResult } from '@/types/simulation';
-import { formatCompactUSD } from '@/lib/formatters';
 
 interface AIAnalysisDetailsProps {
   unifiedAnalysis: UnifiedAnalysisResult | null;
@@ -27,6 +27,7 @@ export const AIAnalysisDetails: React.FC<AIAnalysisDetailsProps> = ({
   unifiedAnalysis,
   targetYear,
 }) => {
+  const { t } = useTranslation(['simulation', 'common']);
   const [isOpen, setIsOpen] = useState(false);
 
   if (!unifiedAnalysis) return null;
@@ -49,9 +50,9 @@ export const AIAnalysisDetails: React.FC<AIAnalysisDetailsProps> = ({
             >
               <CardTitle className="text-sm flex items-center gap-2">
                 <Brain className="h-4 w-4 text-purple-400" />
-                AI Analiz Detayları
+                {t('aiDetails.title')}
                 <Badge variant="secondary" className="text-xs ml-2">
-                  {unifiedAnalysis.insights.length} içgörü, {unifiedAnalysis.recommendations.length} öneri
+                  {unifiedAnalysis.insights.length} {t('aiDetails.insights')}, {unifiedAnalysis.recommendations.length} {t('aiDetails.recommendations')}
                 </Badge>
               </CardTitle>
               <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
@@ -73,7 +74,7 @@ export const AIAnalysisDetails: React.FC<AIAnalysisDetailsProps> = ({
               <div className="space-y-2">
                 <h4 className="text-xs font-semibold text-muted-foreground flex items-center gap-1">
                   <TrendingUp className="h-3 w-3" />
-                  Finansal İçgörüler
+                  {t('aiDetails.financialInsights')}
                 </h4>
                 {unifiedAnalysis.insights.map((insight, i) => (
                   <div key={i} className="p-3 rounded-lg bg-muted/50">
@@ -89,7 +90,7 @@ export const AIAnalysisDetails: React.FC<AIAnalysisDetailsProps> = ({
               <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                 <h4 className="text-xs font-semibold flex items-center gap-1 mb-2 text-emerald-400">
                   <CheckCircle2 className="h-3 w-3" />
-                  Öneriler
+                  {t('aiDetails.recommendationsTitle')}
                 </h4>
                 <ul className="text-xs text-emerald-300 space-y-1">
                   {unifiedAnalysis.recommendations.map((rec, i) => (
@@ -109,7 +110,7 @@ export const AIAnalysisDetails: React.FC<AIAnalysisDetailsProps> = ({
               <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
                 <h4 className="text-xs font-semibold flex items-center gap-1 mb-2 text-amber-400">
                   <AlertTriangle className="h-3 w-3" />
-                  Risk Faktörleri
+                  {t('aiDetails.riskFactors')}
                 </h4>
                 <ul className="text-xs text-amber-300 space-y-1">
                   {unifiedAnalysis.deal_analysis.risk_factors.map((risk, i) => (
@@ -127,7 +128,7 @@ export const AIAnalysisDetails: React.FC<AIAnalysisDetailsProps> = ({
               <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20">
                 <h4 className="text-xs font-semibold flex items-center gap-1 mb-1 text-blue-400">
                   <TrendingUp className="h-3 w-3" />
-                  {targetYear ? targetYear + 1 : 'Gelecek Yıl'} Strateji Notu
+                  {targetYear ? t('aiDetails.strategyNote', { year: targetYear + 1 }) : t('aiDetails.nextYearStrategy')}
                 </h4>
                 <p className="text-sm text-blue-300">{unifiedAnalysis.next_year_projection.strategy_note}</p>
               </div>
