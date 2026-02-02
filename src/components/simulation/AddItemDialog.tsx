@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,14 +13,8 @@ interface AddItemDialogProps {
   onAdd: (item: Omit<ProjectionItem, 'id'> | Omit<InvestmentItem, 'id'>) => void;
 }
 
-const QUARTERS = [
-  { key: 'q1', label: 'Q1', months: 'Oca-Mar' },
-  { key: 'q2', label: 'Q2', months: 'Nis-Haz' },
-  { key: 'q3', label: 'Q3', months: 'Tem-Eyl' },
-  { key: 'q4', label: 'Q4', months: 'Eki-Ara' },
-] as const;
-
 export function AddItemDialog({ type, onAdd }: AddItemDialogProps) {
+  const { t } = useTranslation(['simulation']);
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -27,6 +22,13 @@ export function AddItemDialog({ type, onAdd }: AddItemDialogProps) {
   const [q2, setQ2] = useState('');
   const [q3, setQ3] = useState('');
   const [q4, setQ4] = useState('');
+
+  const QUARTERS = useMemo(() => [
+    { key: 'q1' as const, label: 'Q1', months: t('months.ranges.q1') },
+    { key: 'q2' as const, label: 'Q2', months: t('months.ranges.q2') },
+    { key: 'q3' as const, label: 'Q3', months: t('months.ranges.q3') },
+    { key: 'q4' as const, label: 'Q4', months: t('months.ranges.q4') },
+  ], [t]);
 
   const quarterlyValues = useMemo(() => ({
     q1: parseFloat(q1) || 0,
@@ -84,29 +86,9 @@ export function AddItemDialog({ type, onAdd }: AddItemDialogProps) {
     setOpen(false);
   };
 
-  const getTitle = () => {
-    switch (type) {
-      case 'revenue': return 'Yeni Gelir Kalemi';
-      case 'expense': return 'Yeni Gider Kalemi';
-      case 'investment': return 'Yeni Yatırım';
-    }
-  };
-
-  const getNameLabel = () => {
-    switch (type) {
-      case 'revenue': return 'Hizmet/Ürün Adı';
-      case 'expense': return 'Gider Kalemi';
-      case 'investment': return 'Yatırım Adı';
-    }
-  };
-
-  const getQuarterlyLabel = () => {
-    switch (type) {
-      case 'revenue': return 'Çeyreklik Gelir Projeksiyonu (USD)';
-      case 'expense': return 'Çeyreklik Gider Projeksiyonu (USD)';
-      case 'investment': return 'Çeyreklik Yatırım Dağılımı (USD)';
-    }
-  };
+  const getTitle = () => t(`addItem.titles.${type}`);
+  const getNameLabel = () => t(`addItem.labels.${type}`);
+  const getQuarterlyLabel = () => t(`addItem.quarterly.${type}`);
 
   const quarterSetters = {
     q1: setQ1,
@@ -127,14 +109,14 @@ export function AddItemDialog({ type, onAdd }: AddItemDialogProps) {
       <DialogTrigger asChild>
         <Button variant="outline" size="sm" className="gap-2">
           <Plus className="h-4 w-4" />
-          Ekle
+          {t('addItem.add')}
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogHeader>
           <DialogTitle>{getTitle()}</DialogTitle>
         </DialogHeader>
-        
+
         <div className="space-y-4 py-4">
           <div className="space-y-2">
             <Label htmlFor="name">{getNameLabel()}</Label>
@@ -142,7 +124,7 @@ export function AddItemDialog({ type, onAdd }: AddItemDialogProps) {
               id="name"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              placeholder="örn: AI Danışmanlık Hizmeti"
+              placeholder={t('addItem.namePlaceholder')}
             />
           </div>
 
@@ -168,31 +150,31 @@ export function AddItemDialog({ type, onAdd }: AddItemDialogProps) {
                 </div>
               ))}
             </div>
-            
+
             <div className="flex items-center justify-between pt-1 border-t">
               <span className="text-sm text-muted-foreground">
-                Yıllık Toplam: <span className="font-semibold text-foreground">${yearlyTotal.toLocaleString()}</span>
+                {t('addItem.yearlyTotal')}: <span className="font-semibold text-foreground">${yearlyTotal.toLocaleString()}</span>
               </span>
-              <Button 
-                variant="ghost" 
-                size="sm" 
-                onClick={distributeEvenly} 
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={distributeEvenly}
                 disabled={yearlyTotal <= 0}
                 className="gap-1.5 text-xs"
               >
                 <Divide className="h-3 w-3" />
-                Eşit Dağıt
+                {t('addItem.distributeEvenly')}
               </Button>
             </div>
           </div>
 
           <div className="space-y-2">
-            <Label htmlFor="description">Açıklama</Label>
+            <Label htmlFor="description">{t('addItem.description')}</Label>
             <Textarea
               id="description"
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="Detaylı açıklama veya gerekçe..."
+              placeholder={t('addItem.descriptionPlaceholder')}
               className="min-h-[80px]"
             />
           </div>
@@ -200,10 +182,10 @@ export function AddItemDialog({ type, onAdd }: AddItemDialogProps) {
 
         <DialogFooter>
           <Button variant="outline" onClick={() => setOpen(false)}>
-            İptal
+            {t('addItem.cancel')}
           </Button>
           <Button onClick={handleSubmit} disabled={!name || yearlyTotal <= 0}>
-            Ekle
+            {t('addItem.add')}
           </Button>
         </DialogFooter>
       </DialogContent>

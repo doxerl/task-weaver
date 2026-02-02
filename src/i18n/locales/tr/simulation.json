@@ -804,5 +804,247 @@
     "total": "Toplam",
     "totalRevenue": "Toplam Gelir",
     "totalExpense": "Toplam Gider"
+  },
+  "capitalAnalysis": {
+    "title": "Sermaye & Yatırım Analizi",
+    "tabs": {
+      "summary": "Özet",
+      "cashflow": "Nakit Akış",
+      "roi": "ROI",
+      "sensitivity": "Duyarlılık"
+    },
+    "currentCash": {
+      "title": "Mevcut Nakit Durumu",
+      "bankBalance": "Banka Bakiyesi",
+      "cashOnHand": "Kasa",
+      "totalLiquidity": "Toplam Likit"
+    },
+    "workingCapital": {
+      "title": "İşletme Sermayesi",
+      "monthlyExpense": "Aylık Gider",
+      "safetyBuffer": "Güvenlik Tamponu ({{months}} ay)",
+      "netWorkingCapital": "Net İşletme Sermayesi"
+    },
+    "needs": {
+      "title": "Sermaye Analizi",
+      "totalInvestment": "Toplam Yatırım",
+      "workingCapitalNeed": "İşletme Sermayesi",
+      "projectedNetProfit": "Tahmini Net Kar",
+      "netCapitalNeed": "Net Sermaye İhtiyacı",
+      "tryEquivalent": "TL Karşılığı"
+    },
+    "investments": {
+      "title": "Planlanan Yatırımlar",
+      "noInvestments": "Henüz yatırım eklenmedi. \"Ekle\" butonuna tıklayarak yatırım ekleyebilirsiniz.",
+      "investment": "Yatırım",
+      "month": "Ay",
+      "amount": "Tutar (USD)",
+      "total": "TOPLAM"
+    },
+    "cashflow": {
+      "title": "Çeyreklik Nakit Akış Tablosu",
+      "chartTitle": "Çeyreklik Nakit Akış Projeksiyonu",
+      "chartTitleWithYear": "{{year}} Çeyreklik Nakit Akış Projeksiyonu",
+      "period": "Dönem",
+      "opening": "Açılış",
+      "revenue": "Gelir",
+      "expense": "Gider",
+      "investment": "Yatırım",
+      "netFlow": "Net Akış",
+      "closing": "Kapanış",
+      "yearEnd": "YIL SONU",
+      "criticalPeriodWarning": "Kritik Dönem Uyarısı",
+      "criticalPeriodMessage": "{{quarter}} döneminde nakit en düşük seviyeye ulaşacak.",
+      "investmentNotMadeMessage": "Yatırım yapılmazsa yıl sonunda {{amount}} fazla nakit olacak.",
+      "cashDeficitWarning": "Nakit Açığı Uyarısı",
+      "cashDeficitMessage": "{{amount}} nakit açığı oluşabilir. Yatırım zamanlamasını veya finansman planını gözden geçirin.",
+      "loading": "Nakit akış analizi için finansal veriler yükleniyor...",
+      "startingBalance": "Başlangıç Bakiyesi",
+      "balance": "Bakiye",
+      "safetyBuffer": "Güvenlik Tamponu",
+      "tooltipRevenue": "Gelir",
+      "tooltipExpense": "Gider",
+      "tooltipInvestment": "Yatırım",
+      "tooltipNetFlow": "Net Akış",
+      "tooltipBalance": "Bakiye",
+      "legendBalance": "Nakit Bakiyesi",
+      "legendRevenue": "Gelir",
+      "legendExpense": "Gider"
+    },
+    "roi": {
+      "title": "Yatırım Getirisi (ROI)",
+      "simpleROI": "Basit ROI",
+      "paybackPeriod": "Geri Dönüş Süresi",
+      "months": "{{count}} ay",
+      "withinYear": "1 yıl içinde",
+      "moreThanYear": "1 yıldan fazla",
+      "npv": "NPV",
+      "discount": "%{{rate}} iskonto",
+      "irrEstimate": "IRR (Tahmini)",
+      "addInvestmentForROI": "ROI analizi için yatırım ekleyin"
+    },
+    "breakeven": {
+      "title": "Break-even Analizi",
+      "revenue": "Break-even Geliri",
+      "margin": "Katkı Marjı",
+      "currentVsRequired": "Mevcut / Gereken",
+      "point": "Break-even noktası",
+      "aboveBreakeven": "Projeksiyonlar break-even noktasının üzerinde",
+      "additionalRevenueNeeded": "Break-even için {{amount}} ek gelir gerekli"
+    },
+    "scenarioComparison": {
+      "title": "Senaryo Karşılaştırması",
+      "scenario": "Senaryo",
+      "revenue": "Gelir",
+      "expense": "Gider",
+      "netProfit": "Net Kar",
+      "profitMargin": "Kar Marjı",
+      "pessimist": "Pesimist (-20%)",
+      "base": "Baz Senaryo",
+      "optimist": "Optimist (+20%)",
+      "enterDataForAnalysis": "Duyarlılık analizi için projeksiyon verilerini girin"
+    }
+  },
+  "addItem": {
+    "add": "Ekle",
+    "cancel": "İptal",
+    "titles": {
+      "revenue": "Yeni Gelir Kalemi",
+      "expense": "Yeni Gider Kalemi",
+      "investment": "Yeni Yatırım"
+    },
+    "labels": {
+      "revenue": "Hizmet/Ürün Adı",
+      "expense": "Gider Kalemi",
+      "investment": "Yatırım Adı"
+    },
+    "quarterly": {
+      "revenue": "Çeyreklik Gelir Projeksiyonu (USD)",
+      "expense": "Çeyreklik Gider Projeksiyonu (USD)",
+      "investment": "Çeyreklik Yatırım Dağılımı (USD)"
+    },
+    "yearlyTotal": "Yıllık Toplam",
+    "distributeEvenly": "Eşit Dağıt",
+    "description": "Açıklama",
+    "descriptionPlaceholder": "Detaylı açıklama veya gerekçe...",
+    "namePlaceholder": "örn: AI Danışmanlık Hizmeti"
+  },
+  "burnRate": {
+    "currentCash": "Mevcut Nakit",
+    "monthlyNetBurn": "Aylık Net Burn",
+    "cashGeneration": "Nakit üretimi",
+    "cashBurn": "Nakit yakımı",
+    "yearEndWithInvestment": "Yıl Sonu (Yatırımlı)",
+    "yearEndWithoutInvestment": "Yıl Sonu (Yatırımsız)",
+    "deficit": "açık",
+    "surplus": "fazla",
+    "criticalPoint": "Kritik Nokta",
+    "criticalPointMessage": "Bu çeyrekte nakit bakiyesi minimum seviyeye düşüyor. Yatırım veya finansman bu noktadan önce sağlanmalı.",
+    "withInvestmentScenario": "Yatırım Dahil Senaryo",
+    "withoutInvestmentScenario": "Yatırım Hariç Senaryo",
+    "scenarioComparison": "Senaryo Karşılaştırması",
+    "metric": "Metrik",
+    "withInvestment": "Yatırım Dahil",
+    "withoutInvestment": "Yatırım Hariç",
+    "difference": "Fark",
+    "yearEndBalance": "Yıl Sonu Bakiye",
+    "runway": "Runway",
+    "sufficient": "Yeterli",
+    "hasDeficit": "Açık Var",
+    "quarter": "Çeyrek",
+    "opening": "Açılış",
+    "revenue": "Gelir",
+    "expense": "Gider",
+    "investment": "Yatırım",
+    "closing": "Kapanış"
+  },
+  "investmentScenario": {
+    "title": "Yatırım Senaryoları Karşılaştırması",
+    "description": "Yatırım alırsak vs alamazsak: Gelir, kâr ve değerleme farkları",
+    "withInvestment": "Yatırım Alırsak",
+    "withoutInvestment": "Yatırım Alamazsak",
+    "revenue": "Gelir",
+    "netProfit": "Net Kâr",
+    "profitMargin": "Kâr Marjı",
+    "valuation": "Değerleme",
+    "organicGrowth": "Organik Büyüme",
+    "moic": "MOIC",
+    "lossIfNoInvestment": "Yatırım Alamazsak Zarar",
+    "riskLevel": {
+      "critical": "Kritik Risk",
+      "high": "Yüksek Risk",
+      "medium": "Orta Risk",
+      "low": "Düşük Risk"
+    },
+    "revenueLoss": "Gelir Kaybı",
+    "profitLoss": "Kâr Kaybı",
+    "growthDiff": "Büyüme Farkı",
+    "valuationLoss": "Değerleme Kaybı",
+    "lossWarning": "Yatırım almazsanız, potansiyel gelirinizin %{{percent}}'ini kaybedebilir ve {{year}} şirket değerlemesi {{amount}} daha düşük olabilir."
+  },
+  "futureImpact": {
+    "projectionTitle": "{{startYear}} - {{endYear}} Değerleme Projeksiyonu",
+    "projectionTitleDefault": "5 Yıllık Değerleme Projeksiyonu",
+    "description": "Yatırım alırsak vs alamazsak şirket değeri karşılaştırması",
+    "withInvestment": "Yatırım Alırsak",
+    "withoutInvestment": "Yatırım Alamazsak",
+    "yearDiff": "{{year}}. Yıl Farkı",
+    "totalValuationDiff": "Toplam Değerleme Farkı ({{year}})",
+    "investmentBenefit": "Yatırım almanın getirisi"
+  },
+  "sensitivityChart": {
+    "title": "Duyarlılık Analizi - Kar Karşılaştırması",
+    "scenario": "Senaryo",
+    "netProfit": "Net Kar",
+    "profitMargin": "Kar Marjı",
+    "pessimist": "Pesimist",
+    "pessimistic": "Pesimist",
+    "base": "Baz",
+    "baseline": "Baz",
+    "optimist": "Optimist",
+    "optimistic": "Optimist"
+  },
+  "comparisonChart": {
+    "other": "Diğer",
+    "revenueComparison": "Gelir Karşılaştırması",
+    "expenseComparison": "Gider Karşılaştırması",
+    "actualYear": "{{year}} Gerçek",
+    "targetYear": "{{year}} Hedef",
+    "planYear": "{{year}} Plan",
+    "revenueDistribution": "{{year}} Gelir Dağılımı",
+    "expenseDistribution": "{{year}} Gider Dağılımı"
+  },
+  "quarterlyChart": {
+    "title": "Çeyreklik Gelir/Gider Karşılaştırması",
+    "total": "Toplam",
+    "revenueLabel": "gelir",
+    "expenseLabel": "gider",
+    "revenue": "Gelir",
+    "expense": "Gider",
+    "investment": "Yatırım",
+    "netCashFlow": "Net Nakit Akışı"
+  },
+  "months": {
+    "short": {
+      "jan": "Oca",
+      "feb": "Şub",
+      "mar": "Mar",
+      "apr": "Nis",
+      "may": "May",
+      "jun": "Haz",
+      "jul": "Tem",
+      "aug": "Ağu",
+      "sep": "Eyl",
+      "oct": "Eki",
+      "nov": "Kas",
+      "dec": "Ara"
+    },
+    "shortNames": ["Oca", "Şub", "Mar", "Nis", "May", "Haz", "Tem", "Ağu", "Eyl", "Eki", "Kas", "Ara"],
+    "ranges": {
+      "q1": "Oca-Mar",
+      "q2": "Nis-Haz",
+      "q3": "Tem-Eyl",
+      "q4": "Eki-Ara"
+    }
   }
 }

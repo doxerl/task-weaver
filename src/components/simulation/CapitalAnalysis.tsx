@@ -1,3 +1,5 @@
+import { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -19,8 +21,6 @@ interface CapitalAnalysisProps {
   advancedAnalysis?: AdvancedCapitalAnalysis | null;
   roiAnalysis?: ROIAnalysis | null;
 }
-
-const MONTH_NAMES = ['Oca', 'Şub', 'Mar', 'Nis', 'May', 'Haz', 'Tem', 'Ağu', 'Eyl', 'Eki', 'Kas', 'Ara'];
 
 // Metric card component for summary display
 function MetricCard({ 
@@ -55,15 +55,22 @@ function MetricCard({
   );
 }
 
-export function CapitalAnalysis({ 
-  investments, 
-  summary, 
-  exchangeRate, 
-  onAddInvestment, 
+export function CapitalAnalysis({
+  investments,
+  summary,
+  exchangeRate,
+  onAddInvestment,
   onRemoveInvestment,
   advancedAnalysis,
   roiAnalysis,
 }: CapitalAnalysisProps) {
+  const { t } = useTranslation(['simulation']);
+
+  const MONTH_NAMES = useMemo(() =>
+    t('months.shortNames', { returnObjects: true }) as string[],
+    [t]
+  );
+
   const totalInvestment = investments.reduce((sum, i) => sum + i.amount, 0);
   const projectedProfit = summary.projected.netProfit;
   const netCapitalNeed = totalInvestment - projectedProfit;
@@ -76,7 +83,7 @@ export function CapitalAnalysis({
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between">
-        <h3 className="font-semibold text-lg">Sermaye & Yatırım Analizi</h3>
+        <h3 className="font-semibold text-lg">{t('capitalAnalysis.title')}</h3>
         <AddItemDialog type="investment" onAdd={onAddInvestment} />
       </div>
 
@@ -84,19 +91,19 @@ export function CapitalAnalysis({
         <TabsList className="grid w-full grid-cols-4">
           <TabsTrigger value="summary" className="gap-1">
             <Wallet className="h-4 w-4" />
-            <span className="hidden sm:inline">Özet</span>
+            <span className="hidden sm:inline">{t('capitalAnalysis.tabs.summary')}</span>
           </TabsTrigger>
           <TabsTrigger value="cashflow" className="gap-1">
             <BarChart3 className="h-4 w-4" />
-            <span className="hidden sm:inline">Nakit Akış</span>
+            <span className="hidden sm:inline">{t('capitalAnalysis.tabs.cashflow')}</span>
           </TabsTrigger>
           <TabsTrigger value="roi" className="gap-1">
             <Target className="h-4 w-4" />
-            <span className="hidden sm:inline">ROI</span>
+            <span className="hidden sm:inline">{t('capitalAnalysis.tabs.roi')}</span>
           </TabsTrigger>
           <TabsTrigger value="sensitivity" className="gap-1">
             <TrendingUp className="h-4 w-4" />
-            <span className="hidden sm:inline">Duyarlılık</span>
+            <span className="hidden sm:inline">{t('capitalAnalysis.tabs.sensitivity')}</span>
           </TabsTrigger>
         </TabsList>
 
@@ -109,20 +116,20 @@ export function CapitalAnalysis({
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center gap-2">
                     <DollarSign className="h-5 w-5 text-green-600" />
-                    Mevcut Nakit Durumu
+                    {t('capitalAnalysis.currentCash.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Banka Bakiyesi</span>
+                    <span className="text-muted-foreground">{t('capitalAnalysis.currentCash.bankBalance')}</span>
                     <span className="font-medium">{formatCompactUSD(advancedAnalysis.currentCash.bankBalance)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Kasa</span>
+                    <span className="text-muted-foreground">{t('capitalAnalysis.currentCash.cashOnHand')}</span>
                     <span className="font-medium">{formatCompactUSD(advancedAnalysis.currentCash.cashOnHand)}</span>
                   </div>
                   <div className="border-t pt-2 flex justify-between">
-                    <span className="font-medium">Toplam Likit</span>
+                    <span className="font-medium">{t('capitalAnalysis.currentCash.totalLiquidity')}</span>
                     <span className="font-bold text-green-600">
                       {formatCompactUSD(advancedAnalysis.currentCash.totalLiquidity)}
                     </span>
@@ -137,20 +144,20 @@ export function CapitalAnalysis({
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Calculator className="h-5 w-5 text-blue-600" />
-                    İşletme Sermayesi
+                    {t('capitalAnalysis.workingCapital.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-3">
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Aylık Gider</span>
+                    <span className="text-muted-foreground">{t('capitalAnalysis.workingCapital.monthlyExpense')}</span>
                     <span className="font-medium">{formatCompactUSD(advancedAnalysis.workingCapital.monthlyOperatingCash)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Güvenlik Tamponu ({advancedAnalysis.workingCapital.safetyMonths} ay)</span>
+                    <span className="text-muted-foreground">{t('capitalAnalysis.workingCapital.safetyBuffer', { months: advancedAnalysis.workingCapital.safetyMonths })}</span>
                     <span className="font-medium">{formatCompactUSD(advancedAnalysis.workingCapital.safetyBuffer)}</span>
                   </div>
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">Net İşletme Sermayesi</span>
+                    <span className="text-muted-foreground">{t('capitalAnalysis.workingCapital.netWorkingCapital')}</span>
                     <span className={cn("font-medium", advancedAnalysis.workingCapital.netWorkingCapital >= 0 ? "text-green-600" : "text-red-600")}>
                       {formatCompactUSD(advancedAnalysis.workingCapital.netWorkingCapital)}
                     </span>
@@ -161,8 +168,8 @@ export function CapitalAnalysis({
 
             {/* Enhanced Capital Needs */}
             <Card className={cn(
-              hasAdvanced && advancedAnalysis.capitalNeeds.isSufficient 
-                ? "border-green-500/50 bg-green-50/50 dark:bg-green-950/20" 
+              hasAdvanced && advancedAnalysis.capitalNeeds.isSufficient
+                ? "border-green-500/50 bg-green-50/50 dark:bg-green-950/20"
                 : "border-yellow-500/50 bg-yellow-50/50 dark:bg-yellow-950/20"
             )}>
               <CardHeader className="pb-2">
@@ -172,31 +179,31 @@ export function CapitalAnalysis({
                   ) : (
                     <AlertTriangle className="h-5 w-5 text-yellow-600" />
                   )}
-                  Sermaye Analizi
+                  {t('capitalAnalysis.needs.title')}
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Toplam Yatırım</span>
+                  <span className="text-muted-foreground">{t('capitalAnalysis.needs.totalInvestment')}</span>
                   <span className="font-medium">{formatCompactUSD(totalInvestment)}</span>
                 </div>
                 {hasAdvanced && (
                   <div className="flex justify-between text-sm">
-                    <span className="text-muted-foreground">İşletme Sermayesi</span>
+                    <span className="text-muted-foreground">{t('capitalAnalysis.needs.workingCapitalNeed')}</span>
                     <span className="font-medium">{formatCompactUSD(advancedAnalysis.capitalNeeds.workingCapitalNeed)}</span>
                   </div>
                 )}
                 <div className="flex justify-between text-sm">
-                  <span className="text-muted-foreground">Tahmini Net Kar</span>
+                  <span className="text-muted-foreground">{t('capitalAnalysis.needs.projectedNetProfit')}</span>
                   <span className="font-medium text-green-600">{formatCompactUSD(projectedProfit)}</span>
                 </div>
                 <div className="border-t pt-2 flex justify-between">
-                  <span className="font-medium">Net Sermaye İhtiyacı</span>
+                  <span className="font-medium">{t('capitalAnalysis.needs.netCapitalNeed')}</span>
                   <span className={cn(
                     "font-bold",
                     (hasAdvanced ? advancedAnalysis.capitalNeeds.isSufficient : isPositive) ? "text-green-600" : "text-red-600"
                   )}>
-                    {hasAdvanced 
+                    {hasAdvanced
                       ? formatCompactUSD(advancedAnalysis.capitalNeeds.netCapitalGap)
                       : formatCompactUSD(Math.abs(netCapitalNeed))
                     }
@@ -204,7 +211,7 @@ export function CapitalAnalysis({
                   </span>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  TL Karşılığı: {formatCompactTRY((hasAdvanced ? advancedAnalysis.capitalNeeds.netCapitalGap : Math.abs(netCapitalNeed)) * exchangeRate)}
+                  {t('capitalAnalysis.needs.tryEquivalent')}: {formatCompactTRY((hasAdvanced ? advancedAnalysis.capitalNeeds.netCapitalGap : Math.abs(netCapitalNeed)) * exchangeRate)}
                 </div>
               </CardContent>
             </Card>
@@ -213,20 +220,20 @@ export function CapitalAnalysis({
           {/* Investment List */}
           <Card>
             <CardHeader className="pb-2">
-              <CardTitle className="text-base">Planlanan Yatırımlar</CardTitle>
+              <CardTitle className="text-base">{t('capitalAnalysis.investments.title')}</CardTitle>
             </CardHeader>
             <CardContent>
               {investments.length === 0 ? (
                 <p className="text-sm text-muted-foreground text-center py-8">
-                  Henüz yatırım eklenmedi. "Ekle" butonuna tıklayarak yatırım ekleyebilirsiniz.
+                  {t('capitalAnalysis.investments.noInvestments')}
                 </p>
               ) : (
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      <TableHead>Yatırım</TableHead>
-                      <TableHead>Ay</TableHead>
-                      <TableHead className="text-right">Tutar (USD)</TableHead>
+                      <TableHead>{t('capitalAnalysis.investments.investment')}</TableHead>
+                      <TableHead>{t('capitalAnalysis.investments.month')}</TableHead>
+                      <TableHead className="text-right">{t('capitalAnalysis.investments.amount')}</TableHead>
                       <TableHead className="w-12"></TableHead>
                     </TableRow>
                   </TableHeader>
@@ -258,7 +265,7 @@ export function CapitalAnalysis({
                       </TableRow>
                     ))}
                     <TableRow className="bg-muted/50 font-semibold">
-                      <TableCell colSpan={2}>TOPLAM</TableCell>
+                      <TableCell colSpan={2}>{t('capitalAnalysis.investments.total')}</TableCell>
                       <TableCell className="text-right">{formatCompactUSD(totalInvestment)}</TableCell>
                       <TableCell></TableCell>
                     </TableRow>
@@ -283,19 +290,19 @@ export function CapitalAnalysis({
               {/* Quarterly projection table */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Çeyreklik Nakit Akış Tablosu</CardTitle>
+                  <CardTitle className="text-base">{t('capitalAnalysis.cashflow.title')}</CardTitle>
                 </CardHeader>
                 <CardContent className="overflow-x-auto">
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Dönem</TableHead>
-                        <TableHead className="text-right">Açılış</TableHead>
-                        <TableHead className="text-right text-green-600">Gelir</TableHead>
-                        <TableHead className="text-right text-red-600">Gider</TableHead>
-                        <TableHead className="text-right text-orange-600">Yatırım</TableHead>
-                        <TableHead className="text-right">Net Akış</TableHead>
-                        <TableHead className="text-right font-semibold">Kapanış</TableHead>
+                        <TableHead>{t('capitalAnalysis.cashflow.period')}</TableHead>
+                        <TableHead className="text-right">{t('capitalAnalysis.cashflow.opening')}</TableHead>
+                        <TableHead className="text-right text-green-600">{t('capitalAnalysis.cashflow.revenue')}</TableHead>
+                        <TableHead className="text-right text-red-600">{t('capitalAnalysis.cashflow.expense')}</TableHead>
+                        <TableHead className="text-right text-orange-600">{t('capitalAnalysis.cashflow.investment')}</TableHead>
+                        <TableHead className="text-right">{t('capitalAnalysis.cashflow.netFlow')}</TableHead>
+                        <TableHead className="text-right font-semibold">{t('capitalAnalysis.cashflow.closing')}</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
@@ -334,7 +341,7 @@ export function CapitalAnalysis({
                       ))}
                       {/* Year-end summary row */}
                       <TableRow className="bg-muted/50 font-semibold border-t-2">
-                        <TableCell>YIL SONU</TableCell>
+                        <TableCell>{t('capitalAnalysis.cashflow.yearEnd')}</TableCell>
                         <TableCell className="text-right">
                           {formatCompactUSD(advancedAnalysis.currentCash.totalLiquidity)}
                         </TableCell>
@@ -370,11 +377,11 @@ export function CapitalAnalysis({
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="h-5 w-5 text-yellow-600 mt-0.5" />
                       <div>
-                        <p className="font-medium text-yellow-800 dark:text-yellow-200">Kritik Dönem Uyarısı</p>
+                        <p className="font-medium text-yellow-800 dark:text-yellow-200">{t('capitalAnalysis.cashflow.criticalPeriodWarning')}</p>
                         <p className="text-sm text-yellow-700 dark:text-yellow-300">
-                          <strong>{advancedAnalysis.burnRateAnalysis.criticalQuarter}</strong> döneminde nakit en düşük seviyeye ulaşacak.
+                          {t('capitalAnalysis.cashflow.criticalPeriodMessage', { quarter: advancedAnalysis.burnRateAnalysis.criticalQuarter })}
                           {advancedAnalysis.burnRateAnalysis.cashDeficitWithoutInvestment > 0 && (
-                            <> Yatırım yapılmazsa yıl sonunda <strong>{formatCompactUSD(advancedAnalysis.burnRateAnalysis.cashDeficitWithoutInvestment)}</strong> fazla nakit olacak.</>
+                            <> {t('capitalAnalysis.cashflow.investmentNotMadeMessage', { amount: formatCompactUSD(advancedAnalysis.burnRateAnalysis.cashDeficitWithoutInvestment) })}</>
                           )}
                         </p>
                       </div>
@@ -390,10 +397,9 @@ export function CapitalAnalysis({
                     <div className="flex items-start gap-3">
                       <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
                       <div>
-                        <p className="font-medium text-red-800 dark:text-red-200">Nakit Açığı Uyarısı</p>
+                        <p className="font-medium text-red-800 dark:text-red-200">{t('capitalAnalysis.cashflow.cashDeficitWarning')}</p>
                         <p className="text-sm text-red-700 dark:text-red-300">
-                          <strong>{formatCompactUSD(advancedAnalysis.capitalNeeds.peakCashDeficit)}</strong>{' '}
-                          nakit açığı oluşabilir. Yatırım zamanlamasını veya finansman planını gözden geçirin.
+                          {t('capitalAnalysis.cashflow.cashDeficitMessage', { amount: formatCompactUSD(advancedAnalysis.capitalNeeds.peakCashDeficit) })}
                         </p>
                       </div>
                     </div>
@@ -405,7 +411,7 @@ export function CapitalAnalysis({
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
                 <BarChart3 className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Nakit akış analizi için finansal veriler yükleniyor...</p>
+                <p>{t('capitalAnalysis.cashflow.loading')}</p>
               </CardContent>
             </Card>
           )}
@@ -420,34 +426,34 @@ export function CapitalAnalysis({
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Percent className="h-5 w-5 text-primary" />
-                    Yatırım Getirisi (ROI)
+                    {t('capitalAnalysis.roi.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4">
-                    <MetricCard 
+                    <MetricCard
                       icon={TrendingUp}
-                      label="Basit ROI"
+                      label={t('capitalAnalysis.roi.simpleROI')}
                       value={`%${roiAnalysis.simpleROI.toFixed(0)}`}
                       variant={roiAnalysis.simpleROI >= 100 ? 'success' : roiAnalysis.simpleROI >= 50 ? 'warning' : 'danger'}
                     />
-                    <MetricCard 
+                    <MetricCard
                       icon={Clock}
-                      label="Geri Dönüş Süresi"
-                      value={roiAnalysis.paybackPeriod.months === Infinity ? '-' : `${roiAnalysis.paybackPeriod.months} ay`}
-                      subValue={roiAnalysis.paybackPeriod.isWithinYear ? '1 yıl içinde' : '1 yıldan fazla'}
+                      label={t('capitalAnalysis.roi.paybackPeriod')}
+                      value={roiAnalysis.paybackPeriod.months === Infinity ? '-' : t('capitalAnalysis.roi.months', { count: roiAnalysis.paybackPeriod.months })}
+                      subValue={roiAnalysis.paybackPeriod.isWithinYear ? t('capitalAnalysis.roi.withinYear') : t('capitalAnalysis.roi.moreThanYear')}
                       variant={roiAnalysis.paybackPeriod.isWithinYear ? 'success' : 'warning'}
                     />
-                    <MetricCard 
+                    <MetricCard
                       icon={DollarSign}
-                      label="NPV"
+                      label={t('capitalAnalysis.roi.npv')}
                       value={formatCompactUSD(roiAnalysis.npvAnalysis.npv)}
-                      subValue={`%${roiAnalysis.npvAnalysis.discountRate} iskonto`}
+                      subValue={t('capitalAnalysis.roi.discount', { rate: roiAnalysis.npvAnalysis.discountRate })}
                       variant={roiAnalysis.npvAnalysis.isPositiveNPV ? 'success' : 'danger'}
                     />
-                    <MetricCard 
+                    <MetricCard
                       icon={Percent}
-                      label="IRR (Tahmini)"
+                      label={t('capitalAnalysis.roi.irrEstimate')}
                       value={`%${roiAnalysis.npvAnalysis.irr.toFixed(0)}`}
                       variant={roiAnalysis.npvAnalysis.irr >= 20 ? 'success' : roiAnalysis.npvAnalysis.irr >= 10 ? 'warning' : 'danger'}
                     />
@@ -460,21 +466,21 @@ export function CapitalAnalysis({
                 <CardHeader className="pb-2">
                   <CardTitle className="text-base flex items-center gap-2">
                     <Target className="h-5 w-5 text-blue-600" />
-                    Break-even Analizi
+                    {t('capitalAnalysis.breakeven.title')}
                   </CardTitle>
                 </CardHeader>
                 <CardContent className="space-y-4">
                   <div className="space-y-3">
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Break-even Geliri</span>
+                      <span className="text-muted-foreground">{t('capitalAnalysis.breakeven.revenue')}</span>
                       <span className="font-medium">{formatCompactUSD(roiAnalysis.breakEven.revenue)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Katkı Marjı</span>
+                      <span className="text-muted-foreground">{t('capitalAnalysis.breakeven.margin')}</span>
                       <span className="font-medium">%{roiAnalysis.breakEven.margin.toFixed(1)}</span>
                     </div>
                     <div className="flex justify-between text-sm">
-                      <span className="text-muted-foreground">Mevcut / Gereken</span>
+                      <span className="text-muted-foreground">{t('capitalAnalysis.breakeven.currentVsRequired')}</span>
                       <span className={cn(
                         "font-semibold",
                         roiAnalysis.breakEven.currentVsRequired >= 1 ? "text-green-600" : "text-red-600"
@@ -483,15 +489,15 @@ export function CapitalAnalysis({
                       </span>
                     </div>
                   </div>
-                  
+
                   {/* Progress bar showing current vs required */}
                   <div className="space-y-1">
                     <div className="flex justify-between text-xs text-muted-foreground">
-                      <span>Break-even noktası</span>
+                      <span>{t('capitalAnalysis.breakeven.point')}</span>
                       <span>{Math.min(100, roiAnalysis.breakEven.currentVsRequired * 100).toFixed(0)}%</span>
                     </div>
                     <div className="h-2 bg-muted rounded-full overflow-hidden">
-                      <div 
+                      <div
                         className={cn(
                           "h-full transition-all",
                           roiAnalysis.breakEven.currentVsRequired >= 1 ? "bg-green-500" : "bg-yellow-500"
@@ -505,14 +511,14 @@ export function CapitalAnalysis({
                     <div className="p-3 rounded-lg bg-green-100 dark:bg-green-900/30">
                       <p className="text-sm text-green-800 dark:text-green-200 flex items-center gap-2">
                         <CheckCircle2 className="h-4 w-4" />
-                        Projeksiyonlar break-even noktasının üzerinde
+                        {t('capitalAnalysis.breakeven.aboveBreakeven')}
                       </p>
                     </div>
                   ) : (
                     <div className="p-3 rounded-lg bg-yellow-100 dark:bg-yellow-900/30">
                       <p className="text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
                         <AlertTriangle className="h-4 w-4" />
-                        Break-even için {formatCompactUSD(roiAnalysis.breakEven.revenue - summary.projected.totalRevenue)} ek gelir gerekli
+                        {t('capitalAnalysis.breakeven.additionalRevenueNeeded', { amount: formatCompactUSD(roiAnalysis.breakEven.revenue - summary.projected.totalRevenue) })}
                       </p>
                     </div>
                   )}
@@ -523,7 +529,7 @@ export function CapitalAnalysis({
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
                 <Target className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>ROI analizi için yatırım ekleyin</p>
+                <p>{t('capitalAnalysis.roi.addInvestmentForROI')}</p>
               </CardContent>
             </Card>
           )}
@@ -538,24 +544,24 @@ export function CapitalAnalysis({
               {/* Detailed comparison table */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-base">Senaryo Karşılaştırması</CardTitle>
+                  <CardTitle className="text-base">{t('capitalAnalysis.scenarioComparison.title')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <Table>
                     <TableHeader>
                       <TableRow>
-                        <TableHead>Senaryo</TableHead>
-                        <TableHead className="text-right">Gelir</TableHead>
-                        <TableHead className="text-right">Gider</TableHead>
-                        <TableHead className="text-right">Net Kar</TableHead>
-                        <TableHead className="text-right">Kar Marjı</TableHead>
+                        <TableHead>{t('capitalAnalysis.scenarioComparison.scenario')}</TableHead>
+                        <TableHead className="text-right">{t('capitalAnalysis.scenarioComparison.revenue')}</TableHead>
+                        <TableHead className="text-right">{t('capitalAnalysis.scenarioComparison.expense')}</TableHead>
+                        <TableHead className="text-right">{t('capitalAnalysis.scenarioComparison.netProfit')}</TableHead>
+                        <TableHead className="text-right">{t('capitalAnalysis.scenarioComparison.profitMargin')}</TableHead>
                         <TableHead className="text-right">ROI</TableHead>
                       </TableRow>
                     </TableHeader>
                     <TableBody>
                       <TableRow className="bg-red-50/30 dark:bg-red-950/10">
                         <TableCell className="font-medium text-red-700 dark:text-red-400">
-                          Pesimist (-20%)
+                          {t('capitalAnalysis.scenarioComparison.pessimist')}
                         </TableCell>
                         <TableCell className="text-right">{formatCompactUSD(roiAnalysis.sensitivity.pessimistic.revenue)}</TableCell>
                         <TableCell className="text-right">{formatCompactUSD(roiAnalysis.sensitivity.pessimistic.expense)}</TableCell>
@@ -565,7 +571,7 @@ export function CapitalAnalysis({
                       </TableRow>
                       <TableRow className="bg-primary/5">
                         <TableCell className="font-medium text-primary">
-                          Baz Senaryo
+                          {t('capitalAnalysis.scenarioComparison.base')}
                         </TableCell>
                         <TableCell className="text-right">{formatCompactUSD(roiAnalysis.sensitivity.baseline.revenue)}</TableCell>
                         <TableCell className="text-right">{formatCompactUSD(roiAnalysis.sensitivity.baseline.expense)}</TableCell>
@@ -575,7 +581,7 @@ export function CapitalAnalysis({
                       </TableRow>
                       <TableRow className="bg-green-50/30 dark:bg-green-950/10">
                         <TableCell className="font-medium text-green-700 dark:text-green-400">
-                          Optimist (+20%)
+                          {t('capitalAnalysis.scenarioComparison.optimist')}
                         </TableCell>
                         <TableCell className="text-right">{formatCompactUSD(roiAnalysis.sensitivity.optimistic.revenue)}</TableCell>
                         <TableCell className="text-right">{formatCompactUSD(roiAnalysis.sensitivity.optimistic.expense)}</TableCell>
@@ -592,7 +598,7 @@ export function CapitalAnalysis({
             <Card>
               <CardContent className="py-12 text-center text-muted-foreground">
                 <TrendingUp className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>Duyarlılık analizi için projeksiyon verilerini girin</p>
+                <p>{t('capitalAnalysis.scenarioComparison.enterDataForAnalysis')}</p>
               </CardContent>
             </Card>
           )}

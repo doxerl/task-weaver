@@ -804,5 +804,247 @@
     "total": "Total",
     "totalRevenue": "Total Revenue",
     "totalExpense": "Total Expense"
+  },
+  "capitalAnalysis": {
+    "title": "Capital & Investment Analysis",
+    "tabs": {
+      "summary": "Summary",
+      "cashflow": "Cash Flow",
+      "roi": "ROI",
+      "sensitivity": "Sensitivity"
+    },
+    "currentCash": {
+      "title": "Current Cash Position",
+      "bankBalance": "Bank Balance",
+      "cashOnHand": "Cash on Hand",
+      "totalLiquidity": "Total Liquidity"
+    },
+    "workingCapital": {
+      "title": "Working Capital",
+      "monthlyExpense": "Monthly Expense",
+      "safetyBuffer": "Safety Buffer ({{months}} months)",
+      "netWorkingCapital": "Net Working Capital"
+    },
+    "needs": {
+      "title": "Capital Analysis",
+      "totalInvestment": "Total Investment",
+      "workingCapitalNeed": "Working Capital",
+      "projectedNetProfit": "Projected Net Profit",
+      "netCapitalNeed": "Net Capital Need",
+      "tryEquivalent": "TRY Equivalent"
+    },
+    "investments": {
+      "title": "Planned Investments",
+      "noInvestments": "No investments added yet. Click \"Add\" to add an investment.",
+      "investment": "Investment",
+      "month": "Month",
+      "amount": "Amount (USD)",
+      "total": "TOTAL"
+    },
+    "cashflow": {
+      "title": "Quarterly Cash Flow Table",
+      "chartTitle": "Quarterly Cash Flow Projection",
+      "chartTitleWithYear": "{{year}} Quarterly Cash Flow Projection",
+      "period": "Period",
+      "opening": "Opening",
+      "revenue": "Revenue",
+      "expense": "Expense",
+      "investment": "Investment",
+      "netFlow": "Net Flow",
+      "closing": "Closing",
+      "yearEnd": "YEAR END",
+      "criticalPeriodWarning": "Critical Period Warning",
+      "criticalPeriodMessage": "Cash will reach minimum level in {{quarter}} period.",
+      "investmentNotMadeMessage": "Without investment, there will be {{amount}} surplus cash at year end.",
+      "cashDeficitWarning": "Cash Deficit Warning",
+      "cashDeficitMessage": "{{amount}} cash deficit may occur. Review investment timing or financing plan.",
+      "loading": "Loading financial data for cash flow analysis...",
+      "startingBalance": "Starting Balance",
+      "balance": "Balance",
+      "safetyBuffer": "Safety Buffer",
+      "tooltipRevenue": "Revenue",
+      "tooltipExpense": "Expense",
+      "tooltipInvestment": "Investment",
+      "tooltipNetFlow": "Net Flow",
+      "tooltipBalance": "Balance",
+      "legendBalance": "Cash Balance",
+      "legendRevenue": "Revenue",
+      "legendExpense": "Expense"
+    },
+    "roi": {
+      "title": "Return on Investment (ROI)",
+      "simpleROI": "Simple ROI",
+      "paybackPeriod": "Payback Period",
+      "months": "{{count}} months",
+      "withinYear": "Within 1 year",
+      "moreThanYear": "More than 1 year",
+      "npv": "NPV",
+      "discount": "{{rate}}% discount",
+      "irrEstimate": "IRR (Estimate)",
+      "addInvestmentForROI": "Add investment for ROI analysis"
+    },
+    "breakeven": {
+      "title": "Break-even Analysis",
+      "revenue": "Break-even Revenue",
+      "margin": "Contribution Margin",
+      "currentVsRequired": "Current / Required",
+      "point": "Break-even point",
+      "aboveBreakeven": "Projections are above break-even point",
+      "additionalRevenueNeeded": "{{amount}} additional revenue needed for break-even"
+    },
+    "scenarioComparison": {
+      "title": "Scenario Comparison",
+      "scenario": "Scenario",
+      "revenue": "Revenue",
+      "expense": "Expense",
+      "netProfit": "Net Profit",
+      "profitMargin": "Profit Margin",
+      "pessimist": "Pessimist (-20%)",
+      "base": "Base Scenario",
+      "optimist": "Optimist (+20%)",
+      "enterDataForAnalysis": "Enter projection data for sensitivity analysis"
+    }
+  },
+  "addItem": {
+    "add": "Add",
+    "cancel": "Cancel",
+    "titles": {
+      "revenue": "New Revenue Item",
+      "expense": "New Expense Item",
+      "investment": "New Investment"
+    },
+    "labels": {
+      "revenue": "Service/Product Name",
+      "expense": "Expense Item",
+      "investment": "Investment Name"
+    },
+    "quarterly": {
+      "revenue": "Quarterly Revenue Projection (USD)",
+      "expense": "Quarterly Expense Projection (USD)",
+      "investment": "Quarterly Investment Distribution (USD)"
+    },
+    "yearlyTotal": "Yearly Total",
+    "distributeEvenly": "Distribute Evenly",
+    "description": "Description",
+    "descriptionPlaceholder": "Detailed description or rationale...",
+    "namePlaceholder": "e.g., AI Consulting Service"
+  },
+  "burnRate": {
+    "currentCash": "Current Cash",
+    "monthlyNetBurn": "Monthly Net Burn",
+    "cashGeneration": "Cash generation",
+    "cashBurn": "Cash burn",
+    "yearEndWithInvestment": "Year End (With Investment)",
+    "yearEndWithoutInvestment": "Year End (Without Investment)",
+    "deficit": "deficit",
+    "surplus": "surplus",
+    "criticalPoint": "Critical Point",
+    "criticalPointMessage": "Cash balance drops to minimum level in this quarter. Investment or financing must be secured before this point.",
+    "withInvestmentScenario": "With Investment Scenario",
+    "withoutInvestmentScenario": "Without Investment Scenario",
+    "scenarioComparison": "Scenario Comparison",
+    "metric": "Metric",
+    "withInvestment": "With Investment",
+    "withoutInvestment": "Without Investment",
+    "difference": "Difference",
+    "yearEndBalance": "Year End Balance",
+    "runway": "Runway",
+    "sufficient": "Sufficient",
+    "hasDeficit": "Has Deficit",
+    "quarter": "Quarter",
+    "opening": "Opening",
+    "revenue": "Revenue",
+    "expense": "Expense",
+    "investment": "Investment",
+    "closing": "Closing"
+  },
+  "investmentScenario": {
+    "title": "Investment Scenarios Comparison",
+    "description": "With vs without investment: Revenue, profit, and valuation differences",
+    "withInvestment": "With Investment",
+    "withoutInvestment": "Without Investment",
+    "revenue": "Revenue",
+    "netProfit": "Net Profit",
+    "profitMargin": "Profit Margin",
+    "valuation": "Valuation",
+    "organicGrowth": "Organic Growth",
+    "moic": "MOIC",
+    "lossIfNoInvestment": "Loss If No Investment",
+    "riskLevel": {
+      "critical": "Critical Risk",
+      "high": "High Risk",
+      "medium": "Medium Risk",
+      "low": "Low Risk"
+    },
+    "revenueLoss": "Revenue Loss",
+    "profitLoss": "Profit Loss",
+    "growthDiff": "Growth Difference",
+    "valuationLoss": "Valuation Loss",
+    "lossWarning": "If you don't receive investment, you may lose {{percent}}% of your potential revenue and company valuation could be {{amount}} lower in {{year}}."
+  },
+  "futureImpact": {
+    "projectionTitle": "{{startYear}} - {{endYear}} Valuation Projection",
+    "projectionTitleDefault": "5-Year Valuation Projection",
+    "description": "Company value comparison: with vs without investment",
+    "withInvestment": "With Investment",
+    "withoutInvestment": "Without Investment",
+    "yearDiff": "Year {{year}} Difference",
+    "totalValuationDiff": "Total Valuation Difference ({{year}})",
+    "investmentBenefit": "Benefit of receiving investment"
+  },
+  "sensitivityChart": {
+    "title": "Sensitivity Analysis - Profit Comparison",
+    "scenario": "Scenario",
+    "netProfit": "Net Profit",
+    "profitMargin": "Profit Margin",
+    "pessimist": "Pessimist",
+    "pessimistic": "Pessimistic",
+    "base": "Base",
+    "baseline": "Baseline",
+    "optimist": "Optimist",
+    "optimistic": "Optimistic"
+  },
+  "comparisonChart": {
+    "other": "Other",
+    "revenueComparison": "Revenue Comparison",
+    "expenseComparison": "Expense Comparison",
+    "actualYear": "{{year}} Actual",
+    "targetYear": "{{year}} Target",
+    "planYear": "{{year}} Plan",
+    "revenueDistribution": "{{year}} Revenue Distribution",
+    "expenseDistribution": "{{year}} Expense Distribution"
+  },
+  "quarterlyChart": {
+    "title": "Quarterly Revenue/Expense Comparison",
+    "total": "Total",
+    "revenueLabel": "revenue",
+    "expenseLabel": "expense",
+    "revenue": "Revenue",
+    "expense": "Expense",
+    "investment": "Investment",
+    "netCashFlow": "Net Cash Flow"
+  },
+  "months": {
+    "short": {
+      "jan": "Jan",
+      "feb": "Feb",
+      "mar": "Mar",
+      "apr": "Apr",
+      "may": "May",
+      "jun": "Jun",
+      "jul": "Jul",
+      "aug": "Aug",
+      "sep": "Sep",
+      "oct": "Oct",
+      "nov": "Nov",
+      "dec": "Dec"
+    },
+    "shortNames": ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"],
+    "ranges": {
+      "q1": "Jan-Mar",
+      "q2": "Apr-Jun",
+      "q3": "Jul-Sep",
+      "q4": "Oct-Dec"
+    }
   }
 }

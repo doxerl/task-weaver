@@ -1,4 +1,5 @@
 import { useMemo, forwardRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, Line, ComposedChart } from 'recharts';
 import { QuarterlyAmounts } from '@/types/simulation';
@@ -38,13 +39,15 @@ const CustomTooltip = ({ active, payload, label }: any) => {
 
 export const QuarterlyChart = forwardRef<HTMLDivElement, QuarterlyChartProps>(
   function QuarterlyChart({ revenueQuarterly, expenseQuarterly, investmentQuarterly, className }, ref) {
+    const { t } = useTranslation(['simulation']);
+
     const chartData = useMemo(() => {
       const quarters: ('q1' | 'q2' | 'q3' | 'q4')[] = ['q1', 'q2', 'q3', 'q4'];
       const quarterLabels: Record<string, string> = {
-        q1: 'Q1 (Oca-Mar)',
-        q2: 'Q2 (Nis-Haz)',
-        q3: 'Q3 (Tem-Eyl)',
-        q4: 'Q4 (Eki-Ara)',
+        q1: `Q1 (${t('months.ranges.q1')})`,
+        q2: `Q2 (${t('months.ranges.q2')})`,
+        q3: `Q3 (${t('months.ranges.q3')})`,
+        q4: `Q4 (${t('months.ranges.q4')})`,
       };
 
       return quarters.map(q => ({
@@ -56,7 +59,7 @@ export const QuarterlyChart = forwardRef<HTMLDivElement, QuarterlyChartProps>(
         netProfit: revenueQuarterly[q] - expenseQuarterly[q],
         netCashFlow: revenueQuarterly[q] - expenseQuarterly[q] - investmentQuarterly[q],
       }));
-    }, [revenueQuarterly, expenseQuarterly, investmentQuarterly]);
+    }, [revenueQuarterly, expenseQuarterly, investmentQuarterly, t]);
 
     const totals = useMemo(() => ({
       revenue: chartData.reduce((sum, d) => sum + d.revenue, 0),
@@ -69,9 +72,9 @@ export const QuarterlyChart = forwardRef<HTMLDivElement, QuarterlyChartProps>(
         <Card>
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center justify-between">
-              <span>Çeyreklik Gelir/Gider Karşılaştırması</span>
+              <span>{t('quarterlyChart.title')}</span>
               <div className="text-sm font-normal" style={{ color: '#64748b' }}>
-                Toplam: {formatUSD(totals.revenue)} gelir, {formatUSD(totals.expense)} gider
+                {t('quarterlyChart.total')}: {formatUSD(totals.revenue)} {t('quarterlyChart.revenueLabel')}, {formatUSD(totals.expense)} {t('quarterlyChart.expenseLabel')}
               </div>
             </CardTitle>
           </CardHeader>
@@ -93,30 +96,30 @@ export const QuarterlyChart = forwardRef<HTMLDivElement, QuarterlyChartProps>(
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
-                <Bar 
-                  dataKey="revenue" 
+                <Bar
+                  dataKey="revenue"
                   fill="#16a34a"
-                  name="Gelir" 
+                  name={t('quarterlyChart.revenue')}
                   radius={[4, 4, 0, 0]}
                 />
-                <Bar 
-                  dataKey="expense" 
+                <Bar
+                  dataKey="expense"
                   fill="#ef4444"
-                  name="Gider" 
+                  name={t('quarterlyChart.expense')}
                   radius={[4, 4, 0, 0]}
                 />
-                <Bar 
-                  dataKey="investment" 
+                <Bar
+                  dataKey="investment"
                   fill="#8b5cf6"
-                  name="Yatırım" 
+                  name={t('quarterlyChart.investment')}
                   radius={[4, 4, 0, 0]}
                 />
-                <Line 
-                  type="monotone" 
-                  dataKey="netCashFlow" 
+                <Line
+                  type="monotone"
+                  dataKey="netCashFlow"
                   stroke="#2563eb"
                   strokeWidth={2}
-                  name="Net Nakit Akışı"
+                  name={t('quarterlyChart.netCashFlow')}
                   dot={{ r: 4, fill: '#2563eb' }}
                 />
               </ComposedChart>
