@@ -262,60 +262,61 @@ const DiffBadge = ({ diff, format, higherIsBetter }: { diff: { absolute: number;
 };
 
 // Cache info badge component
-const CacheInfoBadge = ({ cachedInfo, t, dateLocale }: { cachedInfo: { id: string; updatedAt: Date } | null; t: (key: string) => string; dateLocale: Locale }) => {
+const CacheInfoBadge = ({ cachedInfo }: { cachedInfo: { id: string; updatedAt: Date } | null }) => {
+  const { t, i18n } = useTranslation(['simulation', 'common']);
+  const dateLocale = i18n.language === 'tr' ? tr : enUS;
   if (!cachedInfo) return null;
-  
+
   return (
     <Badge variant="outline" className="gap-1 text-xs bg-blue-500/10 text-blue-400 border-blue-500/20">
       <History className="h-3 w-3" />
-      {t('comparison.current')}: {format(cachedInfo.updatedAt, 'dd MMM HH:mm', { locale: dateLocale })}
+      {t('simulation:aiAnalysis.analysisDate')}: {format(cachedInfo.updatedAt, 'dd MMM HH:mm', { locale: dateLocale })}
     </Badge>
   );
 };
 
 // Data changed warning component
-const DataChangedWarning = ({ onReanalyze, isLoading, t }: { onReanalyze: () => void; isLoading: boolean; t: (key: string) => string }) => {
+const DataChangedWarning = ({ onReanalyze, isLoading }: { onReanalyze: () => void; isLoading: boolean }) => {
+  const { t } = useTranslation(['simulation', 'common']);
   return (
     <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-center gap-3 mb-4">
       <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
       <div className="flex-1 min-w-0">
         <p className="text-sm font-medium text-amber-400">
-          {t('comparison.dataChanged')}
+          {t('simulation:comparison.dataChanged')}
         </p>
         <p className="text-xs text-muted-foreground">
-          {t('comparison.reanalyzeSuggestion')}
+          {t('simulation:comparison.dataChangedDesc', { defaultValue: 'Son analizden bu yana veriler değişti. Güncel sonuçlar için yeniden analiz yapmanızı öneririz.' })}
         </p>
       </div>
-      <Button 
-        size="sm" 
-        variant="outline" 
+      <Button
+        size="sm"
+        variant="outline"
         className="gap-1 border-amber-500/30 text-amber-400 hover:bg-amber-500/20 flex-shrink-0"
         onClick={onReanalyze}
         disabled={isLoading}
       >
         {isLoading ? <Loader2 className="h-3 w-3 animate-spin" /> : <RefreshCw className="h-3 w-3" />}
-        {t('ai.reanalyze')}
+        {t('simulation:comparison.reanalyze')}
       </Button>
     </div>
   );
 };
 
 // Analysis history panel component
-const AnalysisHistoryPanel = ({ 
-  history, 
-  isLoading, 
+const AnalysisHistoryPanel = ({
+  history,
+  isLoading,
   onSelectHistory,
-  analysisType,
-  t,
-  dateLocale
-}: { 
-  history: AnalysisHistoryItem[]; 
+  analysisType
+}: {
+  history: AnalysisHistoryItem[];
   isLoading: boolean;
   onSelectHistory: (item: AnalysisHistoryItem) => void;
   analysisType: 'scenario_comparison' | 'investor_pitch';
-  t: (key: string, options?: any) => string;
-  dateLocale: Locale;
 }) => {
+  const { t, i18n } = useTranslation(['simulation', 'common']);
+  const dateLocale = i18n.language === 'tr' ? tr : enUS;
   const [isOpen, setIsOpen] = useState(false);
 
   if (history.length === 0 && !isLoading) return null;
@@ -325,7 +326,7 @@ const AnalysisHistoryPanel = ({
       <CollapsibleTrigger asChild>
         <Button variant="ghost" size="sm" className="gap-2 text-muted-foreground hover:text-foreground">
           <History className="h-4 w-4" />
-          {t('comparison.analysisHistory')} ({history.length})
+          {t('simulation:aiAnalysis.analysisHistory')} ({history.length})
           <ChevronDown className={`h-4 w-4 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
         </Button>
       </CollapsibleTrigger>
@@ -338,11 +339,11 @@ const AnalysisHistoryPanel = ({
               </div>
             ) : history.length === 0 ? (
               <p className="text-sm text-muted-foreground text-center py-4">
-                {t('comparison.noHistory')}
+                {t('simulation:aiAnalysis.noHistory')}
               </p>
             ) : (
               history.map((item, index) => (
-                <div 
+                <div
                   key={item.id}
                   className="flex items-center justify-between p-2 rounded-lg border hover:bg-accent/50 cursor-pointer transition-colors"
                   onClick={() => onSelectHistory(item)}
@@ -354,18 +355,18 @@ const AnalysisHistoryPanel = ({
                         {format(item.createdAt, 'dd MMMM yyyy HH:mm', { locale: dateLocale })}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {item.analysisType === 'investor_pitch' 
-                          ? `${t('comparison.investorAnalysis')} ${item.investorAnalysis ? '✓' : ''}`
+                        {item.analysisType === 'investor_pitch'
+                          ? `${t('simulation:aiAnalysis.investorAnalysis', { defaultValue: 'Yatırımcı analizi' })} ${item.investorAnalysis ? '✓' : ''}`
                           : item.analysisType === 'unified'
-                          ? t('comparison.comprehensiveAnalysis')
-                          : `${t('comparison.insightsCount', { count: item.insights?.length || 0 })}, ${t('comparison.recommendationsCount', { count: item.recommendations?.length || 0 })}`
+                          ? t('simulation:aiAnalysis.comprehensiveAnalysis', { defaultValue: 'Kapsamlı analiz' })
+                          : `${item.insights?.length || 0} ${t('simulation:aiAnalysis.insights')}, ${item.recommendations?.length || 0} ${t('simulation:aiAnalysis.recommendations')}`
                         }
                       </p>
                     </div>
                   </div>
                   <div className="flex items-center gap-2">
                     {index === 0 && (
-                      <Badge variant="secondary" className="text-xs">{t('comparison.current')}</Badge>
+                      <Badge variant="secondary" className="text-xs">{t('simulation:aiAnalysis.current', { defaultValue: 'Güncel' })}</Badge>
                     )}
                     <ArrowRight className="h-4 w-4 text-muted-foreground" />
                   </div>
@@ -385,25 +386,23 @@ const HistoricalAnalysisSheet = ({
   isOpen,
   onClose,
   onRestore,
-  analysisType,
-  t,
-  dateLocale
+  analysisType
 }: {
   item: AnalysisHistoryItem | null;
   isOpen: boolean;
   onClose: () => void;
   onRestore: (item: AnalysisHistoryItem) => void;
   analysisType: 'scenario_comparison' | 'investor_pitch';
-  t: (key: string) => string;
-  dateLocale: Locale;
 }) => {
+  const { t, i18n } = useTranslation(['simulation', 'common']);
+  const dateLocale = i18n.language === 'tr' ? tr : enUS;
   if (!item) return null;
 
   return (
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="w-[450px] sm:w-[540px]">
         <SheetHeader>
-          <SheetTitle>{t('comparison.historicalAnalysis')}</SheetTitle>
+          <SheetTitle>{t('simulation:aiAnalysis.historicalAnalysis', { defaultValue: 'Geçmiş Analiz' })}</SheetTitle>
           <SheetDescription>
             {format(item.createdAt, 'dd MMMM yyyy HH:mm', { locale: dateLocale })}
           </SheetDescription>
@@ -412,7 +411,7 @@ const HistoricalAnalysisSheet = ({
           {analysisType === 'scenario_comparison' && item.insights && (
             <div className="space-y-4">
               <div>
-                <h4 className="font-medium mb-2 text-sm text-muted-foreground">{t('aiDetails.financialInsights')}</h4>
+                <h4 className="font-medium mb-2 text-sm text-muted-foreground">{t('simulation:aiAnalysis.insights')}</h4>
                 {item.insights.map((insight, i) => (
                   <Card key={i} className="p-3 mb-2">
                     <p className="text-sm font-medium">{insight.title}</p>
@@ -422,12 +421,12 @@ const HistoricalAnalysisSheet = ({
               </div>
               {item.recommendations && item.recommendations.length > 0 && (
                 <div>
-                  <h4 className="font-medium mb-2 text-sm text-muted-foreground">{t('aiDetails.recommendationsTitle')}</h4>
+                  <h4 className="font-medium mb-2 text-sm text-muted-foreground">{t('simulation:aiAnalysis.recommendations')}</h4>
                   {item.recommendations.map((rec, i) => (
                     <Card key={i} className="p-3 mb-2">
                       <div className="flex items-center gap-2 mb-1">
                         <Badge variant="outline" className="text-xs">
-                          {t('comparison.priority')} {rec.priority}
+                          {t('simulation:aiAnalysis.priority', { defaultValue: 'Öncelik' })} {rec.priority}
                         </Badge>
                         <p className="text-sm font-medium">{rec.title}</p>
                       </div>
@@ -438,34 +437,34 @@ const HistoricalAnalysisSheet = ({
               )}
             </div>
           )}
-          
+
           {analysisType === 'investor_pitch' && item.investorAnalysis && (
             <div className="space-y-4">
               <Card className="p-3">
-                <h4 className="text-sm font-medium mb-2">{t('comparison.capitalStory')}</h4>
+                <h4 className="text-sm font-medium mb-2">{t('simulation:aiAnalysis.capitalStory', { defaultValue: 'Sermaye Hikayesi' })}</h4>
                 <p className="text-xs text-muted-foreground">{item.investorAnalysis.capitalStory}</p>
               </Card>
               <Card className="p-3">
-                <h4 className="text-sm font-medium mb-2">{t('comparison.investorReturn')}</h4>
+                <h4 className="text-sm font-medium mb-2">{t('simulation:aiAnalysis.investorROI', { defaultValue: 'Yatırımcı Getirisi' })}</h4>
                 <p className="text-xs text-muted-foreground">{item.investorAnalysis.investorROI}</p>
               </Card>
               <Card className="p-3">
-                <h4 className="text-sm font-medium mb-2">{t('comparison.exitScenario')}</h4>
+                <h4 className="text-sm font-medium mb-2">{t('simulation:aiAnalysis.exitScenario', { defaultValue: 'Çıkış Senaryosu' })}</h4>
                 <p className="text-xs text-muted-foreground">{item.investorAnalysis.exitNarrative}</p>
               </Card>
             </div>
           )}
         </ScrollArea>
         <div className="mt-4 pt-4 border-t">
-          <Button 
-            className="w-full gap-2" 
+          <Button
+            className="w-full gap-2"
             onClick={() => {
               onRestore(item);
               onClose();
             }}
           >
             <RotateCcw className="h-4 w-4" />
-            {t('comparison.restoreAnalysis')}
+            {t('simulation:aiAnalysis.restoreAnalysis')}
           </Button>
         </div>
       </SheetContent>
@@ -555,7 +554,7 @@ function ScenarioComparisonContent() {
   // Handler for multi-select focus projects (max 2)
   const handleFocusProjectsChange = useCallback((projects: string[]) => {
     if (projects.length > 2) {
-      toast.warning(t('comparison.maxProjects'));
+      toast.warning(t('simulation:toast.maxProjectsWarning'));
       return;
     }
     setFocusProjects(projects);
@@ -618,10 +617,10 @@ function ScenarioComparisonContent() {
   const metrics = useMemo(() => {
     if (!summaryA || !summaryB) return [];
     return [
-      { label: t('scenarioImpact.metrics.totalRevenue'), scenarioA: summaryA.totalRevenue, scenarioB: summaryB.totalRevenue, format: 'currency' as const, higherIsBetter: true },
-      { label: t('scenarioImpact.metrics.totalExpense'), scenarioA: summaryA.totalExpense, scenarioB: summaryB.totalExpense, format: 'currency' as const, higherIsBetter: false },
-      { label: t('scenarioImpact.metrics.netProfit'), scenarioA: summaryA.netProfit, scenarioB: summaryB.netProfit, format: 'currency' as const, higherIsBetter: true },
-      { label: t('scenarioImpact.metrics.profitMargin'), scenarioA: summaryA.profitMargin, scenarioB: summaryB.profitMargin, format: 'percent' as const, higherIsBetter: true },
+      { label: t('simulation:metrics.totalRevenue'), scenarioA: summaryA.totalRevenue, scenarioB: summaryB.totalRevenue, format: 'currency' as const, higherIsBetter: true },
+      { label: t('simulation:metrics.totalExpense'), scenarioA: summaryA.totalExpense, scenarioB: summaryB.totalExpense, format: 'currency' as const, higherIsBetter: false },
+      { label: t('simulation:metrics.netProfit'), scenarioA: summaryA.netProfit, scenarioB: summaryB.netProfit, format: 'currency' as const, higherIsBetter: true },
+      { label: t('simulation:metrics.profitMargin'), scenarioA: summaryA.profitMargin, scenarioB: summaryB.profitMargin, format: 'percent' as const, higherIsBetter: true },
     ];
   }, [summaryA, summaryB, t]);
 
@@ -873,7 +872,7 @@ function ScenarioComparisonContent() {
     });
     
     const breakEvenIdx = months.findIndex(m => m.isBreakEven);
-    const breakEvenMonth = breakEvenIdx >= 0 ? months[breakEvenIdx].month : t('comparison.breakEvenNotReached');
+    const breakEvenMonth = breakEvenIdx >= 0 ? months[breakEvenIdx].month : t('simulation:capital.notReachedInYear');
     
     return {
       months,
@@ -947,28 +946,34 @@ function ScenarioComparisonContent() {
     return summaryA.netProfit < summaryB.netProfit;
   }, [summaryA, summaryB]);
 
-  const handleSwapScenarios = useCallback(() => {
-    const tempA = scenarioAId;
-    setScenarioAId(scenarioBId);
-    setScenarioBId(tempA);
-    toast.success(t('comparison.orderFixed'));
-  }, [scenarioAId, scenarioBId, setScenarioAId, setScenarioBId, t]);
+  // Senaryoları yer değiştir
+  const swapScenarios = useCallback(() => {
+    if (!scenarioAId || !scenarioBId) return;
+    const newParams = new URLSearchParams();
+    newParams.set('a', scenarioBId);
+    newParams.set('b', scenarioAId);
+    navigate(`/finance/simulation/compare?${newParams.toString()}`, { replace: true });
+    toast.success(t('simulation:toast.scenarioOrderFixed'));
+  }, [scenarioAId, scenarioBId, navigate, t]);
 
-  // Sync AI projection to editable state when analysis updates
+  // Editable Projection Sync - AI analizi tamamlandığında düzenlenebilir tabloya aktar
+  // UPDATED: AI'ın itemized_revenues/expenses verilerini öncelikli olarak kullan
+  // UPDATED: Kullanıcı düzenlemelerini koruma seçeneği eklendi
   useEffect(() => {
-    const projection = unifiedAnalysis?.next_year_projection;
-    
-    // Eğer kullanıcı düzenleme yapmışsa ve koruma açıksa, AI değerlerini alma
-    if (preserveUserEdits && hasUserEdits) {
-      console.log('[Editable Sync] User edits preserved, skipping AI sync');
-      toast.info(t('comparison.userEditsPreserved'));
-      return;
-    }
-    
-    if (projection && scenarioA) {
-      console.log('[Editable Sync] Syncing AI projection to editable state');
-      
-      // YENİ: AI'dan gelen itemized revenue verileri varsa bunları kullan
+    if (unifiedAnalysis?.next_year_projection && scenarioA) {
+      const projection = unifiedAnalysis.next_year_projection;
+
+      // Kullanıcı düzenlemelerini koru - eğer preserveUserEdits true ve mevcut düzenlemeler varsa
+      const currentHasUserEdits = editableRevenueProjection.some(i => i.userEdited) ||
+                                  editableExpenseProjection.some(i => i.userEdited);
+
+      if (preserveUserEdits && currentHasUserEdits) {
+        console.log('[Editable Sync] Preserving user edits - skipping AI projection override');
+        toast.info(t('simulation:toast.userEditsPreserved'));
+        return; // Kullanıcı düzenlemelerini koru, AI sonuçlarını uygulama
+      }
+
+      // YENİ: AI'dan gelen itemized veriler varsa bunları kullan
       if (projection.itemized_revenues && projection.itemized_revenues.length > 0) {
         console.log('[Editable Sync] Using AI itemized_revenues:', projection.itemized_revenues.length, 'items');
         const revenueItems: EditableProjectionItem[] = projection.itemized_revenues.map(item => ({
@@ -1157,7 +1162,8 @@ function ScenarioComparisonContent() {
     
     // Validate quarterlyComparison array has required length
     if (!quarterlyComparison || quarterlyComparison.length < 4) {
-      toast.error(t('comparison.quarterlyDataMissing'));
+      toast.error(t('simulation:toast.quarterlyDataMissing'));
+      setIsAnalyzing(false);
       return;
     }
 
@@ -1252,30 +1258,31 @@ function ScenarioComparisonContent() {
   const handleExportPresentationPdf = useCallback(async () => {
     // Validation
     if (!scenarioA || !scenarioB) {
-      toast.error(t('pdf.missingData'));
+      toast.error(t('simulation:toast.scenarioDataMissing'));
       return;
     }
     if (!summaryA || !summaryB) {
-      toast.error(t('pdf.missingData'));
+      toast.error(t('simulation:toast.summaryCalcError'));
       return;
     }
     if (!presentationPdfRef.current) {
-      toast.error(t('pdf.missingContent'));
+      toast.error(t('simulation:pdf.contentLoadError'));
       return;
     }
 
     // Check if ref has content
     if (!presentationPdfRef.current.innerHTML || presentationPdfRef.current.innerHTML.trim() === '') {
-      toast.error(t('pdf.emptyContent'));
+      toast.error(t('simulation:pdf.contentEmpty'));
       return;
     }
 
-    toast.info(t('pdf.preparing'));
+    toast.info(t('simulation:pdf.preparing'));
 
     try {
       const safeNameA = sanitizeFilename(scenarioA.name);
       const safeNameB = sanitizeFilename(scenarioB.name);
-      const filename = `Senaryo_Sunum_${safeNameA}_vs_${safeNameB}.pdf`;
+      const filenamePrefix = t('simulation:pdf.filenamePrefix');
+      const filename = `${filenamePrefix}_${safeNameA}_vs_${safeNameB}.pdf`;
 
       const success = await generatePdfFromElement(presentationPdfRef, {
         filename,
@@ -1289,32 +1296,32 @@ function ScenarioComparisonContent() {
       });
 
       if (success) {
-        toast.success(t('pdf.created'));
+        toast.success(t('simulation:pdf.created'));
       } else {
-        toast.error(t('pdf.error'));
+        toast.error(t('simulation:pdf.createFailed'));
       }
     } catch (error) {
       console.error('[PDF Export Error]', error);
-      toast.error(t('pdf.error') + ': ' + (error instanceof Error ? error.message : 'Unknown error'));
+      toast.error(`${t('simulation:pdf.downloadError')}: ${error instanceof Error ? error.message : t('simulation:toast.unknownError')}`);
     }
   }, [scenarioA, scenarioB, summaryA, summaryB, generatePdfFromElement, t]);
 
   const handleCreateNextYear = async () => {
     if (!unifiedAnalysis?.next_year_projection || !scenarioA || !scenarioB) return;
-    
+
     // Pass both scenarios + focusProjects for selective growth
     // Only focus projects get growth multiplier, others stay static
     const newScenario = await createNextYearFromAI(
-      scenarioA, 
-      scenarioB, 
+      scenarioA,
+      scenarioB,
       unifiedAnalysis.next_year_projection,
       focusProjects  // Seçili odak projeler - sadece bunlara büyüme uygulanır
     );
     if (newScenario) {
-      const focusNote = focusProjects.length > 0 
-        ? ` (${t('comparison.focus')}: ${focusProjects.join(', ')})`
+      const focusNote = focusProjects.length > 0
+        ? ` (${t('simulation:focusProject.focus', { defaultValue: 'Odak' })}: ${focusProjects.join(', ')})`
         : '';
-      toast.success(t('comparison.scenarioCreated', { year: newScenario.targetYear }) + focusNote);
+      toast.success(`${t('simulation:toast.nextYearCreated', { year: newScenario.targetYear })}${focusNote}`);
       navigate(`/finance/simulation?scenario=${newScenario.id}`);
     }
   };
@@ -1334,8 +1341,8 @@ function ScenarioComparisonContent() {
   };
 
   const cumulativeChartConfig: ChartConfig = {
-    scenarioACumulative: { label: `${scenarioA?.name || 'A'} ${t('comparison.cumulative')}`, color: '#2563eb' },
-    scenarioBCumulative: { label: `${scenarioB?.name || 'B'} ${t('comparison.cumulative')}`, color: '#16a34a' },
+    scenarioACumulative: { label: `${scenarioA?.name || 'A'} ${t('simulation:charts.cumulative')}`, color: '#2563eb' },
+    scenarioBCumulative: { label: `${scenarioB?.name || 'B'} ${t('simulation:charts.cumulative')}`, color: '#16a34a' },
   };
 
   if (scenariosLoading) {
@@ -1355,24 +1362,24 @@ function ScenarioComparisonContent() {
               <Link to="/finance/simulation">
                 <Button variant="ghost" size="sm" className="gap-2">
                   <ArrowLeft className="h-4 w-4" />
-                  {t('common:back')}
+                  {t('common:buttons.back')}
                 </Button>
               </Link>
               <div className="flex items-center gap-2">
                 <ArrowLeftRight className="h-5 w-5 text-primary" />
-                <h1 className="text-xl font-bold">{t('comparison.title')}</h1>
+                <h1 className="text-xl font-bold">{t('simulation:comparison.title')}</h1>
               </div>
             </div>
             {canCompare && (
-              <Button 
-                variant="outline" 
-                size="sm" 
-                disabled={isGenerating} 
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={isGenerating}
                 className="gap-2"
                 onClick={handleExportPresentationPdf}
               >
                 {isGenerating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Presentation className="h-4 w-4" />}
-                {t('pdf.export')}
+                {t('simulation:pdf.export')}
               </Button>
             )}
           </div>
@@ -1387,19 +1394,26 @@ function ScenarioComparisonContent() {
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
-                    {scenarioA?.targetYear || '?'} {scenarioA && scenarioB && scenarioA.targetYear > scenarioB.targetYear ? t('scenario.growth') : t('scenario.positive')}
+                    {scenarioA?.targetYear || '?'} {scenarioA && scenarioB && scenarioA.targetYear > scenarioB.targetYear ? t('simulation:scenario.types.growth', { defaultValue: 'Büyüme' }) : t('simulation:scenario.types.positive')}
                   </Badge>
-                  {t('comparison.scenarioA')}
+                  {t('simulation:comparison.scenarioA')}
                 </label>
                 <Select value={scenarioAId || ''} onValueChange={setScenarioAId}>
-                  <SelectTrigger><SelectValue placeholder={t('comparison.selectScenario')} /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t('simulation:comparison.selectScenario', { defaultValue: 'Senaryo seçin...' })} /></SelectTrigger>
                   <SelectContent>
                     {scenariosWithProfit.map((s) => (
                       <SelectItem key={s.id} value={s.id!} disabled={s.id === scenarioBId}>
-                        <div className="flex items-center gap-2">
-                          <span>{s.name}</span>
-                          <Badge variant="outline" className={`text-xs ${s.profit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                            {formatCompactUSD(s.profit)}
+                        <div className="flex items-center justify-between w-full gap-2">
+                          <span className="font-medium">{s.targetYear}</span>
+                          <span className="truncate">{s.name}</span>
+                          <Badge
+                            variant="outline"
+                            className={s.scenarioType === 'negative'
+                              ? 'bg-red-500/10 text-red-500 border-red-500/30 text-xs'
+                              : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-xs'
+                            }
+                          >
+                            {s.scenarioType === 'negative' ? t('simulation:scenario.types.negative') : t('simulation:scenario.types.positive')}
                           </Badge>
                         </div>
                       </SelectItem>
@@ -1409,20 +1423,27 @@ function ScenarioComparisonContent() {
               </div>
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
-                  <Badge variant="outline" className="bg-amber-500/10 text-amber-500 border-amber-500/30">
-                    {scenarioB?.targetYear || '?'} {scenarioA && scenarioB && scenarioA.targetYear > scenarioB.targetYear ? t('comparison.base') : t('scenario.negative')}
+                  <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">
+                    {scenarioB?.targetYear || '?'} {scenarioA && scenarioB && scenarioA.targetYear > scenarioB.targetYear ? t('simulation:scenario.types.base', { defaultValue: 'Baz' }) : t('simulation:scenario.types.negative')}
                   </Badge>
-                  {t('comparison.scenarioB')}
+                  {t('simulation:comparison.scenarioB')}
                 </label>
                 <Select value={scenarioBId || ''} onValueChange={setScenarioBId}>
-                  <SelectTrigger><SelectValue placeholder={t('comparison.selectScenario')} /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t('simulation:comparison.selectScenario', { defaultValue: 'Senaryo seçin...' })} /></SelectTrigger>
                   <SelectContent>
                     {scenariosWithProfit.map((s) => (
                       <SelectItem key={s.id} value={s.id!} disabled={s.id === scenarioAId}>
-                        <div className="flex items-center gap-2">
-                          <span>{s.name}</span>
-                          <Badge variant="outline" className={`text-xs ${s.profit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                            {formatCompactUSD(s.profit)}
+                        <div className="flex items-center justify-between w-full gap-2">
+                          <span className="font-medium">{s.targetYear}</span>
+                          <span className="truncate">{s.name}</span>
+                          <Badge
+                            variant="outline"
+                            className={s.scenarioType === 'negative'
+                              ? 'bg-red-500/10 text-red-500 border-red-500/30 text-xs'
+                              : 'bg-emerald-500/10 text-emerald-500 border-emerald-500/30 text-xs'
+                            }
+                          >
+                            {s.scenarioType === 'negative' ? t('simulation:scenario.types.negative') : t('simulation:scenario.types.positive')}
                           </Badge>
                         </div>
                       </SelectItem>
@@ -1431,53 +1452,46 @@ function ScenarioComparisonContent() {
                 </Select>
               </div>
             </div>
-            
-            {/* Wrong order warning */}
-            {wrongOrder && canCompare && (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3">
-                <div className="flex items-center gap-3">
-                  <AlertTriangle className="h-5 w-5 text-amber-500" />
-                  <div className="flex-1">
-                    <p className="text-sm font-medium text-amber-400">{t('comparison.wrongOrderTitle')}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {t('comparison.wrongOrderDescription')}
-                    </p>
-                  </div>
-                  <Button size="sm" variant="outline" className="gap-1" onClick={handleSwapScenarios}>
-                    <ArrowLeftRight className="h-3 w-3" />
-                    {t('comparison.fix')}
-                  </Button>
+
+            {/* Wrong Order Warning Banner */}
+            {isScenarioOrderWrong && (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-lg p-3 flex items-center gap-3">
+                <AlertTriangle className="h-5 w-5 text-amber-500 flex-shrink-0" />
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-amber-500">
+                    {t('simulation:comparison.orderError')}
+                  </p>
+                  <p className="text-xs text-muted-foreground">
+                    {t('simulation:comparison.orderErrorDesc')}
+                  </p>
                 </div>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1 border-amber-500/30 text-amber-500 hover:bg-amber-500/20 flex-shrink-0"
+                  onClick={swapScenarios}
+                >
+                  <ArrowLeftRight className="h-4 w-4" />
+                  {t('simulation:comparison.fix')}
+                </Button>
               </div>
             )}
           </CardContent>
         </Card>
 
-        {/* No scenarios warning */}
-        {scenarios.length < 2 && (
-          <Card className="border-dashed">
-            <CardContent className="py-8 text-center">
-              <AlertTriangle className="h-12 w-12 mx-auto text-muted-foreground/50 mb-4" />
-              <p className="text-muted-foreground">{t('comparison.noScenarios')}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Loading cached analysis */}
-        {unifiedCacheLoading && (
-          <Card>
-            <CardContent className="py-8 text-center">
-              <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary mb-4" />
-              <p className="text-muted-foreground">{t('comparison.loadingPreviousAnalysis')}</p>
-            </CardContent>
-          </Card>
-        )}
-
-        {/* Main comparison content */}
-        {canCompare && !unifiedCacheLoading && (
+        {!canCompare ? (
+          <div className="text-center py-16 text-muted-foreground">
+            {scenarios.length < 2 ? <p>{t('simulation:comparison.noScenarios')}</p> : <p>{t('simulation:comparison.selectDifferent', { defaultValue: 'Karşılaştırmak için iki farklı senaryo seçin.' })}</p>}
+          </div>
+        ) : (
           <div className="space-y-6">
-            {/* AI ANALYSIS SECTION - En üstte */}
-            {!unifiedCacheLoading && (
+            {/* AI ANALYSIS SUMMARY - EN ÜSTTE */}
+            {unifiedCacheLoading ? (
+              <div className="flex items-center justify-center py-8">
+                <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
+                <span className="ml-2 text-muted-foreground">{t('simulation:aiAnalysis.loadingPrevious', { defaultValue: 'Önceki analiz yükleniyor...' })}</span>
+              </div>
+            ) : (
               <>
                 {/* Data changed warning */}
                 {unifiedDataChanged && unifiedCachedInfo && (
@@ -1569,7 +1583,7 @@ function ScenarioComparisonContent() {
               {/* Quarterly Net Profit Bar Chart */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">{t('comparison.quarterlyNetProfit')}</CardTitle>
+                  <CardTitle className="text-sm">{t('simulation:charts.quarterlyNetProfit')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div ref={quarterlyChartRef} className="chart-capture-wrapper">
@@ -1591,7 +1605,7 @@ function ScenarioComparisonContent() {
               {/* Cumulative Cash Flow Area Chart */}
               <Card>
                 <CardHeader className="pb-2">
-                  <CardTitle className="text-sm">{t('comparison.cumulativeCashFlow')}</CardTitle>
+                  <CardTitle className="text-sm">{t('simulation:charts.cumulativeCashFlow')}</CardTitle>
                 </CardHeader>
                 <CardContent>
                   <div ref={cumulativeChartRef} className="chart-capture-wrapper">
@@ -1616,9 +1630,9 @@ function ScenarioComparisonContent() {
               <div className="space-y-4">
                 <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <Brain className="h-4 w-4" />
-                  {t('comparison.professionalMetrics')}
+                  {t('simulation:professionalAnalysis.title')}
                 </h3>
-                
+
                 <Accordion type="multiple" defaultValue={['financial-ratios']} className="space-y-2">
                   {/* Senaryo Karşılaştırması */}
                   {quarterlyItemized && (
@@ -1626,9 +1640,9 @@ function ScenarioComparisonContent() {
                       <AccordionTrigger className="px-4 py-3 hover:no-underline">
                         <div className="flex items-center gap-2">
                           <ArrowLeftRight className="h-4 w-4 text-blue-400" />
-                          <span>{t('comparison.scenarioComparison')}</span>
+                          <span>{t('simulation:professionalAnalysis.scenarioComparison')}</span>
                           <Badge variant="secondary" className="ml-2">
-                            {(quarterlyItemized.scenarioA?.revenues?.length || 0) + (quarterlyItemized.scenarioA?.expenses?.length || 0)} {t('comparison.items')}
+                            {(quarterlyItemized.scenarioA?.revenues?.length || 0) + (quarterlyItemized.scenarioA?.expenses?.length || 0)} {t('simulation:projection.item')}
                           </Badge>
                         </div>
                       </AccordionTrigger>
@@ -1661,7 +1675,7 @@ function ScenarioComparisonContent() {
                       <AccordionTrigger className="px-4 py-3 hover:no-underline">
                         <div className="flex items-center gap-2">
                           <Activity className="h-4 w-4 text-purple-400" />
-                          <span>{t('comparison.trendAnalysis')}</span>
+                          <span>{t('simulation:professionalAnalysis.trendAnalysis.title')}</span>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="px-4 pb-4">
@@ -1679,7 +1693,7 @@ function ScenarioComparisonContent() {
                       <AccordionTrigger className="px-4 py-3 hover:no-underline">
                         <div className="flex items-center gap-2">
                           <Calculator className="h-4 w-4 text-emerald-400" />
-                          <span>{t('comparison.financialRatios')}</span>
+                          <span>{t('simulation:professionalAnalysis.financialRatios.title')}</span>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="px-4 pb-4">
@@ -1688,13 +1702,13 @@ function ScenarioComparisonContent() {
                     </AccordionItem>
                   )}
                   
-                  {/* Duyarlılık Analizi */}
+                  {/* Sensitivity Analysis */}
                   {sensitivityAnalysis && (
                     <AccordionItem value="sensitivity" className="border rounded-lg bg-card">
                       <AccordionTrigger className="px-4 py-3 hover:no-underline">
                         <div className="flex items-center gap-2">
                           <AlertTriangle className="h-4 w-4 text-amber-400" />
-                          <span>{t('comparison.sensitivityAnalysis')}</span>
+                          <span>{t('simulation:professionalAnalysis.sensitivityAnalysis.title')}</span>
                         </div>
                       </AccordionTrigger>
                       <AccordionContent className="px-4 pb-4">
@@ -1745,20 +1759,20 @@ function ScenarioComparisonContent() {
                   />
                 )}
                 
-                {/* Editable Projection Tables - Düzenlenebilir Projeksiyon */}
+                {/* Editable Projection Tables */}
                 {unifiedAnalysis?.next_year_projection && editableRevenueProjection.length > 0 && (
                   <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                     <EditableProjectionTable
-                      title={`${scenarioA?.targetYear ? scenarioA.targetYear + 1 : t('projection.nextYear')} ${t('projection.revenue')}`}
-                      description={t('comparison.aiGeneratedEditable')}
+                      title={`${scenarioA?.targetYear ? scenarioA.targetYear + 1 : t('simulation:projection.nextYear')} ${t('simulation:projection.revenueProjection')}`}
+                      description={t('simulation:projection.aiGeneratedDesc')}
                       items={editableRevenueProjection}
                       onItemChange={handleRevenueProjectionChange}
                       onReset={handleResetRevenueProjection}
                       type="revenue"
                     />
                     <EditableProjectionTable
-                      title={`${scenarioA?.targetYear ? scenarioA.targetYear + 1 : t('projection.nextYear')} ${t('projection.expense')}`}
-                      description={t('comparison.aiGeneratedEditable')}
+                      title={`${scenarioA?.targetYear ? scenarioA.targetYear + 1 : t('simulation:projection.nextYear')} ${t('simulation:projection.expenseProjection')}`}
+                      description={t('simulation:projection.aiGeneratedDesc')}
                       items={editableExpenseProjection}
                       onItemChange={handleExpenseProjectionChange}
                       onReset={handleResetExpenseProjection}
@@ -1790,10 +1804,10 @@ function ScenarioComparisonContent() {
               <div>
                 <SheetTitle className="flex items-center gap-2">
                   <Presentation className="h-5 w-5 text-purple-400" />
-                  {t('pitchDeck.title')}
+                  {t('simulation:pitchDeck.title')}
                 </SheetTitle>
                 <SheetDescription>
-                  {t('pitchDeck.description')}
+                  {t('simulation:pitchDeck.descriptionLong')}
                 </SheetDescription>
               </div>
               <Button
@@ -1803,7 +1817,7 @@ function ScenarioComparisonContent() {
                 className="gap-1"
               >
                 <Edit2 className="h-3 w-3" />
-                {pitchDeckEditMode ? t('pitchDeck.view') : t('pitchDeck.edit')}
+                {pitchDeckEditMode ? t('simulation:pitchDeck.viewMode') : t('simulation:pitchDeck.editMode')}
               </Button>
             </div>
           </SheetHeader>
@@ -1822,8 +1836,8 @@ function ScenarioComparisonContent() {
             ) : (
               <div className="text-center py-8 text-muted-foreground">
                 <Presentation className="h-12 w-12 mx-auto mb-4 opacity-50" />
-                <p>{t('pitchDeck.noPitchDeck')}</p>
-                <p className="text-xs mt-1">{t('pitchDeck.runAIFirst')}</p>
+                <p>{t('simulation:pitchDeck.noPitchDeck')}</p>
+                <p className="text-xs mt-1">{t('simulation:pitchDeck.runAiFirst')}</p>
               </div>
             )}
           </div>

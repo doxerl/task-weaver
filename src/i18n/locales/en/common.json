@@ -92,6 +92,13 @@
     "thisMonth": "This Month",
     "thisYear": "This Year"
   },
+  "units": {
+    "months": "months",
+    "years": "years",
+    "days": "days",
+    "hours": "hours",
+    "minutes": "minutes"
+  },
   "pagination": {
     "showing": "Showing {{count}} records",
     "of": "of {{total}}",
