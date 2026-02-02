@@ -15,12 +15,16 @@
     "positiveScenarios": "Pozitif Senaryolar",
     "negativeScenarios": "Negatif Senaryolar",
     "deleteTitle": "Senaryoyu Sil",
-    "deleteDescription": "Bu senaryoyu silmek istediğinizden emin misiniz? Bu işlem geri alınamaz."
+    "deleteDescription": "Bu senaryoyu silmek istediğinizden emin misiniz? Bu işlem geri alınamaz.",
+    "growth": "Büyüme"
   },
   "projection": {
     "item": "Kalem",
     "distributeEvenly": "Eşit böl",
-    "descriptionPlaceholder": "Açıklama ekleyin... (örn: 2 yazılımcı alacağım, Q2'den itibaren aylık $4K x2)"
+    "descriptionPlaceholder": "Açıklama ekleyin... (örn: 2 yazılımcı alacağım, Q2'den itibaren aylık $4K x2)",
+    "revenue": "Gelir Projeksiyonu",
+    "expense": "Gider Projeksiyonu",
+    "nextYear": "Gelecek Yıl"
   },
   "summary": {
     "baseYear": "{{year}} Baz Yıl",
@@ -36,7 +40,9 @@
       "investments": "Yatırımlar",
       "estimatedProfit": "Tahmini Kar",
       "netNeed": "Net İhtiyaç",
-      "tryEquivalent": "TL Karşılığı"
+      "tryEquivalent": "TL Karşılığı",
+      "totalRevenue": "Toplam Gelir",
+      "totalExpense": "Toplam Gider"
     }
   },
   "capital": {
@@ -95,6 +101,7 @@
     "opportunityCost": "Fırsat Maliyeti Analizi",
     "metrics": {
       "totalRevenue": "Toplam Gelir",
+      "totalExpense": "Toplam Gider",
       "netProfit": "Net Kâr",
       "profitMargin": "Kâr Marjı",
       "growthRate": "Büyüme Oranı",
@@ -158,14 +165,20 @@
   },
   "pdf": {
     "export": "PDF Sunum",
-    "generating": "PDF oluşturuluyor..."
+    "generating": "PDF oluşturuluyor...",
+    "preparing": "PDF hazırlanıyor...",
+    "created": "PDF sunumu oluşturuldu!",
+    "error": "PDF oluşturulurken hata oluştu",
+    "missingData": "Senaryo verileri eksik",
+    "missingContent": "PDF içeriği yüklenemedi, sayfayı yenileyin",
+    "emptyContent": "PDF içeriği boş, lütfen bekleyin ve tekrar deneyin"
   },
   "comparison": {
     "title": "Senaryo Karşılaştırması",
     "selectScenarios": "Karşılaştırılacak senaryoları seçin",
     "scenarioA": "Senaryo A",
     "scenarioB": "Senaryo B",
-    "noScenarios": "Karşılaştırma için en az 2 senaryo gerekli",
+    "noScenarios": "Karşılaştırma için en az 2 kayıtlı senaryo gerekli",
     "dataChanged": "Senaryo verileri güncellendi",
     "reanalyzeSuggestion": "Son analizden bu yana veriler değişti. Güncel sonuçlar için yeniden analiz yapmanızı öneririz.",
     "analysisHistory": "Analiz Geçmişi",
@@ -177,7 +190,49 @@
     "metricComparison": "Metrik Karşılaştırması",
     "itemComparison": "Kalem Karşılaştırması",
     "difference": "Fark",
-    "change": "Değişim"
+    "change": "Değişim",
+    "loadingPreviousAnalysis": "Önceki analiz yükleniyor...",
+    "selectScenario": "Senaryo seçin...",
+    "base": "Baz",
+    "wrongOrderTitle": "Senaryo Sıralaması Hatalı",
+    "wrongOrderDescription": "Senaryo A pozitif (yüksek kâr), Senaryo B negatif (düşük kâr) olmalıdır. Değiştirmek ister misiniz?",
+    "fix": "Düzelt",
+    "orderFixed": "Senaryo sıralaması düzeltildi",
+    "maxProjects": "En fazla 2 proje seçebilirsiniz",
+    "userEditsPreserved": "Kullanıcı düzenlemeleri korundu. Yeni AI projeksiyonunu görmek için \"Düzenlemeleri Sıfırla\" kullanın.",
+    "quarterlyDataMissing": "Çeyreklik veri eksik. Lütfen senaryoları kontrol edin.",
+    "breakEvenNotReached": "Yıl içinde ulaşılamadı",
+    "scenarioCreated": "{{year}} yılı senaryosu oluşturuldu!",
+    "cumulative": "Kümülatif",
+    "quarterlyNetProfit": "Çeyreklik Net Kâr",
+    "cumulativeCashFlow": "Kümülatif Nakit Akışı",
+    "professionalMetrics": "Profesyonel Analiz Metrikleri",
+    "items": "kalem",
+    "itemTrendAnalysis": "Kalem Trend Analizi",
+    "trendAnalysis": "Trend Analizi",
+    "financialRatios": "Finansal Oranlar",
+    "sensitivityAnalysis": "Duyarlılık Analizi",
+    "revenueProjection": "Gelir Projeksiyonu",
+    "expenseProjection": "Gider Projeksiyonu",
+    "aiGeneratedEditable": "AI tarafından oluşturuldu - düzenleyebilirsiniz",
+    "priority": "Öncelik",
+    "capitalStory": "Sermaye Hikayesi",
+    "investorReturn": "Yatırımcı Getirisi",
+    "exitScenario": "Çıkış Senaryosu",
+    "investorAnalysis": "Yatırımcı analizi",
+    "comprehensiveAnalysis": "Kapsamlı analiz",
+    "insightsCount": "{{count}} çıkarım",
+    "recommendationsCount": "{{count}} öneri",
+    "scenarioComparison": "Senaryo Karşılaştırması",
+    "focus": "Odak"
+  },
+  "pitchDeck": {
+    "title": "Yatırımcı Pitch Deck",
+    "description": "AI tarafından oluşturulan 5 slaytlık yatırımcı sunumu - düzenleyebilirsiniz",
+    "view": "Görüntüleme",
+    "edit": "Düzenleme",
+    "noPitchDeck": "Henüz pitch deck oluşturulmadı.",
+    "runAIFirst": "Önce AI analizi çalıştırın."
   },
   "ai": {
     "title": "🧠 Kapsamlı AI Analizi (Gemini Pro 3)",
@@ -214,7 +269,7 @@
   },
   "aiDetails": {
     "title": "AI Analiz Detayları",
-    "insights": "içgörü",
+    "insights": "çıkarım",
     "recommendations": "öneri",
     "investorAttractiveness": "Yatırımcı Çekiciliği",
     "financialInsights": "Finansal İçgörüler",
