@@ -1100,6 +1100,30 @@
       "margin": "Margin",
       "differenceBA": "Difference (B - A)",
       "change": "change"
+    },
+    "capitalAnalysis": {
+      "title": "Capital & Death Valley Analysis",
+      "deathValley": "Death Valley",
+      "criticalQuarter": "Critical Quarter",
+      "runway": "Runway",
+      "yearEnd": "Year End",
+      "selfSustaining": "Self-Sustaining",
+      "requiredInvestment": "Required Investment",
+      "none": "None",
+      "peakDeficit": "Peak Deficit (B)",
+      "deathValley2Y": "2Y Death Valley",
+      "breakeven": "Break-even",
+      "deathValleyComparison": "Death Valley Depth Comparison",
+      "positive": "Positive",
+      "negative": "Negative",
+      "positiveScenarioSelfSustaining": "Positive Scenario: Self-Sustaining",
+      "positiveScenarioInvestmentRequired": "Positive Scenario: Investment Required",
+      "selfSustainingDescription": "Positive scenario can self-finance. Investment can be considered as a growth accelerator.",
+      "investmentRequiredDescription": "Even in positive scenario, {{amount}} investment is required.",
+      "runwayUnlimited": "∞ (Unlimited)",
+      "runwayMonths2PlusYears": "{{months}} mo (2+ years)",
+      "runwayMonths1PlusYears": "{{months}} mo (1+ years)",
+      "runwayMonthsOnly": "{{months}} mo"
     }
   }
 }

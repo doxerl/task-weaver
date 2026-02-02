@@ -1100,6 +1100,30 @@
       "margin": "Marj",
       "differenceBA": "Fark (B - A)",
       "change": "değişim"
+    },
+    "capitalAnalysis": {
+      "title": "Sermaye & Death Valley Analizi",
+      "deathValley": "Death Valley",
+      "criticalQuarter": "Kritik Çeyrek",
+      "runway": "Runway",
+      "yearEnd": "Yıl Sonu",
+      "selfSustaining": "Kendi Kendini Finanse Ediyor",
+      "requiredInvestment": "Gerekli Yatırım",
+      "none": "Yok",
+      "peakDeficit": "Peak Deficit (B)",
+      "deathValley2Y": "2Y Death Valley",
+      "breakeven": "Break-even",
+      "deathValleyComparison": "Death Valley Derinlik Karşılaştırması",
+      "positive": "Pozitif",
+      "negative": "Negatif",
+      "positiveScenarioSelfSustaining": "Pozitif Senaryo: Self-Sustaining",
+      "positiveScenarioInvestmentRequired": "Pozitif Senaryo: Yatırım Gerekli",
+      "selfSustainingDescription": "Pozitif senaryo kendi kendini finanse edebiliyor. Yatırım büyüme hızlandırıcı olarak değerlendirilebilir.",
+      "investmentRequiredDescription": "Pozitif senaryoda bile {{amount}} yatırım gerekli.",
+      "runwayUnlimited": "∞ (Süresiz)",
+      "runwayMonths2PlusYears": "{{months}} ay (2+ yıl)",
+      "runwayMonths1PlusYears": "{{months}} ay (1+ yıl)",
+      "runwayMonthsOnly": "{{months}} ay"
     }
   }
 }
