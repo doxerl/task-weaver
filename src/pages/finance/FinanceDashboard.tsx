@@ -1,4 +1,5 @@
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useYear } from '@/contexts/YearContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
@@ -13,10 +14,8 @@ import { useIncomeStatement } from '@/hooks/finance/useIncomeStatement';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { AppHeader } from '@/components/AppHeader';
 
-const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
-const formatCompact = (n: number) => new Intl.NumberFormat('tr-TR', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
-
 export default function FinanceDashboard() {
+  const { t } = useTranslation(['finance', 'common']);
   const { selectedYear: year, setSelectedYear: setYear } = useYear();
   const calc = useFinancialCalculations(year);
   const vat = useVatCalculations(year);
@@ -24,15 +23,18 @@ export default function FinanceDashboard() {
   const costCenter = useCostCenterAnalysis(year);
   const incomeStatement = useIncomeStatement(year);
 
+  const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
+  const formatCompact = (n: number) => new Intl.NumberFormat('tr-TR', { notation: 'compact', maximumFractionDigits: 1 }).format(n);
+
   return (
     <div className="min-h-screen bg-background pb-20">
       <AppHeader
-        title="Finans"
+        title={t('dashboard.title')}
         icon={<Wallet className="h-5 w-5 text-primary" />}
         badge={incomeStatement.isOfficial && (
           <Badge variant="default" className="bg-green-600">
             <Shield className="h-3 w-3 mr-1" />
-            Resmi Veri
+            {t('dashboard.officialData')}
           </Badge>
         )}
         rightContent={
@@ -54,7 +56,7 @@ export default function FinanceDashboard() {
             <Card className="hover:bg-accent transition-colors cursor-pointer">
               <CardContent className="p-3 flex flex-col items-center gap-1">
                 <FileSpreadsheet className="h-5 w-5 text-primary" />
-                <span className="text-xs font-medium text-center">Banka</span>
+                <span className="text-xs font-medium text-center">{t('dashboard.tabs.bank')}</span>
               </CardContent>
             </Card>
           </Link>
@@ -62,7 +64,7 @@ export default function FinanceDashboard() {
             <Card className="hover:bg-accent transition-colors cursor-pointer">
               <CardContent className="p-3 flex flex-col items-center gap-1">
                 <Camera className="h-5 w-5 text-primary" />
-                <span className="text-xs font-medium text-center">Fiş</span>
+                <span className="text-xs font-medium text-center">{t('dashboard.tabs.receipt')}</span>
               </CardContent>
             </Card>
           </Link>
@@ -70,7 +72,7 @@ export default function FinanceDashboard() {
             <Card className="hover:bg-accent transition-colors cursor-pointer border-primary/50">
               <CardContent className="p-3 flex flex-col items-center gap-1">
                 <PenLine className="h-5 w-5 text-primary" />
-                <span className="text-xs font-medium text-center">Manuel</span>
+                <span className="text-xs font-medium text-center">{t('dashboard.tabs.manual')}</span>
               </CardContent>
             </Card>
           </Link>
@@ -78,7 +80,7 @@ export default function FinanceDashboard() {
             <Card className="hover:bg-accent transition-colors cursor-pointer border-green-500/50">
               <CardContent className="p-3 flex flex-col items-center gap-1">
                 <Shield className="h-5 w-5 text-green-600" />
-                <span className="text-xs font-medium text-center">Resmi</span>
+                <span className="text-xs font-medium text-center">{t('dashboard.tabs.official')}</span>
               </CardContent>
             </Card>
           </Link>
@@ -86,7 +88,7 @@ export default function FinanceDashboard() {
             <Card className="hover:bg-accent transition-colors cursor-pointer">
               <CardContent className="p-3 flex flex-col items-center gap-1">
                 <Receipt className="h-5 w-5 text-purple-500" />
-                <span className="text-xs font-medium text-center">KDV</span>
+                <span className="text-xs font-medium text-center">{t('dashboard.tabs.vat')}</span>
               </CardContent>
             </Card>
           </Link>
@@ -94,7 +96,7 @@ export default function FinanceDashboard() {
             <Card className="hover:bg-accent transition-colors cursor-pointer">
               <CardContent className="p-3 flex flex-col items-center gap-1">
                 <FileText className="h-5 w-5 text-primary" />
-                <span className="text-xs font-medium text-center">Rapor</span>
+                <span className="text-xs font-medium text-center">{t('dashboard.tabs.report')}</span>
               </CardContent>
             </Card>
           </Link>
@@ -105,25 +107,25 @@ export default function FinanceDashboard() {
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-3">
               <TrendingUp className="h-4 w-4 text-green-600" />
-              <span className="text-sm font-medium">Ciro Özeti</span>
+              <span className="text-sm font-medium">{t('dashboard.revenueSummary')}</span>
             </div>
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-muted-foreground">Brüt Ciro (KDV Dahil)</p>
+                <p className="text-xs text-muted-foreground">{t('dashboard.grossRevenue')}</p>
                 <p className="text-lg font-bold text-green-600">{formatCurrency(calc.totalIncome)}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Net Ciro (KDV Hariç)</p>
+                <p className="text-xs text-muted-foreground">{t('dashboard.netRevenue')}</p>
                 <p className="text-lg font-bold text-green-700">{formatCurrency(calc.netRevenue)}</p>
               </div>
             </div>
             <div className="mt-3 pt-3 border-t border-green-200 dark:border-green-800 grid grid-cols-2 gap-4">
               <div>
-                <p className="text-xs text-muted-foreground">Brüt Gider (KDV Dahil)</p>
+                <p className="text-xs text-muted-foreground">{t('dashboard.grossExpense')}</p>
                 <p className="text-lg font-bold text-red-600">{formatCurrency(calc.totalExpenses)}</p>
               </div>
               <div>
-                <p className="text-xs text-muted-foreground">Net Gider (KDV Hariç)</p>
+                <p className="text-xs text-muted-foreground">{t('dashboard.netExpense')}</p>
                 <p className="text-lg font-bold text-red-700">{formatCurrency(calc.netCost)}</p>
               </div>
             </div>
@@ -136,26 +138,26 @@ export default function FinanceDashboard() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
                 <TrendingUp className="h-4 w-4" />
-                <span className="text-xs">Net Kâr</span>
+                <span className="text-xs">{t('dashboard.netProfit')}</span>
               </div>
               <p className={`text-lg font-bold ${calc.operatingProfit >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {formatCurrency(calc.operatingProfit)}
               </p>
-              <p className="text-xs text-muted-foreground">Marj: {calc.profitMargin.toFixed(1)}%</p>
+              <p className="text-xs text-muted-foreground">{t('dashboard.margin')}: {calc.profitMargin.toFixed(1)}%</p>
             </CardContent>
           </Card>
           <Card>
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-muted-foreground mb-1">
                 <Wallet className="h-4 w-4" />
-                <span className="text-xs">Ortak Cari</span>
+                <span className="text-xs">{t('dashboard.partnerBalance')}</span>
               </div>
               <p className={`text-lg font-bold ${calc.netPartnerBalance >= 0 ? 'text-green-600' : 'text-red-600'}`}>
                 {formatCurrency(calc.netPartnerBalance)}
               </p>
               <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
-                <p>Verilen: {formatCurrency(calc.partnerOut)}</p>
-                <p>Alınan: {formatCurrency(calc.partnerIn)}</p>
+                <p>{t('dashboard.given')}: {formatCurrency(calc.partnerOut)}</p>
+                <p>{t('dashboard.received')}: {formatCurrency(calc.partnerIn)}</p>
               </div>
             </CardContent>
           </Card>
@@ -168,22 +170,22 @@ export default function FinanceDashboard() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 text-muted-foreground mb-3">
                   <Receipt className="h-4 w-4 text-purple-600" />
-                  <span className="text-sm font-medium">KDV Özeti</span>
+                  <span className="text-sm font-medium">{t('dashboard.vatSummary')}</span>
                   <ArrowLeft className="h-4 w-4 rotate-180 ml-auto" />
                 </div>
                 <div className="grid grid-cols-3 gap-3">
                   <div>
-                    <p className="text-xs text-muted-foreground">Hesaplanan</p>
+                    <p className="text-xs text-muted-foreground">{t('vat.calculated')}</p>
                     <p className="text-sm font-bold text-red-600">{formatCurrency(vat.totalCalculatedVat)}</p>
-                    <p className="text-[10px] text-muted-foreground">{vat.issuedCount + vat.bankIncomeCount} işlem</p>
+                    <p className="text-[10px] text-muted-foreground">{vat.issuedCount + vat.bankIncomeCount} {t('common:items')}</p>
                   </div>
                   <div>
-                    <p className="text-xs text-muted-foreground">İndirilecek</p>
+                    <p className="text-xs text-muted-foreground">{t('vat.deductible')}</p>
                     <p className="text-sm font-bold text-blue-600">{formatCurrency(vat.totalDeductibleVat)}</p>
-                    <p className="text-[10px] text-muted-foreground">{vat.receivedCount + vat.bankExpenseCount} işlem</p>
+                    <p className="text-[10px] text-muted-foreground">{vat.receivedCount + vat.bankExpenseCount} {t('common:items')}</p>
                   </div>
                   <div className="border-l border-purple-200 dark:border-purple-800 pl-3">
-                    <p className="text-xs text-muted-foreground">Net {vat.netVatPayable >= 0 ? 'Borç' : 'Alacak'}</p>
+                    <p className="text-xs text-muted-foreground">{t('common:net')} {vat.netVatPayable >= 0 ? t('vat.debt') : t('vat.credit')}</p>
                     <p className={`text-sm font-bold ${vat.netVatPayable >= 0 ? 'text-red-600' : 'text-green-600'}`}>
                       {formatCurrency(Math.abs(vat.netVatPayable))}
                     </p>
@@ -201,17 +203,17 @@ export default function FinanceDashboard() {
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 text-destructive mb-2">
                   <AlertTriangle className="h-4 w-4" />
-                  <span className="text-sm font-medium">KKEG Uyarısı</span>
+                  <span className="text-sm font-medium">{t('dashboard.kkegWarning')}</span>
                   <ArrowLeft className="h-4 w-4 rotate-180 ml-auto" />
                 </div>
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-lg font-bold text-destructive">{formatCurrency(costCenter.kkeg.totalKkeg)}</p>
-                    <p className="text-xs text-muted-foreground">Vergi matrahından düşülemez</p>
+                    <p className="text-xs text-muted-foreground">{t('dashboard.nonDeductible')}</p>
                   </div>
                   <div className="text-right">
                     <p className="text-sm font-bold">{formatCurrency(costCenter.kkeg.totalKkeg * 0.25)}</p>
-                    <p className="text-xs text-muted-foreground">Tahmini ek vergi</p>
+                    <p className="text-xs text-muted-foreground">{t('dashboard.estimatedTax')}</p>
                   </div>
                 </div>
               </CardContent>
@@ -225,14 +227,14 @@ export default function FinanceDashboard() {
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-muted-foreground mb-3">
                 <BarChart3 className="h-4 w-4 text-blue-600" />
-                <span className="text-sm font-medium">Maliyet Merkezi</span>
+                <span className="text-sm font-medium">{t('dashboard.costCenter')}</span>
                 <ArrowLeft className="h-4 w-4 rotate-180 ml-auto" />
               </div>
               <div className="grid grid-cols-3 gap-3">
                 <div>
                   <div className="flex items-center gap-1 mb-1">
                     <Truck className="h-3 w-3 text-blue-600" />
-                    <p className="text-xs text-muted-foreground">Teslimat</p>
+                    <p className="text-xs text-muted-foreground">{t('dashboard.delivery')}</p>
                   </div>
                   <p className="text-sm font-bold">{formatCompact(costCenter.costCenters.find(c => c.costCenter === 'DELIVERY')?.totalAmount || 0)}</p>
                   <p className="text-[10px] text-muted-foreground">{costCenter.deliveryRatio.toFixed(0)}%</p>
@@ -240,7 +242,7 @@ export default function FinanceDashboard() {
                 <div>
                   <div className="flex items-center gap-1 mb-1">
                     <Building2 className="h-3 w-3 text-purple-600" />
-                    <p className="text-xs text-muted-foreground">Yönetim</p>
+                    <p className="text-xs text-muted-foreground">{t('dashboard.admin')}</p>
                   </div>
                   <p className="text-sm font-bold">{formatCompact(costCenter.costCenters.find(c => c.costCenter === 'ADMIN')?.totalAmount || 0)}</p>
                   <p className="text-[10px] text-muted-foreground">{costCenter.adminRatio.toFixed(0)}%</p>
@@ -248,7 +250,7 @@ export default function FinanceDashboard() {
                 <div>
                   <div className="flex items-center gap-1 mb-1">
                     <TrendingUp className="h-3 w-3 text-orange-600" />
-                    <p className="text-xs text-muted-foreground">Satış</p>
+                    <p className="text-xs text-muted-foreground">{t('dashboard.sales')}</p>
                   </div>
                   <p className="text-sm font-bold">{formatCompact(costCenter.costCenters.find(c => c.costCenter === 'SALES')?.totalAmount || 0)}</p>
                   <p className="text-[10px] text-muted-foreground">{costCenter.salesRatio.toFixed(0)}%</p>
@@ -265,8 +267,8 @@ export default function FinanceDashboard() {
               <div className="flex items-center gap-2">
                 <Building2 className="h-5 w-5 text-blue-600" />
                 <div>
-                  <p className="text-sm font-medium">Finansman: {formatCurrency(calc.financingIn)}</p>
-                  <p className="text-xs text-muted-foreground italic">* Toplama dahil değildir</p>
+                  <p className="text-sm font-medium">{t('dashboard.financing')}: {formatCurrency(calc.financingIn)}</p>
+                  <p className="text-xs text-muted-foreground italic">* {t('dashboard.notIncluded')}</p>
                 </div>
               </div>
             </CardContent>
@@ -282,18 +284,18 @@ export default function FinanceDashboard() {
                   <div className="flex items-center gap-3">
                     <Scale className="h-5 w-5 text-blue-600" />
                     <div className="flex-1">
-                      <p className="text-sm font-medium">Bilanço Özeti</p>
+                      <p className="text-sm font-medium">{t('balanceSheet.summary')}</p>
                       <div className="flex gap-4 mt-1">
                         <div>
-                          <p className="text-xs text-muted-foreground">Varlıklar</p>
+                          <p className="text-xs text-muted-foreground">{t('balanceSheet.assets')}</p>
                           <p className="text-sm font-semibold text-green-600">{formatCompact(balanceSheet.totalAssets)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Borçlar</p>
+                          <p className="text-xs text-muted-foreground">{t('balanceSheet.liabilities')}</p>
                           <p className="text-sm font-semibold text-red-600">{formatCompact(balanceSheet.totalLiabilities)}</p>
                         </div>
                         <div>
-                          <p className="text-xs text-muted-foreground">Özkaynak</p>
+                          <p className="text-xs text-muted-foreground">{t('balanceSheet.equity')}</p>
                           <p className={`text-sm font-semibold ${balanceSheet.equity.total >= 0 ? 'text-blue-600' : 'text-red-600'}`}>
                             {formatCompact(balanceSheet.equity.total)}
                           </p>
@@ -314,7 +316,7 @@ export default function FinanceDashboard() {
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
               <Link to="/finance/bank-transactions" className="underline">
-                {calc.uncategorizedCount} kategorisiz işlem var
+                {t('transactions.uncategorizedCount', { count: calc.uncategorizedCount })}
               </Link>
             </AlertDescription>
           </Alert>
@@ -327,7 +329,7 @@ export default function FinanceDashboard() {
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
                   <TrendingUp className="h-5 w-5 text-primary" />
-                  <span className="font-medium">2026 Büyüme Simülasyonu</span>
+                  <span className="font-medium">{t('simulation.title')}</span>
                 </div>
                 <ArrowLeft className="h-4 w-4 rotate-180" />
               </CardContent>
@@ -336,7 +338,7 @@ export default function FinanceDashboard() {
           <Link to="/finance/bank-transactions">
             <Card className="hover:bg-accent transition-colors">
               <CardContent className="p-4 flex items-center justify-between">
-                <span>Banka İşlemleri</span>
+                <span>{t('transactions.title')}</span>
                 <ArrowLeft className="h-4 w-4 rotate-180" />
               </CardContent>
             </Card>
@@ -344,7 +346,7 @@ export default function FinanceDashboard() {
           <Link to="/finance/receipts">
             <Card className="hover:bg-accent transition-colors">
               <CardContent className="p-4 flex items-center justify-between">
-                <span>Fiş/Faturalar</span>
+                <span>{t('receipts.title')}</span>
                 <ArrowLeft className="h-4 w-4 rotate-180" />
               </CardContent>
             </Card>

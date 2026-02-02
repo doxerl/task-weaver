@@ -1,5 +1,6 @@
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent } from '@/components/ui/card';
-import { TrendingUp, TrendingDown, DollarSign, Percent, ArrowUpRight, ArrowDownRight } from 'lucide-react';
+import { TrendingUp, TrendingDown, DollarSign, ArrowUpRight, ArrowDownRight } from 'lucide-react';
 import { SimulationSummary } from '@/types/simulation';
 import { cn } from '@/lib/utils';
 import { formatCompactUSD, formatCompactTRY } from '@/lib/formatters';
@@ -27,60 +28,62 @@ function GrowthIndicator({ value }: { value: number }) {
 }
 
 export function SummaryCards({ summary, exchangeRate, baseYear, targetYear }: SummaryCardsProps) {
+  const { t } = useTranslation(['simulation', 'common']);
+  
   // Baz yıl = hedef yılın bir öncesi (targetYear - 1)
   const displayTargetYear = targetYear || baseYear || new Date().getFullYear();
   const displayBaseYear = displayTargetYear - 1;
   
   const cards = [
     {
-      title: `${displayBaseYear} Baz Yıl`,
-      subtitle: 'Gerçek Veriler',
+      title: t('summary.baseYear', { year: displayBaseYear }),
+      subtitle: t('summary.actualData'),
       items: [
-        { label: 'Gelir', value: formatCompactUSD(summary.base.totalRevenue) },
-        { label: 'Gider', value: formatCompactUSD(summary.base.totalExpense) },
-        { label: 'Net Kar', value: formatCompactUSD(summary.base.netProfit), highlight: true },
+        { label: t('common:revenue'), value: formatCompactUSD(summary.base.totalRevenue) },
+        { label: t('common:expense'), value: formatCompactUSD(summary.base.totalExpense) },
+        { label: t('common:netProfit'), value: formatCompactUSD(summary.base.netProfit), highlight: true },
       ],
-      footer: `Kar Marjı: %${summary.base.profitMargin.toFixed(1)}`,
+      footer: `${t('summary.profitMargin')}: %${summary.base.profitMargin.toFixed(1)}`,
       variant: 'muted' as const,
     },
     {
-      title: `${displayTargetYear} Projeksiyon`,
-      subtitle: 'Hedef Yıl',
+      title: t('summary.projection', { year: displayTargetYear }),
+      subtitle: t('summary.targetYear'),
       items: [
         { 
-          label: 'Gelir', 
+          label: t('common:revenue'), 
           value: formatCompactUSD(summary.projected.totalRevenue),
           growth: summary.growth.revenueGrowth,
         },
         { 
-          label: 'Gider', 
+          label: t('common:expense'), 
           value: formatCompactUSD(summary.projected.totalExpense),
           growth: summary.growth.expenseGrowth,
         },
         { 
-          label: 'Net Kar', 
+          label: t('common:netProfit'), 
           value: formatCompactUSD(summary.projected.netProfit), 
           highlight: true,
           growth: summary.growth.profitGrowth,
         },
       ],
-      footer: `Kar Marjı: %${summary.projected.profitMargin.toFixed(1)}`,
+      footer: `${t('summary.profitMargin')}: %${summary.projected.profitMargin.toFixed(1)}`,
       variant: 'primary' as const,
     },
     {
-      title: 'Sermaye Analizi',
-      subtitle: 'Yatırım İhtiyacı',
+      title: t('capital.title'),
+      subtitle: t('capital.investmentNeed'),
       items: [
-        { label: 'Yatırımlar', value: formatCompactUSD(summary.capitalNeeds.totalInvestment) },
-        { label: 'Tahmini Kar', value: formatCompactUSD(summary.capitalNeeds.projectedProfit) },
+        { label: t('capital.investments'), value: formatCompactUSD(summary.capitalNeeds.totalInvestment) },
+        { label: t('capital.projectedProfit'), value: formatCompactUSD(summary.capitalNeeds.projectedProfit) },
         { 
-          label: 'Net İhtiyaç', 
+          label: t('capital.netNeed'), 
           value: formatCompactUSD(summary.capitalNeeds.netCapitalNeed), 
           highlight: summary.capitalNeeds.netCapitalNeed > 0,
           isNegative: summary.capitalNeeds.netCapitalNeed > 0,
         },
       ],
-      footer: `TL Karşılığı: ${formatCompactTRY(summary.capitalNeeds.netCapitalNeed * exchangeRate)}`,
+      footer: `${t('capital.tryEquivalent')}: ${formatCompactTRY(summary.capitalNeeds.netCapitalNeed * exchangeRate)}`,
       variant: summary.capitalNeeds.netCapitalNeed > 0 ? 'warning' as const : 'success' as const,
     },
   ];

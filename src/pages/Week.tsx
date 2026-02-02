@@ -1,11 +1,12 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useAuthContext } from '@/contexts/AuthContext';
+import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { ChevronLeft, ChevronRight, Settings, Download, BookOpen } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay, isWeekend } from 'date-fns';
-import { tr } from 'date-fns/locale';
 import { useWeekData } from '@/hooks/useWeekData';
 import { useWeeklyRetrospective } from '@/hooks/useWeeklyRetrospective';
 import { Badge } from '@/components/ui/badge';
@@ -21,6 +22,8 @@ import { AutoInsights } from '@/components/retrospective/AutoInsights';
 import { ZombieTaskAlert } from '@/components/retrospective/ZombieTaskAlert';
 
 export default function Week() {
+  const { t } = useTranslation('common');
+  const { dateLocale } = useLanguage();
   const navigate = useNavigate();
   const { profile, session } = useAuthContext();
   const [currentWeekStart, setCurrentWeekStart] = useState(() => 
@@ -43,7 +46,7 @@ export default function Week() {
 
   const handleExport = async () => {
     if (!session) {
-      toast({ title: 'Lütfen önce giriş yapın', variant: 'destructive' });
+      toast({ title: t('planner.loginRequired'), variant: 'destructive' });
       navigate('/auth');
       return;
     }
@@ -80,12 +83,12 @@ export default function Week() {
       }
 
       toast({ 
-        title: 'Export başarılı', 
-        description: `${data.weekNumber}. Hafta - ${data.planCount} plan, ${data.actualCount} kayıt` 
+        title: t('planner.exportSuccess'), 
+        description: `${t('planner.week')} ${data.weekNumber} - ${data.planCount} ${t('planner.plan')}, ${data.actualCount} ${t('planner.record')}` 
       });
     } catch (error) {
       console.error('Export error:', error);
-      toast({ title: 'Export başarısız', variant: 'destructive' });
+      toast({ title: t('planner.exportFailed'), variant: 'destructive' });
     } finally {
       setExporting(false);
     }
@@ -115,7 +118,7 @@ export default function Week() {
   return (
     <div className="min-h-screen bg-background pb-20">
       <AppHeader
-        title={`Merhaba, ${profile?.first_name || 'Kullanıcı'}`}
+        title={`${t('planner.hello')}, ${profile?.first_name || t('planner.user')}`}
         badge={
           <Badge variant="outline" className="text-sm px-3 py-1 font-bold">
             {weekYear}-W{weekNumber.toString().padStart(2, '0')}
@@ -132,16 +135,16 @@ export default function Week() {
                 className="text-xs md:text-sm"
               >
                 <BookOpen className="h-4 w-4 mr-1 md:mr-2" />
-                <span className="hidden sm:inline">{isCalculating ? 'Hesaplanıyor...' : 'Haftalık Özet'}</span>
-                <span className="sm:hidden">{isCalculating ? '...' : 'Özet'}</span>
+                <span className="hidden sm:inline">{isCalculating ? t('planner.calculating') : t('planner.weeklySummary')}</span>
+                <span className="sm:hidden">{isCalculating ? '...' : t('planner.summary')}</span>
               </Button>
             )}
             <Button variant="outline" size="sm" onClick={handleExport} disabled={exporting} className="text-xs md:text-sm">
               <Download className="h-4 w-4 mr-1 md:mr-2" />
-              <span className="hidden sm:inline">{exporting ? 'İndiriliyor...' : 'Excel Export'}</span>
+              <span className="hidden sm:inline">{exporting ? t('planner.downloading') : t('planner.excelExport')}</span>
               <span className="sm:hidden">{exporting ? '...' : 'Excel'}</span>
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')} title="Ayarlar">
+            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')} title={t('settings.title')}>
               <Settings className="h-4 w-4" />
             </Button>
           </div>
@@ -160,13 +163,13 @@ export default function Week() {
             </Button>
             {!isCurrentWeek && (
               <Button variant="outline" size="sm" onClick={handleThisWeek}>
-                Bu Hafta
+                {t('planner.thisWeek')}
               </Button>
             )}
           </div>
           
           <h2 className="text-sm md:text-lg font-semibold text-right">
-            {format(currentWeekStart, 'd MMM', { locale: tr })} - {format(weekEnd, 'd MMM yyyy', { locale: tr })}
+            {format(currentWeekStart, 'd MMM', { locale: dateLocale })} - {format(weekEnd, 'd MMM yyyy', { locale: dateLocale })}
           </h2>
         </div>
 
@@ -188,7 +191,7 @@ export default function Week() {
                 <CardHeader className="pb-2 px-2 md:px-3 pt-2 md:pt-3">
                   <CardTitle className="text-xs md:text-sm flex items-center justify-between">
                     <span className={dayIsToday ? 'text-primary font-bold' : ''}>
-                      {format(day.date, 'EEE', { locale: tr })}
+                      {format(day.date, 'EEE', { locale: dateLocale })}
                     </span>
                     <span className={`text-base md:text-lg ${dayIsToday ? 'text-primary font-bold' : 'text-muted-foreground'}`}>
                       {format(day.date, 'd')}
@@ -199,12 +202,12 @@ export default function Week() {
                   <div className="flex flex-wrap gap-1 mb-2">
                     {dayTotalPlanned > 0 && (
                       <Badge variant="outline" className="text-[10px] md:text-xs">
-                        {dayTotalPlanned} plan
+                        {dayTotalPlanned} {t('planner.plan')}
                       </Badge>
                     )}
                     {dayTotalActual > 0 && (
                       <Badge variant="secondary" className="text-[10px] md:text-xs">
-                        {dayTotalActual} kayıt
+                        {dayTotalActual} {t('planner.record')}
                       </Badge>
                     )}
                   </div>
@@ -226,12 +229,12 @@ export default function Week() {
                       ))}
                       {day.planItems.length > 3 && (
                         <div className="text-[10px] md:text-xs text-muted-foreground text-center">
-                          +{day.planItems.length - 3} daha
+                          +{day.planItems.length - 3} {t('planner.more')}
                         </div>
                       )}
                       {day.planItems.length === 0 && day.actualEntries.length === 0 && (
                         <div className="text-[10px] md:text-xs text-muted-foreground text-center py-2 md:py-4">
-                          Boş
+                          {t('planner.empty')}
                         </div>
                       )}
                     </div>
@@ -250,7 +253,7 @@ export default function Week() {
                 <div className="text-2xl md:text-3xl font-bold text-primary">
                   {totalPlanned}
                 </div>
-                <div className="text-xs md:text-sm text-muted-foreground">Toplam Plan</div>
+                <div className="text-xs md:text-sm text-muted-foreground">{t('planner.totalPlans')}</div>
               </div>
             </CardContent>
           </Card>
@@ -260,7 +263,7 @@ export default function Week() {
                 <div className="text-2xl md:text-3xl font-bold text-secondary-foreground">
                   {totalActual}
                 </div>
-                <div className="text-xs md:text-sm text-muted-foreground">Toplam Kayıt</div>
+                <div className="text-xs md:text-sm text-muted-foreground">{t('planner.totalRecords')}</div>
               </div>
             </CardContent>
           </Card>
@@ -270,7 +273,7 @@ export default function Week() {
                 <div className="text-2xl md:text-3xl font-bold">
                   {activeDays}
                 </div>
-                <div className="text-xs md:text-sm text-muted-foreground">Aktif Gün</div>
+                <div className="text-xs md:text-sm text-muted-foreground">{t('planner.activeDays')}</div>
               </div>
             </CardContent>
           </Card>
@@ -280,7 +283,7 @@ export default function Week() {
                 <div className="text-2xl md:text-3xl font-bold text-primary">
                   %{completionRate}
                 </div>
-                <div className="text-xs md:text-sm text-muted-foreground">Uyum Oranı</div>
+                <div className="text-xs md:text-sm text-muted-foreground">{t('planner.completionRate')}</div>
               </div>
             </CardContent>
           </Card>
