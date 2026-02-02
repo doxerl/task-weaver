@@ -46,7 +46,7 @@ i18n
   .use(initReactI18next)
   .init({
     resources,
-    fallbackLng: 'tr',
+    fallbackLng: 'en',
     defaultNS: 'common',
     ns: ['common', 'finance', 'simulation', 'validation'],
 
