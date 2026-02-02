@@ -47,23 +47,26 @@ export interface YearlyBalanceSheet {
 export function useYearlyBalanceSheet(year: number) {
   const { user } = useAuthContext();
   const queryClient = useQueryClient();
+  
+  // Stabilize userId to prevent hook state corruption during auth changes
+  const userId = user?.id ?? null;
 
   const { data: yearlyBalance, isLoading } = useQuery({
-    queryKey: ['yearly-balance-sheet', user?.id, year],
+    queryKey: ['yearly-balance-sheet', userId, year] as const,
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!userId) return null;
       
       const { data, error } = await supabase
         .from('yearly_balance_sheets')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('year', year)
         .maybeSingle();
 
       if (error) throw error;
       return data as YearlyBalanceSheet | null;
     },
-    enabled: !!user?.id,
+    enabled: !!userId,
   });
 
   const upsertMutation = useMutation({
