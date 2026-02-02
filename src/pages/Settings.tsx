@@ -10,7 +10,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Separator } from '@/components/ui/separator';
 import { GitHubIntegration } from '@/components/GitHubIntegration';
 import { LanguageSelector } from '@/components/LanguageSelector';
-import { ArrowLeft, Loader2, Save, User, Globe, Clock, Wallet, CreditCard, Plus, DollarSign, Building2, Languages } from 'lucide-react';
+import { AppHeader } from '@/components/AppHeader';
+import { ArrowLeft, Loader2, Save, User, Globe, Clock, Wallet, CreditCard, Plus, DollarSign, Building2, Languages, Settings as SettingsIcon } from 'lucide-react';
 import { ExchangeRateEditor } from '@/components/finance/ExchangeRateEditor';
 import { toast } from 'sonner';
 import { useFixedExpenses, FixedExpenseDefinition } from '@/hooks/finance/useFixedExpenses';
@@ -153,15 +154,11 @@ export default function Settings() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
-        <div className="container flex h-14 items-center gap-4 px-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/today')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <h1 className="text-lg font-semibold">{t('settings.title')}</h1>
-        </div>
-      </header>
+      <AppHeader
+        title={t('settings.title')}
+        icon={<SettingsIcon className="h-5 w-5 text-primary" />}
+        backPath="/today"
+      />
 
       <main className="container max-w-2xl px-4 py-6 space-y-6">
         {/* Profile Section */}

@@ -1,5 +1,5 @@
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { Link, useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
 import {
@@ -19,7 +19,6 @@ import {
   TrendingUp,
   Loader2,
   Sparkles,
-  RefreshCw,
   Calendar,
   Target,
   DollarSign,
@@ -34,6 +33,7 @@ import { ProjectGrowthAnalysis } from '@/components/growth/ProjectGrowthAnalysis
 import { GrowthROICard } from '@/components/growth/GrowthROICard';
 import { MilestoneTimeline } from '@/components/growth/MilestoneTimeline';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
+import { AppHeader } from '@/components/AppHeader';
 import { toast } from 'sonner';
 
 function GrowthComparisonContent() {
@@ -144,31 +144,22 @@ function GrowthComparisonContent() {
   }
   
   return (
-    <div className="container mx-auto p-4 space-y-6">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/finance/simulation')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
-          <div>
-            <h1 className="text-2xl font-bold flex items-center gap-2">
-              <TrendingUp className="h-6 w-6 text-emerald-500" />
-              Büyüme Projeksiyonu
-            </h1>
-            <p className="text-sm text-muted-foreground">
-              Yıllar arası büyüme analizi ve ROI projeksiyonu
-            </p>
-          </div>
-        </div>
-        
-        {cachedInfo && (
+    <div className="min-h-screen bg-background">
+      <AppHeader
+        title="Büyüme Projeksiyonu"
+        subtitle="Yıllar arası büyüme analizi ve ROI projeksiyonu"
+        icon={<TrendingUp className="h-6 w-6 text-emerald-500" />}
+        backPath="/finance/simulation"
+        backLabel="Simülasyon"
+        badge={cachedInfo && (
           <Badge variant="outline" className="text-xs">
             <Calendar className="h-3 w-3 mr-1" />
             Son analiz: {format(cachedInfo.updatedAt, 'dd MMM HH:mm', { locale: tr })}
           </Badge>
         )}
-      </div>
+      />
+      
+      <div className="container mx-auto p-4 space-y-6">
       
       {/* Scenario Selectors */}
       <Card>
@@ -319,6 +310,7 @@ function GrowthComparisonContent() {
           </CardDescription>
         </Card>
       )}
+      </div>
     </div>
   );
 }

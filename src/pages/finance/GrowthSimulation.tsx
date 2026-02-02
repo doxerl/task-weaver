@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -8,7 +8,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { ArrowLeft, RotateCcw, TrendingUp, TrendingDown, Save, Plus, Loader2, FileText, GitCompare, Shield } from 'lucide-react';
+import { RotateCcw, TrendingUp, TrendingDown, Save, Plus, Loader2, FileText, GitCompare } from 'lucide-react';
 import { useGrowthSimulation } from '@/hooks/finance/useGrowthSimulation';
 import { useScenarios } from '@/hooks/finance/useScenarios';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
@@ -21,6 +21,7 @@ import { NewScenarioDialog } from '@/components/simulation/NewScenarioDialog';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SimulationScenario } from '@/types/simulation';
+import { AppHeader } from '@/components/AppHeader';
 import { toast } from 'sonner';
 
 function GrowthSimulationContent() {
@@ -216,115 +217,102 @@ function GrowthSimulationContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
-        <div className="container mx-auto px-4 py-4">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-4">
-              <Link to="/finance/reports">
-                <Button variant="ghost" size="sm" className="gap-2">
-                  <ArrowLeft className="h-4 w-4" />
-                  Raporlar
-                </Button>
-              </Link>
-              <div className="flex items-center gap-2">
-                {scenarioType === 'positive' ? (
-                  <TrendingUp className="h-6 w-6 text-green-500" />
-                ) : (
-                  <TrendingDown className="h-6 w-6 text-red-500" />
-                )}
-                <div>
-                  <div className="flex items-center gap-2">
-                    <h1 className="text-xl font-bold">{targetYear} Büyüme Simülasyonu</h1>
-                    <Badge 
-                      variant="outline" 
-                      className={`text-xs ${
-                        scenarioType === 'positive' 
-                          ? 'border-green-500 text-green-600 bg-green-500/10' 
-                          : 'border-red-500 text-red-600 bg-red-500/10'
-                      }`}
-                    >
-                      {scenarioType === 'positive' ? 'Pozitif' : 'Negatif'}
-                    </Badge>
-                  </div>
-                  <p className="text-sm text-muted-foreground">{baseYear} USD verileri baz alınarak</p>
-                </div>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <ScenarioSelector
-                scenarios={scenariosHook.scenarios}
-                currentScenarioId={scenariosHook.currentScenarioId}
-                isLoading={scenariosHook.isLoading}
-                onSelect={handleSelectScenario}
-                onDelete={scenariosHook.deleteScenario}
-                onDuplicate={scenariosHook.duplicateScenario}
-              />
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="gap-2" 
-                onClick={handleNewScenario}
-              >
-                <Plus className="h-4 w-4" />
-                Yeni
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="gap-2" 
-                onClick={handleSave}
-                disabled={scenariosHook.isSaving}
-              >
-                {scenariosHook.isSaving ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <Save className="h-4 w-4" />
-                )}
-                Kaydet
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="gap-2"
-                onClick={() => navigate('/finance/simulation/compare')}
-                disabled={scenariosHook.scenarios.length < 2}
-              >
-                <GitCompare className="h-4 w-4" />
-                Risk Analizi
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="gap-2"
-                onClick={() => navigate('/finance/simulation/growth')}
-                disabled={scenariosHook.scenarios.length < 2}
-              >
-                <TrendingUp className="h-4 w-4" />
-                Büyüme
-              </Button>
-              <Button variant="outline" size="sm" className="gap-2" onClick={handleNewScenario}>
-                <RotateCcw className="h-4 w-4" />
-                Sıfırla
-              </Button>
-              <Button 
-                variant="outline" 
-                size="sm" 
-                className="gap-2"
-                onClick={handleExportPdf}
-                disabled={isGenerating || isLoading}
-              >
-                {isGenerating ? (
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                ) : (
-                  <FileText className="h-4 w-4" />
-                )}
-                PDF
-              </Button>
-            </div>
+      <AppHeader
+        title={`${targetYear} Büyüme Simülasyonu`}
+        subtitle={`${baseYear} USD verileri baz alınarak`}
+        backPath="/finance/reports"
+        backLabel="Raporlar"
+        icon={scenarioType === 'positive' ? (
+          <TrendingUp className="h-6 w-6 text-green-500" />
+        ) : (
+          <TrendingDown className="h-6 w-6 text-red-500" />
+        )}
+        badge={
+          <Badge 
+            variant="outline" 
+            className={`text-xs ${
+              scenarioType === 'positive' 
+                ? 'border-green-500 text-green-600 bg-green-500/10' 
+                : 'border-red-500 text-red-600 bg-red-500/10'
+            }`}
+          >
+            {scenarioType === 'positive' ? 'Pozitif' : 'Negatif'}
+          </Badge>
+        }
+        rightContent={
+          <div className="flex items-center gap-2">
+            <ScenarioSelector
+              scenarios={scenariosHook.scenarios}
+              currentScenarioId={scenariosHook.currentScenarioId}
+              isLoading={scenariosHook.isLoading}
+              onSelect={handleSelectScenario}
+              onDelete={scenariosHook.deleteScenario}
+              onDuplicate={scenariosHook.duplicateScenario}
+            />
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2" 
+              onClick={handleNewScenario}
+            >
+              <Plus className="h-4 w-4" />
+              <span className="hidden sm:inline">Yeni</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2" 
+              onClick={handleSave}
+              disabled={scenariosHook.isSaving}
+            >
+              {scenariosHook.isSaving ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <Save className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">Kaydet</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={() => navigate('/finance/simulation/compare')}
+              disabled={scenariosHook.scenarios.length < 2}
+            >
+              <GitCompare className="h-4 w-4" />
+              <span className="hidden lg:inline">Risk Analizi</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={() => navigate('/finance/simulation/growth')}
+              disabled={scenariosHook.scenarios.length < 2}
+            >
+              <TrendingUp className="h-4 w-4" />
+              <span className="hidden lg:inline">Büyüme</span>
+            </Button>
+            <Button variant="outline" size="sm" className="gap-2" onClick={handleNewScenario}>
+              <RotateCcw className="h-4 w-4" />
+              <span className="hidden sm:inline">Sıfırla</span>
+            </Button>
+            <Button 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+              onClick={handleExportPdf}
+              disabled={isGenerating || isLoading}
+            >
+              {isGenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileText className="h-4 w-4" />
+              )}
+              <span className="hidden sm:inline">PDF</span>
+            </Button>
           </div>
-        </div>
-      </header>
+        }
+      />
 
       <main className="container mx-auto px-4 py-6 space-y-6 bg-background">
         {/* Scenario Settings */}
