@@ -34,15 +34,21 @@ export function useBalanceSheet(year: number): {
   const incomeStatement = useIncomeStatement(year);
 
   // Extract stable references to avoid undefined access in useMemo deps
-  const hubIsLoading = hub.isLoading;
-  const hubBalanceData = hub.balanceData;
-  const hubUncategorizedCount = hub.uncategorizedCount;
-  const hubUncategorizedTotal = hub.uncategorizedTotal;
-  const hubOperatingProfit = hub.operatingProfit;
-  const hubIncomeSummaryNet = hub.incomeSummary?.net ?? 0;
-  const hubExpenseSummaryNet = hub.expenseSummary?.net ?? 0;
-  const hubCashFlowSummary = hub.cashFlowSummary;
-  const incomeStatementNetProfit = incomeStatement.statement?.netProfit;
+  // Use safe defaults to prevent hook dependency array issues
+  const hubIsLoading = hub?.isLoading ?? true;
+  const hubBalanceData = hub?.balanceData;
+  const hubUncategorizedCount = hub?.uncategorizedCount ?? 0;
+  const hubUncategorizedTotal = hub?.uncategorizedTotal ?? 0;
+  const hubOperatingProfit = hub?.operatingProfit ?? 0;
+  const hubIncomeSummaryNet = hub?.incomeSummary?.net ?? 0;
+  const hubExpenseSummaryNet = hub?.expenseSummary?.net ?? 0;
+  const hubCashFlowSummary = hub?.cashFlowSummary ?? {
+    inflows: 0,
+    outflows: 0,
+    net: 0,
+    outflowsByType: { expenses: 0, partnerPayments: 0, investments: 0, financing: 0, other: 0 }
+  };
+  const incomeStatementNetProfit = incomeStatement?.statement?.netProfit;
 
   return useMemo(() => {
     const loading = hubIsLoading || isYearlyLoading;
@@ -166,9 +172,8 @@ export function useBalanceSheet(year: number): {
       };
     }
 
-    // Dynamic calculation from hub
-    const { balanceData } = hub;
-
+    // Dynamic calculation from hub (use pre-extracted stable reference)
+    const balanceData = hubBalanceData;
     // Build balance sheet from hub's balanceData
     const currentAssets = {
       cash: balanceData.cashOnHand,
