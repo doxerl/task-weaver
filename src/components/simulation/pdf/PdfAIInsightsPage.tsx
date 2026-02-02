@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CONTENT_PAGE_STYLE,
   PAGE_HEADER_STYLE,
@@ -13,6 +14,8 @@ import type { PdfAIInsightsPageProps } from './types';
 export function PdfAIInsightsPage({
   unifiedAnalysis,
 }: PdfAIInsightsPageProps) {
+  const { t } = useTranslation(['simulation']);
+
   if (!unifiedAnalysis?.insights || unifiedAnalysis.insights.length === 0) {
     return null;
   }
@@ -30,7 +33,7 @@ export function PdfAIInsightsPage({
 
   return (
     <div className="page-break-after" style={CONTENT_PAGE_STYLE}>
-      <h2 style={PAGE_HEADER_STYLE}>AI Analiz Sonuçları</h2>
+      <h2 style={PAGE_HEADER_STYLE}>{t('pdf.aiInsights.title')}</h2>
 
       {/* Insights Grid */}
       <div
@@ -76,7 +79,7 @@ export function PdfAIInsightsPage({
       {unifiedAnalysis.recommendations && unifiedAnalysis.recommendations.length > 0 && (
         <div>
           <h3 style={{ fontSize: '20px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>
-            Stratejik Öneriler
+            {t('pdf.aiInsights.strategicRecommendations')}
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '16px' }}>
             {unifiedAnalysis.recommendations.slice(0, 4).map((rec, i) => (

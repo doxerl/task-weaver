@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CONTENT_PAGE_STYLE,
   PAGE_HEADER_STYLE,
@@ -16,6 +17,8 @@ export function PdfInvestmentOptionsPage({
   optimalTiming,
   targetYear,
 }: PdfInvestmentOptionsPageProps) {
+  const { t } = useTranslation(['simulation']);
+
   // Guard clause
   if (!investmentTiers || investmentTiers.length === 0) {
     return null;
@@ -61,8 +64,7 @@ export function PdfInvestmentOptionsPage({
   // Format runway months
   const formatRunway = (months: number) => {
     if (months >= 999) return '∞';
-    if (months >= 24) return `${months} ay`;
-    return `${months} ay`;
+    return t('pdf.investmentOptions.monthsRunway', { count: months });
   };
 
   // Get max quarterly need for bar visualization
@@ -72,7 +74,7 @@ export function PdfInvestmentOptionsPage({
 
   return (
     <div className="page-break-after" style={CONTENT_PAGE_STYLE}>
-      <h2 style={PAGE_HEADER_STYLE}>Yatırım Seçenekleri & Zamanlama</h2>
+      <h2 style={PAGE_HEADER_STYLE}>{t('pdf.investmentOptions.title')}</h2>
 
       {/* 3 Investment Tier Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px', marginBottom: '28px' }}>
@@ -108,7 +110,7 @@ export function PdfInvestmentOptionsPage({
                     fontWeight: '600',
                   }}
                 >
-                  ✓ ÖNERİLEN
+                  ✓ {t('pdf.investmentOptions.recommended')}
                 </div>
               )}
 
@@ -152,7 +154,7 @@ export function PdfInvestmentOptionsPage({
               >
                 <span style={{ fontSize: '16px' }}>⏱️</span>
                 <span style={{ fontSize: '14px', fontWeight: '600', color: style.labelColor }}>
-                  {formatRunway(tier.runwayMonths)} runway
+                  {formatRunway(tier.runwayMonths)} {t('pdf.investmentOptions.runway')}
                 </span>
               </div>
 
@@ -172,7 +174,7 @@ export function PdfInvestmentOptionsPage({
                   color: style.labelColor,
                 }}
               >
-                Güvenlik Marjı: %{(tier.safetyMargin * 100).toFixed(0)}
+                {t('pdf.investmentOptions.safetyMargin')}: %{(tier.safetyMargin * 100).toFixed(0)}
               </div>
             </div>
           );
@@ -193,7 +195,7 @@ export function PdfInvestmentOptionsPage({
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '20px' }}>
             <span style={{ fontSize: '28px' }}>🎯</span>
             <h3 style={{ fontSize: '18px', fontWeight: '600', color: '#5b21b6', margin: 0 }}>
-              AI Optimal Yatırım Zamanlaması
+              {t('pdf.investmentOptions.aiOptimalTiming')}
             </h3>
           </div>
 
@@ -210,7 +212,7 @@ export function PdfInvestmentOptionsPage({
               }}
             >
               <p style={{ fontSize: '11px', color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>
-                Önerilen Dönem
+                {t('pdf.investmentOptions.recommendedPeriod')}
               </p>
               <p style={{ fontSize: '28px', fontWeight: 'bold', color: '#5b21b6' }}>
                 {optimalTiming.recommendedQuarter}
@@ -230,7 +232,7 @@ export function PdfInvestmentOptionsPage({
               }}
             >
               <p style={{ fontSize: '11px', color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>
-                Aciliyet Seviyesi
+                {t('pdf.investmentOptions.urgencyLevel')}
               </p>
               <p style={{ fontSize: '28px', marginBottom: '4px' }}>
                 {getUrgencyStyle(optimalTiming.urgencyLevel).icon}
@@ -243,9 +245,9 @@ export function PdfInvestmentOptionsPage({
                   textTransform: 'uppercase',
                 }}
               >
-                {optimalTiming.urgencyLevel === 'critical' ? 'KRİTİK' :
-                  optimalTiming.urgencyLevel === 'high' ? 'YÜKSEK' :
-                    optimalTiming.urgencyLevel === 'medium' ? 'ORTA' : 'DÜŞÜK'}
+                {optimalTiming.urgencyLevel === 'critical' ? t('pdf.investmentOptions.urgencyCritical') :
+                  optimalTiming.urgencyLevel === 'high' ? t('pdf.investmentOptions.urgencyHigh') :
+                    optimalTiming.urgencyLevel === 'medium' ? t('pdf.investmentOptions.urgencyMedium') : t('pdf.investmentOptions.urgencyLow')}
               </p>
             </div>
 
@@ -260,13 +262,13 @@ export function PdfInvestmentOptionsPage({
               }}
             >
               <p style={{ fontSize: '11px', color: '#6b7280', marginBottom: '6px', textTransform: 'uppercase' }}>
-                Gerekli Sermaye
+                {t('pdf.investmentOptions.requiredCapital')}
               </p>
               <p style={{ fontSize: '28px', fontWeight: 'bold', color: PDF_COLORS.primary }}>
                 {formatCompactUSD(optimalTiming.requiredInvestment)}
               </p>
               <p style={{ fontSize: '10px', color: '#6b7280' }}>
-                {targetYear} yılı için
+                {t('pdf.investmentOptions.forYear', { year: targetYear })}
               </p>
             </div>
           </div>
@@ -275,7 +277,7 @@ export function PdfInvestmentOptionsPage({
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px' }}>
             <div style={{ padding: '14px', background: 'rgba(255,255,255,0.6)', borderRadius: '10px' }}>
               <p style={{ fontSize: '11px', color: '#5b21b6', fontWeight: '600', marginBottom: '6px' }}>
-                💡 Neden Bu Dönem?
+                💡 {t('pdf.investmentOptions.whyThisPeriod')}
               </p>
               <p style={{ fontSize: '12px', color: '#374151', lineHeight: '1.5' }}>
                 {optimalTiming.reason}
@@ -283,7 +285,7 @@ export function PdfInvestmentOptionsPage({
             </div>
             <div style={{ padding: '14px', background: 'rgba(239, 68, 68, 0.1)', borderRadius: '10px' }}>
               <p style={{ fontSize: '11px', color: '#dc2626', fontWeight: '600', marginBottom: '6px' }}>
-                ⚠️ Gecikme Riski
+                ⚠️ {t('pdf.investmentOptions.delayRisk')}
               </p>
               <p style={{ fontSize: '12px', color: '#374151', lineHeight: '1.5' }}>
                 {optimalTiming.riskIfDelayed}
@@ -297,7 +299,7 @@ export function PdfInvestmentOptionsPage({
       {optimalTiming && optimalTiming.quarterlyNeeds && optimalTiming.quarterlyNeeds.length > 0 && (
         <div>
           <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>
-            Çeyreklik Kümülatif Sermaye İhtiyacı
+            {t('pdf.investmentOptions.quarterlyCapitalNeed')}
           </h3>
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
@@ -364,7 +366,7 @@ export function PdfInvestmentOptionsPage({
                   )}
                   {isMaxNeed && (
                     <span style={{ fontSize: '10px', color: '#dc2626', fontWeight: '500' }}>
-                      ← Death Valley
+                      ← {t('pdf.investmentOptions.deathValley')}
                     </span>
                   )}
                 </div>

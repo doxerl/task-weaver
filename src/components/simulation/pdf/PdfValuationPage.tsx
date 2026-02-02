@@ -1,4 +1,5 @@
-import React from 'react';
+import React, { useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CONTENT_PAGE_STYLE,
   PAGE_HEADER_STYLE,
@@ -27,6 +28,8 @@ export function PdfValuationPage({
   pdfExitPlan,
   dealConfig,
 }: PdfValuationPageProps) {
+  const { t } = useTranslation(['simulation']);
+
   if (!pdfExitPlan) {
     return null;
   }
@@ -54,9 +57,9 @@ export function PdfValuationPage({
     vcMethodValue * 0.15;
 
   // Valuation method cards data
-  const valuationMethods = [
+  const valuationMethods = useMemo(() => [
     {
-      name: 'Ciro Çarpanı',
+      name: t('pdf.valuation.revenueMultiple'),
       value: revenueMultiple,
       formula: `${formatCompactUSD(revenue)} × ${dealConfig.sectorMultiple}x`,
       weight: '30%',
@@ -65,7 +68,7 @@ export function PdfValuationPage({
       iconColor: '#3b82f6',
     },
     {
-      name: 'EBITDA Çarpanı',
+      name: t('pdf.valuation.ebitdaMultiple'),
       value: ebitdaMultiple,
       formula: `${formatCompactUSD(ebitda)} × ${(dealConfig.sectorMultiple * 1.5).toFixed(1)}x`,
       weight: '25%',
@@ -74,28 +77,28 @@ export function PdfValuationPage({
       iconColor: '#8b5cf6',
     },
     {
-      name: 'DCF',
+      name: t('pdf.valuation.dcf'),
       value: dcfValue,
-      formula: '%30 iskonto oranı',
+      formula: t('pdf.valuation.discountRate', { rate: 30 }),
       weight: '30%',
       color: '#f0fdf4',
       borderColor: '#86efac',
       iconColor: '#22c55e',
     },
     {
-      name: 'VC Metodu',
+      name: t('pdf.valuation.vcMethod'),
       value: vcMethodValue,
-      formula: '10x hedef ROI',
+      formula: t('pdf.valuation.targetROI', { roi: 10 }),
       weight: '15%',
       color: '#fffbeb',
       borderColor: '#fcd34d',
       iconColor: '#f59e0b',
     },
-  ];
+  ], [t, revenueMultiple, ebitdaMultiple, dcfValue, vcMethodValue, revenue, ebitda, dealConfig.sectorMultiple]);
 
   return (
     <div className="page-break-after" style={CONTENT_PAGE_STYLE}>
-      <h2 style={PAGE_HEADER_STYLE}>Değerleme Analizi</h2>
+      <h2 style={PAGE_HEADER_STYLE}>{t('pdf.valuation.title')}</h2>
 
       {/* 4 Valuation Methods Grid */}
       <div style={{ ...GRID_4_COLS_STYLE, marginBottom: '24px' }}>
@@ -155,10 +158,10 @@ export function PdfValuationPage({
       >
         <div>
           <p style={{ fontSize: '14px', opacity: 0.9, marginBottom: '4px' }}>
-            AĞIRLIKLI DEĞERLEME (5. YIL)
+            {t('pdf.valuation.weightedValuationYear5')}
           </p>
           <p style={{ fontSize: '11px', opacity: 0.7 }}>
-            4 farklı metodun ağırlıklı ortalaması
+            {t('pdf.valuation.weightedAverage4Methods')}
           </p>
         </div>
         <div style={{ textAlign: 'right' }}>
@@ -174,20 +177,20 @@ export function PdfValuationPage({
       {/* 5-Year Projection Table */}
       <div>
         <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>
-          5 Yıllık Finansal Projeksiyon Detayı
+          {t('pdf.valuation.fiveYearProjectionDetail')}
         </h3>
 
         <table style={{ ...TABLE_STYLE, fontSize: '11px' }}>
           <thead>
             <tr style={{ background: '#f8fafc' }}>
-              <th style={{ ...TABLE_HEADER_CELL_STYLE, color: '#374151' }}>Yıl</th>
-              <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>Gelir</th>
-              <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>Gider</th>
-              <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>Net Kâr</th>
-              <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>Kâr Marjı</th>
-              <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>Şirket Değeri</th>
-              <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>Yatırımcı Payı</th>
-              <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>MOIC</th>
+              <th style={{ ...TABLE_HEADER_CELL_STYLE, color: '#374151' }}>{t('pdf.valuation.year')}</th>
+              <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>{t('pdf.valuation.revenue')}</th>
+              <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>{t('pdf.valuation.expense')}</th>
+              <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>{t('pdf.valuation.netProfit')}</th>
+              <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>{t('pdf.valuation.profitMargin')}</th>
+              <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>{t('pdf.valuation.companyValue')}</th>
+              <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>{t('pdf.valuation.investorShare')}</th>
+              <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>{t('pdf.valuation.moic')}</th>
             </tr>
           </thead>
           <tbody>
@@ -260,19 +263,19 @@ export function PdfValuationPage({
         <div style={{ display: 'flex', gap: '24px', marginTop: '12px', fontSize: '10px' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{ width: '12px', height: '12px', borderRadius: '2px', background: '#166534' }} />
-            <span style={{ color: PDF_COLORS.gray[600] }}>MOIC ≥ 3x (Mükemmel)</span>
+            <span style={{ color: PDF_COLORS.gray[600] }}>{t('pdf.valuation.moicExcellent')}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{ width: '12px', height: '12px', borderRadius: '2px', background: '#ca8a04' }} />
-            <span style={{ color: PDF_COLORS.gray[600] }}>MOIC 2-3x (İyi)</span>
+            <span style={{ color: PDF_COLORS.gray[600] }}>{t('pdf.valuation.moicGood')}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <div style={{ width: '12px', height: '12px', borderRadius: '2px', background: '#dc2626' }} />
-            <span style={{ color: PDF_COLORS.gray[600] }}>MOIC &lt; 2x (Düşük)</span>
+            <span style={{ color: PDF_COLORS.gray[600] }}>{t('pdf.valuation.moicLow')}</span>
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
             <span style={{ color: '#166534', fontWeight: '600' }}>★</span>
-            <span style={{ color: PDF_COLORS.gray[600] }}>Önemli Yıllar (3 ve 5)</span>
+            <span style={{ color: PDF_COLORS.gray[600] }}>{t('pdf.valuation.importantYears')}</span>
           </div>
         </div>
       </div>
@@ -282,7 +285,7 @@ export function PdfValuationPage({
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '16px', marginTop: '20px' }}>
           <div style={{ padding: '14px 18px', background: '#fef3c7', borderRadius: '10px', border: '1px solid #fcd34d' }}>
             <p style={{ fontSize: '11px', color: '#92400e', marginBottom: '6px', fontWeight: '500' }}>
-              Yıl 1-2: Agresif Büyüme Aşaması
+              {t('pdf.valuation.aggressiveGrowthPhase')}
             </p>
             <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#d97706' }}>
               %{(pdfExitPlan.growthConfig.aggressiveGrowthRate * 100).toFixed(0)}
@@ -290,7 +293,7 @@ export function PdfValuationPage({
           </div>
           <div style={{ padding: '14px 18px', background: '#dcfce7', borderRadius: '10px', border: '1px solid #86efac' }}>
             <p style={{ fontSize: '11px', color: '#166534', marginBottom: '6px', fontWeight: '500' }}>
-              Yıl 3-5: Normalize Büyüme Aşaması
+              {t('pdf.valuation.normalizedGrowthPhase')}
             </p>
             <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#16a34a' }}>
               %{(pdfExitPlan.growthConfig.normalizedGrowthRate * 100).toFixed(0)}

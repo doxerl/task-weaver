@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { PdfPageWrapper } from './PdfPageWrapper';
 import {
   COVER_PAGE_STYLE,
@@ -21,6 +22,8 @@ export function PdfCoverPage({
   calculateDiff,
   formatValue,
 }: PdfCoverPageProps) {
+  const { t } = useTranslation(['simulation']);
+
   return (
     <div
       className="page-break-after"
@@ -32,13 +35,13 @@ export function PdfCoverPage({
       {/* Title Section */}
       <div style={{ textAlign: 'center', paddingTop: '60px' }}>
         <h1 style={{ fontSize: '42px', fontWeight: 'bold', color: 'white', marginBottom: '16px' }}>
-          Senaryo Karşılaştırma Raporu
+          {t('pdf.cover.title')}
         </h1>
         <p style={{ fontSize: '22px', color: '#93c5fd', marginBottom: '8px' }}>
           {scenarioA?.name} vs {scenarioB?.name}
         </p>
         <p style={{ fontSize: '16px', color: 'rgba(255,255,255,0.7)' }}>
-          Hedef Yıl: {scenarioB?.targetYear || new Date().getFullYear()}
+          {t('pdf.cover.targetYear')}: {scenarioB?.targetYear || new Date().getFullYear()}
         </p>
       </div>
 

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CONTENT_PAGE_STYLE,
   PAGE_HEADER_STYLE,
@@ -18,13 +19,15 @@ export function PdfFocusProjectPage({
   focusProjectPlan,
   dealConfig,
 }: PdfFocusProjectPageProps) {
+  const { t } = useTranslation(['simulation']);
+
   if (focusProjects.length === 0 || !scenarioA || !investmentAllocation) {
     return null;
   }
 
   return (
     <div className="page-break-after" style={CONTENT_PAGE_STYLE}>
-      <h2 style={PAGE_HEADER_STYLE}>Yatırım Odak Projesi Analizi</h2>
+      <h2 style={PAGE_HEADER_STYLE}>{t('pdf.focusProject.title')}</h2>
 
       {/* Selected Projects */}
       <div
@@ -57,7 +60,7 @@ export function PdfFocusProjectPage({
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '16px' }}>
                 <div>
                   <p style={{ fontSize: '12px', color: PDF_COLORS.gray[500], marginBottom: '4px' }}>
-                    Mevcut Gelir ({scenarioA?.baseYear})
+                    {t('pdf.focusProject.currentRevenue')} ({scenarioA?.baseYear})
                   </p>
                   <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#374151' }}>
                     {formatCompactUSD(revenueItem?.baseAmount || 0)}
@@ -65,14 +68,14 @@ export function PdfFocusProjectPage({
                 </div>
                 <div>
                   <p style={{ fontSize: '12px', color: PDF_COLORS.gray[500], marginBottom: '4px' }}>
-                    Hedef Gelir ({scenarioA?.targetYear})
+                    {t('pdf.focusProject.targetRevenue')} ({scenarioA?.targetYear})
                   </p>
                   <p style={{ fontSize: '20px', fontWeight: 'bold', color: PDF_COLORS.success }}>
                     {formatCompactUSD(revenueItem?.projectedAmount || 0)}
                   </p>
                 </div>
                 <div>
-                  <p style={{ fontSize: '12px', color: PDF_COLORS.gray[500], marginBottom: '4px' }}>Büyüme Oranı</p>
+                  <p style={{ fontSize: '12px', color: PDF_COLORS.gray[500], marginBottom: '4px' }}>{t('pdf.focusProject.growthRate')}</p>
                   <p
                     style={{
                       fontSize: '20px',
@@ -91,7 +94,7 @@ export function PdfFocusProjectPage({
 
       {/* Investment Allocation */}
       <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>
-        Yatırım Dağılımı
+        {t('pdf.focusProject.investmentAllocation')}
       </h3>
       <div
         style={{
@@ -110,7 +113,7 @@ export function PdfFocusProjectPage({
             textAlign: 'center',
           }}
         >
-          <p style={{ fontSize: '12px', color: '#0369a1', marginBottom: '8px' }}>Ürün Geliştirme</p>
+          <p style={{ fontSize: '12px', color: '#0369a1', marginBottom: '8px' }}>{t('pdf.focusProject.productDevelopment')}</p>
           <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#0369a1' }}>
             %{investmentAllocation.product}
           </p>
@@ -127,7 +130,7 @@ export function PdfFocusProjectPage({
             textAlign: 'center',
           }}
         >
-          <p style={{ fontSize: '12px', color: '#92400e', marginBottom: '8px' }}>Pazarlama</p>
+          <p style={{ fontSize: '12px', color: '#92400e', marginBottom: '8px' }}>{t('pdf.focusProject.marketing')}</p>
           <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#92400e' }}>
             %{investmentAllocation.marketing}
           </p>
@@ -144,7 +147,7 @@ export function PdfFocusProjectPage({
             textAlign: 'center',
           }}
         >
-          <p style={{ fontSize: '12px', color: '#166534', marginBottom: '8px' }}>İşe Alım</p>
+          <p style={{ fontSize: '12px', color: '#166534', marginBottom: '8px' }}>{t('pdf.focusProject.hiring')}</p>
           <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#166534' }}>
             %{investmentAllocation.hiring}
           </p>
@@ -161,7 +164,7 @@ export function PdfFocusProjectPage({
             textAlign: 'center',
           }}
         >
-          <p style={{ fontSize: '12px', color: '#6d28d9', marginBottom: '8px' }}>Operasyonlar</p>
+          <p style={{ fontSize: '12px', color: '#6d28d9', marginBottom: '8px' }}>{t('pdf.focusProject.operations')}</p>
           <p style={{ fontSize: '32px', fontWeight: 'bold', color: '#6d28d9' }}>
             %{investmentAllocation.operations}
           </p>
@@ -182,7 +185,7 @@ export function PdfFocusProjectPage({
           }}
         >
           <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>
-            Büyüme Planı
+            {t('pdf.focusProject.growthPlan')}
           </h3>
           <p
             style={{
@@ -211,15 +214,15 @@ export function PdfFocusProjectPage({
         }}
       >
         <div>
-          <p style={{ fontSize: '12px', opacity: 0.9 }}>Toplam Yatırım</p>
+          <p style={{ fontSize: '12px', opacity: 0.9 }}>{t('pdf.focusProject.totalInvestment')}</p>
           <p style={{ fontSize: '24px', fontWeight: 'bold' }}>${dealConfig.investmentAmount.toLocaleString()}</p>
         </div>
         <div>
-          <p style={{ fontSize: '12px', opacity: 0.9 }}>Odak Proje Sayısı</p>
+          <p style={{ fontSize: '12px', opacity: 0.9 }}>{t('pdf.focusProject.focusProjectCount')}</p>
           <p style={{ fontSize: '24px', fontWeight: 'bold' }}>{focusProjects.length}</p>
         </div>
         <div>
-          <p style={{ fontSize: '12px', opacity: 0.9 }}>Toplam Dağılım</p>
+          <p style={{ fontSize: '12px', opacity: 0.9 }}>{t('pdf.focusProject.totalAllocation')}</p>
           <p style={{ fontSize: '24px', fontWeight: 'bold' }}>
             %
             {investmentAllocation.product +
