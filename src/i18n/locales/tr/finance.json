@@ -55,6 +55,8 @@
     "calculatedVat": "Hesaplanan KDV",
     "deductibleVat": "İndirilecek KDV",
     "netVat": "Net KDV",
+    "payable": "Ödenecek",
+    "deferred": "Devreden",
     "uncategorizedTitle": "Kategorisiz İşlem Var",
     "uncategorizedDetail": "{{count}} adet işlem ({{amount}}) kategorilendirilememiş. Bu işlemler finansal raporlara dahil edilmiyor.",
     "goToCategorize": "Kategorilendirmeye Git",
@@ -89,7 +91,19 @@
     "yearlyProjection": "Yıllık Projeksiyon",
     "monthlyTrend": "Aylık Trend",
     "pdfCreated": "PDF oluşturuldu",
-    "pdfFailed": "PDF oluşturulamadı"
+    "pdfFailed": "PDF oluşturulamadı",
+    "tabs": {
+      "summary": "Özet",
+      "official": "Resmi",
+      "financing": "Finans",
+      "cashflow": "Nakit"
+    },
+    "charts": {
+      "monthlyTrend": "Aylık Gelir vs Gider",
+      "serviceRevenue": "Hizmet Bazlı Gelir",
+      "expenseCategories": "Gider Kategorileri",
+      "chartPdf": "Grafik PDF"
+    }
   },
   "vat": {
     "title": "KDV Raporu",
