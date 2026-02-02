@@ -97,5 +97,65 @@
     "of": "/ {{total}}",
     "page": "Sayfa",
     "perPage": "Sayfa başına"
+  },
+  "settings": {
+    "title": "Ayarlar",
+    "profile": {
+      "title": "Profil Bilgileri",
+      "description": "Kişisel bilgilerinizi düzenleyin",
+      "firstName": "Ad",
+      "lastName": "Soyad",
+      "email": "Email",
+      "emailHint": "Email değiştirilemez"
+    },
+    "language": {
+      "title": "Dil Ayarları",
+      "description": "Uygulama dilini seçin"
+    },
+    "timezone": {
+      "title": "Zaman Ayarları",
+      "description": "Timezone ve çalışma saatlerinizi ayarlayın",
+      "label": "Timezone",
+      "workingHours": "Çalışma Saatleri",
+      "start": "Başlangıç",
+      "end": "Bitiş"
+    },
+    "fixedExpenses": {
+      "title": "Sabit Gider Tanımları",
+      "description": "Aylık sabit giderlerinizi ve taksitli ödemelerinizi yönetin",
+      "addNew": "Yeni Sabit Gider Ekle",
+      "noExpenses": "Henüz sabit gider tanımlanmadı"
+    },
+    "exchangeRates": {
+      "title": "Döviz Kurları",
+      "description": "Projeksiyon hesaplamalarında kullanılacak döviz kurlarını ayarlayın"
+    },
+    "balanceSheet": {
+      "title": "Bilanço Ayarları",
+      "description": "Açılış bakiyeleri ve duran varlık tarihleri",
+      "openingBankBalance": "Açılış Banka Bakiyesi",
+      "openingCash": "Açılış Kasa",
+      "vehiclesPurchaseDate": "Taşıtlar Alış Tarihi",
+      "fixturesPurchaseDate": "Demirbaş Alış Tarihi"
+    },
+    "integrations": {
+      "title": "Entegrasyonlar",
+      "description": "Harici servisler ile bağlantı kurun"
+    },
+    "finance": {
+      "title": "Finans Ayarları",
+      "description": "Finansal kategorileri ve ayarları yönetin",
+      "manageCategories": "Kategorileri Yönet"
+    },
+    "account": {
+      "title": "Hesap",
+      "signOut": "Çıkış Yap",
+      "signOutDescription": "Hesabınızdan çıkış yapın"
+    },
+    "toast": {
+      "profileUpdated": "Profil güncellendi",
+      "profileUpdateFailed": "Profil güncellenemedi",
+      "requiredFields": "Ad ve soyad zorunlu"
+    }
   }
 }

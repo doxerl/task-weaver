@@ -97,5 +97,65 @@
     "of": "of {{total}}",
     "page": "Page",
     "perPage": "Per page"
+  },
+  "settings": {
+    "title": "Settings",
+    "profile": {
+      "title": "Profile Information",
+      "description": "Edit your personal information",
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "email": "Email",
+      "emailHint": "Email cannot be changed"
+    },
+    "language": {
+      "title": "Language Settings",
+      "description": "Select application language"
+    },
+    "timezone": {
+      "title": "Time Settings",
+      "description": "Set your timezone and working hours",
+      "label": "Timezone",
+      "workingHours": "Working Hours",
+      "start": "Start",
+      "end": "End"
+    },
+    "fixedExpenses": {
+      "title": "Fixed Expense Definitions",
+      "description": "Manage your monthly fixed expenses and installment payments",
+      "addNew": "Add New Fixed Expense",
+      "noExpenses": "No fixed expenses defined yet"
+    },
+    "exchangeRates": {
+      "title": "Exchange Rates",
+      "description": "Set exchange rates for projection calculations"
+    },
+    "balanceSheet": {
+      "title": "Balance Sheet Settings",
+      "description": "Opening balances and fixed asset dates",
+      "openingBankBalance": "Opening Bank Balance",
+      "openingCash": "Opening Cash",
+      "vehiclesPurchaseDate": "Vehicles Purchase Date",
+      "fixturesPurchaseDate": "Fixtures Purchase Date"
+    },
+    "integrations": {
+      "title": "Integrations",
+      "description": "Connect with external services"
+    },
+    "finance": {
+      "title": "Finance Settings",
+      "description": "Manage financial categories and settings",
+      "manageCategories": "Manage Categories"
+    },
+    "account": {
+      "title": "Account",
+      "signOut": "Sign Out",
+      "signOutDescription": "Sign out of your account"
+    },
+    "toast": {
+      "profileUpdated": "Profile updated",
+      "profileUpdateFailed": "Failed to update profile",
+      "requiredFields": "First name and last name are required"
+    }
   }
 }

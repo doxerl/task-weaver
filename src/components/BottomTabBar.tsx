@@ -1,30 +1,31 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { Calendar, CalendarDays, Wallet } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 interface TabItem {
   path: string;
-  label: string;
+  labelKey: string;
   icon: React.ReactNode;
   matchPaths?: string[];
 }
 
-const tabs: TabItem[] = [
+const tabConfig: TabItem[] = [
   {
     path: '/finance',
-    label: 'Finans',
+    labelKey: 'navigation.finance',
     icon: <Wallet className="h-5 w-5" />,
     matchPaths: ['/finance'],
   },
   {
     path: '/today',
-    label: 'Bugün',
+    labelKey: 'navigation.today',
     icon: <Calendar className="h-5 w-5" />,
     matchPaths: ['/today'],
   },
   {
     path: '/week',
-    label: 'Hafta',
+    labelKey: 'navigation.week',
     icon: <CalendarDays className="h-5 w-5" />,
     matchPaths: ['/week'],
   },
@@ -33,6 +34,7 @@ const tabs: TabItem[] = [
 export function BottomTabBar() {
   const location = useLocation();
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
 
   const isActive = (tab: TabItem) => {
     const paths = tab.matchPaths || [tab.path];
@@ -42,7 +44,7 @@ export function BottomTabBar() {
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80">
       <div className="container flex h-16 items-center justify-around px-4">
-        {tabs.map((tab) => {
+        {tabConfig.map((tab) => {
           const active = isActive(tab);
           return (
             <button
@@ -56,7 +58,7 @@ export function BottomTabBar() {
               )}
             >
               {tab.icon}
-              <span className="text-xs font-medium">{tab.label}</span>
+              <span className="text-xs font-medium">{t(tab.labelKey)}</span>
             </button>
           );
         })}
