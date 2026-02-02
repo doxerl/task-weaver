@@ -157,5 +157,56 @@
       "profileUpdateFailed": "Profil güncellenemedi",
       "requiredFields": "Ad ve soyad zorunlu"
     }
+  },
+  "planner": {
+    "hello": "Merhaba",
+    "voicePlanning": "Sesli Planlama",
+    "plan": "Plan",
+    "actual": "Gerçek",
+    "compare": "Karşılaştır",
+    "week": "Hafta",
+    "whatWillYouDo": "Ne yapacaksın?",
+    "whatDidYouDo": "Ne yaptın?",
+    "pastDayWarning": "{{date}} için kayıt ekliyorsunuz",
+    "returnToToday": "Bugüne dönmek için tıklayın",
+    "weekNumber": "{{week}}. Hafta {{year}}",
+    "thisWeek": "Bu Hafta",
+    "totalPlans": "Toplam Plan",
+    "totalRecords": "Toplam Kayıt",
+    "activeDays": "Aktif Gün",
+    "complianceRate": "Uyum Oranı",
+    "more": "+{{count}} daha",
+    "empty": "Boş",
+    "weeklySummary": "Haftalık Özet",
+    "calculating": "Hesaplanıyor...",
+    "excelExport": "Excel Export",
+    "downloading": "İndiriliyor...",
+    "exportSuccess": "Export başarılı",
+    "exportFailed": "Export başarısız",
+    "loginRequired": "Lütfen önce giriş yapın",
+    "user": "Kullanıcı"
+  },
+  "months": {
+    "jan": "Oca",
+    "feb": "Şub",
+    "mar": "Mar",
+    "apr": "Nis",
+    "may": "May",
+    "jun": "Haz",
+    "jul": "Tem",
+    "aug": "Ağu",
+    "sep": "Eyl",
+    "oct": "Eki",
+    "nov": "Kas",
+    "dec": "Ara"
+  },
+  "days": {
+    "mon": "Pzt",
+    "tue": "Sal",
+    "wed": "Çar",
+    "thu": "Per",
+    "fri": "Cum",
+    "sat": "Cmt",
+    "sun": "Paz"
   }
 }
