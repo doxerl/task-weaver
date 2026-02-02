@@ -1046,5 +1046,60 @@
       "q3": "Jul-Sep",
       "q4": "Oct-Dec"
     }
+  },
+  "pdf": {
+    "scenarioImpact": {
+      "title": "Scenario Impact Analysis",
+      "withInvestment": "With Investment",
+      "withoutInvestment": "Without Investment",
+      "totalRevenue": "Total Revenue",
+      "netProfit": "Net Profit",
+      "profitMargin": "Profit Margin",
+      "growthRate": "Growth Rate",
+      "organicGrowth": "Organic Growth",
+      "valuation5Y": "5Y Valuation",
+      "moic5Y": "5Y MOIC",
+      "organicGrowthWarning": "Without investment, growth will be limited to organic growth only.",
+      "opportunityCostTitle": "Opportunity Cost Analysis",
+      "risk": "RISK",
+      "riskLevels": {
+        "critical": "CRITICAL",
+        "high": "HIGH",
+        "medium": "MEDIUM",
+        "low": "LOW"
+      },
+      "revenueLoss": "Revenue Loss",
+      "profitLoss": "Profit Loss",
+      "growthDifference": "Growth Difference",
+      "valuationLoss5Y": "Valuation Loss (5Y)",
+      "year": "Year {{year}}",
+      "netDifference": "Net difference",
+      "potentialLoss": "Potential loss",
+      "projection": "{{year}} projection",
+      "summaryText": "If you don't receive investment, you may lose <strong>{{percent}}%</strong> of your potential revenue and your company valuation could be <strong>{{amount}}</strong> lower in year 5.",
+      "futureProjectionTitle": "Future Valuation Projection",
+      "yearLabel": "YEAR {{num}}",
+      "withInvestmentShort": "With Inv.",
+      "withoutInvestmentShort": "Without Inv.",
+      "difference": "Difference",
+      "totalDifference": "Total Difference"
+    },
+    "revenueExpense": {
+      "title": "Revenue & Expense Items Comparison",
+      "revenue": "REVENUE",
+      "expense": "EXPENSE",
+      "top5Revenue": "Top 5 Revenue Items",
+      "top5Expense": "Top 5 Expense Items",
+      "item": "Item",
+      "scenarioA": "Scenario A",
+      "scenarioB": "Scenario B",
+      "difference": "Diff",
+      "totalRevenue": "Total Revenue",
+      "totalExpense": "Total Expense",
+      "netProfit": "Net Profit",
+      "margin": "Margin",
+      "differenceBA": "Difference (B - A)",
+      "change": "change"
+    }
   }
 }

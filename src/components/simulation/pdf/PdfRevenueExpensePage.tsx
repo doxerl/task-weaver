@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CONTENT_PAGE_STYLE,
   PAGE_HEADER_STYLE,
@@ -23,6 +24,8 @@ export function PdfRevenueExpensePage({
   summaryB,
   quarterlyItemized,
 }: PdfRevenueExpensePageProps) {
+  const { t } = useTranslation(['simulation']);
+
   if (!quarterlyItemized || !scenarioA || !scenarioB) {
     return null;
   }
@@ -30,7 +33,7 @@ export function PdfRevenueExpensePage({
   return (
     <div className="page-break-after" style={CONTENT_PAGE_STYLE}>
       <h2 style={PAGE_HEADER_STYLE}>
-        Gelir & Gider Kalemleri Karşılaştırması
+        {t('pdf.revenueExpense.title')}
       </h2>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
@@ -56,14 +59,14 @@ export function PdfRevenueExpensePage({
                 fontSize: '12px',
               }}
             >
-              GELİR
+              {t('pdf.revenueExpense.revenue')}
             </span>
-            Top 5 Gelir Kalemi
+            {t('pdf.revenueExpense.top5Revenue')}
           </h3>
           <table style={{ ...TABLE_STYLE, fontSize: '11px' }}>
             <thead>
               <tr style={{ background: '#f0fdf4' }}>
-                <th style={{ ...TABLE_HEADER_CELL_STYLE, borderBottom: '2px solid #86efac' }}>Kalem</th>
+                <th style={{ ...TABLE_HEADER_CELL_STYLE, borderBottom: '2px solid #86efac' }}>{t('pdf.revenueExpense.item')}</th>
                 <th
                   style={{
                     ...TABLE_HEADER_CELL_STYLE,
@@ -71,7 +74,7 @@ export function PdfRevenueExpensePage({
                     borderBottom: '2px solid #86efac',
                   }}
                 >
-                  {scenarioA?.name || 'Senaryo A'}
+                  {scenarioA?.name || t('pdf.revenueExpense.scenarioA')}
                 </th>
                 <th
                   style={{
@@ -80,7 +83,7 @@ export function PdfRevenueExpensePage({
                     borderBottom: '2px solid #86efac',
                   }}
                 >
-                  {scenarioB?.name || 'Senaryo B'}
+                  {scenarioB?.name || t('pdf.revenueExpense.scenarioB')}
                 </th>
                 <th
                   style={{
@@ -89,7 +92,7 @@ export function PdfRevenueExpensePage({
                     borderBottom: '2px solid #86efac',
                   }}
                 >
-                  Fark
+                  {t('pdf.revenueExpense.difference')}
                 </th>
               </tr>
             </thead>
@@ -120,7 +123,7 @@ export function PdfRevenueExpensePage({
           {/* Revenue Summary */}
           <div style={{ marginTop: '16px', padding: '12px', background: '#f0fdf4', borderRadius: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-              <span style={{ fontWeight: '600', color: '#166534' }}>Toplam Gelir</span>
+              <span style={{ fontWeight: '600', color: '#166534' }}>{t('pdf.revenueExpense.totalRevenue')}</span>
               <div style={{ textAlign: 'right' }}>
                 <span style={{ color: PDF_COLORS.primaryLight }}>
                   {formatCompactUSD(summaryA?.totalRevenue || 0)}
@@ -156,14 +159,14 @@ export function PdfRevenueExpensePage({
                 fontSize: '12px',
               }}
             >
-              GİDER
+              {t('pdf.revenueExpense.expense')}
             </span>
-            Top 5 Gider Kalemi
+            {t('pdf.revenueExpense.top5Expense')}
           </h3>
           <table style={{ ...TABLE_STYLE, fontSize: '11px' }}>
             <thead>
               <tr style={{ background: '#fef2f2' }}>
-                <th style={{ ...TABLE_HEADER_CELL_STYLE, borderBottom: '2px solid #fecaca' }}>Kalem</th>
+                <th style={{ ...TABLE_HEADER_CELL_STYLE, borderBottom: '2px solid #fecaca' }}>{t('pdf.revenueExpense.item')}</th>
                 <th
                   style={{
                     ...TABLE_HEADER_CELL_STYLE,
@@ -171,7 +174,7 @@ export function PdfRevenueExpensePage({
                     borderBottom: '2px solid #fecaca',
                   }}
                 >
-                  {scenarioA?.name || 'Senaryo A'}
+                  {scenarioA?.name || t('pdf.revenueExpense.scenarioA')}
                 </th>
                 <th
                   style={{
@@ -180,7 +183,7 @@ export function PdfRevenueExpensePage({
                     borderBottom: '2px solid #fecaca',
                   }}
                 >
-                  {scenarioB?.name || 'Senaryo B'}
+                  {scenarioB?.name || t('pdf.revenueExpense.scenarioB')}
                 </th>
                 <th
                   style={{
@@ -189,7 +192,7 @@ export function PdfRevenueExpensePage({
                     borderBottom: '2px solid #fecaca',
                   }}
                 >
-                  Fark
+                  {t('pdf.revenueExpense.difference')}
                 </th>
               </tr>
             </thead>
@@ -220,7 +223,7 @@ export function PdfRevenueExpensePage({
           {/* Expense Summary */}
           <div style={{ marginTop: '16px', padding: '12px', background: '#fef2f2', borderRadius: '8px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '12px' }}>
-              <span style={{ fontWeight: '600', color: PDF_COLORS.danger }}>Toplam Gider</span>
+              <span style={{ fontWeight: '600', color: PDF_COLORS.danger }}>{t('pdf.revenueExpense.totalExpense')}</span>
               <div style={{ textAlign: 'right' }}>
                 <span style={{ color: PDF_COLORS.primaryLight }}>
                   {formatCompactUSD(summaryA?.totalExpense || 0)}
@@ -238,14 +241,14 @@ export function PdfRevenueExpensePage({
       {/* Net Profit Comparison Summary */}
       <div style={{ marginTop: '32px', display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '20px' }}>
         <div style={{ padding: '20px', background: '#2563eb', borderRadius: '12px', color: 'white' }}>
-          <p style={{ fontSize: '12px', opacity: 0.9 }}>{scenarioA?.name || 'Senaryo A'} Net Kâr</p>
+          <p style={{ fontSize: '12px', opacity: 0.9 }}>{scenarioA?.name || t('pdf.revenueExpense.scenarioA')} {t('pdf.revenueExpense.netProfit')}</p>
           <p style={{ fontSize: '28px', fontWeight: 'bold' }}>{formatCompactUSD(summaryA?.netProfit || 0)}</p>
-          <p style={{ fontSize: '12px', opacity: 0.8 }}>Marj: %{summaryA?.profitMargin.toFixed(1)}</p>
+          <p style={{ fontSize: '12px', opacity: 0.8 }}>{t('pdf.revenueExpense.margin')}: %{summaryA?.profitMargin.toFixed(1)}</p>
         </div>
         <div style={{ padding: '20px', background: '#16a34a', borderRadius: '12px', color: 'white' }}>
-          <p style={{ fontSize: '12px', opacity: 0.9 }}>{scenarioB?.name || 'Senaryo B'} Net Kâr</p>
+          <p style={{ fontSize: '12px', opacity: 0.9 }}>{scenarioB?.name || t('pdf.revenueExpense.scenarioB')} {t('pdf.revenueExpense.netProfit')}</p>
           <p style={{ fontSize: '28px', fontWeight: 'bold' }}>{formatCompactUSD(summaryB?.netProfit || 0)}</p>
-          <p style={{ fontSize: '12px', opacity: 0.8 }}>Marj: %{summaryB?.profitMargin.toFixed(1)}</p>
+          <p style={{ fontSize: '12px', opacity: 0.8 }}>{t('pdf.revenueExpense.margin')}: %{summaryB?.profitMargin.toFixed(1)}</p>
         </div>
         <div
           style={{
@@ -258,7 +261,7 @@ export function PdfRevenueExpensePage({
             }`,
           }}
         >
-          <p style={{ fontSize: '12px', color: PDF_COLORS.gray[500] }}>Fark (B - A)</p>
+          <p style={{ fontSize: '12px', color: PDF_COLORS.gray[500] }}>{t('pdf.revenueExpense.differenceBA')}</p>
           <p
             style={{
               fontSize: '28px',
@@ -276,7 +279,7 @@ export function PdfRevenueExpensePage({
           </p>
           <p style={{ fontSize: '12px', color: PDF_COLORS.gray[500] }}>
             {summaryB && summaryA && summaryA.netProfit !== 0
-              ? `${(((summaryB.netProfit - summaryA.netProfit) / Math.abs(summaryA.netProfit)) * 100).toFixed(0)}% değişim`
+              ? `${(((summaryB.netProfit - summaryA.netProfit) / Math.abs(summaryA.netProfit)) * 100).toFixed(0)}% ${t('pdf.revenueExpense.change')}`
               : '-'}
           </p>
         </div>

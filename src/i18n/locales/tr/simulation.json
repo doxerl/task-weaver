@@ -1046,5 +1046,60 @@
       "q3": "Tem-Eyl",
       "q4": "Eki-Ara"
     }
+  },
+  "pdf": {
+    "scenarioImpact": {
+      "title": "Senaryo Etki Analizi",
+      "withInvestment": "Yatırım Alırsak",
+      "withoutInvestment": "Yatırım Alamazsak",
+      "totalRevenue": "Toplam Gelir",
+      "netProfit": "Net Kâr",
+      "profitMargin": "Kâr Marjı",
+      "growthRate": "Büyüme Oranı",
+      "organicGrowth": "Organik Büyüme",
+      "valuation5Y": "5Y Değerleme",
+      "moic5Y": "5Y MOIC",
+      "organicGrowthWarning": "Yatırım olmadan sadece organik büyüme ile sınırlı kalınacak.",
+      "opportunityCostTitle": "Fırsat Maliyeti Analizi",
+      "risk": "RİSK",
+      "riskLevels": {
+        "critical": "KRİTİK",
+        "high": "YÜKSEK",
+        "medium": "ORTA",
+        "low": "DÜŞÜK"
+      },
+      "revenueLoss": "Gelir Kaybı",
+      "profitLoss": "Kâr Kaybı",
+      "growthDifference": "Büyüme Farkı",
+      "valuationLoss5Y": "Değerleme Kaybı (5Y)",
+      "year": "{{year}} yılı",
+      "netDifference": "Net fark",
+      "potentialLoss": "Potansiyel kayıp",
+      "projection": "{{year}} projeksiyonu",
+      "summaryText": "Yatırım almazsanız potansiyel gelirinizin <strong>%{{percent}}</strong>'ını kaybedebilir ve 5. yılda şirket değerlemesi <strong>{{amount}}</strong> daha düşük olabilir.",
+      "futureProjectionTitle": "Gelecek Değerleme Projeksiyonu",
+      "yearLabel": "YIL {{num}}",
+      "withInvestmentShort": "Yatırımlı",
+      "withoutInvestmentShort": "Yatırımsız",
+      "difference": "Fark",
+      "totalDifference": "Toplam Fark"
+    },
+    "revenueExpense": {
+      "title": "Gelir & Gider Kalemleri Karşılaştırması",
+      "revenue": "GELİR",
+      "expense": "GİDER",
+      "top5Revenue": "Top 5 Gelir Kalemi",
+      "top5Expense": "Top 5 Gider Kalemi",
+      "item": "Kalem",
+      "scenarioA": "Senaryo A",
+      "scenarioB": "Senaryo B",
+      "difference": "Fark",
+      "totalRevenue": "Toplam Gelir",
+      "totalExpense": "Toplam Gider",
+      "netProfit": "Net Kâr",
+      "margin": "Marj",
+      "differenceBA": "Fark (B - A)",
+      "change": "değişim"
+    }
   }
 }
