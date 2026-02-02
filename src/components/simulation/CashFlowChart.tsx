@@ -1,4 +1,5 @@
-import { forwardRef } from 'react';
+import { forwardRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine, Legend } from 'recharts';
 import { QuarterlyProjection } from '@/types/simulation';
@@ -16,20 +17,22 @@ interface CashFlowChartProps {
   scenarioBName?: string;
 }
 
-const QUARTER_MONTHS: Record<string, string> = {
-  'Q1': 'Oca-Mar',
-  'Q2': 'Nis-Haz',
-  'Q3': 'Tem-Eyl',
-  'Q4': 'Eki-Ara',
-};
-
 export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
   ({ quarterlyProjections, currentCash = 0, safetyBuffer, breakEvenQuarter, className, targetYear, scenarioAName, scenarioBName }, ref) => {
+    const { t } = useTranslation(['simulation']);
+
+    const QUARTER_MONTHS = useMemo(() => ({
+      'Q1': t('months.ranges.q1'),
+      'Q2': t('months.ranges.q2'),
+      'Q3': t('months.ranges.q3'),
+      'Q4': t('months.ranges.q4'),
+    }), [t]);
+
     // Build chart data with starting point
-    const data = [
+    const data = useMemo(() => [
       {
-        name: 'Başl.',
-        quarter: 'Başlangıç',
+        name: t('capitalAnalysis.cashflow.startingBalance').substring(0, 5) + '.',
+        quarter: t('capitalAnalysis.cashflow.startingBalance'),
         bakiye: Math.round(currentCash),
         gelir: 0,
         gider: 0,
@@ -38,14 +41,14 @@ export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
       },
       ...quarterlyProjections.map(p => ({
         name: p.quarter,
-        quarter: `${p.quarter} (${QUARTER_MONTHS[p.quarter] || ''})`,
+        quarter: `${p.quarter} (${QUARTER_MONTHS[p.quarter as keyof typeof QUARTER_MONTHS] || ''})`,
         bakiye: Math.round(p.closingBalance),
         gelir: Math.round(p.revenue),
         gider: Math.round(p.expense),
         yatirim: Math.round(p.investment),
         netAkis: Math.round(p.netCashFlow),
       }))
-    ];
+    ], [quarterlyProjections, currentCash, QUARTER_MONTHS, t]);
 
     const allBalances = data.map(d => d.bakiye);
     const minBalance = Math.min(...allBalances);
@@ -54,9 +57,9 @@ export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
     const yMax = maxBalance + 10000;
 
     // Dynamic chart title with year
-    const chartTitle = targetYear 
-      ? `${targetYear} Çeyreklik Nakit Akış Projeksiyonu` 
-      : 'Çeyreklik Nakit Akış Projeksiyonu';
+    const chartTitle = targetYear
+      ? t('capitalAnalysis.cashflow.chartTitleWithYear', { year: targetYear })
+      : t('capitalAnalysis.cashflow.chartTitle');
 
     return (
       <Card className={cn("", className)} ref={ref}>
@@ -78,14 +81,15 @@ export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
                   tick={{ fontSize: 11, fill: '#64748b' }}
                 />
-                <Tooltip 
+                <Tooltip
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
                     const pointData = payload[0]?.payload;
-                    if (label === 'Başl.') {
+                    const startingAbbr = t('capitalAnalysis.cashflow.startingBalance').substring(0, 5) + '.';
+                    if (label === startingAbbr) {
                       return (
                         <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }} className="rounded-lg shadow-lg p-3 text-sm">
-                          <p className="font-medium mb-2" style={{ color: '#0f172a' }}>Başlangıç Bakiyesi</p>
+                          <p className="font-medium mb-2" style={{ color: '#0f172a' }}>{t('capitalAnalysis.cashflow.startingBalance')}</p>
                           <p className="font-semibold" style={{ color: '#0f172a' }}>{formatCompactUSD(pointData.bakiye)}</p>
                         </div>
                       );
@@ -94,26 +98,26 @@ export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
                       <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }} className="rounded-lg shadow-lg p-3 text-sm">
                         <p className="font-medium mb-2" style={{ color: '#0f172a' }}>{pointData.quarter}</p>
                         <div className="space-y-1">
-                          <p style={{ color: '#16a34a' }}>Gelir: {formatCompactUSD(pointData.gelir)}</p>
-                          <p style={{ color: '#ef4444' }}>Gider: {formatCompactUSD(pointData.gider)}</p>
+                          <p style={{ color: '#16a34a' }}>{t('capitalAnalysis.cashflow.tooltipRevenue')}: {formatCompactUSD(pointData.gelir)}</p>
+                          <p style={{ color: '#ef4444' }}>{t('capitalAnalysis.cashflow.tooltipExpense')}: {formatCompactUSD(pointData.gider)}</p>
                           {pointData.yatirim > 0 && (
-                            <p style={{ color: '#ea580c' }}>Yatırım: {formatCompactUSD(pointData.yatirim)}</p>
+                            <p style={{ color: '#ea580c' }}>{t('capitalAnalysis.cashflow.tooltipInvestment')}: {formatCompactUSD(pointData.yatirim)}</p>
                           )}
                           <div className="border-t pt-1 mt-1">
-                            <p style={{ color: '#2563eb' }}>Net Akış: {formatCompactUSD(pointData.netAkis)}</p>
-                            <p className="font-semibold" style={{ color: '#0f172a' }}>Bakiye: {formatCompactUSD(pointData.bakiye)}</p>
+                            <p style={{ color: '#2563eb' }}>{t('capitalAnalysis.cashflow.tooltipNetFlow')}: {formatCompactUSD(pointData.netAkis)}</p>
+                            <p className="font-semibold" style={{ color: '#0f172a' }}>{t('capitalAnalysis.cashflow.tooltipBalance')}: {formatCompactUSD(pointData.bakiye)}</p>
                           </div>
                         </div>
                       </div>
                     );
                   }}
                 />
-                <Legend 
+                <Legend
                   formatter={(value) => {
                     const labels: Record<string, string> = {
-                      bakiye: 'Nakit Bakiyesi',
-                      gelir: 'Gelir',
-                      gider: 'Gider',
+                      bakiye: t('capitalAnalysis.cashflow.legendBalance'),
+                      gelir: t('capitalAnalysis.cashflow.legendRevenue'),
+                      gider: t('capitalAnalysis.cashflow.legendExpense'),
                     };
                     return labels[value] || value;
                   }}
@@ -124,11 +128,11 @@ export const CashFlowChart = forwardRef<HTMLDivElement, CashFlowChartProps>(
                 
                 {/* Safety buffer line */}
                 {safetyBuffer && safetyBuffer > 0 && (
-                  <ReferenceLine 
-                    y={safetyBuffer} 
+                  <ReferenceLine
+                    y={safetyBuffer}
                     stroke="#f59e0b"
                     strokeDasharray="3 3"
-                    label={{ value: 'Güvenlik Tamponu', position: 'right', fill: '#f59e0b', fontSize: 10 }}
+                    label={{ value: t('capitalAnalysis.cashflow.safetyBuffer'), position: 'right', fill: '#f59e0b', fontSize: 10 }}
                   />
                 )}
                 

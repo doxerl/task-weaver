@@ -1,4 +1,5 @@
 import { useMemo, forwardRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer, PieChart, Pie, Cell } from 'recharts';
 import { ProjectionItem } from '@/types/simulation';
@@ -57,7 +58,7 @@ interface ProcessedPieData {
   percentage: number;
 }
 
-function processPieData(items: ProjectionItem[], threshold: number = 0.03): ProcessedPieData[] {
+function processPieData(items: ProjectionItem[], otherLabel: string, threshold: number = 0.03): ProcessedPieData[] {
   const total = items.reduce((sum, item) => sum + item.projectedAmount, 0);
   if (total === 0) return [];
 
@@ -83,7 +84,7 @@ function processPieData(items: ProjectionItem[], threshold: number = 0.03): Proc
     const otherTotal = otherItems.reduce((sum, item) => sum + item.value, 0);
     const otherPercentage = otherTotal / total;
     result.push({
-      name: 'Diğer',
+      name: otherLabel,
       value: otherTotal,
       color: '#64748b', // muted-foreground hex
       percentage: otherPercentage * 100,
@@ -121,7 +122,9 @@ function PieLegend({ data }: PieLegendProps) {
 
 export const ComparisonChart = forwardRef<HTMLDivElement, ComparisonChartProps>(
   function ComparisonChart({ revenues, expenses, baseYear, targetYear }, ref) {
-    const revenueChartData = useMemo(() => 
+    const { t } = useTranslation(['simulation']);
+
+    const revenueChartData = useMemo(() =>
       revenues.map(r => ({
         name: r.category,
         fullName: r.category,
@@ -131,7 +134,7 @@ export const ComparisonChart = forwardRef<HTMLDivElement, ComparisonChartProps>(
       [revenues]
     );
 
-    const expenseChartData = useMemo(() => 
+    const expenseChartData = useMemo(() =>
       expenses.map(e => ({
         name: e.category,
         fullName: e.category,
@@ -141,8 +144,9 @@ export const ComparisonChart = forwardRef<HTMLDivElement, ComparisonChartProps>(
       [expenses]
     );
 
-    const revenuePieData = useMemo(() => processPieData(revenues), [revenues]);
-    const expensePieData = useMemo(() => processPieData(expenses), [expenses]);
+    const otherLabel = t('comparisonChart.other');
+    const revenuePieData = useMemo(() => processPieData(revenues, otherLabel), [revenues, otherLabel]);
+    const expensePieData = useMemo(() => processPieData(expenses, otherLabel), [expenses, otherLabel]);
 
     const revenueBarHeight = Math.max(250, revenues.length * 40);
     const expenseBarHeight = Math.max(280, expenses.length * 35);
@@ -152,25 +156,25 @@ export const ComparisonChart = forwardRef<HTMLDivElement, ComparisonChartProps>(
         {/* Revenue Comparison Bar Chart */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Gelir Karşılaştırması</CardTitle>
+            <CardTitle className="text-base">{t('comparisonChart.revenueComparison')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={revenueBarHeight}>
               <BarChart data={revenueChartData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={true} vertical={false} />
                 <XAxis type="number" tickFormatter={formatUSD} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis 
-                  type="category" 
-                  dataKey="name" 
-                  width={180} 
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={180}
                   tick={{ fontSize: 11, fill: '#0f172a' }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
-                <Bar dataKey="base" fill="#64748b" name={`${baseYear} Gerçek`} radius={[0, 4, 4, 0]} />
-                <Bar dataKey="target" fill="#2563eb" name={`${targetYear} Hedef`} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="base" fill="#64748b" name={t('comparisonChart.actualYear', { year: baseYear })} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="target" fill="#2563eb" name={t('comparisonChart.targetYear', { year: targetYear })} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -179,7 +183,7 @@ export const ComparisonChart = forwardRef<HTMLDivElement, ComparisonChartProps>(
         {/* Revenue Distribution Pie Chart */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">{targetYear} Gelir Dağılımı</CardTitle>
+            <CardTitle className="text-base">{t('comparisonChart.revenueDistribution', { year: targetYear })}</CardTitle>
           </CardHeader>
           <CardContent className="pb-4">
             <ResponsiveContainer width="100%" height={180}>
@@ -207,25 +211,25 @@ export const ComparisonChart = forwardRef<HTMLDivElement, ComparisonChartProps>(
         {/* Expense Comparison Bar Chart */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">Gider Karşılaştırması</CardTitle>
+            <CardTitle className="text-base">{t('comparisonChart.expenseComparison')}</CardTitle>
           </CardHeader>
           <CardContent>
             <ResponsiveContainer width="100%" height={expenseBarHeight}>
               <BarChart data={expenseChartData} layout="vertical">
                 <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" horizontal={true} vertical={false} />
                 <XAxis type="number" tickFormatter={formatUSD} tick={{ fontSize: 11, fill: '#64748b' }} axisLine={false} tickLine={false} />
-                <YAxis 
-                  type="category" 
-                  dataKey="name" 
-                  width={180} 
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  width={180}
                   tick={{ fontSize: 11, fill: '#0f172a' }}
                   axisLine={false}
                   tickLine={false}
                 />
                 <Tooltip content={<CustomTooltip />} />
                 <Legend />
-                <Bar dataKey="base" fill="#64748b" name={`${baseYear} Gerçek`} radius={[0, 4, 4, 0]} />
-                <Bar dataKey="target" fill="#ef4444" name={`${targetYear} Plan`} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="base" fill="#64748b" name={t('comparisonChart.actualYear', { year: baseYear })} radius={[0, 4, 4, 0]} />
+                <Bar dataKey="target" fill="#ef4444" name={t('comparisonChart.planYear', { year: targetYear })} radius={[0, 4, 4, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </CardContent>
@@ -234,7 +238,7 @@ export const ComparisonChart = forwardRef<HTMLDivElement, ComparisonChartProps>(
         {/* Expense Distribution Pie Chart */}
         <Card>
           <CardHeader className="pb-2">
-            <CardTitle className="text-base">{targetYear} Gider Dağılımı</CardTitle>
+            <CardTitle className="text-base">{t('comparisonChart.expenseDistribution', { year: targetYear })}</CardTitle>
           </CardHeader>
           <CardContent className="pb-4">
             <ResponsiveContainer width="100%" height={180}>

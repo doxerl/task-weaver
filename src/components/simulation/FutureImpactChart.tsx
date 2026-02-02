@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import {
@@ -26,28 +27,29 @@ import { formatCompactUSD } from '@/lib/formatters';
 
 interface FutureImpactChartProps {
   comparison: InvestmentScenarioComparison;
-  scenarioYear?: number; // Senaryo yılı - dinamik yıl label'ları için
+  scenarioYear?: number;
 }
 
 export const FutureImpactChart: React.FC<FutureImpactChartProps> = ({ comparison, scenarioYear }) => {
+  const { t } = useTranslation(['simulation']);
   const { futureImpact } = comparison;
-  
-  // Dinamik yıl hesaplama
-  const year1Label = scenarioYear ? `${scenarioYear + 1}` : '1. Yıl';
-  const year3Label = scenarioYear ? `${scenarioYear + 3}` : '3. Yıl';
-  const year5Label = scenarioYear ? `${scenarioYear + 5}` : '5. Yıl';
-  const projectionTitle = scenarioYear 
-    ? `${scenarioYear} - ${scenarioYear + 5} Değerleme Projeksiyonu` 
-    : '5 Yıllık Değerleme Projeksiyonu';
+
+  // Dynamic year calculation
+  const year1Label = scenarioYear ? `${scenarioYear + 1}` : t('futureImpact.yearDiff', { year: 1 });
+  const year3Label = scenarioYear ? `${scenarioYear + 3}` : t('futureImpact.yearDiff', { year: 3 });
+  const year5Label = scenarioYear ? `${scenarioYear + 5}` : t('futureImpact.yearDiff', { year: 5 });
+  const projectionTitle = scenarioYear
+    ? t('futureImpact.projectionTitle', { startYear: scenarioYear, endYear: scenarioYear + 5 })
+    : t('futureImpact.projectionTitleDefault');
 
   const chartConfig: ChartConfig = {
-    withInvestment: { 
-      label: 'Yatırım Alırsak', 
-      color: 'hsl(var(--chart-1))' 
+    withInvestment: {
+      label: t('futureImpact.withInvestment'),
+      color: 'hsl(var(--chart-1))'
     },
-    withoutInvestment: { 
-      label: 'Yatırım Alamazsak', 
-      color: 'hsl(var(--destructive))' 
+    withoutInvestment: {
+      label: t('futureImpact.withoutInvestment'),
+      color: 'hsl(var(--destructive))'
     },
   };
 
@@ -59,7 +61,7 @@ export const FutureImpactChart: React.FC<FutureImpactChartProps> = ({ comparison
           {projectionTitle}
         </CardTitle>
         <CardDescription className="text-xs">
-          Yatırım alırsak vs alamazsak şirket değeri karşılaştırması
+          {t('futureImpact.description')}
         </CardDescription>
       </CardHeader>
       <CardContent className="space-y-4">
@@ -77,34 +79,34 @@ export const FutureImpactChart: React.FC<FutureImpactChartProps> = ({ comparison
               </linearGradient>
             </defs>
             <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
-            <XAxis 
-              dataKey="yearLabel" 
-              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }} 
+            <XAxis
+              dataKey="yearLabel"
+              tick={{ fontSize: 11, fill: 'hsl(var(--muted-foreground))' }}
             />
-            <YAxis 
-              tickFormatter={(v) => formatCompactUSD(v)} 
-              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }} 
+            <YAxis
+              tickFormatter={(v) => formatCompactUSD(v)}
+              tick={{ fontSize: 10, fill: 'hsl(var(--muted-foreground))' }}
             />
-            <ChartTooltip 
+            <ChartTooltip
               content={<ChartTooltipContent />}
               formatter={(value: number) => formatCompactUSD(value)}
             />
             <ChartLegend content={<ChartLegendContent />} />
-            <Area 
-              type="monotone" 
-              dataKey="withInvestment" 
-              stroke="hsl(var(--chart-1))" 
+            <Area
+              type="monotone"
+              dataKey="withInvestment"
+              stroke="hsl(var(--chart-1))"
               strokeWidth={2}
               fill="url(#gradientWith)"
-              name="Yatırım Alırsak"
+              name={t('futureImpact.withInvestment')}
             />
-            <Area 
-              type="monotone" 
-              dataKey="withoutInvestment" 
-              stroke="hsl(var(--destructive))" 
+            <Area
+              type="monotone"
+              dataKey="withoutInvestment"
+              stroke="hsl(var(--destructive))"
               strokeWidth={2}
               fill="url(#gradientWithout)"
-              name="Yatırım Alamazsak"
+              name={t('futureImpact.withoutInvestment')}
             />
           </AreaChart>
         </ChartContainer>
@@ -112,19 +114,19 @@ export const FutureImpactChart: React.FC<FutureImpactChartProps> = ({ comparison
         {/* Summary Cards */}
         <div className="grid grid-cols-3 gap-3">
           <div className="p-3 rounded-lg bg-muted/50 border text-center">
-            <p className="text-xs text-muted-foreground mb-1">{year1Label} Farkı</p>
+            <p className="text-xs text-muted-foreground mb-1">{year1Label}</p>
             <p className="font-mono font-bold text-primary">
               +{formatCompactUSD(futureImpact.year1WithInvestment - futureImpact.year1WithoutInvestment)}
             </p>
           </div>
           <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/20 text-center">
-            <p className="text-xs text-muted-foreground mb-1">{year3Label} Farkı</p>
+            <p className="text-xs text-muted-foreground mb-1">{year3Label}</p>
             <p className="font-mono font-bold text-blue-600 dark:text-blue-400">
               +{formatCompactUSD(futureImpact.year3WithInvestment - futureImpact.year3WithoutInvestment)}
             </p>
           </div>
           <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/20 text-center">
-            <p className="text-xs text-muted-foreground mb-1">{year5Label} Farkı</p>
+            <p className="text-xs text-muted-foreground mb-1">{year5Label}</p>
             <p className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
               +{formatCompactUSD(futureImpact.year5WithInvestment - futureImpact.year5WithoutInvestment)}
             </p>
@@ -136,7 +138,7 @@ export const FutureImpactChart: React.FC<FutureImpactChartProps> = ({ comparison
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2">
               <TrendingUp className="h-4 w-4 text-primary" />
-              <span className="text-sm font-medium">Toplam Değerleme Farkı ({year5Label})</span>
+              <span className="text-sm font-medium">{t('futureImpact.totalValuationDiff', { year: year5Label })}</span>
             </div>
             <div className="flex items-center gap-2">
               <Badge className="bg-primary/20 text-primary border-primary/30 font-mono text-base px-3">
@@ -144,7 +146,7 @@ export const FutureImpactChart: React.FC<FutureImpactChartProps> = ({ comparison
               </Badge>
               <ArrowRight className="h-4 w-4 text-muted-foreground" />
               <span className="text-xs text-muted-foreground">
-                Yatırım almanın getirisi
+                {t('futureImpact.investmentBenefit')}
               </span>
             </div>
           </div>

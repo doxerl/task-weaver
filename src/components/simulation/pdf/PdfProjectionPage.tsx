@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CONTENT_PAGE_STYLE,
   PAGE_HEADER_STYLE,
@@ -20,6 +21,8 @@ export function PdfProjectionPage({
   editableRevenueProjection,
   editableExpenseProjection,
 }: PdfProjectionPageProps) {
+  const { t } = useTranslation(['simulation']);
+
   if (editableRevenueProjection.length === 0 || !scenarioA) {
     return null;
   }
@@ -41,7 +44,7 @@ export function PdfProjectionPage({
   return (
     <div className="page-break-after" style={CONTENT_PAGE_STYLE}>
       <h2 style={PAGE_HEADER_STYLE}>
-        {scenarioA?.targetYear ? scenarioA.targetYear + 1 : 'Gelecek Yıl'} Projeksiyonu (Düzenlenmiş)
+        {scenarioA?.targetYear ? t('pdf.projection.title', { year: scenarioA.targetYear + 1 }) : t('pdf.projection.nextYear')}
       </h2>
 
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
@@ -67,14 +70,14 @@ export function PdfProjectionPage({
                 fontSize: '12px',
               }}
             >
-              GELİR
+              {t('pdf.projection.revenue')}
             </span>
-            Gelir Projeksiyonu
+            {t('pdf.projection.revenueProjection')}
           </h3>
           <table style={{ ...TABLE_STYLE, fontSize: '10px' }}>
             <thead>
               <tr style={{ background: '#f0fdf4' }}>
-                <th style={{ ...TABLE_HEADER_CELL_STYLE, borderBottom: '2px solid #86efac' }}>Kalem</th>
+                <th style={{ ...TABLE_HEADER_CELL_STYLE, borderBottom: '2px solid #86efac' }}>{t('pdf.projection.item')}</th>
                 <th
                   style={{
                     ...TABLE_HEADER_CELL_STYLE,
@@ -118,7 +121,7 @@ export function PdfProjectionPage({
                     borderBottom: '2px solid #86efac',
                   }}
                 >
-                  Toplam
+                  {t('pdf.projection.total')}
                 </th>
               </tr>
             </thead>
@@ -138,7 +141,7 @@ export function PdfProjectionPage({
                 </tr>
               ))}
               <tr style={{ background: '#f0fdf4', fontWeight: 'bold' }}>
-                <td style={{ padding: '8px', borderTop: '2px solid #86efac' }}>TOPLAM</td>
+                <td style={{ padding: '8px', borderTop: '2px solid #86efac' }}>{t('pdf.projection.totalUpper')}</td>
                 <td style={{ padding: '8px', textAlign: 'right', borderTop: '2px solid #86efac' }}>
                   {formatCompactUSD(editableRevenueProjection.reduce((s, i) => s + i.q1, 0))}
                 </td>
@@ -188,14 +191,14 @@ export function PdfProjectionPage({
                 fontSize: '12px',
               }}
             >
-              GİDER
+              {t('pdf.projection.expense')}
             </span>
-            Gider Projeksiyonu
+            {t('pdf.projection.expenseProjection')}
           </h3>
           <table style={{ ...TABLE_STYLE, fontSize: '10px' }}>
             <thead>
               <tr style={{ background: '#fef2f2' }}>
-                <th style={{ ...TABLE_HEADER_CELL_STYLE, borderBottom: '2px solid #fecaca' }}>Kalem</th>
+                <th style={{ ...TABLE_HEADER_CELL_STYLE, borderBottom: '2px solid #fecaca' }}>{t('pdf.projection.item')}</th>
                 <th
                   style={{
                     ...TABLE_HEADER_CELL_STYLE,
@@ -239,7 +242,7 @@ export function PdfProjectionPage({
                     borderBottom: '2px solid #fecaca',
                   }}
                 >
-                  Toplam
+                  {t('pdf.projection.total')}
                 </th>
               </tr>
             </thead>
@@ -259,7 +262,7 @@ export function PdfProjectionPage({
                 </tr>
               ))}
               <tr style={{ background: '#fef2f2', fontWeight: 'bold' }}>
-                <td style={{ padding: '8px', borderTop: '2px solid #fecaca' }}>TOPLAM</td>
+                <td style={{ padding: '8px', borderTop: '2px solid #fecaca' }}>{t('pdf.projection.totalUpper')}</td>
                 <td style={{ padding: '8px', textAlign: 'right', borderTop: '2px solid #fecaca' }}>
                   {formatCompactUSD(editableExpenseProjection.reduce((s, i) => s + i.q1, 0))}
                 </td>
@@ -298,7 +301,7 @@ export function PdfProjectionPage({
             border: '1px solid #86efac',
           }}
         >
-          <p style={{ fontSize: '12px', color: '#166534', marginBottom: '8px' }}>Toplam Gelir</p>
+          <p style={{ fontSize: '12px', color: '#166534', marginBottom: '8px' }}>{t('pdf.projection.totalRevenue')}</p>
           <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#166534' }}>
             {formatCompactUSD(totalRevenue)}
           </p>
@@ -311,7 +314,7 @@ export function PdfProjectionPage({
             border: '1px solid #fecaca',
           }}
         >
-          <p style={{ fontSize: '12px', color: '#dc2626', marginBottom: '8px' }}>Toplam Gider</p>
+          <p style={{ fontSize: '12px', color: '#dc2626', marginBottom: '8px' }}>{t('pdf.projection.totalExpense')}</p>
           <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#dc2626' }}>
             {formatCompactUSD(totalExpense)}
           </p>
@@ -324,7 +327,7 @@ export function PdfProjectionPage({
             border: '1px solid #bfdbfe',
           }}
         >
-          <p style={{ fontSize: '12px', color: PDF_COLORS.primary, marginBottom: '8px' }}>Tahmini Net Kâr</p>
+          <p style={{ fontSize: '12px', color: PDF_COLORS.primary, marginBottom: '8px' }}>{t('pdf.projection.estimatedNetProfit')}</p>
           <p style={{ fontSize: '24px', fontWeight: 'bold', color: PDF_COLORS.primary }}>
             {formatCompactUSD(netProfit)}
           </p>
@@ -337,7 +340,7 @@ export function PdfProjectionPage({
             border: '1px solid #fcd34d',
           }}
         >
-          <p style={{ fontSize: '12px', color: '#92400e', marginBottom: '8px' }}>Düzenlenen Kalem</p>
+          <p style={{ fontSize: '12px', color: '#92400e', marginBottom: '8px' }}>{t('pdf.projection.editedItems')}</p>
           <p style={{ fontSize: '24px', fontWeight: 'bold', color: '#92400e' }}>{editedCount}</p>
         </div>
       </div>

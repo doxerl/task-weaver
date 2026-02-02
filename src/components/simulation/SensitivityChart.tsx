@@ -1,4 +1,5 @@
-import { forwardRef } from 'react';
+import { forwardRef, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Cell, Legend } from 'recharts';
 import { SensitivityAnalysis } from '@/types/simulation';
@@ -27,37 +28,39 @@ const COLORS = {
 
 export const SensitivityChart = forwardRef<HTMLDivElement, SensitivityChartProps>(
   ({ sensitivity, className }, ref) => {
-    const data = [
-      { 
-        name: 'Pesimist\n(-20%)', 
-        shortName: 'Pesimist',
+    const { t } = useTranslation(['simulation']);
+
+    const data = useMemo(() => [
+      {
+        name: `${t('sensitivityChart.pessimistic')}\n(-20%)`,
+        shortName: t('sensitivityChart.pessimistic'),
         kar: Math.round(sensitivity.pessimistic.profit),
         roi: sensitivity.pessimistic.roi,
         margin: sensitivity.pessimistic.margin,
         color: COLORS.pessimistic,
       },
-      { 
-        name: 'Baz\nSenaryo', 
-        shortName: 'Baz',
+      {
+        name: `${t('sensitivityChart.baseline')}\n${t('sensitivityChart.scenario')}`,
+        shortName: t('sensitivityChart.baseline'),
         kar: Math.round(sensitivity.baseline.profit),
         roi: sensitivity.baseline.roi,
         margin: sensitivity.baseline.margin,
         color: COLORS.baseline,
       },
-      { 
-        name: 'Optimist\n(+20%)', 
-        shortName: 'Optimist',
+      {
+        name: `${t('sensitivityChart.optimistic')}\n(+20%)`,
+        shortName: t('sensitivityChart.optimistic'),
         kar: Math.round(sensitivity.optimistic.profit),
         roi: sensitivity.optimistic.roi,
         margin: sensitivity.optimistic.margin,
         color: COLORS.optimistic,
       },
-    ];
+    ], [sensitivity, t]);
 
     return (
       <Card className={cn("", className)} ref={ref}>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Duyarlılık Analizi - Kar Karşılaştırması</CardTitle>
+          <CardTitle className="text-base">{t('sensitivityChart.title')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="h-[280px]">
@@ -76,17 +79,17 @@ export const SensitivityChart = forwardRef<HTMLDivElement, SensitivityChartProps
                   tickFormatter={(value) => `$${(value / 1000).toFixed(0)}K`}
                   tick={{ fontSize: 11, fill: '#64748b' }}
                 />
-                <Tooltip 
+                <Tooltip
                   content={({ active, payload, label }) => {
                     if (!active || !payload?.length) return null;
-                    const data = payload[0]?.payload;
+                    const pointData = payload[0]?.payload;
                     return (
                       <div style={{ backgroundColor: '#ffffff', border: '1px solid #e2e8f0' }} className="rounded-lg shadow-lg p-3 text-sm">
-                        <p className="font-medium mb-2" style={{ color: '#0f172a' }}>{label} Senaryo</p>
+                        <p className="font-medium mb-2" style={{ color: '#0f172a' }}>{label} {t('sensitivityChart.scenario')}</p>
                         <div className="space-y-1">
-                          <p style={{ color: '#64748b' }}>Net Kar: <span className="font-semibold" style={{ color: '#0f172a' }}>{formatUSD(data.kar)}</span></p>
-                          <p style={{ color: '#64748b' }}>ROI: <span className="font-semibold" style={{ color: '#0f172a' }}>%{data.roi.toFixed(0)}</span></p>
-                          <p style={{ color: '#64748b' }}>Kar Marjı: <span className="font-semibold" style={{ color: '#0f172a' }}>%{data.margin.toFixed(1)}</span></p>
+                          <p style={{ color: '#64748b' }}>{t('sensitivityChart.netProfit')}: <span className="font-semibold" style={{ color: '#0f172a' }}>{formatUSD(pointData.kar)}</span></p>
+                          <p style={{ color: '#64748b' }}>ROI: <span className="font-semibold" style={{ color: '#0f172a' }}>%{pointData.roi.toFixed(0)}</span></p>
+                          <p style={{ color: '#64748b' }}>{t('sensitivityChart.profitMargin')}: <span className="font-semibold" style={{ color: '#0f172a' }}>%{pointData.margin.toFixed(1)}</span></p>
                         </div>
                       </div>
                     );
@@ -108,15 +111,15 @@ export const SensitivityChart = forwardRef<HTMLDivElement, SensitivityChartProps
           {/* Summary table below chart */}
           <div className="mt-4 grid grid-cols-3 gap-3 text-center text-sm">
             <div className="p-2 rounded-lg bg-red-50 dark:bg-red-950/30">
-              <p className="text-muted-foreground text-xs">Pesimist</p>
+              <p className="text-muted-foreground text-xs">{t('sensitivityChart.pessimistic')}</p>
               <p className="font-semibold text-red-600">%{sensitivity.pessimistic.roi.toFixed(0)} ROI</p>
             </div>
             <div className="p-2 rounded-lg bg-primary/10">
-              <p className="text-muted-foreground text-xs">Baz</p>
+              <p className="text-muted-foreground text-xs">{t('sensitivityChart.baseline')}</p>
               <p className="font-semibold text-primary">%{sensitivity.baseline.roi.toFixed(0)} ROI</p>
             </div>
             <div className="p-2 rounded-lg bg-green-50 dark:bg-green-950/30">
-              <p className="text-muted-foreground text-xs">Optimist</p>
+              <p className="text-muted-foreground text-xs">{t('sensitivityChart.optimistic')}</p>
               <p className="font-semibold text-green-600">%{sensitivity.optimistic.roi.toFixed(0)} ROI</p>
             </div>
           </div>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CONTENT_PAGE_STYLE,
   PAGE_HEADER_STYLE,
@@ -34,10 +35,12 @@ export function PdfChartsPage({
   chartConfig,
   cumulativeChartConfig,
 }: PdfChartsPageProps) {
+  const { t } = useTranslation(['simulation']);
+
   return (
     <div className="page-break-after" style={CONTENT_PAGE_STYLE}>
       <h2 style={PAGE_HEADER_STYLE}>
-        Görsel Analiz
+        {t('pdf.charts.title')}
       </h2>
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '32px' }}>
         {/* Quarterly Net Profit Chart */}
@@ -52,7 +55,7 @@ export function PdfChartsPage({
           }}
         >
           <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>
-            Çeyreklik Net Kâr Karşılaştırması
+            {t('pdf.charts.quarterlyNetProfitComparison')}
           </h3>
           <div style={{ width: '100%', height: '340px' }}>
             <ChartContainer config={chartConfig} style={{ width: '100%', height: '100%' }}>
@@ -81,7 +84,7 @@ export function PdfChartsPage({
           }}
         >
           <h3 style={{ fontSize: '18px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>
-            Kümülatif Nakit Akışı
+            {t('pdf.charts.cumulativeCashFlow')}
           </h3>
           <div style={{ width: '100%', height: '340px' }}>
             <ChartContainer config={cumulativeChartConfig} style={{ width: '100%', height: '100%' }}>

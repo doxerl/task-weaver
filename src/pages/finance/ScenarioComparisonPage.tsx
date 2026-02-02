@@ -286,7 +286,7 @@ const DataChangedWarning = ({ onReanalyze, isLoading }: { onReanalyze: () => voi
           {t('simulation:comparison.dataChanged')}
         </p>
         <p className="text-xs text-muted-foreground">
-          {t('simulation:comparison.dataChangedDesc', { defaultValue: 'Son analizden bu yana veriler değişti. Güncel sonuçlar için yeniden analiz yapmanızı öneririz.' })}
+          {t('simulation:comparison.dataChangedDesc')}
         </p>
       </div>
       <Button
@@ -356,9 +356,9 @@ const AnalysisHistoryPanel = ({
                       </p>
                       <p className="text-xs text-muted-foreground">
                         {item.analysisType === 'investor_pitch'
-                          ? `${t('simulation:aiAnalysis.investorAnalysis', { defaultValue: 'Yatırımcı analizi' })} ${item.investorAnalysis ? '✓' : ''}`
+                          ? `${t('simulation:aiAnalysis.investorAnalysis')} ${item.investorAnalysis ? '✓' : ''}`
                           : item.analysisType === 'unified'
-                          ? t('simulation:aiAnalysis.comprehensiveAnalysis', { defaultValue: 'Kapsamlı analiz' })
+                          ? t('simulation:aiAnalysis.comprehensiveAnalysis')
                           : `${item.insights?.length || 0} ${t('simulation:aiAnalysis.insights')}, ${item.recommendations?.length || 0} ${t('simulation:aiAnalysis.recommendations')}`
                         }
                       </p>
@@ -366,7 +366,7 @@ const AnalysisHistoryPanel = ({
                   </div>
                   <div className="flex items-center gap-2">
                     {index === 0 && (
-                      <Badge variant="secondary" className="text-xs">{t('simulation:aiAnalysis.current', { defaultValue: 'Güncel' })}</Badge>
+                      <Badge variant="secondary" className="text-xs">{t('simulation:aiAnalysis.current')}</Badge>
                     )}
                     <ArrowRight className="h-4 w-4 text-muted-foreground" />
                   </div>
@@ -402,7 +402,7 @@ const HistoricalAnalysisSheet = ({
     <Sheet open={isOpen} onOpenChange={onClose}>
       <SheetContent className="w-[450px] sm:w-[540px]">
         <SheetHeader>
-          <SheetTitle>{t('simulation:aiAnalysis.historicalAnalysis', { defaultValue: 'Geçmiş Analiz' })}</SheetTitle>
+          <SheetTitle>{t('simulation:aiAnalysis.historicalAnalysis')}</SheetTitle>
           <SheetDescription>
             {format(item.createdAt, 'dd MMMM yyyy HH:mm', { locale: dateLocale })}
           </SheetDescription>
@@ -426,7 +426,7 @@ const HistoricalAnalysisSheet = ({
                     <Card key={i} className="p-3 mb-2">
                       <div className="flex items-center gap-2 mb-1">
                         <Badge variant="outline" className="text-xs">
-                          {t('simulation:aiAnalysis.priority', { defaultValue: 'Öncelik' })} {rec.priority}
+                          {t('simulation:aiAnalysis.priority')} {rec.priority}
                         </Badge>
                         <p className="text-sm font-medium">{rec.title}</p>
                       </div>
@@ -441,15 +441,15 @@ const HistoricalAnalysisSheet = ({
           {analysisType === 'investor_pitch' && item.investorAnalysis && (
             <div className="space-y-4">
               <Card className="p-3">
-                <h4 className="text-sm font-medium mb-2">{t('simulation:aiAnalysis.capitalStory', { defaultValue: 'Sermaye Hikayesi' })}</h4>
+                <h4 className="text-sm font-medium mb-2">{t('simulation:aiAnalysis.capitalStory')}</h4>
                 <p className="text-xs text-muted-foreground">{item.investorAnalysis.capitalStory}</p>
               </Card>
               <Card className="p-3">
-                <h4 className="text-sm font-medium mb-2">{t('simulation:aiAnalysis.investorROI', { defaultValue: 'Yatırımcı Getirisi' })}</h4>
+                <h4 className="text-sm font-medium mb-2">{t('simulation:aiAnalysis.investorROI')}</h4>
                 <p className="text-xs text-muted-foreground">{item.investorAnalysis.investorROI}</p>
               </Card>
               <Card className="p-3">
-                <h4 className="text-sm font-medium mb-2">{t('simulation:aiAnalysis.exitScenario', { defaultValue: 'Çıkış Senaryosu' })}</h4>
+                <h4 className="text-sm font-medium mb-2">{t('simulation:aiAnalysis.exitScenario')}</h4>
                 <p className="text-xs text-muted-foreground">{item.investorAnalysis.exitNarrative}</p>
               </Card>
             </div>
@@ -1319,7 +1319,7 @@ function ScenarioComparisonContent() {
     );
     if (newScenario) {
       const focusNote = focusProjects.length > 0
-        ? ` (${t('simulation:focusProject.focus', { defaultValue: 'Odak' })}: ${focusProjects.join(', ')})`
+        ? ` (${t('simulation:focusProject.focus')}: ${focusProjects.join(', ')})`
         : '';
       toast.success(`${t('simulation:toast.nextYearCreated', { year: newScenario.targetYear })}${focusNote}`);
       navigate(`/finance/simulation?scenario=${newScenario.id}`);
@@ -1394,12 +1394,12 @@ function ScenarioComparisonContent() {
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Badge variant="outline" className="bg-emerald-500/10 text-emerald-500 border-emerald-500/30">
-                    {scenarioA?.targetYear || '?'} {scenarioA && scenarioB && scenarioA.targetYear > scenarioB.targetYear ? t('simulation:scenario.types.growth', { defaultValue: 'Büyüme' }) : t('simulation:scenario.types.positive')}
+                    {scenarioA?.targetYear || '?'} {scenarioA && scenarioB && scenarioA.targetYear > scenarioB.targetYear ? t('simulation:scenario.types.growth') : t('simulation:scenario.types.positive')}
                   </Badge>
                   {t('simulation:comparison.scenarioA')}
                 </label>
                 <Select value={scenarioAId || ''} onValueChange={setScenarioAId}>
-                  <SelectTrigger><SelectValue placeholder={t('simulation:comparison.selectScenario', { defaultValue: 'Senaryo seçin...' })} /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t('simulation:comparison.selectScenario')} /></SelectTrigger>
                   <SelectContent>
                     {scenariosWithProfit.map((s) => (
                       <SelectItem key={s.id} value={s.id!} disabled={s.id === scenarioBId}>
@@ -1424,12 +1424,12 @@ function ScenarioComparisonContent() {
               <div className="space-y-2">
                 <label className="text-sm font-medium flex items-center gap-2">
                   <Badge variant="outline" className="bg-red-500/10 text-red-500 border-red-500/30">
-                    {scenarioB?.targetYear || '?'} {scenarioA && scenarioB && scenarioA.targetYear > scenarioB.targetYear ? t('simulation:scenario.types.base', { defaultValue: 'Baz' }) : t('simulation:scenario.types.negative')}
+                    {scenarioB?.targetYear || '?'} {scenarioA && scenarioB && scenarioA.targetYear > scenarioB.targetYear ? t('simulation:scenario.types.base') : t('simulation:scenario.types.negative')}
                   </Badge>
                   {t('simulation:comparison.scenarioB')}
                 </label>
                 <Select value={scenarioBId || ''} onValueChange={setScenarioBId}>
-                  <SelectTrigger><SelectValue placeholder={t('simulation:comparison.selectScenario', { defaultValue: 'Senaryo seçin...' })} /></SelectTrigger>
+                  <SelectTrigger><SelectValue placeholder={t('simulation:comparison.selectScenario')} /></SelectTrigger>
                   <SelectContent>
                     {scenariosWithProfit.map((s) => (
                       <SelectItem key={s.id} value={s.id!} disabled={s.id === scenarioAId}>
@@ -1481,7 +1481,7 @@ function ScenarioComparisonContent() {
 
         {!canCompare ? (
           <div className="text-center py-16 text-muted-foreground">
-            {scenarios.length < 2 ? <p>{t('simulation:comparison.noScenarios')}</p> : <p>{t('simulation:comparison.selectDifferent', { defaultValue: 'Karşılaştırmak için iki farklı senaryo seçin.' })}</p>}
+            {scenarios.length < 2 ? <p>{t('simulation:comparison.noScenarios')}</p> : <p>{t('simulation:comparison.selectDifferent')}</p>}
           </div>
         ) : (
           <div className="space-y-6">
@@ -1489,7 +1489,7 @@ function ScenarioComparisonContent() {
             {unifiedCacheLoading ? (
               <div className="flex items-center justify-center py-8">
                 <Loader2 className="h-6 w-6 animate-spin text-muted-foreground" />
-                <span className="ml-2 text-muted-foreground">{t('simulation:aiAnalysis.loadingPrevious', { defaultValue: 'Önceki analiz yükleniyor...' })}</span>
+                <span className="ml-2 text-muted-foreground">{t('simulation:aiAnalysis.loadingPrevious')}</span>
               </div>
             ) : (
               <>

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CONTENT_PAGE_STYLE,
   PAGE_HEADER_STYLE,
@@ -19,6 +20,8 @@ export function PdfCapitalAnalysisPage({
   scenarioAName,
   scenarioBName,
 }: PdfCapitalAnalysisPageProps) {
+  const { t } = useTranslation(['simulation']);
+
   // Guard clause - both capital needs required
   if (!capitalNeedA || !capitalNeedB) {
     return null;
@@ -38,15 +41,15 @@ export function PdfCapitalAnalysisPage({
 
   // Helper to format runway months
   const formatRunway = (months: number) => {
-    if (months >= 999) return '∞ (Süresiz)';
-    if (months >= 24) return `${months} ay (2+ yıl)`;
-    if (months >= 12) return `${months} ay (1+ yıl)`;
-    return `${months} ay`;
+    if (months >= 999) return t('pdf.capitalAnalysis.runwayUnlimited');
+    if (months >= 24) return t('pdf.capitalAnalysis.runwayMonths2PlusYears', { months });
+    if (months >= 12) return t('pdf.capitalAnalysis.runwayMonths1PlusYears', { months });
+    return t('pdf.capitalAnalysis.runwayMonthsOnly', { months });
   };
 
   return (
     <div className="page-break-after" style={CONTENT_PAGE_STYLE}>
-      <h2 style={PAGE_HEADER_STYLE}>Sermaye & Death Valley Analizi</h2>
+      <h2 style={PAGE_HEADER_STYLE}>{t('pdf.capitalAnalysis.title')}</h2>
 
       {/* Scenario Comparison Cards */}
       <div style={{ ...GRID_2_COLS_STYLE, marginBottom: '24px' }}>
@@ -68,25 +71,25 @@ export function PdfCapitalAnalysisPage({
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
             <div>
-              <p style={{ fontSize: '11px', color: '#166534', marginBottom: '4px' }}>Death Valley</p>
+              <p style={{ fontSize: '11px', color: '#166534', marginBottom: '4px' }}>{t('pdf.capitalAnalysis.deathValley')}</p>
               <p style={{ fontSize: '20px', fontWeight: 'bold', color: capitalNeedA.minCumulativeCash < 0 ? '#dc2626' : '#166534' }}>
                 {formatCompactUSD(capitalNeedA.minCumulativeCash)}
               </p>
             </div>
             <div>
-              <p style={{ fontSize: '11px', color: '#166534', marginBottom: '4px' }}>Kritik Çeyrek</p>
+              <p style={{ fontSize: '11px', color: '#166534', marginBottom: '4px' }}>{t('pdf.capitalAnalysis.criticalQuarter')}</p>
               <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#166534' }}>
-                {capitalNeedA.criticalQuarter || 'Yok'}
+                {capitalNeedA.criticalQuarter || t('pdf.capitalAnalysis.none')}
               </p>
             </div>
             <div>
-              <p style={{ fontSize: '11px', color: '#166534', marginBottom: '4px' }}>Runway</p>
+              <p style={{ fontSize: '11px', color: '#166534', marginBottom: '4px' }}>{t('pdf.capitalAnalysis.runway')}</p>
               <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#166534' }}>
                 {formatRunway(capitalNeedA.runwayMonths)}
               </p>
             </div>
             <div>
-              <p style={{ fontSize: '11px', color: '#166534', marginBottom: '4px' }}>Yıl Sonu</p>
+              <p style={{ fontSize: '11px', color: '#166534', marginBottom: '4px' }}>{t('pdf.capitalAnalysis.yearEnd')}</p>
               <p style={{ fontSize: '18px', fontWeight: 'bold', color: capitalNeedA.yearEndBalance >= 0 ? '#166534' : '#dc2626' }}>
                 {formatCompactUSD(capitalNeedA.yearEndBalance)}
               </p>
@@ -103,7 +106,7 @@ export function PdfCapitalAnalysisPage({
               color: '#166534',
               fontWeight: '500'
             }}>
-              ✓ Kendi Kendini Finanse Ediyor
+              ✓ {t('pdf.capitalAnalysis.selfSustaining')}
             </div>
           )}
         </div>
@@ -126,25 +129,25 @@ export function PdfCapitalAnalysisPage({
 
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '12px' }}>
             <div>
-              <p style={{ fontSize: '11px', color: '#991b1b', marginBottom: '4px' }}>Death Valley</p>
+              <p style={{ fontSize: '11px', color: '#991b1b', marginBottom: '4px' }}>{t('pdf.capitalAnalysis.deathValley')}</p>
               <p style={{ fontSize: '20px', fontWeight: 'bold', color: capitalNeedB.minCumulativeCash < 0 ? '#dc2626' : '#166534' }}>
                 {formatCompactUSD(capitalNeedB.minCumulativeCash)}
               </p>
             </div>
             <div>
-              <p style={{ fontSize: '11px', color: '#991b1b', marginBottom: '4px' }}>Kritik Çeyrek</p>
+              <p style={{ fontSize: '11px', color: '#991b1b', marginBottom: '4px' }}>{t('pdf.capitalAnalysis.criticalQuarter')}</p>
               <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#991b1b' }}>
-                {capitalNeedB.criticalQuarter || 'Yok'}
+                {capitalNeedB.criticalQuarter || t('pdf.capitalAnalysis.none')}
               </p>
             </div>
             <div>
-              <p style={{ fontSize: '11px', color: '#991b1b', marginBottom: '4px' }}>Runway</p>
+              <p style={{ fontSize: '11px', color: '#991b1b', marginBottom: '4px' }}>{t('pdf.capitalAnalysis.runway')}</p>
               <p style={{ fontSize: '18px', fontWeight: 'bold', color: '#991b1b' }}>
                 {formatRunway(capitalNeedB.runwayMonths)}
               </p>
             </div>
             <div>
-              <p style={{ fontSize: '11px', color: '#991b1b', marginBottom: '4px' }}>Yıl Sonu</p>
+              <p style={{ fontSize: '11px', color: '#991b1b', marginBottom: '4px' }}>{t('pdf.capitalAnalysis.yearEnd')}</p>
               <p style={{ fontSize: '18px', fontWeight: 'bold', color: capitalNeedB.yearEndBalance >= 0 ? '#166534' : '#dc2626' }}>
                 {formatCompactUSD(capitalNeedB.yearEndBalance)}
               </p>
@@ -161,7 +164,7 @@ export function PdfCapitalAnalysisPage({
               color: '#991b1b',
               fontWeight: '500'
             }}>
-              ⚠ Gerekli Yatırım: {formatCompactUSD(capitalNeedB.requiredInvestment)}
+              ⚠ {t('pdf.capitalAnalysis.requiredInvestment')}: {formatCompactUSD(capitalNeedB.requiredInvestment)}
             </div>
           )}
         </div>
@@ -179,7 +182,7 @@ export function PdfCapitalAnalysisPage({
           }}
         >
           <p style={{ fontSize: '11px', color: PDF_COLORS.gray[500], marginBottom: '6px', textTransform: 'uppercase' }}>
-            Peak Deficit (B)
+            {t('pdf.capitalAnalysis.peakDeficit')}
           </p>
           <p style={{ fontSize: '22px', fontWeight: 'bold', color: PDF_COLORS.danger }}>
             {formatCompactUSD(Math.min(capitalNeedB.minCumulativeCash, 0))}
@@ -196,7 +199,7 @@ export function PdfCapitalAnalysisPage({
           }}
         >
           <p style={{ fontSize: '11px', color: PDF_COLORS.gray[500], marginBottom: '6px', textTransform: 'uppercase' }}>
-            Gerekli Yatırım
+            {t('pdf.capitalAnalysis.requiredInvestment')}
           </p>
           <p style={{ fontSize: '22px', fontWeight: 'bold', color: PDF_COLORS.primary }}>
             {formatCompactUSD(capitalNeedB.requiredInvestment)}
@@ -213,7 +216,7 @@ export function PdfCapitalAnalysisPage({
           }}
         >
           <p style={{ fontSize: '11px', color: PDF_COLORS.gray[500], marginBottom: '6px', textTransform: 'uppercase' }}>
-            2Y Death Valley
+            {t('pdf.capitalAnalysis.deathValley2Y')}
           </p>
           <p style={{ fontSize: '22px', fontWeight: 'bold', color: PDF_COLORS.danger }}>
             {formatCompactUSD(capitalNeedB.extendedRunway?.combinedDeathValley || capitalNeedB.minCumulativeCash)}
@@ -230,7 +233,7 @@ export function PdfCapitalAnalysisPage({
           }}
         >
           <p style={{ fontSize: '11px', color: PDF_COLORS.gray[500], marginBottom: '6px', textTransform: 'uppercase' }}>
-            Break-even
+            {t('pdf.capitalAnalysis.breakeven')}
           </p>
           <p style={{ fontSize: '22px', fontWeight: 'bold', color: PDF_COLORS.success }}>
             {capitalNeedA.breakEvenQuarter || 'Q4+'}
@@ -241,14 +244,14 @@ export function PdfCapitalAnalysisPage({
       {/* Death Valley Visual Comparison */}
       <div style={{ marginBottom: '24px' }}>
         <h3 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '16px', color: '#374151' }}>
-          Death Valley Derinlik Karşılaştırması
+          {t('pdf.capitalAnalysis.deathValleyComparison')}
         </h3>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
           {/* Scenario A Bar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ width: '120px', fontSize: '12px', color: '#166534', fontWeight: '500' }}>
-              Pozitif (A)
+              {t('pdf.capitalAnalysis.positive')} (A)
             </span>
             <div style={{ flex: 1, background: '#e5e7eb', borderRadius: '4px', height: '24px', overflow: 'hidden' }}>
               <div
@@ -271,7 +274,7 @@ export function PdfCapitalAnalysisPage({
           {/* Scenario B Bar */}
           <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
             <span style={{ width: '120px', fontSize: '12px', color: '#991b1b', fontWeight: '500' }}>
-              Negatif (B)
+              {t('pdf.capitalAnalysis.negative')} (B)
             </span>
             <div style={{ flex: 1, background: '#e5e7eb', borderRadius: '4px', height: '24px', overflow: 'hidden' }}>
               <div
@@ -307,13 +310,13 @@ export function PdfCapitalAnalysisPage({
             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '8px' }}>
               <span style={{ fontSize: '24px' }}>{capitalNeedA.selfSustaining ? '🎯' : '⏳'}</span>
               <h3 style={{ fontSize: '16px', fontWeight: '600', color: capitalNeedA.selfSustaining ? '#166534' : '#92400e', margin: 0 }}>
-                {capitalNeedA.selfSustaining ? 'Pozitif Senaryo: Self-Sustaining' : 'Pozitif Senaryo: Yatırım Gerekli'}
+                {capitalNeedA.selfSustaining ? t('pdf.capitalAnalysis.positiveScenarioSelfSustaining') : t('pdf.capitalAnalysis.positiveScenarioInvestmentRequired')}
               </h3>
             </div>
             <p style={{ fontSize: '13px', color: capitalNeedA.selfSustaining ? '#166534' : '#92400e' }}>
               {capitalNeedA.selfSustaining
-                ? 'Pozitif senaryo kendi kendini finanse edebiliyor. Yatırım büyüme hızlandırıcı olarak değerlendirilebilir.'
-                : `Pozitif senaryoda bile ${formatCompactUSD(capitalNeedA.requiredInvestment)} yatırım gerekli.`
+                ? t('pdf.capitalAnalysis.selfSustainingDescription')
+                : t('pdf.capitalAnalysis.investmentRequiredDescription', { amount: formatCompactUSD(capitalNeedA.requiredInvestment) })
               }
             </p>
           </div>

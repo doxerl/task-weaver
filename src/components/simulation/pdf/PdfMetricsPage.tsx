@@ -1,4 +1,5 @@
 import React from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   CONTENT_PAGE_STYLE,
   PAGE_HEADER_STYLE,
@@ -18,10 +19,12 @@ export function PdfMetricsPage({
   calculateDiff,
   formatValue,
 }: PdfMetricsPageProps) {
+  const { t } = useTranslation(['simulation']);
+
   return (
     <div className="page-break-after" style={CONTENT_PAGE_STYLE}>
       <h2 style={PAGE_HEADER_STYLE}>
-        Finansal Özet Karşılaştırması
+        {t('pdf.metrics.title')}
       </h2>
 
       {/* Metric Cards Grid */}
@@ -64,7 +67,7 @@ export function PdfMetricsPage({
                       marginBottom: '4px',
                     }}
                   >
-                    {scenarioA?.name || 'Senaryo A'}
+                    {scenarioA?.name || t('pdf.metrics.scenarioA')}
                   </span>
                   <span style={{ color: PDF_COLORS.primaryLight, fontWeight: '700', fontSize: '16px' }}>
                     {formatValue(m.scenarioA, m.format)}
@@ -84,7 +87,7 @@ export function PdfMetricsPage({
                       marginBottom: '4px',
                     }}
                   >
-                    {scenarioB?.name || 'Senaryo B'}
+                    {scenarioB?.name || t('pdf.metrics.scenarioB')}
                   </span>
                   <span style={{ color: PDF_COLORS.success, fontWeight: '700', fontSize: '16px' }}>
                     {formatValue(m.scenarioB, m.format)}

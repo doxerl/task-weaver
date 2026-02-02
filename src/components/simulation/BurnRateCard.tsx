@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
@@ -22,17 +23,19 @@ function formatUSD(value: number): string {
   return `${value < 0 ? '-' : ''}$${absValue.toFixed(0)}`;
 }
 
-function QuarterlyTable({ 
-  projections, 
-  title, 
-  variant 
-}: { 
-  projections: QuarterlyProjection[]; 
+function QuarterlyTable({
+  projections,
+  title,
+  variant,
+  t,
+}: {
+  projections: QuarterlyProjection[];
   title: string;
   variant: 'with' | 'without';
+  t: (key: string) => string;
 }) {
   const hasNegativeClosing = projections.some(p => p.closingBalance < 0);
-  
+
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
@@ -40,13 +43,13 @@ function QuarterlyTable({
         {variant === 'without' && !hasNegativeClosing && (
           <Badge variant="outline" className="text-green-600 border-green-600/50">
             <CheckCircle2 className="h-3 w-3 mr-1" />
-            Yeterli
+            {t('burnRate.sufficient')}
           </Badge>
         )}
         {variant === 'without' && hasNegativeClosing && (
           <Badge variant="destructive">
             <AlertTriangle className="h-3 w-3 mr-1" />
-            Açık Var
+            {t('burnRate.hasDeficit')}
           </Badge>
         )}
       </div>
@@ -54,14 +57,14 @@ function QuarterlyTable({
         <Table>
           <TableHeader>
             <TableRow className="bg-muted/50">
-              <TableHead className="w-20">Çeyrek</TableHead>
-              <TableHead className="text-right">Açılış</TableHead>
-              <TableHead className="text-right text-green-600">Gelir</TableHead>
-              <TableHead className="text-right text-red-600">Gider</TableHead>
+              <TableHead className="w-20">{t('burnRate.quarter')}</TableHead>
+              <TableHead className="text-right">{t('burnRate.opening')}</TableHead>
+              <TableHead className="text-right text-green-600">{t('burnRate.revenue')}</TableHead>
+              <TableHead className="text-right text-red-600">{t('burnRate.expense')}</TableHead>
               {variant === 'with' && (
-                <TableHead className="text-right text-orange-600">Yatırım</TableHead>
+                <TableHead className="text-right text-orange-600">{t('burnRate.investment')}</TableHead>
               )}
-              <TableHead className="text-right font-medium">Kapanış</TableHead>
+              <TableHead className="text-right font-medium">{t('burnRate.closing')}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -98,9 +101,10 @@ function QuarterlyTable({
 }
 
 export function BurnRateCard({ burnAnalysis, currentCash, className }: BurnRateCardProps) {
+  const { t } = useTranslation(['simulation']);
   const isGeneratingCash = burnAnalysis.netBurnRate < 0;
   const hasDeficit = burnAnalysis.cashDeficitWithoutInvestment > 0;
-  
+
   // Get year-end values
   const withInvestmentYearEnd = burnAnalysis.quarterlyProjectionsWithInvestment[3]?.closingBalance || 0;
   const withoutInvestmentYearEnd = burnAnalysis.quarterlyProjectionsWithoutInvestment[3]?.closingBalance || 0;
@@ -113,26 +117,26 @@ export function BurnRateCard({ burnAnalysis, currentCash, className }: BurnRateC
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <DollarSign className="h-4 w-4" />
-              <span className="text-sm">Mevcut Nakit</span>
+              <span className="text-sm">{t('burnRate.currentCash')}</span>
             </div>
             <p className="text-2xl font-bold">{formatUSD(currentCash)}</p>
           </CardContent>
         </Card>
-        
+
         <Card>
           <CardContent className="pt-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-1">
               <Flame className="h-4 w-4" />
-              <span className="text-sm">Aylık Net Burn</span>
+              <span className="text-sm">{t('burnRate.monthlyNetBurn')}</span>
             </div>
             <p className={cn(
               "text-2xl font-bold",
               isGeneratingCash ? "text-green-600" : "text-red-600"
             )}>
-              {isGeneratingCash ? '+' : ''}{formatUSD(-burnAnalysis.netBurnRate)}/ay
+              {isGeneratingCash ? '+' : ''}{formatUSD(-burnAnalysis.netBurnRate)}/mo
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {isGeneratingCash ? 'Nakit üretimi' : 'Nakit yakımı'}
+              {isGeneratingCash ? t('burnRate.cashGeneration') : t('burnRate.cashBurn')}
             </p>
           </CardContent>
         </Card>
@@ -145,7 +149,7 @@ export function BurnRateCard({ burnAnalysis, currentCash, className }: BurnRateC
               ) : (
                 <TrendingDown className="h-4 w-4 text-red-600" />
               )}
-              <span className="text-sm">Yıl Sonu (Yatırımlı)</span>
+              <span className="text-sm">{t('burnRate.yearEndWithInvestment')}</span>
             </div>
             <p className={cn(
               "text-2xl font-bold",
@@ -164,7 +168,7 @@ export function BurnRateCard({ burnAnalysis, currentCash, className }: BurnRateC
               ) : (
                 <CheckCircle2 className="h-4 w-4 text-green-600" />
               )}
-              <span className="text-sm">Yıl Sonu (Yatırımsız)</span>
+              <span className="text-sm">{t('burnRate.yearEndWithoutInvestment')}</span>
             </div>
             <p className={cn(
               "text-2xl font-bold",
@@ -173,9 +177,9 @@ export function BurnRateCard({ burnAnalysis, currentCash, className }: BurnRateC
               {formatUSD(withoutInvestmentYearEnd)}
             </p>
             <p className="text-xs text-muted-foreground mt-1">
-              {hasDeficit 
-                ? `${formatUSD(burnAnalysis.cashDeficitWithoutInvestment)} açık` 
-                : `${formatUSD(burnAnalysis.cashSurplusWithoutInvestment)} fazla`
+              {hasDeficit
+                ? `${formatUSD(burnAnalysis.cashDeficitWithoutInvestment)} ${t('burnRate.deficit')}`
+                : `${formatUSD(burnAnalysis.cashSurplusWithoutInvestment)} ${t('burnRate.surplus')}`
               }
             </p>
           </CardContent>
@@ -190,11 +194,10 @@ export function BurnRateCard({ burnAnalysis, currentCash, className }: BurnRateC
               <AlertTriangle className="h-5 w-5 text-destructive" />
               <div>
                 <p className="font-medium text-destructive">
-                  Kritik Nokta: {burnAnalysis.criticalQuarter}
+                  {t('burnRate.criticalPoint')}: {burnAnalysis.criticalQuarter}
                 </p>
                 <p className="text-sm text-muted-foreground">
-                  Bu çeyrekte nakit bakiyesi minimum seviyeye düşüyor. 
-                  Yatırım veya finansman bu noktadan önce sağlanmalı.
+                  {t('burnRate.criticalPointMessage')}
                 </p>
               </div>
             </div>
@@ -208,14 +211,15 @@ export function BurnRateCard({ burnAnalysis, currentCash, className }: BurnRateC
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-primary" />
-              Yatırım Dahil Senaryo
+              {t('burnRate.withInvestmentScenario')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <QuarterlyTable 
+            <QuarterlyTable
               projections={burnAnalysis.quarterlyProjectionsWithInvestment}
               title=""
               variant="with"
+              t={t}
             />
           </CardContent>
         </Card>
@@ -224,14 +228,15 @@ export function BurnRateCard({ burnAnalysis, currentCash, className }: BurnRateC
           <CardHeader className="pb-2">
             <CardTitle className="text-base flex items-center gap-2">
               <span className="h-2 w-2 rounded-full bg-orange-500" />
-              Yatırım Hariç Senaryo
+              {t('burnRate.withoutInvestmentScenario')}
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <QuarterlyTable 
+            <QuarterlyTable
               projections={burnAnalysis.quarterlyProjectionsWithoutInvestment}
               title=""
               variant="without"
+              t={t}
             />
           </CardContent>
         </Card>
@@ -240,22 +245,22 @@ export function BurnRateCard({ burnAnalysis, currentCash, className }: BurnRateC
       {/* Comparison Summary */}
       <Card>
         <CardHeader className="pb-2">
-          <CardTitle className="text-base">Senaryo Karşılaştırması</CardTitle>
+          <CardTitle className="text-base">{t('burnRate.scenarioComparison')}</CardTitle>
         </CardHeader>
         <CardContent>
           <div className="border rounded-lg overflow-hidden">
             <Table>
               <TableHeader>
                 <TableRow className="bg-muted/50">
-                  <TableHead>Metrik</TableHead>
-                  <TableHead className="text-right">Yatırım Dahil</TableHead>
-                  <TableHead className="text-right">Yatırım Hariç</TableHead>
-                  <TableHead className="text-right">Fark</TableHead>
+                  <TableHead>{t('burnRate.metric')}</TableHead>
+                  <TableHead className="text-right">{t('burnRate.withInvestment')}</TableHead>
+                  <TableHead className="text-right">{t('burnRate.withoutInvestment')}</TableHead>
+                  <TableHead className="text-right">{t('burnRate.difference')}</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
                 <TableRow>
-                  <TableCell className="font-medium">Yıl Sonu Bakiye</TableCell>
+                  <TableCell className="font-medium">{t('burnRate.yearEndBalance')}</TableCell>
                   <TableCell className={cn(
                     "text-right",
                     withInvestmentYearEnd >= 0 ? "text-green-600" : "text-red-600"
@@ -273,12 +278,12 @@ export function BurnRateCard({ burnAnalysis, currentCash, className }: BurnRateC
                   </TableCell>
                 </TableRow>
                 <TableRow>
-                  <TableCell className="font-medium">Runway</TableCell>
+                  <TableCell className="font-medium">{t('burnRate.runway')}</TableCell>
                   <TableCell className="text-right">
-                    {burnAnalysis.runwayMonths > 24 ? '24+ ay' : `${burnAnalysis.runwayMonths} ay`}
+                    {burnAnalysis.runwayMonths > 24 ? '24+ mo' : `${burnAnalysis.runwayMonths} mo`}
                   </TableCell>
                   <TableCell className="text-right">
-                    {!hasDeficit ? '∞' : `${Math.max(0, Math.floor(currentCash / burnAnalysis.grossBurnRate))} ay`}
+                    {!hasDeficit ? '∞' : `${Math.max(0, Math.floor(currentCash / burnAnalysis.grossBurnRate))} mo`}
                   </TableCell>
                   <TableCell className="text-right text-muted-foreground">-</TableCell>
                 </TableRow>
