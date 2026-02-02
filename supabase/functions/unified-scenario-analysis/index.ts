@@ -6,8 +6,1068 @@ const corsHeaders = {
 };
 
 // =====================================================
+// BILINGUAL PROMPT LABELS
+// =====================================================
+type Language = 'en' | 'tr';
+type PromptLabels = typeof PROMPT_LABELS['en'];
+
+const PROMPT_LABELS = {
+  en: {
+    // Section headers
+    antiHallucinationTitle: '🚫 ANTI-HALLUCINATION RULES - CRITICAL:',
+    scenarioRulesTitle: '📊 SCENARIO RULES',
+    focusProjectTitle: '🎯 FOCUS PROJECT ANALYSIS - SCIENTIFIC FINANCIAL MODEL:',
+    masterPromptRole: 'You are an "Omni-Scient Financial Intelligence" with Fortune 500 CFO and Silicon Valley VC Partner capabilities.',
+    
+    // Anti-hallucination rules
+    onlyUseProvidedData: 'USE ONLY PROVIDED DATA:',
+    noGeographicGuess: 'NEVER guess geographic regions (North America, Europe, Asia, etc.)',
+    noMarketSize: 'DO NOT fabricate market size figures',
+    noIndustryStats: 'DO NOT fabricate industry statistics',
+    noCompetitorNames: 'DO NOT fabricate competitor company names',
+    noTechIntegrations: 'DO NOT fabricate technology integrations (SAP, Oracle, etc.)',
+    noLegalStructures: 'DO NOT fabricate legal structures (Delaware C-Corp, etc.)',
+    admitUnknown: 'ADMIT WHAT YOU DON\'T KNOW:',
+    noDataAvailable: 'If no data available, say "This information is not available in the provided data"',
+    assumptionPrefix: 'If you need to make an assumption, start with "Assumption: ..."',
+    userInputRequired: 'Mark missing information with "[User Input Required]"',
+    sourceRequired: 'SOURCE CITATION REQUIRED:',
+    sourceExample1: '"According to balance sheet data: Current Ratio = X"',
+    sourceExample2: '"According to Scenario A projection: Revenue = $X"',
+    sourceExample3: '"According to deal config: Investment = $X"',
+    sourceExample4: '"Calculated: MOIC = X" (show formula)',
+    forbiddenPhrases: 'ABSOLUTELY FORBIDDEN PHRASES (AUTO-REJECT):',
+    consultingModel: '"consulting model" (use actual project names)',
+    digitalTransformation: '"digital transformation" (specify what is transforming)',
+    scalable: '"scalable" (show with numbers)',
+    traditionalBusiness: '"traditional business model" (list revenue items)',
+    marketLeader: '"market leader" (no data)',
+    industryAverage: '"industry average" (no comparative data)',
+    marketBillion: '"Market is $X billion in size" (no external data)',
+    competitorDoing: '"Competitor Y is doing this" (no data)',
+    industryTrend: '"Industry trend is Z direction" (no data)',
+    geographicMarket: '"North America/Europe/Asia market..." (no geography data)',
+    investorsGenerally: '"Investors generally..." (general assumption)',
+    integrationMention: '"SAP/Oracle integration..." (no technical data)',
+    legalSetup: '"Delaware C-Corp setup..." (no legal data)',
+    tamSamSom: '"$X billion TAM/SAM/SOM" (no market data)',
+    externalReport: '"According to McKinsey/Gartner report..." (no external source)',
+    noBulletWithoutNumber: 'Bullet point without numbers (EVERY BULLET MUST CONTAIN $ or %)',
+    allowedInferences: 'ALLOWED INFERENCES:',
+    financialRatioCalc: 'Calculations from provided financial ratios',
+    scenarioComparison: 'Scenario A vs B comparison (from provided data)',
+    quarterlyTrend: 'Quarterly trend analysis (Q1→Q4 from provided data)',
+    dealMetricsCalc: 'Deal metrics (MOIC, IRR) calculation (from formula)',
+    breakEvenAnalysis: 'Break-even analysis (from provided data)',
+    userProjectGrowth: 'Growth based on user\'s project descriptions',
+    crossAnalysis: 'Cross-analysis from Balance Sheet + Scenario data',
+    confidenceRule: 'CONFIDENCE SCORE RULE (REQUIRED):',
+    confidence90: '90-100%: ONLY direct data calculation (e.g.: Current Ratio = 2.1)',
+    confidence75: '75-89%: Data-based inference, NO assumptions (e.g.: Burn rate → runway calculation)',
+    confidence60: '60-74%: Logical estimate - "⚠️ ESTIMATE:" label REQUIRED',
+    confidence50: '50-59%: Low confidence estimate - "❓ LOW CONFIDENCE:" label REQUIRED',
+    confidenceBelow50: '<50%: DO NOT USE - uncertainty too high, do NOT generate this insight',
+    confidenceDistribution: '⚠️ CONFIDENCE DISTRIBUTION RULE:',
+    notAll85Plus: 'Not all insights can be 85%+ - this is not realistic',
+    atLeastOne60to74: 'At least 1 insight should be in 60-74% range (accept uncertainty)',
+    realAnalysis: 'Real analyses don\'t always have "certain" results',
+    only90PlusForMath: '90%+ only for mathematical calculations (ratios, percentages, totals)',
+    assumptionTransparency: 'ASSUMPTION TRANSPARENCY (NEW):',
+    forEachInsight: 'For each insight in "assumptions" field:',
+    specifyDataSource: 'Specify which data it\'s based on',
+    listAssumptions: 'List what assumptions were made',
+    validUnderCondition: 'Use format "This estimate is valid under condition: ..."',
+    
+    // Scenario rules
+    positiveVsNegative: 'POSITIVE VS NEGATIVE COMPARISON',
+    successorProjection: 'SUCCESSIVE YEAR PROJECTION (SUCCESS STORY)',
+    yearOverYear: 'Year-over-year comparison',
+    scenarioAPositive: 'SCENARIO A = POSITIVE SCENARIO',
+    scenarioBNegative: 'SCENARIO B = NEGATIVE SCENARIO',
+    higherNetProfit: 'Scenario with higher net profit',
+    growthTargetsMet: 'Scenario where growth targets are met',
+    targetScenario: 'Reference as "Target Scenario"',
+    mainScenarioForInvestor: 'Main scenario to show investors',
+    withInvestmentScenario: 'Scenario that occurs WITH INVESTMENT',
+    lowerNetProfit: 'Scenario with lower net profit',
+    pessimisticAssumptions: 'Pessimistic assumptions, lower revenue',
+    riskScenario: 'Reference as "Risk Scenario"',
+    forDownsideRisk: 'For downside risk assessment',
+    withoutInvestmentScenario: 'Scenario that occurs WITHOUT INVESTMENT',
+    analysisFocus: 'ANALYSIS FOCUS:',
+    ifPositiveHappens: 'What happens if Positive Scenario (A) occurs? → Main story (With investment)',
+    ifNegativeHappens: 'What happens if Negative Scenario (B) occurs? → Risk analysis (Without investment)',
+    whatsDifference: 'What\'s the difference? How big is the risk? → Gap analysis = OPPORTUNITY COST / LOSS',
+    investmentComparison: 'INVESTMENT SCENARIO COMPARISON:',
+    withInvestmentA: 'WITH INVESTMENT (A): Target growth is achieved, exit plan works',
+    withoutInvestmentB: 'WITHOUT INVESTMENT (B): Organic (low) growth, OPPORTUNITY COST = LOSS',
+    makeComparisonClear: 'Make this comparison CLEAR in every analysis!',
+    nextYearProjectionRule: 'NEXT YEAR PROJECTION RULE:',
+    projectionBasedOnA: 'Simulation Year +1 projection is based on Positive Scenario (A)',
+    projection40to100: 'Projection = 40-100% growth of Scenario A',
+    
+    // Successor projection specific
+    notPositiveVsNegative: '⚠️ CRITICAL: This is NOT a "positive vs negative" comparison!',
+    bothScenariosPositive: '🎯 BOTH SCENARIOS ARE POSITIVE! Do NOT make risk comparisons!',
+    baseScenario: 'BASE SCENARIO (INVESTMENT YEAR):',
+    thisYearInvestmentTarget: 'This year\'s investment target',
+    growthWithInvestment: 'Growth to be achieved with investment',
+    allExitPlanBased: 'ALL exit plan and MOIC calculations BASED ON THIS',
+    pitchDeckTraction: 'Pitch deck\'s "traction" section uses this year\'s data',
+    futureProjection: 'FUTURE PROJECTION (GROWTH YEAR):',
+    ifBaseSucceeds: 'Next year if base scenario succeeds',
+    growthContinuation: 'Continuation and acceleration of growth',
+    notNegativePositive: '⚠️ NOT A NEGATIVE SCENARIO - POSITIVE DEVELOPMENT!',
+    globalExpansionYear: 'Global expansion and scaling year',
+    successorAnalysisFocus: 'ANALYSIS FOCUS:',
+    ifWeReachTargets: 'If we reach our targets this year...',
+    whereCanWeGo: 'Where can we go next year?',
+    growthMomentumAnalysis: 'Growth momentum analysis',
+    bothPositiveOpportunity: 'BOTH SCENARIOS POSITIVE - Do opportunity analysis, NOT risk comparison!',
+    noOpportunityCost: 'Do NOT do "Opportunity cost" analysis - this is already a success story',
+    pitchDeckFocus: 'PITCH DECK FOCUS:',
+    investmentYearData: 'Investment year data = "Traction" and "Business Model" slides',
+    growthYearData: 'Growth year data = "Growth Plan" and "Financial Projection" slides',
+    storyFormat: 'Story: "If we do $X this year, we become $Y next year"',
+    exitPlanAndMoic: 'EXIT PLAN AND MOIC:',
+    baseYearFor: 'Base year =',
+    moicCalculationsFrom: 'MOIC calculations from',
+    onlyShowAsUpside: 'only show as "upside potential"',
+    doNotUseSuccessor: 'DO NOT USE (FOR THIS SCENARIO TYPE):',
+    negativeScenarioPhrase: '"Negative scenario" phrase',
+    riskScenarioPhrase: '"Risk scenario" phrase',
+    withoutInvestmentPhrase: '"Without investment" phrase',
+    opportunityCostCalc: '"Opportunity cost" calculation',
+    lossComparison: 'A vs B "loss" comparison',
+    
+    // Focus project rules
+    investmentRevenuePipeline: '📊 1. INVESTMENT → REVENUE PIPELINE (Investment to Revenue Conversion):',
+    formula: 'FORMULA:',
+    productInvestmentFormula: 'Product_Investment = Total_Investment × Product_Ratio',
+    revenueUpliftFormula: 'Revenue_Uplift = Product_Investment × Revenue_Multiplier',
+    growthRateFormula: 'Growth_Rate = Revenue_Uplift / Current_Revenue',
+    revenueMultiplier: 'REVENUE MULTIPLIER (By Sector):',
+    saasMultiplier: 'SaaS/Software (scalable): 2.0x - 2.5x',
+    consultingMultiplier: 'Consulting (human-dependent): 1.2x - 1.5x',
+    productMultiplier: 'Product/License: 1.8x - 2.2x',
+    exampleCalculation: 'EXAMPLE CALCULATION:',
+    nonFocusRule: '📉 2. NON-FOCUS ORGANIC GROWTH RULE:',
+    sinceInvestmentFocused: '⚠️ Since investment is directed to focus projects:',
+    focusProjects: 'FOCUS PROJECTS: Growth calculated with formula above',
+    otherProjects: 'OTHER PROJECTS: ORGANIC GROWTH rate applies',
+    organicGrowthOptions: 'ORGANIC GROWTH OPTIONS:',
+    zeroDefault: '0% (Default): Full isolation - investment impact clearly visible',
+    fivePercent: '5%: Minimal organic growth (inflation + natural growth)',
+    eightToTen: '8-10%: Medium organic growth (existing customer expansion)',
+    twelveToFifteen: '12-15%: Strong organic growth (mature products)',
+    useOrganicRate: '⚠️ Use focusProjectInfo.organicGrowthRate if available, otherwise apply 0%.',
+    whyOrganicGrowth: 'WHY ORGANIC GROWTH?',
+    realism: '1. Realism: No project grows exactly 0%',
+    existingCustomers: '2. Existing customer expansion happens without investment',
+    investorConfidence: '3. Investor confidence: Non-exaggerated projections',
+    jCurveEffect: '📈 3. J-CURVE EFFECT (Timing by Sector):',
+    dontDistributeLinear: 'Don\'t distribute growth linearly across quarters! Apply different J-Curve by sector:',
+    saasDefault: '🔷 SaaS / SOFTWARE (Default):',
+    q1Effect: 'Q1: 10% effect (product development, beta)',
+    q2Effect: 'Q2: 25% effect (first customers)',
+    q3Effect: 'Q3: 65% effect (momentum)',
+    q4Effect: 'Q4: 100% effect (full scale)',
+    consultingService: '🔶 CONSULTING / SERVICE:',
+    q1Consulting: 'Q1: 20% effect (team setup, first projects)',
+    q2Consulting: 'Q2: 45% effect (references building)',
+    q3Consulting: 'Q3: 75% effect (pipeline filling)',
+    q4Consulting: 'Q4: 100% effect (full capacity)',
+    productLicense: '🔹 PRODUCT / LICENSE:',
+    q1Product: 'Q1: 5% effect (production preparation)',
+    q2Product: 'Q2: 15% effect (first sales)',
+    q3Product: 'Q3: 50% effect (distribution channels)',
+    q4Product: 'Q4: 100% effect (market penetration)',
+    ecommerce: '🔸 E-COMMERCE:',
+    q1Ecommerce: 'Q1: 25% effect (campaign start)',
+    q2Ecommerce: 'Q2: 40% effect (customer acquisition)',
+    q3Ecommerce: 'Q3: 60% effect (repeat purchases)',
+    q4Ecommerce: 'Q4: 100% effect (season + full scale)',
+    sectorDetection: '⚠️ Sector detection: Look at revenue item names (SaaS, Tracker, Platform = SaaS; Audit, Consulting = Service)',
+    operatingLeverage: '📊 4. OPERATING LEVERAGE (Expense Model):',
+    revenueUp50: 'If revenue increases 50%, expenses should NOT increase 50%!',
+    fixedExpenses: 'FIXED EXPENSES (Rent, Server, License): 5-10% increase (inflation)',
+    variableExpenses: 'VARIABLE EXPENSES (Personnel, Marketing): Revenue increase × 0.4-0.6',
+    targetMargin: 'TARGET: Profit margin improvement (Margin Expansion)',
+    noMarginNote: 'NOTE: Growth without margin expansion is worthless to investors.',
+    ifNoData: '5. IF NO DATA:',
+    selectHighestGrowth: 'If user didn\'t specify focus project, select revenue item with highest growth potential',
+    identifyBiggestDiff: 'Identify the item creating the biggest difference between Scenario A vs B',
+    
+    // Master prompt sections
+    singleTask: '🎯 SINGLE TASK: Analyze ALL provided financial data (Historical Balance + Current Scenarios + Investment Deal + Professional Analysis Data) and prepare both OPERATIONAL INSIGHTS and INVESTOR PRESENTATION.',
+    projectionYearRule: '📅 PROJECTION YEAR RULE - CRITICAL!',
+    projectionYearCalc: 'next_year_projection.projection_year calculation rule:',
+    projectionFormula: 'projection_year = max(Scenario_A_Year, Scenario_B_Year) + 1',
+    examples: 'EXAMPLES:',
+    example2028vs2027: '2028 vs 2027 comparison → projection_year = 2029',
+    example2027vs2026: '2027 vs 2026 comparison → projection_year = 2028',
+    example2026vs2026: '2026 vs 2026 comparison → projection_year = 2027',
+    summaryWarning: '⚠️ summary.total_revenue and summary.total_expenses values should be projections for projection_year, NOT current scenario values!',
+    dataPackage: '📥 DATA PACKAGE PROVIDED TO YOU:',
+    dataItem1: '1. PREVIOUS YEAR BALANCE SHEET: Cash, Receivables, Payables, Equity (shows where company came from)',
+    dataItem2: '2. SCENARIO DATA: A (Positive) vs B (Negative) full comparison + itemized revenue/expense details',
+    dataItem3: '3. QUARTERLY PERFORMANCE: Q1-Q4 cash flow details',
+    dataItem4: '4. DEAL CONFIG: User-defined investment amount, equity percentage, sector multiple',
+    dataItem5: '5. CALCULATED EXIT PLAN: Post-Money Valuation, MOIC (3Y/5Y), Break-Even Year',
+    dataItem6: '6. DEATH VALLEY ANALYSIS: Critical quarter, monthly burn rate, runway',
+    dataItem7: '7. FINANCIAL RATIOS: Liquidity, Profitability, Leverage ratios + Sector Benchmark',
+    dataItem8: '8. ITEMIZED TRENDS: Q1→Q4 trend, volatility, concentration for each revenue/expense item',
+    dataItem9: '9. SENSITIVITY ANALYSIS: Impact of ±20% revenue change on profit, valuation, MOIC, runway',
+    dataItem10: '10. BREAK-EVEN ANALYSIS: Monthly cumulative revenue/expense and break-even point',
+    dataItem11: '11. **FOCUS PROJECT (if available)**: User-selected main investment project and growth plan',
+    professionalStandards: '🔬 PROFESSIONAL ANALYSIS STANDARDS (Investment Banking Level):',
+    itemizedDeepAnalysis: '1. ITEMIZED DEEP ANALYSIS:',
+    forEachItem: 'For each revenue/expense item specify:',
+    q1q4Trend: 'Q1→Q4 trend direction and growth rate (in %) [FROM DATA]',
+    volatilityLevel: 'Volatility level: Low (<20%), Medium (20-50%), High (>50%) [CALCULATE]',
+    shareInTotal: 'Share in total and concentration risk (30%+ = ⚠️ Warning, 50%+ = 🔴 Critical) [FROM DATA]',
+    rootCauseDiff: 'Root cause of Scenario A vs B difference [COMPARE]',
+    ratioInterpretation: '2. FINANCIAL RATIO INTERPRETATION (with Benchmark):',
+    compareToBenchmark: 'Compare provided financial ratios to sector average:',
+    currentRatioBench: 'Current Ratio: 1.8+ (Good) | 1.3-1.8 (Average) | <1.3 (Watch)',
+    netProfitMarginBench: 'Net Profit Margin: 18%+ (Good) | 12-18% (Average) | <12% (Watch)',
+    debtEquityBench: 'Debt/Equity: <0.5 (Good) | 0.5-1.0 (Average) | >1.0 (Watch)',
+    receivablesAssetBench: 'Receivables/Assets: <20% (Good) | 20-30% (Average) | >30% (Collection Risk)',
+    sensitivityInterpretation: '3. SENSITIVITY ANALYSIS INTERPRETATION:',
+    whenRevenue20Down: 'When revenue drops 20%:',
+    howProfitAffected: 'How is profit affected? [CALCULATE]',
+    doesBreakEvenShift: 'Does break-even point shift? [CALCULATE]',
+    howManyMonthsRunway: 'How many months of runway remain? [CALCULATE]',
+    mostCriticalVariable: 'What is the MOST CRITICAL VARIABLE?',
+    confidenceRequired: '4. CONFIDENCE SCORE REQUIREMENT:',
+    forEachInsightReq: 'For each insight:',
+    confidenceScore0to100: 'confidence_score: 0-100',
+    listAssumptionsMade: 'List assumptions',
+    showSupportingData: 'Show supporting data points',
+    
+    // Section titles
+    section1Financial: '📊 SECTION 1: FINANCIAL ANALYSIS (For AI Analysis Tab)',
+    section1Output: 'Generate these outputs in this section:',
+    insights5to7: '5-7 critical insights (category: revenue/profit/cash_flow/risk/efficiency/opportunity)',
+    eachInsightConfidence: 'EACH insight requires confidence_score (0-100)',
+    eachInsightSource: 'EACH insight must specify data source',
+    recommendations3to5: '3-5 strategic recommendations (priority ordered, with action plan)',
+    quarterlyAnalysis: 'Quarterly analysis (critical periods, growth trajectory)',
+    
+    section2Deal: '💼 SECTION 2: DEAL EVALUATION (Investor Perspective)',
+    valuationTransparency: '📊 VALUATION CALCULATION TRANSPARENCY (REQUIRED):',
+    showFormulaForEach: 'SHOW FORMULA for each valuation:',
+    preMoneyFormula: '1. Pre-Money Valuation:',
+    preMoneyExample: 'Formula: Pre-Money = (Investment / Equity%) - Investment',
+    postMoneyFormula: '2. Post-Money Valuation:',
+    postMoneyExample: 'Formula: Post-Money = Investment / Equity%',
+    revenueMultipleFormula: '3. Revenue Multiple:',
+    revenueMultipleExample: 'Formula: Valuation = Revenue × Sector_Multiple',
+    moicFormula: '4. MOIC Calculation:',
+    moicExample: 'Formula: MOIC = Exit_Value × Equity% / Investment',
+    backEveryNumber: '⚠️ BACK EVERY NUMBER WITH FORMULA - not "Valuation is $X" but "Valuation = Revenue × Multiple = $Y × Zx = $X"',
+    dealOutput: 'OUTPUT:',
+    dealScoreOutput: 'deal_score: 1-10 score + CALCULATION FORMULA (e.g.: "7/10 = (MOIC×2 + Margin×3 + Growth×2 + Risk×3) / 10")',
+    valuationVerdictOutput: 'valuation_verdict: "premium" / "fair" / "cheap" + WHY',
+    investorAttractivenessOutput: 'investor_attractiveness: 2 sentence comment',
+    riskFactorsOutput: 'risk_factors: 3-5 risks (derive from DATA, DO NOT FABRICATE)',
+    
+    section3Pitch: '🎤 SECTION 3: PITCH DECK SLIDES (10 SLIDES - STARTUP FOUNDER TONE)',
+    criticalNumbers: '⚠️ CRITICAL: EVERY SLIDE MUST CONTAIN SPECIFIC NUMBERS AND PROJECT NAMES!',
+    generate10Slides: 'Generate 10-slide investor presentation. Each slide delivers one message, backed by numbers.',
+    languageAndTone: 'LANGUAGE AND TONE:',
+    speakAsFounder: 'Speak like a startup founder, NOT a financial analyst',
+    confidentRealistic: 'Confident but realistic - use "We" language',
+    numbersSupport: 'Numbers support the story, not the other way around',
+    exciteInvestor: 'Excite the investor but don\'t exaggerate',
+    forEachSlide: 'For each slide:',
+    titleMax8: 'title: Catchy headline (max 8 words)',
+    keyMessageWithNumber: 'key_message: Main message (single sentence) - INCLUDING NUMBERS ($X, %Y format)',
+    contentBullets: 'content_bullets: 3-4 items - EVERY ITEM MUST CONTAIN $ or % FORMAT NUMBER',
+    speakerNotesMax80: 'speaker_notes: Speaking text (MAX 80 WORDS!) - friendly startup language',
+    speakerNotesRule: '⚠️ SPEAKER NOTES RULE:',
+    max80Words: 'Maximum 80 words (30-45 second speech)',
+    noTechJargon: 'Don\'t use technical jargon',
+    catchInvestorAttention: 'Short, punchy sentences to catch investor\'s attention',
+    atLeast1Number: 'At least 1 number in each note',
+    slideStructure: 'SLIDE STRUCTURE (10 SLIDES):',
+    slide1Problem: '1️⃣ PROBLEM',
+    slide2Solution: '2️⃣ SOLUTION: [FOCUS PROJECT NAME]',
+    slide3Market: '3️⃣ MARKET OPPORTUNITY',
+    slide4BusinessModel: '4️⃣ BUSINESS MODEL',
+    slide5Traction: '5️⃣ TRACTION (To Date)',
+    slide6GrowthPlan: '6️⃣ GROWTH PLAN (With Investment)',
+    slide7UseOfFunds: '7️⃣ USE OF FUNDS',
+    slide8Financials: '8️⃣ FINANCIAL PROJECTION',
+    slide9Team: '9️⃣ TEAM',
+    slide10TheAsk: '🔟 THE ASK',
+    forbidden: '🚫 FORBIDDEN:',
+    forbiddenAnalystLang: 'Financial analyst language ("revenue concentration", "organic growth limits" etc.)',
+    forbiddenGeneral: 'General phrases ("scalable", "innovative", "digital transformation")',
+    forbiddenNoBullets: 'Items without numbers',
+    required: '✅ REQUIRED:',
+    requiredFounderTone: 'Startup founder tone',
+    requiredEveryBullet: 'Every bullet has $ or % format number',
+    requiredProjectName: 'Focus project name in titles (if available)',
+    requiredSpeakerNotes: 'Friendly, persuasive explanation in speaker notes',
+    
+    section4Projection: '📈 SECTION 4: NEXT YEAR PROJECTION (Simulation Year +1)',
+    criticalPositiveBase: '⚠️ CRITICAL: ALWAYS BASE ON POSITIVE SCENARIO (A)!',
+    projectionRules: '🎯 PROJECTION RULES:',
+    baseEqualsA: '1. Base = Scenario A year-end values',
+    growth40to100: '2. Growth = 40-100% (investment effect)',
+    everyQRevenue: '3. Revenue > 0 for every quarter, Expenses > 0',
+    q3q4Positive: '4. Cash flow should turn POSITIVE in Q3-Q4',
+    netProfitPositive: '5. Net profit should be positive or near break-even',
+    itemizedProjection: '📊 ITEMIZED PROJECTION (SCIENTIFIC MODEL):',
+    focusProjectCalc: '🎯 FOCUS PROJECT CALCULATION:',
+    step1: 'Step 1: Investment_Product = Total_Investment × Product_Ratio (typically 40%)',
+    step2: 'Step 2: Revenue_Uplift = Investment_Product × Multiplier (SaaS:2.0, Service:1.3, Product:1.8)',
+    step3: 'Step 3: Growth = Revenue_Uplift / Current_Revenue',
+    nonFocusRuleUpdated: '📉 NON-FOCUS RULE (UPDATED):',
+    nonFocusOrganicRate: 'Non-focus projects: focusProjectInfo.organicGrowthRate value applies',
+    ifNotSpecified: 'If organicGrowthRate not specified: 0% growth (full isolation)',
+    exampleOrganicRate: 'Example: if organicGrowthRate = 5, non-focus projects get 5% growth',
+    jCurveQuarterly: '⏱️ J-CURVE (Quarterly Distribution):',
+    q1Yearly10: 'Q1: 10% of annual growth (preparation period)',
+    q2Yearly25: 'Q2: 25% of annual growth (first traction)',
+    q3Yearly65: 'Q3: 65% of annual growth (momentum)',
+    q4Yearly100: 'Q4: 100% of annual growth (full scale)',
+    expenseModel: '📊 EXPENSE MODEL (Operating Leverage):',
+    fixedExpenses5to10: 'Fixed expenses: 5-10% increase (inflation effect)',
+    variableExpenses05: 'Variable expenses: Revenue increase × 0.5 (margin expansion)',
+    investmentDirect: 'Investment direct impact: Personnel + Marketing budgets',
+    
+    section5Executive: '📧 SECTION 5: EXECUTIVE SUMMARY (STRUCTURED FORMAT - REQUIRED)',
+    criticalObject: '⚠️ CRITICAL: Executive summary must be an OBJECT, not plain text!',
+    shortPitch150: '1️⃣ short_pitch (150 words): Investor summary',
+    revenueItemsReq: '2️⃣ revenue_items (required): Top revenue items list',
+    scenarioCompReq: '3️⃣ scenario_comparison (required): A vs B comparison',
+    investmentImpactReq: '4️⃣ investment_impact (required): What happens without investment',
+    
+    doNot: '🚫 DO NOT:',
+    doNotGeo: 'Geographic guesses (North America, Europe, etc.)',
+    doNotMarketSize: 'Market size figures',
+    doNotCompetitor: 'Competitor company names',
+    doNotTech: 'Technology/integration guesses',
+    doNotLegal: 'Legal structure suggestions',
+    doNotExternal: 'External source references',
+    
+    doThis: '✅ DO:',
+    doAnalyzeData: 'Analyze only from provided data',
+    doSourceNumbers: 'Specify source of each number',
+    doConfidenceScore: 'Give confidence score',
+    doScenarioRef: 'Reference Scenario A = Positive, B = Negative',
+    doProjectionBase: 'Base next year projection on Scenario A',
+    
+    language: 'LANGUAGE: Professional',
+    languageVC: ', proficient in VC terminology.',
+    
+    // User prompt section headers
+    historicalBalanceSection: 'PREVIOUS YEAR BALANCE SHEET',
+    cashPosition: '💰 CASH POSITION:',
+    cashOnHand: 'Cash on Hand:',
+    bank: 'Bank:',
+    totalLiquidAssets: 'Total Liquid Assets:',
+    receivablesPayables: '📊 RECEIVABLES/PAYABLES STATUS:',
+    tradeReceivables: 'Trade Receivables:',
+    tradePayables: 'Trade Payables:',
+    netWorkingCapital: 'Net Working Capital:',
+    assetsLiabilities: '🏢 ASSETS/LIABILITIES:',
+    totalAssets: 'Total Assets:',
+    totalLiabilities: 'Total Liabilities:',
+    totalEquity: 'Total Equity:',
+    profitCapital: '📈 PROFIT/CAPITAL:',
+    periodNetProfit: 'Period Net Profit:',
+    retainedEarnings: 'Retained Earnings:',
+    paidCapital: 'Paid Capital:',
+    bankLoans: 'Bank Loans:',
+    howToUseData: '🔍 USE THIS DATA AS FOLLOWS:',
+    receivablesToAssets: 'Receivables/Total Assets ratio',
+    ifAbove30Collection: '- if above 30% there\'s collection issue',
+    bankLoansToAssets: 'Bank Loans/Assets ratio',
+    debtRiskAnalysis: '- analyze debt risk',
+    retainedEarningsStatus: 'Retained Earnings',
+    negativeRecovery: 'NEGATIVE - Recovery Mode',
+    positiveHealthy: 'POSITIVE - Healthy',
+    compareGrowthTargets: '4. Compare this year\'s growth targets with previous year performance',
+    noHistoricalBalance: '⚠️ PREVIOUS YEAR BALANCE SHEET NOT AVAILABLE',
+    analyzeOnlyScenario: 'Analyze with scenario data only, but note that full risk analysis cannot be done without balance sheet data.',
+    scenarioDataSection: 'SCENARIO DATA:',
+    targetYear: 'Target Year:',
+    totalRevenue: 'Total Revenue:',
+    totalExpenses: 'Total Expenses:',
+    netProfit: 'Net Profit:',
+    profitMargin: 'Profit Margin:',
+    quarterlyNet: 'Quarterly Net:',
+    dealConfigSection: 'DEAL CONFIG (User Input):',
+    requestedInvestment: 'Requested Investment:',
+    offeredEquity: 'Offered Equity:',
+    sectorMultiple: 'Sector Multiple:',
+    safetyMargin: 'Safety Margin:',
+    calculatedExitPlan: 'CALCULATED EXIT PLAN',
+    basedOnPositive: '(based on POSITIVE SCENARIO):',
+    postMoneyValuation: 'Post-Money Valuation:',
+    yearInvestorShare: 'Investor Share:',
+    moic: 'MOIC',
+    breakEvenYear: 'Break-Even Year:',
+    fiveYearProjectionDetails: '📊 5-YEAR FINANCIAL PROJECTION DETAILS (CALCULATED):',
+    year: 'Year',
+    aggressiveGrowth: 'Aggressive Growth',
+    normalizedGrowth: 'Normalized Growth',
+    stage: 'Stage',
+    revenue: 'Revenue:',
+    expenses: 'Expenses:',
+    ebitda: 'EBITDA:',
+    margin: 'Margin:',
+    freeCashFlow: 'Free Cash Flow (FCF):',
+    appliedGrowthRate: 'Applied Growth Rate:',
+    valuationMethods: 'VALUATION METHODS:',
+    revenueMultiple: 'Revenue Multiple',
+    ebitdaMultiple: 'EBITDA Multiple:',
+    dcfDiscount: 'DCF (30% discount):',
+    vcMethod: 'VC Method (10x ROI):',
+    weightedValuation: '⭐ WEIGHTED VALUATION:',
+    valuationMethodology: '💰 VALUATION METHODOLOGY:',
+    revenueMultipleWeight: '1. REVENUE MULTIPLE (30% Weight): Revenue × Sector Multiple',
+    ebitdaMultipleWeight: '2. EBITDA MULTIPLE (25% Weight): EBITDA × EBITDA Multiple (SaaS:15x, E-commerce:8x)',
+    dcfWeight: '3. DCF (30% Weight): 5-year FCF NPV + Terminal Value (30% discount, 3% terminal)',
+    vcMethodWeight: '4. VC METHOD (15% Weight): Year 5 Valuation ÷ 10x ROI',
+    valuationAnalysisInstructions: '🔍 VALUATION ANALYSIS INSTRUCTIONS:',
+    weightedFormula: '1. WEIGHTED valuation = (Revenue×0.30) + (EBITDA×0.25) + (DCF×0.30) + (VC×0.15)',
+    useYear5Weighted: '2. Use year 5 weighted valuation in pitch deck - CALCULATED not FABRICATED',
+    ebitdaMarginTrend: '3. EBITDA margin trend: How does it change from early years to later years?',
+    dcfVsRevenueMultiple: '4. Interpret DCF vs Revenue Multiple difference - which is more reliable?',
+    vcMethodRealistic: '5. Evaluate VC method realism (is 10x ROI reasonable?)',
+    getAllValuations: '6. Get EVERY valuation number from this section, DO NOT FABRICATE',
+    deathValleyAnalysis: 'DEATH VALLEY ANALYSIS (POSITIVE SCENARIO BASED):',
+    criticalQuarter: 'Critical Quarter:',
+    minCumulativeCash: 'Minimum Cumulative Cash:',
+    calculatedRequiredInvestment: 'Calculated Required Investment:',
+    monthlyBurnRate: 'Monthly Burn Rate:',
+    runway: 'Runway:',
+    months: 'months',
+    selfSustaining: 'Can Self-Finance:',
+    yes: 'Yes',
+    no: 'No',
+    yearStructureRoles: '📅 YEAR STRUCTURE AND SCENARIO ROLES',
+    scenarioType: '🔍 SCENARIO TYPE:',
+    timeline: '🗓️ TIMELINE:',
+    base: 'Base',
+    completedYear: 'Completed year - Actual financials',
+    baseYearLabel: 'Base Year',
+    investmentTarget: 'Investment target',
+    future: 'Future',
+    successProjection: 'Success projection',
+    year1: 'Year 1',
+    scenarioYear: 'Scenario year - Positive/Negative target',
+    year2: 'Year 2',
+    firstProjectionYear: 'First projection year',
+    year3Plus: 'Year 3+',
+    moic3YearPoint: '3 Year MOIC calculation point',
+    year5Plus: 'Year 5+',
+    moic5YearPoint: '5 Year MOIC calculation point',
+    scenarioRoles: '🎯 SCENARIO ROLES:',
+    investmentYear: 'Investment year',
+    dashboardFocused: 'ALL DASHBOARD AND ANALYSES FOCUSED ON THIS',
+    exitPlanMoicBased: 'Exit Plan, MOIC, Pitch Deck based on this scenario',
+    riskScenarioLabel: 'Risk scenario (without investment)',
+    onlyForRiskDownside: 'ONLY for risk analysis and downside assessment',
+    criticalInstructions: '⚠️ CRITICAL INSTRUCTIONS:',
+    allProjectionsBased: '1. All projection calculations based on POSITIVE SCENARIO (A) data',
+    moic3YearBased: '2. MOIC 3 Year = based on',
+    moic5YearBased: '3. MOIC 5 Year = based on',
+    useSpecificYears: '4. Use SPECIFIC YEARS in pitch deck (e.g. "',
+    valuation: 'valuation")',
+    refNegativeAs: '5. Reference negative scenario as "Without investment scenario"',
+    nextYearProjectionEquals: '6. Next year projection =',
+    revenueExpenseDetails: 'REVENUE/EXPENSE DETAILS:',
+    scenarioARevenues: 'Scenario A Revenues:',
+    scenarioAExpenses: 'Scenario A Expenses:',
+    scenarioBRevenues: 'Scenario B Revenues:',
+    scenarioBExpenses: 'Scenario B Expenses:',
+    quarterlyItemizedDetails: 'QUARTERLY ITEMIZED REVENUE/EXPENSE DETAILS:',
+    scenarioAQuarterlyRevenues: 'SCENARIO A - QUARTERLY REVENUES:',
+    scenarioBQuarterlyRevenues: 'SCENARIO B - QUARTERLY REVENUES:',
+    scenarioDiffRevenues: 'SCENARIO DIFFERENCES - REVENUE ITEMS:',
+    scenarioDiffExpenses: 'SCENARIO DIFFERENCES - EXPENSE ITEMS:',
+    total: 'Total',
+    diff: 'Diff',
+    totalDiff: 'Total Diff',
+    currencyInfo: '💱 CURRENCY INFO:',
+    allValuesNormalized: 'ALL VALUES NORMALIZED TO USD',
+    balanceConverted: 'Balance sheet data converted from TL (Average Rate:',
+    tlUsd: 'TL/USD)',
+    scenarioAlreadyUsd: 'Scenario data already in USD',
+    comparisonsHomogeneous: 'Comparisons should be made on homogeneous currency',
+    focusProjectInfo: '🎯 FOCUS PROJECT INFORMATION (USER SELECTED):',
+    selectedFocusProjects: 'Selected Focus Project(s):',
+    projectDescription: '📝 Project Description/Notes (User Input):',
+    organicGrowthRate: 'Organic Growth Rate for Non-Focus Projects:',
+    growthPlan: '📈 GROWTH PLAN (User Input):',
+    notSpecifiedAiSuggest: 'Not specified - AI should suggest most logical growth strategy',
+    investmentDistribution: '💵 INVESTMENT DISTRIBUTION (User Preference):',
+    productDevelopment: 'Product Development:',
+    marketing: 'Marketing:',
+    personnel: 'Personnel:',
+    operations: 'Operations:',
+    analysisInstruction: '🔍 ANALYSIS INSTRUCTION:',
+    presentAsGrowthEngine: '1. Present this project(s) as main growth engine in pitch deck',
+    createUseOfFunds: '2. Create "Use of Funds" slide based on investment distribution (with specific $ amounts)',
+    includeGrowthPlan: '3. Include growth plan in speaker notes',
+    everySlideKeyMessage: '4. Every slide\'s key_message should have project name and $ figure',
+    highlightInExecutive: '5. Highlight focus project(s) in executive summary',
+    noFocusProjectSpecified: '⚠️ NO FOCUS PROJECT SPECIFIED',
+    userDidntSelectFocus: 'User didn\'t select focus project. When analyzing:',
+    autoSelectHighestGrowth: '1. Auto-select revenue item with highest growth potential',
+    identifyBiggestDiffItem: '2. Identify item creating biggest difference between Scenario A vs B',
+    useAsGrowthStory: '3. Use this item as main growth story',
+    userEdits: '📝 USER EDITS (After Previous Analysis):',
+    userMadeChanges: 'User made changes to AI-suggested projection tables.',
+    updateAnalysisWithChanges: 'Update analysis considering these changes.',
+    editedRevenueProjection: 'Edited Revenue Projection (Next Year):',
+    noRevenueEdit: 'No revenue edits',
+    editedExpenseProjection: 'Edited Expense Projection (Next Year):',
+    noExpenseEdit: 'No expense edits',
+    userEdited: '[USER EDITED]',
+    editAnalysisInstruction: '🔍 ANALYSIS INSTRUCTION:',
+    validateChanges: '1. Validate user\'s changes and assess if they\'re logical',
+    ifChangesAffectTotals: '2. If changes affect totals, reflect in insights and pitch deck',
+    indicateAggressiveConservative: '3. Indicate if user\'s changes are aggressive/conservative',
+    analyzeAllData: 'Analyze all this data (especially previous year balance sheet, quarterly itemized data, and FOCUS PROJECT information) and generate structured output including all 5 sections above.',
+    languageInstruction: '🌐 LANGUAGE INSTRUCTION:',
+    allContentMustBe: 'All insights, recommendations, pitch deck slides, and strategy notes MUST be in',
+  },
+  tr: {
+    // Section headers
+    antiHallucinationTitle: '🚫 HALÜSİNASYON YASAĞI - KRİTİK KURALLAR:',
+    scenarioRulesTitle: '📊 SENARYO KURALLARI',
+    focusProjectTitle: '🎯 ODAK PROJE ANALİZİ - BİLİMSEL FİNANSAL MODEL:',
+    masterPromptRole: 'Sen, Fortune 500 CFO\'su ve Silikon Vadisi VC Ortağı yeteneklerine sahip "Omni-Scient (Her Şeyi Bilen) Finansal Zeka"sın.',
+    
+    // Anti-hallucination rules
+    onlyUseProvidedData: 'SADECE VERİLEN VERİLERİ KULLAN:',
+    noGeographicGuess: 'Coğrafi bölge (Kuzey Amerika, Avrupa, Asya vb.) ASLA tahmin etme',
+    noMarketSize: 'Pazar büyüklüğü rakamları UYDURMA',
+    noIndustryStats: 'Sektör istatistikleri UYDURMA',
+    noCompetitorNames: 'Rakip şirket isimleri UYDURMA',
+    noTechIntegrations: 'Teknoloji entegrasyonları (SAP, Oracle vb.) UYDURMA',
+    noLegalStructures: 'Yasal yapılar (Delaware C-Corp vb.) UYDURMA',
+    admitUnknown: 'BİLMEDİĞİNİ İTİRAF ET:',
+    noDataAvailable: 'Veri yoksa "Bu bilgi mevcut verilerde yok" de',
+    assumptionPrefix: 'Tahmin yapman gerekiyorsa "Varsayım: ..." ile başla',
+    userInputRequired: '"[Kullanıcı Girişi Gerekli]" ile eksik bilgileri işaretle',
+    sourceRequired: 'KAYNAK GÖSTERİMİ ZORUNLU:',
+    sourceExample1: '"Bilanço verilerine göre: Current Ratio = X"',
+    sourceExample2: '"Senaryo A projeksiyonuna göre: Gelir = $X"',
+    sourceExample3: '"Deal config\'e göre: Yatırım = $X"',
+    sourceExample4: '"Hesaplanan: MOIC = X" (formül göster)',
+    forbiddenPhrases: 'KESİNLİKLE YASAK İFADELER (OTOMATİK RED):',
+    consultingModel: '"danışmanlık modeli" (gerçek proje isimlerini kullan)',
+    digitalTransformation: '"dijital dönüşüm" (ne dönüştüğünü söyle)',
+    scalable: '"ölçeklenebilir" (rakamla göster)',
+    traditionalBusiness: '"geleneksel iş modeli" (gelir kalemlerini listele)',
+    marketLeader: '"pazar lideri" (veri yok)',
+    industryAverage: '"sektör ortalaması" (karşılaştırmalı veri yok)',
+    marketBillion: '"Pazar $X milyar büyüklüğünde" (harici veri yok)',
+    competitorDoing: '"Rakip şirket Y bunu yapıyor" (veri yok)',
+    industryTrend: '"Sektör trendi Z yönünde" (veri yok)',
+    geographicMarket: '"Kuzey Amerika/Avrupa/Asya pazarı..." (coğrafya verisi yok)',
+    investorsGenerally: '"Yatırımcılar genellikle..." (genel varsayım)',
+    integrationMention: '"SAP/Oracle entegrasyonu..." (teknik veri yok)',
+    legalSetup: '"Delaware C-Corp kurulumu..." (yasal veri yok)',
+    tamSamSom: '"$X milyar TAM/SAM/SOM" (pazar verisi yok)',
+    externalReport: '"McKinsey/Gartner raporuna göre..." (harici kaynak yok)',
+    noBulletWithoutNumber: 'Rakam olmayan bullet point (HER BULLET $ veya % İÇERMELİ)',
+    allowedInferences: 'İZİN VERİLEN ÇIKARIMLAR:',
+    financialRatioCalc: 'Verilen finansal oranlardan hesaplama',
+    scenarioComparison: 'Senaryo A vs B karşılaştırması (verilen verilerden)',
+    quarterlyTrend: 'Çeyreklik trend analizi (Q1→Q4 verilen verilerden)',
+    dealMetricsCalc: 'Deal metrikleri (MOIC, IRR) hesabı (formülden)',
+    breakEvenAnalysis: 'Break-even analizi (verilen verilerden)',
+    userProjectGrowth: 'Kullanıcının girdiği proje açıklamalarına dayalı büyüme',
+    crossAnalysis: 'Bilanço + Senaryo verilerinden çapraz analiz',
+    confidenceRule: 'CONFIDENCE SCORE KURALI (ZORUNLU - SIKIŞTIRILMIŞ):',
+    confidence90: '%90-100: SADECE direkt veri hesaplaması (örn: Current Ratio = 2.1)',
+    confidence75: '%75-89: Veri bazlı çıkarım, varsayım YOK (örn: Burn rate → runway hesabı)',
+    confidence60: '%60-74: Mantıksal tahmin - "⚠️ TAHMİN:" etiketi ZORUNLU',
+    confidence50: '%50-59: Düşük güvenli tahmin - "❓ DÜŞÜK GÜVENLİ:" etiketi ZORUNLU',
+    confidenceBelow50: '<%50: KULLANMA - belirsizlik çok yüksek, bu insight\'ı ÜRETME',
+    confidenceDistribution: '⚠️ CONFIDENCE DAĞILIMI KURALI:',
+    notAll85Plus: 'Tüm insights\'ların hepsi %85+ olamaz - bu gerçekçi değil',
+    atLeastOne60to74: 'En az 1 insight %60-74 aralığında olmalı (belirsizlik kabul et)',
+    realAnalysis: 'Gerçek analizlerde hep "kesin" sonuçlar olmaz',
+    only90PlusForMath: '%90+ sadece matematiksel hesaplamalar için (oran, yüzde, toplam)',
+    assumptionTransparency: 'VARSAYIM ŞEFFAFLIĞI (YENİ):',
+    forEachInsight: 'Her insight için "assumptions" alanında:',
+    specifyDataSource: 'Hangi veriye dayandığını belirt',
+    listAssumptions: 'Hangi varsayımlar yapıldığını listele',
+    validUnderCondition: '"Bu tahmin şu koşulda geçerli: ..." formatı kullan',
+    
+    // Scenario rules
+    positiveVsNegative: 'POZİTİF VS NEGATİF KARŞILAŞTIRMA',
+    successorProjection: 'ARDIŞIK YIL PROJEKSİYONU (BAŞARI HİKAYESİ)',
+    yearOverYear: 'Yıllar arası karşılaştırma',
+    scenarioAPositive: 'SENARYO A = POZİTİF SENARYO',
+    scenarioBNegative: 'SENARYO B = NEGATİF SENARYO',
+    higherNetProfit: 'Net kârı daha yüksek olan senaryo',
+    growthTargetsMet: 'Büyüme hedeflerinin tuttuğu senaryo',
+    targetScenario: '"Hedef Senaryo" olarak referans al',
+    mainScenarioForInvestor: 'Yatırımcıya gösterilecek ana senaryo',
+    withInvestmentScenario: 'YATIRIM ALIRSAK gerçekleşecek senaryo',
+    lowerNetProfit: 'Net kârı daha düşük olan senaryo',
+    pessimisticAssumptions: 'Kötümser varsayımlar, düşük gelir',
+    riskScenario: '"Risk Senaryosu" olarak referans al',
+    forDownsideRisk: 'Downside risk değerlendirmesi için',
+    withoutInvestmentScenario: 'YATIRIM ALAMAZSAK gerçekleşecek senaryo',
+    analysisFocus: 'ANALİZ ODAĞI:',
+    ifPositiveHappens: 'Pozitif Senaryo (A) gerçekleşirse ne olur? → Ana hikaye (Yatırım alırsak)',
+    ifNegativeHappens: 'Negatif Senaryo (B) gerçekleşirse ne olur? → Risk analizi (Yatırım alamazsak)',
+    whatsDifference: 'Fark ne kadar? Risk ne kadar büyük? → Gap analizi = FIRSAT MALİYETİ / ZARAR',
+    investmentComparison: 'YATIRIM SENARYO KARŞILAŞTIRMASI:',
+    withInvestmentA: 'YATIRIM ALIRSAK (A): Hedef büyüme gerçekleşir, exit plan işler',
+    withoutInvestmentB: 'YATIRIM ALAMAZSAK (B): Organik (düşük) büyüme, FIRSAT MALİYETİ = ZARAR',
+    makeComparisonClear: 'Her analizde bu karşılaştırmayı NET olarak yap!',
+    nextYearProjectionRule: 'GELECEK YIL PROJEKSİYON KURALI:',
+    projectionBasedOnA: 'Simülasyon Yılı +1 projeksiyonu Pozitif Senaryo (A) baz alınarak yapılır',
+    projection40to100: 'Projeksiyon = Senaryo A\'nın %40-100 büyümesi',
+    
+    // Successor projection specific
+    notPositiveVsNegative: '⚠️ KRİTİK: Bu bir "pozitif vs negatif" karşılaştırması DEĞİL!',
+    bothScenariosPositive: '🎯 HER İKİ SENARYO DA POZİTİF! Risk karşılaştırması YAPMA!',
+    baseScenario: 'BAZ SENARYO (YATIRIM YILI):',
+    thisYearInvestmentTarget: 'Bu yılın yatırım hedefi',
+    growthWithInvestment: 'Yatırımla gerçekleşecek büyüme',
+    allExitPlanBased: 'TÜM exit plan ve MOIC hesaplamaları BUNA DAYALI',
+    pitchDeckTraction: 'Pitch deck\'in "traction" bölümü bu yılın verileri',
+    futureProjection: 'GELECEK PROJEKSİYON (BÜYÜME YILI):',
+    ifBaseSucceeds: 'Baz senaryo başarılı olursa sonraki yıl',
+    growthContinuation: 'Büyümenin devamı ve hızlanması',
+    notNegativePositive: '⚠️ NEGATİF SENARYO DEĞİL - POZİTİF GELİŞME!',
+    globalExpansionYear: 'Global genişleme ve ölçekleme yılı',
+    successorAnalysisFocus: 'ANALİZ ODAĞI:',
+    ifWeReachTargets: 'hedeflerimize ulaşırsak...',
+    whereCanWeGo: '\'de nereye varabiliriz?',
+    growthMomentumAnalysis: 'Büyüme momentum analizi',
+    bothPositiveOpportunity: 'İKİ SENARYO DA OLUMLU - Fırsat analizi yap, risk karşılaştırması DEĞİL!',
+    noOpportunityCost: '"Opportunity cost" analizi YAPMA - bu zaten başarı hikayesi',
+    pitchDeckFocus: 'PITCH DECK ODAĞI:',
+    investmentYearData: '(yatırım yılı) verileri = "Traction" ve "Business Model" slaytları',
+    growthYearData: '(büyüme yılı) verileri = "Growth Plan" ve "Financial Projection" slaytları',
+    storyFormat: 'Hikaye: "Bu yıl $X yaparsak, gelecek yıl $Y olur"',
+    exitPlanAndMoic: 'EXIT PLAN VE MOIC:',
+    baseYearFor: 'Baz yıl =',
+    moicCalculationsFrom: 'MOIC hesaplamaları',
+    onlyShowAsUpside: 'sadece "upside potansiyeli" olarak göster',
+    doNotUseSuccessor: 'KULLANMA (BU SENARYO TİPİ İÇİN):',
+    negativeScenarioPhrase: '"Negatif senaryo" ifadesi',
+    riskScenarioPhrase: '"Risk senaryosu" ifadesi',
+    withoutInvestmentPhrase: '"Yatırım alamazsak" ifadesi',
+    opportunityCostCalc: '"Fırsat maliyeti" hesabı',
+    lossComparison: 'A vs B "kayıp" karşılaştırması',
+    
+    // Focus project rules
+    investmentRevenuePipeline: '📊 1. INVESTMENT → REVENUE PIPELINE (Yatırımın Gelire Dönüşümü):',
+    formula: 'FORMÜL:',
+    productInvestmentFormula: 'Product_Investment = Total_Investment × Product_Ratio',
+    revenueUpliftFormula: 'Revenue_Uplift = Product_Investment × Revenue_Multiplier',
+    growthRateFormula: 'Growth_Rate = Revenue_Uplift / Current_Revenue',
+    revenueMultiplier: 'REVENUE MULTIPLIER (Sektöre Göre):',
+    saasMultiplier: 'SaaS/Yazılım (ölçeklenebilir): 2.0x - 2.5x',
+    consultingMultiplier: 'Danışmanlık (insan bağımlı): 1.2x - 1.5x',
+    productMultiplier: 'Ürün/Lisans: 1.8x - 2.2x',
+    exampleCalculation: 'ÖRNEK HESAPLAMA:',
+    nonFocusRule: '📉 2. NON-FOCUS ORGANİK BÜYÜME KURALI:',
+    sinceInvestmentFocused: '⚠️ Yatırım odak projelere yönlendirildiğinden:',
+    focusProjects: 'ODAK PROJELER: Yukarıdaki formülle hesaplanan büyüme',
+    otherProjects: 'DİĞER PROJELER: ORGANİK BÜYÜME oranı uygulanır',
+    organicGrowthOptions: 'ORGANİK BÜYÜME SEÇENEKLERİ:',
+    zeroDefault: '%0 (Varsayılan): Tam izolasyon - yatırım etkisi net görünür',
+    fivePercent: '%5: Minimal organik büyüme (enflasyon + doğal büyüme)',
+    eightToTen: '%8-10: Orta organik büyüme (mevcut müşteri genişlemesi)',
+    twelveToFifteen: '%12-15: Güçlü organik büyüme (olgun ürünler)',
+    useOrganicRate: '⚠️ focusProjectInfo.organicGrowthRate değeri varsa KULLAN, yoksa %0 uygula.',
+    whyOrganicGrowth: 'NEDEN ORGANİK BÜYÜME?',
+    realism: '1. Gerçekçilik: Hiçbir proje tam olarak %0 büyümez',
+    existingCustomers: '2. Mevcut müşteri genişlemesi yatırım olmadan da olur',
+    investorConfidence: '3. Yatırımcı güveni: Abartılı olmayan projeksiyonlar',
+    jCurveEffect: '📈 3. J-CURVE EFFECT (Sektöre Göre Zamanlama):',
+    dontDistributeLinear: 'Büyümeyi çeyreklere lineer dağıtma! Sektöre göre farklı J-Curve uygula:',
+    saasDefault: '🔷 SaaS / YAZILIM (Varsayılan):',
+    q1Effect: 'Q1: %10 etki (ürün geliştirme, beta)',
+    q2Effect: 'Q2: %25 etki (ilk müşteriler)',
+    q3Effect: 'Q3: %65 etki (momentum)',
+    q4Effect: 'Q4: %100 etki (tam ölçek)',
+    consultingService: '🔶 DANIŞMANLIK / HİZMET:',
+    q1Consulting: 'Q1: %20 etki (ekip kurulumu, ilk projeler)',
+    q2Consulting: 'Q2: %45 etki (referanslar oluşuyor)',
+    q3Consulting: 'Q3: %75 etki (pipeline doluyor)',
+    q4Consulting: 'Q4: %100 etki (tam kapasite)',
+    productLicense: '🔹 ÜRÜN / LİSANS:',
+    q1Product: 'Q1: %5 etki (üretim hazırlığı)',
+    q2Product: 'Q2: %15 etki (ilk satışlar)',
+    q3Product: 'Q3: %50 etki (dağıtım kanalları)',
+    q4Product: 'Q4: %100 etki (pazar penetrasyonu)',
+    ecommerce: '🔸 E-TİCARET:',
+    q1Ecommerce: 'Q1: %25 etki (kampanya başlangıcı)',
+    q2Ecommerce: 'Q2: %40 etki (müşteri kazanımı)',
+    q3Ecommerce: 'Q3: %60 etki (tekrar satışlar)',
+    q4Ecommerce: 'Q4: %100 etki (sezon + tam ölçek)',
+    sectorDetection: '⚠️ Sektör belirleme: Gelir kalemlerinin isimlerine bak (SaaS, Tracker, Platform = SaaS; Denetim, Danışmanlık = Hizmet)',
+    operatingLeverage: '📊 4. OPERATING LEVERAGE (Gider Modeli):',
+    revenueUp50: 'Gelir %50 artarsa, giderler %50 artmamalı!',
+    fixedExpenses: 'SABİT GİDERLER (Kira, Sunucu, Lisans): %5-10 artış (enflasyon)',
+    variableExpenses: 'DEĞİŞKEN GİDERLER (Personel, Pazarlama): Gelir artışı × 0.4-0.6',
+    targetMargin: 'HEDEF: Kâr marjının iyileşmesi (Margin Expansion)',
+    noMarginNote: 'NOT: Margin expansion olmayan büyüme, yatırımcı için değersizdir.',
+    ifNoData: '5. VERİ YOKSA:',
+    selectHighestGrowth: 'Kullanıcı odak proje belirtmediyse, en yüksek büyüme potansiyeli olan gelir kalemini seç',
+    identifyBiggestDiff: 'Senaryo A vs B arasındaki en büyük farkı yaratan kalemi belirle',
+    
+    // Master prompt sections
+    singleTask: '🎯 TEK GÖREV: Sana verilen TÜM finansal verileri (Geçmiş Bilanço + Mevcut Senaryolar + Yatırım Anlaşması + Profesyonel Analiz Verileri) analiz edip, hem OPERASYONEL İÇGÖRÜLER hem de YATIRIMCI SUNUMU hazırla.',
+    projectionYearRule: '📅 PROJECTION YEAR RULE - KRİTİK!',
+    projectionYearCalc: 'next_year_projection.projection_year hesaplama kuralı:',
+    projectionFormula: 'projection_year = max(Scenario_A_Year, Scenario_B_Year) + 1',
+    examples: 'ÖRNEKLER:',
+    example2028vs2027: '2028 vs 2027 karşılaştırması → projection_year = 2029',
+    example2027vs2026: '2027 vs 2026 karşılaştırması → projection_year = 2028',
+    example2026vs2026: '2026 vs 2026 karşılaştırması → projection_year = 2027',
+    summaryWarning: '⚠️ summary.total_revenue ve summary.total_expenses değerleri, projection_year YILI için projeksiyonlar olmalı, mevcut senaryo değerleri DEĞİL!',
+    dataPackage: '📥 SANA VERİLEN VERİ PAKETİ:',
+    dataItem1: '1. GEÇMİŞ YIL BİLANÇOSU: Nakit, Alacaklar, Borçlar, Özkaynak (şirketin nereden geldiğini gösterir)',
+    dataItem2: '2. SENARYO VERİLERİ: A (Pozitif) vs B (Negatif) tam karşılaştırması + kalem bazlı gelir/gider detayları',
+    dataItem3: '3. ÇEYREKSEL PERFORMANS: Q1-Q4 nakit akış detayları',
+    dataItem4: '4. DEAL CONFIG: Kullanıcının belirlediği yatırım tutarı, hisse oranı, sektör çarpanı',
+    dataItem5: '5. HESAPLANMIŞ ÇIKIŞ PLANI: Post-Money Değerleme, MOIC (3Y/5Y), Break-Even Year',
+    dataItem6: '6. DEATH VALLEY ANALİZİ: Kritik çeyrek, aylık burn rate, runway',
+    dataItem7: '7. FİNANSAL ORANLAR: Likidite, Karlılık, Borçluluk oranları + Sektör Benchmark',
+    dataItem8: '8. KALEM BAZLI TREND: Her gelir/gider kalemi için Q1→Q4 trend, volatilite, konsantrasyon',
+    dataItem9: '9. DUYARLILIK ANALİZİ: Gelir %±20 değişiminin kâr, değerleme, MOIC, runway\'e etkisi',
+    dataItem10: '10. BREAK-EVEN ANALİZİ: Aylık kümülatif gelir/gider ve break-even noktası',
+    dataItem11: '11. **ODAK PROJE (varsa)**: Kullanıcının seçtiği ana yatırım projesi ve büyüme planı',
+    professionalStandards: '🔬 PROFESYONEL ANALİZ STANDARTLARI (Investment Banking Seviyesi):',
+    itemizedDeepAnalysis: '1. KALEM BAZLI DERİN ANALİZ:',
+    forEachItem: 'Her gelir/gider kalemi için şunları belirt:',
+    q1q4Trend: 'Q1→Q4 trend yönü ve büyüme oranı (% cinsinden) [VERİDEN]',
+    volatilityLevel: 'Volatilite seviyesi: Düşük (<20%), Orta (20-50%), Yüksek (>50%) [HESAPLA]',
+    shareInTotal: 'Toplam içindeki pay ve konsantrasyon riski (%30+ = ⚠️ Uyarı, %50+ = 🔴 Kritik) [VERİDEN]',
+    rootCauseDiff: 'Senaryo A vs B farkının kök nedeni [KARŞILAŞTIR]',
+    ratioInterpretation: '2. FİNANSAL ORAN YORUMLAMA (Benchmark ile):',
+    compareToBenchmark: 'Sana verilen finansal oranları sektör ortalaması ile karşılaştır:',
+    currentRatioBench: 'Current Ratio: 1.8+ (İyi) | 1.3-1.8 (Orta) | <1.3 (Dikkat)',
+    netProfitMarginBench: 'Net Profit Margin: %18+ (İyi) | %12-18 (Orta) | <%12 (Dikkat)',
+    debtEquityBench: 'Debt/Equity: <0.5 (İyi) | 0.5-1.0 (Orta) | >1.0 (Dikkat)',
+    receivablesAssetBench: 'Alacak/Varlık: <%20 (İyi) | %20-30 (Orta) | >%30 (Tahsilat Riski)',
+    sensitivityInterpretation: '3. DUYARLILIK ANALİZİ YORUMU:',
+    whenRevenue20Down: 'Gelir %20 düştüğünde:',
+    howProfitAffected: 'Kâr nasıl etkilenir? [HESAPLA]',
+    doesBreakEvenShift: 'Break-even noktası kayar mı? [HESAPLA]',
+    howManyMonthsRunway: 'Runway kaç ay kalır? [HESAPLA]',
+    mostCriticalVariable: 'EN KRİTİK DEĞİŞKEN hangisi?',
+    confidenceRequired: '4. CONFIDENCE SCORE ZORUNLULUĞU:',
+    forEachInsightReq: 'Her insight için:',
+    confidenceScore0to100: 'confidence_score: 0-100 arası',
+    listAssumptionsMade: 'Varsayımları listele',
+    showSupportingData: 'Destekleyen veri noktalarını göster',
+    
+    // Section titles
+    section1Financial: '📊 BÖLÜM 1: FİNANSAL ANALİZ (AI Analiz Sekmesi İçin)',
+    section1Output: 'Bu bölümde şu çıktıları üret:',
+    insights5to7: '5-7 kritik insight (kategori: revenue/profit/cash_flow/risk/efficiency/opportunity)',
+    eachInsightConfidence: 'HER insight için confidence_score (0-100) ZORUNLU',
+    eachInsightSource: 'HER insight için veri kaynağını belirt',
+    recommendations3to5: '3-5 stratejik öneri (öncelik sıralı, aksiyon planlı)',
+    quarterlyAnalysis: 'Çeyreklik analiz (kritik dönemler, büyüme eğilimi)',
+    
+    section2Deal: '💼 BÖLÜM 2: DEAL DEĞERLENDİRME (Yatırımcı Gözüyle)',
+    valuationTransparency: '📊 VALUATION HESAPLAMA ŞEFFAFLIĞI (ZORUNLU):',
+    showFormulaForEach: 'Her değerleme için FORMÜLÜ GÖSTER:',
+    preMoneyFormula: '1. Pre-Money Valuation:',
+    preMoneyExample: 'Formül: Pre-Money = (Investment / Equity%) - Investment',
+    postMoneyFormula: '2. Post-Money Valuation:',
+    postMoneyExample: 'Formül: Post-Money = Investment / Equity%',
+    revenueMultipleFormula: '3. Revenue Multiple:',
+    revenueMultipleExample: 'Formül: Valuation = Revenue × Sector_Multiple',
+    moicFormula: '4. MOIC Hesabı:',
+    moicExample: 'Formül: MOIC = Exit_Value × Equity% / Investment',
+    backEveryNumber: '⚠️ HER RAKAMI FORMÜLLE DESTEKLE - "Değerleme $X" yerine "Değerleme = Gelir × Çarpan = $Y × Zx = $X"',
+    dealOutput: 'ÇIKTI:',
+    dealScoreOutput: 'deal_score: 1-10 arası puan + HESAPLAMA FORMÜLÜ (örn: "7/10 = (MOIC×2 + Margin×3 + Growth×2 + Risk×3) / 10")',
+    valuationVerdictOutput: 'valuation_verdict: "premium" / "fair" / "cheap" + NEDEN',
+    investorAttractivenessOutput: 'investor_attractiveness: 2 cümlelik yorum',
+    riskFactorsOutput: 'risk_factors: 3-5 risk (VERİDEN türet, UYDURMA)',
+    
+    section3Pitch: '🎤 BÖLÜM 3: PITCH DECK SLAYTLARI (10 SLAYT - STARTUP KURUCUSU TONU)',
+    criticalNumbers: '⚠️ KRİTİK: HER SLAYT SPESİFİK RAKAMLAR VE PROJE İSİMLERİ İÇERMELİ!',
+    generate10Slides: '10 slaytlık yatırımcı sunumu üret. Her slayt tek bir mesaj verir, rakamlarla destekler.',
+    languageAndTone: 'DİL VE TON:',
+    speakAsFounder: 'Startup kurucusu gibi konuş, finans analisti gibi DEĞİL',
+    confidentRealistic: 'Özgüvenli ama gerçekçi - "Biz" dili kullan',
+    numbersSupport: 'Rakamlar hikayeyi destekler, hikaye rakamları değil',
+    exciteInvestor: 'Yatırımcıyı heyecanlandır ama abartma',
+    forEachSlide: 'Her slayt için:',
+    titleMax8: 'title: Çarpıcı başlık (max 8 kelime)',
+    keyMessageWithNumber: 'key_message: Ana mesaj (tek cümle) - RAKAM DAHİL ($X, %Y formatında)',
+    contentBullets: 'content_bullets: 3-4 madde - HER MADDE $ veya % FORMATINDA RAKAM İÇERMELİ',
+    speakerNotesMax80: 'speaker_notes: Konuşma metni (MAX 80 KELİME!) - samimi startup dili',
+    speakerNotesRule: '⚠️ SPEAKER NOTES KURALI:',
+    max80Words: 'Maksimum 80 kelime (30-45 saniye konuşma)',
+    noTechJargon: 'Teknik jargon kullanma',
+    catchInvestorAttention: 'Yatırımcının dikkatini çekecek kısa, vurucu cümleler',
+    atLeast1Number: 'Her notta EN AZ 1 rakam olmalı',
+    slideStructure: 'SLAYT YAPISI (10 SLAYT):',
+    slide1Problem: '1️⃣ PROBLEM',
+    slide2Solution: '2️⃣ ÇÖZÜM: [ODAK PROJE ADI]',
+    slide3Market: '3️⃣ PAZAR FIRSATI',
+    slide4BusinessModel: '4️⃣ İŞ MODELİ',
+    slide5Traction: '5️⃣ TRACTION (Bugüne Kadar)',
+    slide6GrowthPlan: '6️⃣ BÜYÜME PLANI (Yatırımla)',
+    slide7UseOfFunds: '7️⃣ USE OF FUNDS',
+    slide8Financials: '8️⃣ FİNANSAL PROJEKSİYON',
+    slide9Team: '9️⃣ EKİP',
+    slide10TheAsk: '🔟 THE ASK',
+    forbidden: '🚫 YASAK:',
+    forbiddenAnalystLang: 'Finans analisti dili ("gelir konsantrasyonu", "organik büyüme sınırı" gibi)',
+    forbiddenGeneral: 'Genel ifadeler ("ölçeklenebilir", "inovatif", "dijital dönüşüm")',
+    forbiddenNoBullets: 'Rakam olmayan maddeler',
+    required: '✅ ZORUNLU:',
+    requiredFounderTone: 'Startup kurucusu tonu',
+    requiredEveryBullet: 'Her bullet\'ta $ veya % formatında rakam',
+    requiredProjectName: 'Odak proje ismi başlıklarda (varsa)',
+    requiredSpeakerNotes: 'Speaker notes\'ta samimi, ikna edici açıklama',
+    
+    section4Projection: '📈 BÖLÜM 4: GELECEK YIL PROJEKSİYONU (Simülasyon Yılı +1)',
+    criticalPositiveBase: '⚠️ KRİTİK: HER ZAMAN POZİTİF SENARYO (A) BAZ ALINIR!',
+    projectionRules: '🎯 PROJEKSİYON KURALLARI:',
+    baseEqualsA: '1. Base = Senaryo A\'nın yıl sonu değerleri',
+    growth40to100: '2. Büyüme = %40-100 arası (yatırım etkisi)',
+    everyQRevenue: '3. Her çeyrek için gelir > 0, gider > 0',
+    q3q4Positive: '4. Q3-Q4\'te nakit akışı POZİTİFE dönmeli',
+    netProfitPositive: '5. Net kâr pozitif veya break-even yakını olmalı',
+    itemizedProjection: '📊 KALEM BAZLI PROJEKSİYON (BİLİMSEL MODEL):',
+    focusProjectCalc: '🎯 ODAK PROJE HESAPLAMASI:',
+    step1: 'Adım 1: Investment_Product = Total_Investment × Product_Ratio (genellikle %40)',
+    step2: 'Adım 2: Revenue_Uplift = Investment_Product × Multiplier (SaaS:2.0, Service:1.3, Ürün:1.8)',
+    step3: 'Adım 3: Growth = Revenue_Uplift / Current_Revenue',
+    nonFocusRuleUpdated: '📉 NON-FOCUS KURALI (GÜNCELLENDİ):',
+    nonFocusOrganicRate: 'Odak OLMAYAN projeler: focusProjectInfo.organicGrowthRate değeri uygulanır',
+    ifNotSpecified: 'Eğer organicGrowthRate belirtilmemişse: %0 büyüme (tam izolasyon)',
+    exampleOrganicRate: 'Örnek: organicGrowthRate = 5 ise, non-focus projeler %5 büyüme alır',
+    jCurveQuarterly: '⏱️ J-CURVE (Çeyreklik Dağılım):',
+    q1Yearly10: 'Q1: Yıllık büyümenin %10\'u (hazırlık dönemi)',
+    q2Yearly25: 'Q2: Yıllık büyümenin %25\'i (ilk traction)',
+    q3Yearly65: 'Q3: Yıllık büyümenin %65\'i (momentum)',
+    q4Yearly100: 'Q4: Yıllık büyümenin %100\'ü (tam ölçek)',
+    expenseModel: '📊 GİDER MODELİ (Operating Leverage):',
+    fixedExpenses5to10: 'Sabit giderler: %5-10 artış (enflasyon etkisi)',
+    variableExpenses05: 'Değişken giderler: Gelir artışı × 0.5 (margin expansion)',
+    investmentDirect: 'Yatırım doğrudan etkisi: Personel + Pazarlama budgets',
+    
+    section5Executive: '📧 BÖLÜM 5: EXECUTIVE SUMMARY (YAPILANDIRILMIŞ FORMAT - ZORUNLU)',
+    criticalObject: '⚠️ KRİTİK: Executive summary bir OBJE olmalı, düz metin DEĞİL!',
+    shortPitch150: '1️⃣ short_pitch (150 kelime): Yatırımcı özeti',
+    revenueItemsReq: '2️⃣ revenue_items (zorunlu): Top gelir kalemleri listesi',
+    scenarioCompReq: '3️⃣ scenario_comparison (zorunlu): A vs B karşılaştırması',
+    investmentImpactReq: '4️⃣ investment_impact (zorunlu): Yatırım alamazsak ne olur',
+    
+    doNot: '🚫 YAPMA:',
+    doNotGeo: 'Coğrafi tahminler (Kuzey Amerika, Avrupa vb.)',
+    doNotMarketSize: 'Pazar büyüklüğü rakamları',
+    doNotCompetitor: 'Rakip şirket isimleri',
+    doNotTech: 'Teknoloji/entegrasyon tahminleri',
+    doNotLegal: 'Yasal yapı önerileri',
+    doNotExternal: 'Harici kaynak referansları',
+    
+    doThis: '✅ YAP:',
+    doAnalyzeData: 'Sadece verilen verilerden analiz',
+    doSourceNumbers: 'Her rakamın kaynağını belirt',
+    doConfidenceScore: 'Confidence score ver',
+    doScenarioRef: 'Senaryo A = Pozitif, B = Negatif olarak referans al',
+    doProjectionBase: 'Gelecek yıl projeksiyonunu Senaryo A baz alarak yap',
+    
+    language: 'DİL: Profesyonel Türkçe',
+    languageVC: ', VC terminolojisine hakim.',
+    
+    // User prompt section headers
+    historicalBalanceSection: 'GEÇMİŞ YIL BİLANÇOSU',
+    cashPosition: '💰 NAKİT POZİSYONU:',
+    cashOnHand: 'Kasa:',
+    bank: 'Banka:',
+    totalLiquidAssets: 'Toplam Likit Varlık:',
+    receivablesPayables: '📊 ALACAK/BORÇ DURUMU:',
+    tradeReceivables: 'Ticari Alacaklar:',
+    tradePayables: 'Ticari Borçlar:',
+    netWorkingCapital: 'Net Çalışma Sermayesi:',
+    assetsLiabilities: '🏢 VARLIK/YÜKÜMLÜLÜK:',
+    totalAssets: 'Toplam Varlıklar:',
+    totalLiabilities: 'Toplam Yükümlülükler:',
+    totalEquity: 'Toplam Özkaynak:',
+    profitCapital: '📈 KAR/SERMAYE:',
+    periodNetProfit: 'Dönem Net Kârı:',
+    retainedEarnings: 'Geçmiş Yıllar Kârı:',
+    paidCapital: 'Ödenmiş Sermaye:',
+    bankLoans: 'Banka Kredileri:',
+    howToUseData: '🔍 BU VERİYİ ŞÖYLE KULLAN:',
+    receivablesToAssets: 'Alacak/Toplam Varlık oranı',
+    ifAbove30Collection: '- %30\'dan yüksekse tahsilat sorunu var',
+    bankLoansToAssets: 'Banka Kredisi/Varlık oranı',
+    debtRiskAnalysis: '- borçluluk riski analiz et',
+    retainedEarningsStatus: 'Geçmiş Yıllar Kârı',
+    negativeRecovery: 'NEGATİF - Kurtarma Modu',
+    positiveHealthy: 'POZİTİF - Sağlıklı',
+    compareGrowthTargets: '4. Bu yılki büyüme hedeflerini geçmiş yıl performansıyla karşılaştır',
+    noHistoricalBalance: '⚠️ GEÇMİŞ YIL BİLANÇOSU MEVCUT DEĞİL',
+    analyzeOnlyScenario: 'Analizi sadece senaryo verileriyle yap, ancak bilanço verisi olmadan tam risk analizi yapılamayacağını belirt.',
+    scenarioDataSection: 'SENARYO VERİLERİ:',
+    targetYear: 'Hedef Yıl:',
+    totalRevenue: 'Toplam Gelir:',
+    totalExpenses: 'Toplam Gider:',
+    netProfit: 'Net Kâr:',
+    profitMargin: 'Kâr Marjı:',
+    quarterlyNet: 'Çeyreklik Net:',
+    dealConfigSection: 'DEAL CONFIG (Kullanıcı Girişi):',
+    requestedInvestment: 'Talep Edilen Yatırım:',
+    offeredEquity: 'Teklif Edilen Hisse:',
+    sectorMultiple: 'Sektör Çarpanı:',
+    safetyMargin: 'Güvenlik Marjı:',
+    calculatedExitPlan: 'HESAPLANMIŞ EXIT PLANI',
+    basedOnPositive: '(POZİTİF SENARYO):',
+    postMoneyValuation: 'Post-Money Değerleme:',
+    yearInvestorShare: 'Yatırımcı Payı:',
+    moic: 'MOIC',
+    breakEvenYear: 'Break-Even Yılı:',
+    fiveYearProjectionDetails: '📊 5 YILLIK FİNANSAL PROJEKSİYON DETAYLARI (HESAPLANMIŞ):',
+    year: 'Yıl',
+    aggressiveGrowth: 'Agresif Büyüme',
+    normalizedGrowth: 'Normalize Büyüme',
+    stage: 'Aşaması',
+    revenue: 'Gelir:',
+    expenses: 'Gider:',
+    ebitda: 'EBITDA:',
+    margin: 'Marj:',
+    freeCashFlow: 'Serbest Nakit Akışı (FCF):',
+    appliedGrowthRate: 'Uygulanan Büyüme Oranı:',
+    valuationMethods: 'DEĞERLEME METODLARI:',
+    revenueMultiple: 'Ciro Çarpanı',
+    ebitdaMultiple: 'EBITDA Çarpanı:',
+    dcfDiscount: 'DCF (%30 iskonto):',
+    vcMethod: 'VC Metodu (10x ROI):',
+    weightedValuation: '⭐ AĞIRLIKLI DEĞERLEME:',
+    valuationMethodology: '💰 DEĞERLEME METODOLOJİSİ:',
+    revenueMultipleWeight: '1. CİRO ÇARPANI (%30 Ağırlık): Gelir × Sektör Çarpanı',
+    ebitdaMultipleWeight: '2. EBITDA ÇARPANI (%25 Ağırlık): EBITDA × EBITDA Çarpanı (SaaS:15x, E-ticaret:8x)',
+    dcfWeight: '3. DCF (%30 Ağırlık): 5 yıllık FCF NPV + Terminal Value (%30 iskonto, %3 terminal)',
+    vcMethodWeight: '4. VC METODU (%15 Ağırlık): 5. Yıl Değerleme ÷ 10x ROI',
+    valuationAnalysisInstructions: '🔍 DEĞERLEME ANALİZ TALİMATLARI:',
+    weightedFormula: '1. AĞIRLIKLI değerleme = (Ciro×0.30) + (EBITDA×0.25) + (DCF×0.30) + (VC×0.15)',
+    useYear5Weighted: '2. Pitch deck\'te 5. yıl ağırlıklı değerlemeyi kullan - UYDURMA değil HESAPLANMIŞ',
+    ebitdaMarginTrend: '3. EBITDA marjı trendi: İlk yıllardan son yıllara nasıl değişiyor?',
+    dcfVsRevenueMultiple: '4. DCF vs Revenue Multiple farkını yorumla - hangisi daha güvenilir?',
+    vcMethodRealistic: '5. VC metodunun gerçekçiliğini değerlendir (10x ROI makul mü?)',
+    getAllValuations: '6. HER değerleme rakamını bu bölümden al, UYDURMA',
+    deathValleyAnalysis: 'DEATH VALLEY ANALİZİ (POZİTİF SENARYO BAZLI):',
+    criticalQuarter: 'Kritik Çeyrek:',
+    minCumulativeCash: 'Minimum Kümülatif Nakit:',
+    calculatedRequiredInvestment: 'Hesaplanan Gereken Yatırım:',
+    monthlyBurnRate: 'Aylık Burn Rate:',
+    runway: 'Runway:',
+    months: 'ay',
+    selfSustaining: 'Kendi Kendini Finanse Edebilir mi:',
+    yes: 'Evet',
+    no: 'Hayır',
+    yearStructureRoles: '📅 YIL YAPISI VE SENARYO ROLLERİ',
+    scenarioType: '🔍 SENARYO TİPİ:',
+    timeline: '🗓️ ZAMAN ÇİZELGESİ:',
+    base: 'Base',
+    completedYear: 'Tamamlanan yıl - Gerçek finansallar',
+    baseYearLabel: 'Baz Yıl',
+    investmentTarget: 'Yatırım hedefi',
+    future: 'Gelecek',
+    successProjection: 'Başarı projeksiyonu',
+    year1: 'Year 1',
+    scenarioYear: 'Senaryo yılı - Pozitif/Negatif hedef',
+    year2: 'Year 2',
+    firstProjectionYear: 'İlk projeksiyon yılı',
+    year3Plus: 'Year 3+',
+    moic3YearPoint: '3 Yıllık MOIC hesaplama noktası',
+    year5Plus: 'Year 5+',
+    moic5YearPoint: '5 Yıllık MOIC hesaplama noktası',
+    scenarioRoles: '🎯 SENARYO TANIMLARI:',
+    investmentYear: 'yılı HEDEFİ (yatırım alırsak)',
+    dashboardFocused: 'TÜM DASHBOARD VE ANALİZLER BUNA ODAKLI',
+    exitPlanMoicBased: 'Exit Plan, MOIC, Pitch Deck bu senaryoya dayalı',
+    riskScenarioLabel: 'yılı RİSK senaryosu (yatırım alamazsak)',
+    onlyForRiskDownside: 'SADECE risk analizi ve downside değerlendirmesi için',
+    criticalInstructions: '⚠️ KRİTİK TALİMATLAR:',
+    allProjectionsBased: '1. Tüm projeksiyon hesaplamaları POZİTİF SENARYO (A) verilerine dayalı',
+    moic3YearBased: '2. MOIC 3 Yıl =',
+    moic5YearBased: '3. MOIC 5 Yıl =',
+    useSpecificYears: '4. Pitch deck\'te SPESİFİK YILLARI kullan (örn: "',
+    valuation: 'değerleme")',
+    refNegativeAs: '5. Negatif senaryoyu "Yatırım alamazsak senaryosu" olarak referans ver',
+    nextYearProjectionEquals: '6. Gelecek yıl projeksiyonu =',
+    revenueExpenseDetails: 'GELİR/GİDER DETAYLARI:',
+    scenarioARevenues: 'Senaryo A Gelirleri:',
+    scenarioAExpenses: 'Senaryo A Giderleri:',
+    scenarioBRevenues: 'Senaryo B Gelirleri:',
+    scenarioBExpenses: 'Senaryo B Giderleri:',
+    quarterlyItemizedDetails: 'ÇEYREKLİK BAZDA GELİR/GİDER DETAYLARI:',
+    scenarioAQuarterlyRevenues: 'SENARYO A - ÇEYREKLİK GELİRLER:',
+    scenarioBQuarterlyRevenues: 'SENARYO B - ÇEYREKLİK GELİRLER:',
+    scenarioDiffRevenues: 'SENARYO FARKLARI - GELİR KALEMLERİ:',
+    scenarioDiffExpenses: 'SENARYO FARKLARI - GİDER KALEMLERİ:',
+    total: 'Toplam',
+    diff: 'Fark',
+    totalDiff: 'Toplam Fark',
+    currencyInfo: '💱 PARA BİRİMİ BİLGİSİ:',
+    allValuesNormalized: 'TÜM DEĞERLER USD CİNSİNDEN NORMALİZE EDİLMİŞTİR',
+    balanceConverted: 'Bilanço verileri TL\'den dönüştürülmüştür (Ortalama Kur:',
+    tlUsd: 'TL/USD)',
+    scenarioAlreadyUsd: 'Senaryo verileri zaten USD cinsindedir',
+    comparisonsHomogeneous: 'Karşılaştırmalar homojen para birimi üzerinden yapılmalıdır',
+    focusProjectInfo: '🎯 ODAK PROJE BİLGİSİ (KULLANICI SEÇTİ):',
+    selectedFocusProjects: 'Seçilen Odak Proje(ler):',
+    projectDescription: '📝 Proje Açıklaması/Notları (Kullanıcı Girişi):',
+    organicGrowthRate: 'Odak Olmayan Projeler için Organik Büyüme Oranı:',
+    growthPlan: '📈 BÜYÜME PLANI (Kullanıcı Girişi):',
+    notSpecifiedAiSuggest: 'Belirtilmedi - AI en mantıklı büyüme stratejisini önersin',
+    investmentDistribution: '💵 YATIRIM DAĞILIMI (Kullanıcı Tercihi):',
+    productDevelopment: 'Ürün Geliştirme:',
+    marketing: 'Pazarlama:',
+    personnel: 'Personel:',
+    operations: 'Operasyon:',
+    analysisInstruction: '🔍 ANALİZ TALİMATI:',
+    presentAsGrowthEngine: '1. Pitch deck\'te bu proje(leri) ana büyüme motoru olarak sun',
+    createUseOfFunds: '2. Yatırım dağılımına göre "Use of Funds" slaytını oluştur (spesifik $ tutarları ile)',
+    includeGrowthPlan: '3. Büyüme planını speaker notes\'a dahil et',
+    everySlideKeyMessage: '4. Her slaytın key_message\'ında proje ismi ve $ rakamı olsun',
+    highlightInExecutive: '5. Executive summary\'de odak proje(leri) vurgula',
+    noFocusProjectSpecified: '⚠️ ODAK PROJE BELİRTİLMEDİ',
+    userDidntSelectFocus: 'Kullanıcı odak proje seçmedi. Analiz yaparken:',
+    autoSelectHighestGrowth: '1. En yüksek büyüme potansiyeli olan gelir kalemini otomatik seç',
+    identifyBiggestDiffItem: '2. Senaryo A vs B arasındaki en büyük farkı yaratan kalemi belirle',
+    useAsGrowthStory: '3. Bu kalemi ana büyüme hikayesi olarak kullan',
+    userEdits: '📝 KULLANICI DÜZENLEMELERİ (Önceki Analiz Sonrası):',
+    userMadeChanges: 'Kullanıcı AI tarafından önerilen projeksiyon tablolarında değişiklik yaptı.',
+    updateAnalysisWithChanges: 'Bu değişiklikleri dikkate alarak analizi güncelle.',
+    editedRevenueProjection: 'Düzenlenmiş Gelir Projeksiyonu (Sonraki Yıl):',
+    noRevenueEdit: 'Gelir düzenlemesi yok',
+    editedExpenseProjection: 'Düzenlenmiş Gider Projeksiyonu (Sonraki Yıl):',
+    noExpenseEdit: 'Gider düzenlemesi yok',
+    userEdited: '[KULLANICI DÜZENLEDİ]',
+    editAnalysisInstruction: '🔍 ANALİZ TALİMATI:',
+    validateChanges: '1. Kullanıcının yaptığı değişiklikleri doğrula ve mantıklı olup olmadığını değerlendir',
+    ifChangesAffectTotals: '2. Değişiklikler toplam rakamları etkileyecekse, bunu insights ve pitch deck\'e yansıt',
+    indicateAggressiveConservative: '3. Kullanıcının değişiklikleri agresif/konservatif mi belirt',
+    analyzeAllData: 'Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı verileri ve ODAK PROJE bilgisini) analiz et ve yukarıdaki 5 bölümün hepsini içeren yapılandırılmış çıktı üret.',
+    languageInstruction: '🌐 DİL TALİMATI:',
+    allContentMustBe: 'Tüm insights, recommendations, pitch deck slaytları ve strateji notları',
+  }
+};
+
+// =====================================================
 // UNIFIED ANALYSIS TOOL SCHEMA (Primary Model - Gemini)
-// Detailed schema with comprehensive field descriptions
 // =====================================================
 const getUnifiedAnalysisToolSchema = () => ({
   type: "function",
@@ -82,18 +1142,14 @@ const getUnifiedAnalysisToolSchema = () => ({
           description: "CRITICAL: Include formula transparency for deal_score calculation",
           properties: {
             deal_score: { type: "number", description: "Score from 1 to 10. MUST show calculation formula in deal_score_formula field" },
-            deal_score_formula: {
-              type: "string",
-              description: "REQUIRED: Show exact calculation. Format: '7/10 = (MOIC_Score×2 + Margin_Score×3 + Growth_Score×2 + Risk_Score×3) / 10 = (8×2 + 7×3 + 6×2 + 7×3) / 10'"
-            },
+            deal_score_formula: { type: "string", description: "REQUIRED: Show exact calculation." },
             score_components: {
               type: "object",
-              description: "Individual scores (1-10 each) used in formula",
               properties: {
-                moic_score: { type: "number", description: "MOIC component score 1-10. MOIC>3x=10, 2-3x=8, 1.5-2x=6, <1.5x=4" },
-                margin_score: { type: "number", description: "Profit margin score 1-10. >20%=10, 15-20%=8, 10-15%=6, <10%=4" },
-                growth_score: { type: "number", description: "Revenue growth score 1-10. >50%=10, 30-50%=8, 15-30%=6, <15%=4" },
-                risk_score: { type: "number", description: "Risk-adjusted score 1-10. Low risk=10, Medium=7, High=4" }
+                moic_score: { type: "number" },
+                margin_score: { type: "number" },
+                growth_score: { type: "number" },
+                risk_score: { type: "number" }
               }
             },
             valuation_verdict: { type: "string", description: "One of: premium, fair, cheap" },
@@ -104,52 +1160,28 @@ const getUnifiedAnalysisToolSchema = () => ({
         },
         pitch_deck: {
           type: "object",
-          description: "CRITICAL: Every slide MUST contain $ amounts and % figures. NO generic statements.",
+          description: "CRITICAL: Every slide MUST contain $ amounts and % figures.",
           properties: {
             slides: {
               type: "array",
-              description: "10 slides for investor pitch. Each slide tells ONE story with supporting numbers. Language: confident startup founder, not financial analyst. Slides: 1-Problem, 2-Çözüm, 3-Pazar, 4-İş Modeli, 5-Traction, 6-Büyüme Planı, 7-Use of Funds, 8-Finansal Projeksiyon, 9-Ekip, 10-The Ask",
               items: {
                 type: "object",
                 properties: {
                   slide_number: { type: "number" },
-                  title: {
-                    type: "string",
-                    description: "Max 8 words. MUST include focus project name if available"
-                  },
-                  key_message: {
-                    type: "string",
-                    description: "MUST contain at least one $ amount or % figure. Example: '$150K yatırım ile $560K gelir hedefine ulaşıyoruz'"
-                  },
-                  content_bullets: {
-                    type: "array",
-                    items: { type: "string" },
-                    description: "3-4 bullets. EVERY bullet MUST contain $ or % format number. NO generic statements like 'ölçeklenebilir model'."
-                  },
+                  title: { type: "string" },
+                  key_message: { type: "string" },
+                  content_bullets: { type: "array", items: { type: "string" } },
                   speaker_notes: { type: "string" }
                 }
               }
             },
             executive_summary: {
               type: "object",
-              description: "MUST be an object with structured fields, NOT a plain string. Include scenario comparison and revenue items.",
               properties: {
-                short_pitch: {
-                  type: "string",
-                  description: "150 word investor pitch with company description and revenue sources. List actual revenue item names."
-                },
-                revenue_items: {
-                  type: "string",
-                  description: "REQUIRED: List top 3-4 revenue items with $ amounts. Example: 'SBT Tracker ($230K), PlannerDeck ($150K), Billiyor App ($120K)'"
-                },
-                scenario_comparison: {
-                  type: "string",
-                  description: "REQUIRED: A vs B comparison. Format: 'Pozitif (Senaryo A adı): $X gelir, $Y kâr | Negatif (Senaryo B adı): $X gelir, $Y kâr | Fark: $X (%Y)'"
-                },
-                investment_impact: {
-                  type: "string",
-                  description: "REQUIRED: What happens without investment. Example: 'Yatırım alamazsak $210K daha az gelir ve organik büyüme %15 ile sınırlı'"
-                }
+                short_pitch: { type: "string" },
+                revenue_items: { type: "string" },
+                scenario_comparison: { type: "string" },
+                investment_impact: { type: "string" }
               },
               required: ["short_pitch", "revenue_items", "scenario_comparison", "investment_impact"]
             }
@@ -157,125 +1189,67 @@ const getUnifiedAnalysisToolSchema = () => ({
         },
         next_year_projection: {
           type: "object",
-          description: "CRITICAL: All numeric fields MUST be > 0. Revenue should be at least 40% higher than current year. MUST include itemized_revenues and itemized_expenses arrays. projection_year is REQUIRED!",
+          description: "CRITICAL: projection_year is REQUIRED!",
           properties: {
-            projection_year: {
-              type: "number",
-              description: "CRITICAL & REQUIRED: The target year for this projection. MUST be max(scenarioA.targetYear, scenarioB.targetYear) + 1. Example: Comparing 2028 vs 2027 scenarios → projection_year MUST be 2029. This ensures the projection is for the NEXT year, not the current scenario year!"
-            },
-            strategy_note: {
-              type: "string",
-              description: "2-3 sentence investor-exciting vision statement about globalization and scale"
-            },
+            projection_year: { type: "number", description: "CRITICAL & REQUIRED" },
+            strategy_note: { type: "string" },
             virtual_opening_balance: {
               type: "object",
-              description: "Virtual balance sheet opening for next year",
               properties: {
-                opening_cash: {
-                  type: "number",
-                  description: "Current year ending cash + requested investment. MUST be > 0"
-                },
-                war_chest_status: {
-                  type: "string",
-                  description: "One of: Hazır, Yakın, Uzak"
-                },
-                intangible_growth: {
-                  type: "string",
-                  description: "Notes on brand value, IP, network effect growth"
-                }
+                opening_cash: { type: "number" },
+                war_chest_status: { type: "string" },
+                intangible_growth: { type: "string" }
               }
             },
             quarterly: {
               type: "object",
               properties: {
-                q1: {
-                  type: "object",
-                  properties: {
-                    revenue: { type: "number", description: "MUST be > 0" },
-                    expenses: { type: "number" },
-                    cash_flow: { type: "number" },
-                    key_event: { type: "string", description: "Global expansion focused event" }
-                  }
-                },
-                q2: {
-                  type: "object",
-                  properties: {
-                    revenue: { type: "number", description: "MUST be > 0" },
-                    expenses: { type: "number" },
-                    cash_flow: { type: "number" },
-                    key_event: { type: "string", description: "Global expansion focused event" }
-                  }
-                },
-                q3: {
-                  type: "object",
-                  properties: {
-                    revenue: { type: "number", description: "MUST be > 0, should show growth momentum" },
-                    expenses: { type: "number" },
-                    cash_flow: { type: "number" },
-                    key_event: { type: "string", description: "Revenue diversification event" }
-                  }
-                },
-                q4: {
-                  type: "object",
-                  properties: {
-                    revenue: { type: "number", description: "MUST be > 0, highest of the year" },
-                    expenses: { type: "number" },
-                    cash_flow: { type: "number", description: "Should be positive" },
-                    key_event: { type: "string", description: "Series A preparation or partnership" }
-                  }
-                }
+                q1: { type: "object", properties: { revenue: { type: "number" }, expenses: { type: "number" }, cash_flow: { type: "number" }, key_event: { type: "string" } } },
+                q2: { type: "object", properties: { revenue: { type: "number" }, expenses: { type: "number" }, cash_flow: { type: "number" }, key_event: { type: "string" } } },
+                q3: { type: "object", properties: { revenue: { type: "number" }, expenses: { type: "number" }, cash_flow: { type: "number" }, key_event: { type: "string" } } },
+                q4: { type: "object", properties: { revenue: { type: "number" }, expenses: { type: "number" }, cash_flow: { type: "number" }, key_event: { type: "string" } } }
               }
             },
             summary: {
               type: "object",
-              description: "CRITICAL: total_revenue MUST be at least 40% higher than scenario B current revenue. NEVER zero!",
               properties: {
-                total_revenue: { type: "number", description: "MUST be > 0 and at least 40% higher than current year" },
-                total_expenses: { type: "number", description: "Should grow slower than revenue (operating leverage)" },
-                net_profit: { type: "number", description: "Should be positive or near break-even" },
-                ending_cash: { type: "number", description: "opening_cash + net_profit + investment" }
+                total_revenue: { type: "number" },
+                total_expenses: { type: "number" },
+                net_profit: { type: "number" },
+                ending_cash: { type: "number" }
               }
             },
             investor_hook: {
               type: "object",
-              description: "Key metrics to excite investors about the Series A opportunity",
               properties: {
-                revenue_growth_yoy: { type: "string", description: "e.g. '%65 YoY Büyüme'" },
-                margin_improvement: { type: "string", description: "e.g. '+8pp EBIT Marjı'" },
-                valuation_multiple_target: { type: "string", description: "e.g. '4x Revenue Multiple'" },
-                competitive_moat: { type: "string", description: "What makes this company defensible" }
+                revenue_growth_yoy: { type: "string" },
+                margin_improvement: { type: "string" },
+                valuation_multiple_target: { type: "string" },
+                competitive_moat: { type: "string" }
               }
             },
             itemized_revenues: {
               type: "array",
-              description: "SCIENTIFIC PROJECTION MODEL - REQUIRED: (1) FOCUS PROJECTS: Calculate growth = (Investment × Product_Ratio × Multiplier) / Current_Revenue. Multipliers: SaaS=2.0, Services=1.3, Product=1.8. Result typically 50-120%. (2) NON-FOCUS PROJECTS: EXACTLY 0% growth - use base scenario values unchanged! This isolates investment impact. (3) J-CURVE: Q1=10%, Q2=25%, Q3=65%, Q4=100% of annual growth. (4) Sum of totals MUST match summary.total_revenue.",
               items: {
                 type: "object",
                 properties: {
-                  category: { type: "string", description: "EXACT category name from scenario revenues" },
-                  q1: { type: "number", description: "Q1: Base + (Annual_Growth × 0.10) for FOCUS, exact base value for NON-FOCUS" },
-                  q2: { type: "number", description: "Q2: Base + (Annual_Growth × 0.25) for FOCUS, exact base value for NON-FOCUS" },
-                  q3: { type: "number", description: "Q3: Base + (Annual_Growth × 0.65) for FOCUS, exact base value for NON-FOCUS" },
-                  q4: { type: "number", description: "Q4: Base + (Annual_Growth × 1.00) for FOCUS, exact base value for NON-FOCUS" },
-                  total: { type: "number", description: "Sum of q1+q2+q3+q4" },
-                  growth_rate: { type: "number", description: "Investment-calculated growth. FOCUS projects: 0.5-1.2 (formula result). NON-FOCUS: MUST be exactly 0.0 to isolate investment impact." }
+                  category: { type: "string" },
+                  q1: { type: "number" }, q2: { type: "number" }, q3: { type: "number" }, q4: { type: "number" },
+                  total: { type: "number" },
+                  growth_rate: { type: "number" }
                 },
                 required: ["category", "q1", "q2", "q3", "q4", "total", "growth_rate"]
               }
             },
             itemized_expenses: {
               type: "array",
-              description: "OPERATING LEVERAGE MODEL - REQUIRED: (1) FIXED COSTS (Rent, Insurance, Licenses, Depreciation): 5-10% growth only (inflation). (2) VARIABLE COSTS (Personnel, Marketing, Operations): Revenue_Growth × 0.4-0.6 - expenses must grow SLOWER than revenue for margin expansion! (3) INVESTMENT DIRECT IMPACT: Add allocated amounts for hiring + marketing from Use of Funds. (4) GOAL: If revenue grows 60%, expenses should grow only 25-35%. Sum MUST match summary.total_expenses.",
               items: {
                 type: "object",
                 properties: {
-                  category: { type: "string", description: "EXACT category name from scenario expenses" },
-                  q1: { type: "number", description: "Q1 expense - higher due to investment spending (hiring, setup)" },
-                  q2: { type: "number", description: "Q2 expense - stabilizing as operations scale" },
-                  q3: { type: "number", description: "Q3 expense - efficiency gains visible" },
-                  q4: { type: "number", description: "Q4 expense - optimized run-rate" },
-                  total: { type: "number", description: "Sum of q1+q2+q3+q4" },
-                  growth_rate: { type: "number", description: "FIXED costs: 0.05-0.10. VARIABLE costs: Revenue_Growth × 0.5. Must be LOWER than revenue growth for margin expansion." }
+                  category: { type: "string" },
+                  q1: { type: "number" }, q2: { type: "number" }, q3: { type: "number" }, q4: { type: "number" },
+                  total: { type: "number" },
+                  growth_rate: { type: "number" }
                 },
                 required: ["category", "q1", "q2", "q3", "q4", "total", "growth_rate"]
               }
@@ -291,7 +1265,6 @@ const getUnifiedAnalysisToolSchema = () => ({
 
 // =====================================================
 // FALLBACK TOOL SCHEMA (Simpler for Claude)
-// Used when primary model (Gemini) fails
 // =====================================================
 const getFallbackToolSchema = () => ({
   type: "function",
@@ -303,7 +1276,6 @@ const getFallbackToolSchema = () => ({
       properties: {
         insights: {
           type: "array",
-          description: "5-7 financial insights based ONLY on provided data",
           items: {
             type: "object",
             properties: {
@@ -319,7 +1291,6 @@ const getFallbackToolSchema = () => ({
         },
         recommendations: {
           type: "array",
-          description: "3-5 actionable recommendations",
           items: {
             type: "object",
             properties: {
@@ -346,8 +1317,8 @@ const getFallbackToolSchema = () => ({
         deal_analysis: {
           type: "object",
           properties: {
-            deal_score: { type: "number", minimum: 1, maximum: 10, description: "Score 1-10" },
-            deal_score_formula: { type: "string", description: "Show calculation" },
+            deal_score: { type: "number", minimum: 1, maximum: 10 },
+            deal_score_formula: { type: "string" },
             valuation_verdict: { type: "string", enum: ["premium", "fair", "cheap"] },
             investor_attractiveness: { type: "string" },
             risk_factors: { type: "array", items: { type: "string" } }
@@ -364,7 +1335,7 @@ const getFallbackToolSchema = () => ({
                 properties: {
                   slide_number: { type: "number" },
                   title: { type: "string" },
-                  key_message: { type: "string", description: "Must contain $ or % figures" },
+                  key_message: { type: "string" },
                   content_bullets: { type: "array", items: { type: "string" } },
                   speaker_notes: { type: "string" }
                 },
@@ -386,9 +1357,8 @@ const getFallbackToolSchema = () => ({
         },
         next_year_projection: {
           type: "object",
-          description: "Next year financial projection. projection_year REQUIRED!",
           properties: {
-            projection_year: { type: "number", description: "REQUIRED: max(scenarioA.targetYear, scenarioB.targetYear) + 1" },
+            projection_year: { type: "number" },
             strategy_note: { type: "string" },
             quarterly: {
               type: "object",
@@ -403,7 +1373,7 @@ const getFallbackToolSchema = () => ({
             summary: {
               type: "object",
               properties: {
-                total_revenue: { type: "number", description: "Must be > 0" },
+                total_revenue: { type: "number" },
                 total_expenses: { type: "number" },
                 net_profit: { type: "number" },
                 ending_cash: { type: "number" }
@@ -418,7 +1388,7 @@ const getFallbackToolSchema = () => ({
                   category: { type: "string" },
                   q1: { type: "number" }, q2: { type: "number" }, q3: { type: "number" }, q4: { type: "number" },
                   total: { type: "number" },
-                  growth_rate: { type: "number", description: "0.0 for non-focus, 0.5-1.2 for focus projects" }
+                  growth_rate: { type: "number" }
                 },
                 required: ["category", "total"]
               }
@@ -446,86 +1416,81 @@ const getFallbackToolSchema = () => ({
 });
 
 // =====================================================
-// ANTI-HALLUCINATION RULES - KRİTİK
+// BILINGUAL ANTI-HALLUCINATION RULES
 // =====================================================
-const ANTI_HALLUCINATION_RULES = `
+const getAntiHallucinationRules = (L: PromptLabels) => `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🚫 HALÜSİNASYON YASAĞI - KRİTİK KURALLAR:
+${L.antiHallucinationTitle}
 
-1. **SADECE VERİLEN VERİLERİ KULLAN:**
-   - Coğrafi bölge (Kuzey Amerika, Avrupa, Asya vb.) ASLA tahmin etme
-   - Pazar büyüklüğü rakamları UYDURMA
-   - Sektör istatistikleri UYDURMA
-   - Rakip şirket isimleri UYDURMA
-   - Teknoloji entegrasyonları (SAP, Oracle vb.) UYDURMA
-   - Yasal yapılar (Delaware C-Corp vb.) UYDURMA
+1. **${L.onlyUseProvidedData}**
+   - ${L.noGeographicGuess}
+   - ${L.noMarketSize}
+   - ${L.noIndustryStats}
+   - ${L.noCompetitorNames}
+   - ${L.noTechIntegrations}
+   - ${L.noLegalStructures}
    
-2. **BİLMEDİĞİNİ İTİRAF ET:**
-   - Veri yoksa "Bu bilgi mevcut verilerde yok" de
-   - Tahmin yapman gerekiyorsa "Varsayım: ..." ile başla
-   - "[Kullanıcı Girişi Gerekli]" ile eksik bilgileri işaretle
+2. **${L.admitUnknown}**
+   - ${L.noDataAvailable}
+   - ${L.assumptionPrefix}
+   - ${L.userInputRequired}
    
-3. **KAYNAK GÖSTERİMİ ZORUNLU:**
-   Her sayısal çıkarım için kaynak belirt:
-   - "Bilanço verilerine göre: Current Ratio = X"
-   - "Senaryo A projeksiyonuna göre: Gelir = $X"
-   - "Deal config'e göre: Yatırım = $X"
-   - "Hesaplanan: MOIC = X" (formül göster)
+3. **${L.sourceRequired}**
+   - ${L.sourceExample1}
+   - ${L.sourceExample2}
+   - ${L.sourceExample3}
+   - ${L.sourceExample4}
    
-4. **KESİNLİKLE YASAK İFADELER (OTOMATİK RED):**
-   ❌ "danışmanlık modeli" (gerçek proje isimlerini kullan)
-   ❌ "dijital dönüşüm" (ne dönüştüğünü söyle)
-   ❌ "ölçeklenebilir" (rakamla göster)
-   ❌ "geleneksel iş modeli" (gelir kalemlerini listele)
-   ❌ "pazar lideri" (veri yok)
-   ❌ "sektör ortalaması" (karşılaştırmalı veri yok)
-   ❌ "Pazar $X milyar büyüklüğünde" (harici veri yok)
-   ❌ "Rakip şirket Y bunu yapıyor" (veri yok)
-   ❌ "Sektör trendi Z yönünde" (veri yok)
-   ❌ "Kuzey Amerika/Avrupa/Asya pazarı..." (coğrafya verisi yok)
-   ❌ "Yatırımcılar genellikle..." (genel varsayım)
-   ❌ "SAP/Oracle entegrasyonu..." (teknik veri yok)
-   ❌ "Delaware C-Corp kurulumu..." (yasal veri yok)
-   ❌ "$X milyar TAM/SAM/SOM" (pazar verisi yok)
-   ❌ "McKinsey/Gartner raporuna göre..." (harici kaynak yok)
-   ❌ Rakam olmayan bullet point (HER BULLET $ veya % İÇERMELİ)
+4. **${L.forbiddenPhrases}**
+   ❌ ${L.consultingModel}
+   ❌ ${L.digitalTransformation}
+   ❌ ${L.scalable}
+   ❌ ${L.traditionalBusiness}
+   ❌ ${L.marketLeader}
+   ❌ ${L.industryAverage}
+   ❌ ${L.marketBillion}
+   ❌ ${L.competitorDoing}
+   ❌ ${L.industryTrend}
+   ❌ ${L.geographicMarket}
+   ❌ ${L.investorsGenerally}
+   ❌ ${L.integrationMention}
+   ❌ ${L.legalSetup}
+   ❌ ${L.tamSamSom}
+   ❌ ${L.externalReport}
+   ❌ ${L.noBulletWithoutNumber}
 
-5. **İZİN VERİLEN ÇIKARIMLAR:**
-   ✅ Verilen finansal oranlardan hesaplama
-   ✅ Senaryo A vs B karşılaştırması (verilen verilerden)
-   ✅ Çeyreklik trend analizi (Q1→Q4 verilen verilerden)
-   ✅ Deal metrikleri (MOIC, IRR) hesabı (formülden)
-   ✅ Break-even analizi (verilen verilerden)
-   ✅ Kullanıcının girdiği proje açıklamalarına dayalı büyüme
-   ✅ Bilanço + Senaryo verilerinden çapraz analiz
+5. **${L.allowedInferences}**
+   ✅ ${L.financialRatioCalc}
+   ✅ ${L.scenarioComparison}
+   ✅ ${L.quarterlyTrend}
+   ✅ ${L.dealMetricsCalc}
+   ✅ ${L.breakEvenAnalysis}
+   ✅ ${L.userProjectGrowth}
+   ✅ ${L.crossAnalysis}
 
-6. **CONFIDENCE SCORE KURALI (ZORUNLU - SIKIŞTIRILMIŞ):**
-   Her insight ve recommendation için:
-   - %90-100: SADECE direkt veri hesaplaması (örn: Current Ratio = 2.1)
-   - %75-89: Veri bazlı çıkarım, varsayım YOK (örn: Burn rate → runway hesabı)
-   - %60-74: Mantıksal tahmin - "⚠️ TAHMİN:" etiketi ZORUNLU
-   - %50-59: Düşük güvenli tahmin - "❓ DÜŞÜK GÜVENLİ:" etiketi ZORUNLU
-   - <%50: KULLANMA - belirsizlik çok yüksek, bu insight'ı ÜRETME
+6. **${L.confidenceRule}**
+   - ${L.confidence90}
+   - ${L.confidence75}
+   - ${L.confidence60}
+   - ${L.confidence50}
+   - ${L.confidenceBelow50}
 
-   ⚠️ CONFIDENCE DAĞILIMI KURALI:
-   - Tüm insights'ların hepsi %85+ olamaz - bu gerçekçi değil
-   - En az 1 insight %60-74 aralığında olmalı (belirsizlik kabul et)
-   - Gerçek analizlerde hep "kesin" sonuçlar olmaz
-   - %90+ sadece matematiksel hesaplamalar için (oran, yüzde, toplam)
+   ${L.confidenceDistribution}
+   - ${L.notAll85Plus}
+   - ${L.atLeastOne60to74}
+   - ${L.realAnalysis}
+   - ${L.only90PlusForMath}
 
-7. **VARSAYIM ŞEFFAFLIĞI (YENİ):**
-   Her insight için "assumptions" alanında:
-   - Hangi veriye dayandığını belirt
-   - Hangi varsayımlar yapıldığını listele
-   - "Bu tahmin şu koşulda geçerli: ..." formatı kullan
+7. **${L.assumptionTransparency}**
+   ${L.forEachInsight}
+   - ${L.specifyDataSource}
+   - ${L.listAssumptions}
+   - ${L.validUnderCondition}
 `;
 
 // =====================================================
-// SENARYO KURALLARI
-// =====================================================
-// =====================================================
-// SENARYO KURALLARI - DİNAMİK
+// BILINGUAL SCENARIO RULES
 // =====================================================
 type ScenarioRelationType = 'positive_vs_negative' | 'successor_projection' | 'year_over_year';
 
@@ -540,83 +1505,79 @@ function detectScenarioRelationship(scenarioA: any, scenarioB: any): ScenarioRel
   const targetYearA = scenarioA.targetYear || new Date().getFullYear();
   const targetYearB = scenarioB.targetYear || new Date().getFullYear();
   
-  // Same year = traditional positive vs negative comparison
   if (targetYearA === targetYearB) {
     return {
       type: 'positive_vs_negative',
       baseScenario: 'A',
       projectionYear: targetYearA + 1,
-      description: 'Aynı yıl için pozitif ve negatif senaryo karşılaştırması'
+      description: 'positive_vs_negative'
     };
   }
   
-  // A is later than B = A is the successor/future projection of B's success
   if (targetYearA > targetYearB) {
     return {
       type: 'successor_projection',
-      baseScenario: 'B', // B is the base (current year target), A is future projection
+      baseScenario: 'B',
       projectionYear: targetYearA + 1,
-      description: `${scenarioB.name} (${targetYearB}) başarılı olursa ${scenarioA.name} (${targetYearA}) projeksiyonu`
+      description: 'successor_projection'
     };
   }
   
-  // A is earlier than B (unusual but handle it)
   return {
     type: 'year_over_year',
     baseScenario: 'A',
     projectionYear: targetYearB + 1,
-    description: 'Yıllar arası karşılaştırma'
+    description: 'year_over_year'
   };
 }
 
-function generateDynamicScenarioRules(relationship: ScenarioRelationship, scenarioA: any, scenarioB: any): string {
+function generateDynamicScenarioRules(relationship: ScenarioRelationship, scenarioA: any, scenarioB: any, L: PromptLabels): string {
   if (relationship.type === 'successor_projection') {
     return `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📊 SENARYO İLİŞKİSİ: ARDIŞIK YIL PROJEKSİYONU (BAŞARI HİKAYESİ)
+📊 ${L.scenarioRulesTitle}: 📈 ${L.successorProjection}
 
-⚠️ KRİTİK: Bu bir "pozitif vs negatif" karşılaştırması DEĞİL!
-Bu, "${scenarioB.name}" (${scenarioB.targetYear}) BAŞARILI olursa 
-"${scenarioA.name}" (${scenarioA.targetYear}) nasıl görünür analizi.
+${L.notPositiveVsNegative}
+"${scenarioB.name}" (${scenarioB.targetYear}) → "${scenarioA.name}" (${scenarioA.targetYear})
 
-🎯 HER İKİ SENARYO DA POZİTİF! Risk karşılaştırması YAPMA!
+${L.bothScenariosPositive}
 
-1. **${scenarioB.name} (${scenarioB.targetYear}) = BAZ SENARYO (YATIRIM YILI):**
-   - Bu yılın yatırım hedefi
-   - Yatırımla gerçekleşecek büyüme
-   - TÜM exit plan ve MOIC hesaplamaları BUNA DAYALI
-   - Pitch deck'in "traction" bölümü bu yılın verileri
+1. **${scenarioB.name} (${scenarioB.targetYear}) = ${L.baseScenario}**
+   - ${L.thisYearInvestmentTarget}
+   - ${L.growthWithInvestment}
+   - ${L.allExitPlanBased}
+   - ${L.pitchDeckTraction}
    
-2. **${scenarioA.name} (${scenarioA.targetYear}) = GELECEK PROJEKSİYON (BÜYÜME YILI):**
-   - Baz senaryo başarılı olursa sonraki yıl
-   - Büyümenin devamı ve hızlanması
-   - ⚠️ NEGATİF SENARYO DEĞİL - POZİTİF GELİŞME!
-   - Global genişleme ve ölçekleme yılı
+2. **${scenarioA.name} (${scenarioA.targetYear}) = ${L.futureProjection}**
+   - ${L.ifBaseSucceeds}
+   - ${L.growthContinuation}
+   - ${L.notNegativePositive}
+   - ${L.globalExpansionYear}
 
-3. **ANALİZ ODAĞI:**
-   - ${scenarioB.targetYear} hedeflerimize ulaşırsak...
-   - ${scenarioA.targetYear}'de nereye varabiliriz?
-   - Büyüme momentum analizi
-   - İKİ SENARYO DA OLUMLU - Fırsat analizi yap, risk karşılaştırması DEĞİL!
-   - "Opportunity cost" analizi YAPMA - bu zaten başarı hikayesi
+3. **${L.successorAnalysisFocus}**
+   - ${scenarioB.targetYear} ${L.ifWeReachTargets}
+   - ${scenarioA.targetYear}${L.whereCanWeGo}
+   - ${L.growthMomentumAnalysis}
+   - ${L.bothPositiveOpportunity}
+   - ${L.noOpportunityCost}
 
-4. **PITCH DECK ODAĞI:**
-   - ${scenarioB.targetYear} (yatırım yılı) verileri = "Traction" ve "Business Model" slaytları
-   - ${scenarioA.targetYear} (büyüme yılı) verileri = "Growth Plan" ve "Financial Projection" slaytları
-   - Hikaye: "Bu yıl $X yaparsak, gelecek yıl $Y olur"
+4. **${L.pitchDeckFocus}**
+   - ${scenarioB.targetYear} ${L.investmentYearData}
+   - ${scenarioA.targetYear} ${L.growthYearData}
+   - ${L.storyFormat}
    
-5. **EXIT PLAN VE MOIC:**
-   - Baz yıl = ${scenarioB.targetYear} (${scenarioB.name})
-   - MOIC hesaplamaları ${scenarioB.name} üzerinden
-   - ${scenarioA.name} sadece "upside potansiyeli" olarak göster
+5. **${L.exitPlanAndMoic}**
+   - ${L.baseYearFor} ${scenarioB.targetYear} (${scenarioB.name})
+   - ${L.moicCalculationsFrom} ${scenarioB.name}
+   - ${scenarioA.name} ${L.onlyShowAsUpside}
 
-6. **KULLANMA (BU SENARYO TİPİ İÇİN):**
-   ❌ "Negatif senaryo" ifadesi
-   ❌ "Risk senaryosu" ifadesi  
-   ❌ "Yatırım alamazsak" ifadesi
-   ❌ "Fırsat maliyeti" hesabı
-   ❌ A vs B "kayıp" karşılaştırması
+6. **${L.doNotUseSuccessor}**
+   ❌ ${L.negativeScenarioPhrase}
+   ❌ ${L.riskScenarioPhrase}
+   ❌ ${L.withoutInvestmentPhrase}
+   ❌ ${L.opportunityCostCalc}
+   ❌ ${L.lossComparison}
 `;
   }
   
@@ -624,438 +1585,714 @@ Bu, "${scenarioB.name}" (${scenarioB.targetYear}) BAŞARILI olursa
   return `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📊 SENARYO KURALLARI (POZİTİF VS NEGATİF KARŞILAŞTIRMA):
+📊 ${L.scenarioRulesTitle} (⚖️ ${L.positiveVsNegative}):
 
-1. **SENARYO A = POZİTİF SENARYO (${scenarioA.name}):**
-   - Net kârı daha yüksek olan senaryo
-   - Büyüme hedeflerinin tuttuğu senaryo
-   - "Hedef Senaryo" olarak referans al
-   - Yatırımcıya gösterilecek ana senaryo
-   - YATIRIM ALIRSAK gerçekleşecek senaryo
+1. **${L.scenarioAPositive} (${scenarioA.name}):**
+   - ${L.higherNetProfit}
+   - ${L.growthTargetsMet}
+   - ${L.targetScenario}
+   - ${L.mainScenarioForInvestor}
+   - ${L.withInvestmentScenario}
 
-2. **SENARYO B = NEGATİF SENARYO (${scenarioB.name}):**
-   - Net kârı daha düşük olan senaryo
-   - Kötümser varsayımlar, düşük gelir
-   - "Risk Senaryosu" olarak referans al
-   - Downside risk değerlendirmesi için
-   - YATIRIM ALAMAZSAK gerçekleşecek senaryo
+2. **${L.scenarioBNegative} (${scenarioB.name}):**
+   - ${L.lowerNetProfit}
+   - ${L.pessimisticAssumptions}
+   - ${L.riskScenario}
+   - ${L.forDownsideRisk}
+   - ${L.withoutInvestmentScenario}
 
-3. **ANALİZ ODAĞI:**
-   - Pozitif Senaryo (A) gerçekleşirse ne olur? → Ana hikaye (Yatırım alırsak)
-   - Negatif Senaryo (B) gerçekleşirse ne olur? → Risk analizi (Yatırım alamazsak)
-   - Fark ne kadar? Risk ne kadar büyük? → Gap analizi = FIRSAT MALİYETİ / ZARAR
+3. **${L.analysisFocus}**
+   - ${L.ifPositiveHappens}
+   - ${L.ifNegativeHappens}
+   - ${L.whatsDifference}
 
-4. **YATIRIM SENARYO KARŞILAŞTIRMASI:**
-   - YATIRIM ALIRSAK (A): Hedef büyüme gerçekleşir, exit plan işler
-   - YATIRIM ALAMAZSAK (B): Organik (düşük) büyüme, FIRSAT MALİYETİ = ZARAR
-   - Her analizde bu karşılaştırmayı NET olarak yap!
+4. **${L.investmentComparison}**
+   - ${L.withInvestmentA}
+   - ${L.withoutInvestmentB}
+   - ${L.makeComparisonClear}
 
-5. **GELECEK YIL PROJEKSİYON KURALI:**
-   - Simülasyon Yılı +1 projeksiyonu Pozitif Senaryo (A) baz alınarak yapılır
-   - Projeksiyon = Senaryo A'nın %40-100 büyümesi
+5. **${L.nextYearProjectionRule}**
+   - ${L.projectionBasedOnA}
+   - ${L.projection40to100}
 `;
 }
 
 // =====================================================
-// ODAK PROJE KURALLARI
+// BILINGUAL FOCUS PROJECT RULES
 // =====================================================
-const FOCUS_PROJECT_RULES = `
+const getFocusProjectRules = (L: PromptLabels) => `
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🎯 ODAK PROJE ANALİZİ - BİLİMSEL FİNANSAL MODEL:
+${L.focusProjectTitle}
 
-📊 1. INVESTMENT → REVENUE PIPELINE (Yatırımın Gelire Dönüşümü):
+${L.investmentRevenuePipeline}
 
-FORMÜL:
+${L.formula}
 ┌─────────────────────────────────────────────────────────────────┐
-│ Product_Investment = Total_Investment × Product_Ratio          │
-│ Revenue_Uplift = Product_Investment × Revenue_Multiplier       │
-│ Growth_Rate = Revenue_Uplift / Current_Revenue                 │
+│ ${L.productInvestmentFormula}          │
+│ ${L.revenueUpliftFormula}       │
+│ ${L.growthRateFormula}                 │
 └─────────────────────────────────────────────────────────────────┘
 
-REVENUE MULTIPLIER (Sektöre Göre):
-├── SaaS/Yazılım (ölçeklenebilir): 2.0x - 2.5x
-├── Danışmanlık (insan bağımlı): 1.2x - 1.5x
-└── Ürün/Lisans: 1.8x - 2.2x
+${L.revenueMultiplier}
+├── ${L.saasMultiplier}
+├── ${L.consultingMultiplier}
+└── ${L.productMultiplier}
 
-ÖRNEK HESAPLAMA:
-$200K Yatırım × %40 Ürün = $80K → Ürün Geliştirme
-$80K × 2.0 (SaaS) = $160K Ek Gelir
-Büyüme = $160K ÷ $243K (mevcut) = %65.8
+${L.exampleCalculation}
+$200K × 40% = $80K → Product Development
+$80K × 2.0 (SaaS) = $160K Revenue Uplift
+Growth = $160K ÷ $243K = 65.8%
 
-📉 2. NON-FOCUS ORGANİK BÜYÜME KURALI:
+${L.nonFocusRule}
 
-⚠️ Yatırım odak projelere yönlendirildiğinden:
-- ODAK PROJELER: Yukarıdaki formülle hesaplanan büyüme
-- DİĞER PROJELER: ORGANİK BÜYÜME oranı uygulanır
+${L.sinceInvestmentFocused}
+- ${L.focusProjects}
+- ${L.otherProjects}
 
-ORGANİK BÜYÜME SEÇENEKLERİ:
-├── %0 (Varsayılan): Tam izolasyon - yatırım etkisi net görünür
-├── %5: Minimal organik büyüme (enflasyon + doğal büyüme)
-├── %8-10: Orta organik büyüme (mevcut müşteri genişlemesi)
-└── %12-15: Güçlü organik büyüme (olgun ürünler)
+${L.organicGrowthOptions}
+├── ${L.zeroDefault}
+├── ${L.fivePercent}
+├── ${L.eightToTen}
+└── ${L.twelveToFifteen}
 
-⚠️ focusProjectInfo.organicGrowthRate değeri varsa KULLAN, yoksa %0 uygula.
+${L.useOrganicRate}
 
-NEDEN ORGANİK BÜYÜME?
-1. Gerçekçilik: Hiçbir proje tam olarak %0 büyümez
-2. Mevcut müşteri genişlemesi yatırım olmadan da olur
-3. Yatırımcı güveni: Abartılı olmayan projeksiyonlar
+${L.whyOrganicGrowth}
+${L.realism}
+${L.existingCustomers}
+${L.investorConfidence}
 
-📈 3. J-CURVE EFFECT (Sektöre Göre Zamanlama):
+${L.jCurveEffect}
 
-Büyümeyi çeyreklere lineer dağıtma! Sektöre göre farklı J-Curve uygula:
+${L.dontDistributeLinear}
 
-🔷 SaaS / YAZILIM (Varsayılan):
-- Q1: %10 etki (ürün geliştirme, beta)
-- Q2: %25 etki (ilk müşteriler)
-- Q3: %65 etki (momentum)
-- Q4: %100 etki (tam ölçek)
+${L.saasDefault}
+- ${L.q1Effect}
+- ${L.q2Effect}
+- ${L.q3Effect}
+- ${L.q4Effect}
 
-🔶 DANIŞMANLIK / HİZMET:
-- Q1: %20 etki (ekip kurulumu, ilk projeler)
-- Q2: %45 etki (referanslar oluşuyor)
-- Q3: %75 etki (pipeline doluyor)
-- Q4: %100 etki (tam kapasite)
+${L.consultingService}
+- ${L.q1Consulting}
+- ${L.q2Consulting}
+- ${L.q3Consulting}
+- ${L.q4Consulting}
 
-🔹 ÜRÜN / LİSANS:
-- Q1: %5 etki (üretim hazırlığı)
-- Q2: %15 etki (ilk satışlar)
-- Q3: %50 etki (dağıtım kanalları)
-- Q4: %100 etki (pazar penetrasyonu)
+${L.productLicense}
+- ${L.q1Product}
+- ${L.q2Product}
+- ${L.q3Product}
+- ${L.q4Product}
 
-🔸 E-TİCARET:
-- Q1: %25 etki (kampanya başlangıcı)
-- Q2: %40 etki (müşteri kazanımı)
-- Q3: %60 etki (tekrar satışlar)
-- Q4: %100 etki (sezon + tam ölçek)
+${L.ecommerce}
+- ${L.q1Ecommerce}
+- ${L.q2Ecommerce}
+- ${L.q3Ecommerce}
+- ${L.q4Ecommerce}
 
-⚠️ Sektör belirleme: Gelir kalemlerinin isimlerine bak (SaaS, Tracker, Platform = SaaS; Denetim, Danışmanlık = Hizmet)
+${L.sectorDetection}
 
-📊 4. OPERATING LEVERAGE (Gider Modeli):
+${L.operatingLeverage}
 
-Gelir %50 artarsa, giderler %50 artmamalı!
-- SABİT GİDERLER (Kira, Sunucu, Lisans): %5-10 artış (enflasyon)
-- DEĞİŞKEN GİDERLER (Personel, Pazarlama): Gelir artışı × 0.4-0.6
-- HEDEF: Kâr marjının iyileşmesi (Margin Expansion)
+${L.revenueUp50}
+- ${L.fixedExpenses}
+- ${L.variableExpenses}
+- ${L.targetMargin}
 
-NOT: Margin expansion olmayan büyüme, yatırımcı için değersizdir.
+${L.noMarginNote}
 
-5. **VERİ YOKSA:**
-   - Kullanıcı odak proje belirtmediyse, en yüksek büyüme potansiyeli olan gelir kalemini seç
-   - Senaryo A vs B arasındaki en büyük farkı yaratan kalemi belirle
+**${L.ifNoData}**
+- ${L.selectHighestGrowth}
+- ${L.identifyBiggestDiff}
 `;
 
-// Note: SCENARIO_RULES is now dynamic - will be injected at runtime via generateDynamicScenarioRules()
-const getUnifiedMasterPrompt = (dynamicScenarioRules: string) => `Sen, Fortune 500 CFO'su ve Silikon Vadisi VC Ortağı yeteneklerine sahip "Omni-Scient (Her Şeyi Bilen) Finansal Zeka"sın.
+// =====================================================
+// BILINGUAL MASTER PROMPT
+// =====================================================
+const getUnifiedMasterPrompt = (dynamicScenarioRules: string, L: PromptLabels) => `${L.masterPromptRole}
 
-${ANTI_HALLUCINATION_RULES}
+${getAntiHallucinationRules(L)}
 
 ${dynamicScenarioRules}
 
-${FOCUS_PROJECT_RULES}
+${getFocusProjectRules(L)}
 
-🎯 TEK GÖREV: Sana verilen TÜM finansal verileri (Geçmiş Bilanço + Mevcut Senaryolar + Yatırım Anlaşması + Profesyonel Analiz Verileri) analiz edip, hem OPERASYONEL İÇGÖRÜLER hem de YATIRIMCI SUNUMU hazırla.
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📅 PROJECTION YEAR RULE - KRİTİK!
-
-next_year_projection.projection_year hesaplama kuralı:
-projection_year = max(Scenario_A_Year, Scenario_B_Year) + 1
-
-ÖRNEKLER:
-- 2028 vs 2027 karşılaştırması → projection_year = 2029
-- 2027 vs 2026 karşılaştırması → projection_year = 2028
-- 2026 vs 2026 karşılaştırması → projection_year = 2027
-
-⚠️ summary.total_revenue ve summary.total_expenses değerleri, 
-projection_year YILI için projeksiyonlar olmalı, mevcut senaryo değerleri DEĞİL!
-
-Örnek: 2028 vs 2027 karşılaştırması yapılıyorsa:
-- projection_year = 2029
-- total_revenue = 2028 gelirinin %40-100 üstünde olmalı (büyüme projeksiyonu)
-- Mevcut yıl (2028) değerlerini kopyalama, BÜYÜME uygula!
+${L.singleTask}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📥 SANA VERİLEN VERİ PAKETİ:
-1. GEÇMİŞ YIL BİLANÇOSU: Nakit, Alacaklar, Borçlar, Özkaynak (şirketin nereden geldiğini gösterir)
-2. SENARYO VERİLERİ: A (Pozitif) vs B (Negatif) tam karşılaştırması + kalem bazlı gelir/gider detayları
-3. ÇEYREKSEL PERFORMANS: Q1-Q4 nakit akış detayları
-4. DEAL CONFIG: Kullanıcının belirlediği yatırım tutarı, hisse oranı, sektör çarpanı
-5. HESAPLANMIŞ ÇIKIŞ PLANI: Post-Money Değerleme, MOIC (3Y/5Y), Break-Even Year
-6. DEATH VALLEY ANALİZİ: Kritik çeyrek, aylık burn rate, runway
-7. FİNANSAL ORANLAR: Likidite, Karlılık, Borçluluk oranları + Sektör Benchmark
-8. KALEM BAZLI TREND: Her gelir/gider kalemi için Q1→Q4 trend, volatilite, konsantrasyon
-9. DUYARLILIK ANALİZİ: Gelir %±20 değişiminin kâr, değerleme, MOIC, runway'e etkisi
-10. BREAK-EVEN ANALİZİ: Aylık kümülatif gelir/gider ve break-even noktası
-11. **ODAK PROJE (varsa)**: Kullanıcının seçtiği ana yatırım projesi ve büyüme planı
+${L.projectionYearRule}
+
+${L.projectionYearCalc}
+${L.projectionFormula}
+
+${L.examples}
+- ${L.example2028vs2027}
+- ${L.example2027vs2026}
+- ${L.example2026vs2026}
+
+${L.summaryWarning}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🔬 PROFESYONEL ANALİZ STANDARTLARI (Investment Banking Seviyesi):
-
-1. **KALEM BAZLI DERİN ANALİZ:**
-   Her gelir/gider kalemi için şunları belirt:
-   - Q1→Q4 trend yönü ve büyüme oranı (% cinsinden) [VERİDEN]
-   - Volatilite seviyesi: Düşük (<20%), Orta (20-50%), Yüksek (>50%) [HESAPLA]
-   - Toplam içindeki pay ve konsantrasyon riski (%30+ = ⚠️ Uyarı, %50+ = 🔴 Kritik) [VERİDEN]
-   - Senaryo A vs B farkının kök nedeni [KARŞILAŞTIR]
-
-2. **FİNANSAL ORAN YORUMLAMA (Benchmark ile):**
-   Sana verilen finansal oranları sektör ortalaması ile karşılaştır:
-   - Current Ratio: 1.8+ (İyi) | 1.3-1.8 (Orta) | <1.3 (Dikkat)
-   - Net Profit Margin: %18+ (İyi) | %12-18 (Orta) | <%12 (Dikkat)
-   - Debt/Equity: <0.5 (İyi) | 0.5-1.0 (Orta) | >1.0 (Dikkat)
-   - Alacak/Varlık: <%20 (İyi) | %20-30 (Orta) | >%30 (Tahsilat Riski)
-
-3. **DUYARLILIK ANALİZİ YORUMU:**
-   Gelir %20 düştüğünde:
-   - Kâr nasıl etkilenir? [HESAPLA]
-   - Break-even noktası kayar mı? [HESAPLA]
-   - Runway kaç ay kalır? [HESAPLA]
-   - EN KRİTİK DEĞİŞKEN hangisi?
-
-4. **CONFIDENCE SCORE ZORUNLULUĞU:**
-   Her insight için:
-   - confidence_score: 0-100 arası
-   - Varsayımları listele
-   - Destekleyen veri noktalarını göster
+${L.dataPackage}
+${L.dataItem1}
+${L.dataItem2}
+${L.dataItem3}
+${L.dataItem4}
+${L.dataItem5}
+${L.dataItem6}
+${L.dataItem7}
+${L.dataItem8}
+${L.dataItem9}
+${L.dataItem10}
+${L.dataItem11}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📊 BÖLÜM 1: FİNANSAL ANALİZ (AI Analiz Sekmesi İçin)
+${L.professionalStandards}
 
-Bu bölümde şu çıktıları üret:
-- 5-7 kritik insight (kategori: revenue/profit/cash_flow/risk/efficiency/opportunity)
-  - HER insight için confidence_score (0-100) ZORUNLU
-  - HER insight için veri kaynağını belirt
-- 3-5 stratejik öneri (öncelik sıralı, aksiyon planlı)
-- Çeyreklik analiz (kritik dönemler, büyüme eğilimi)
+${L.itemizedDeepAnalysis}
+   ${L.forEachItem}
+   - ${L.q1q4Trend}
+   - ${L.volatilityLevel}
+   - ${L.shareInTotal}
+   - ${L.rootCauseDiff}
 
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${L.ratioInterpretation}
+   ${L.compareToBenchmark}
+   - ${L.currentRatioBench}
+   - ${L.netProfitMarginBench}
+   - ${L.debtEquityBench}
+   - ${L.receivablesAssetBench}
 
-💼 BÖLÜM 2: DEAL DEĞERLENDİRME (Yatırımcı Gözüyle)
+${L.sensitivityInterpretation}
+   ${L.whenRevenue20Down}
+   - ${L.howProfitAffected}
+   - ${L.doesBreakEvenShift}
+   - ${L.howManyMonthsRunway}
+   - ${L.mostCriticalVariable}
 
-📊 VALUATION HESAPLAMA ŞEFFAFLIĞI (ZORUNLU):
-Her değerleme için FORMÜLÜ GÖSTER:
-
-1. **Pre-Money Valuation:**
-   Formül: Pre-Money = (Investment / Equity%) - Investment
-   Örnek: ($150K / 10%) - $150K = $1.35M Pre-Money
-
-2. **Post-Money Valuation:**
-   Formül: Post-Money = Investment / Equity%
-   Örnek: $150K / 10% = $1.5M Post-Money
-
-3. **Revenue Multiple:**
-   Formül: Valuation = Revenue × Sector_Multiple
-   Örnek: $500K × 4x (SaaS) = $2M Valuation
-
-4. **MOIC Hesabı:**
-   Formül: MOIC = Exit_Value × Equity% / Investment
-   Örnek: $5M × 10% / $150K = 3.33x MOIC
-
-⚠️ HER RAKAMI FORMÜLLE DESTEKLE - "Değerleme $X" yerine "Değerleme = Gelir × Çarpan = $Y × Zx = $X"
-
-ÇIKTI:
-- deal_score: 1-10 arası puan + HESAPLAMA FORMÜLÜ (örn: "7/10 = (MOIC×2 + Margin×3 + Growth×2 + Risk×3) / 10")
-- valuation_verdict: "premium" / "fair" / "cheap" + NEDEN
-- investor_attractiveness: 2 cümlelik yorum
-- risk_factors: 3-5 risk (VERİDEN türet, UYDURMA)
+${L.confidenceRequired}
+   ${L.forEachInsightReq}
+   - ${L.confidenceScore0to100}
+   - ${L.listAssumptionsMade}
+   - ${L.showSupportingData}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🎤 BÖLÜM 3: PITCH DECK SLAYTLARI (10 SLAYT - STARTUP KURUCUSU TONU)
+${L.section1Financial}
 
-⚠️ KRİTİK: HER SLAYT SPESİFİK RAKAMLAR VE PROJE İSİMLERİ İÇERMELİ!
-
-10 slaytlık yatırımcı sunumu üret. Her slayt tek bir mesaj verir, rakamlarla destekler.
-
-DİL VE TON:
-- Startup kurucusu gibi konuş, finans analisti gibi DEĞİL
-- Özgüvenli ama gerçekçi - "Biz" dili kullan
-- Rakamlar hikayeyi destekler, hikaye rakamları değil
-- Yatırımcıyı heyecanlandır ama abartma
-
-Her slayt için:
-- title: Çarpıcı başlık (max 8 kelime)
-- key_message: Ana mesaj (tek cümle) - RAKAM DAHİL ($X, %Y formatında)
-- content_bullets: 3-4 madde - HER MADDE $ veya % FORMATINDA RAKAM İÇERMELİ
-- speaker_notes: Konuşma metni (MAX 80 KELİME!) - samimi startup dili
-  ⚠️ SPEAKER NOTES KURALI:
-  - Maksimum 80 kelime (30-45 saniye konuşma)
-  - Teknik jargon kullanma
-  - Yatırımcının dikkatini çekecek kısa, vurucu cümleler
-  - Her notta EN AZ 1 rakam olmalı
-
-SLAYT YAPISI (10 SLAYT):
-
-1️⃣ PROBLEM
-"Müşterilerimizin yaşadığı gerçek acı nedir?"
-- Pazardaki mevcut çözümlerin yetersizliği
-- Bu problemin yarattığı ölçülebilir kayıp ($X/yıl kayıp)
-- Neden şimdiye kadar çözülmedi?
-Key Message: "[Hedef müşteri] her yıl [problem] yüzünden $X kaybediyor"
-
-2️⃣ ÇÖZÜM: [ODAK PROJE ADI]
-"İşte bizim yaklaşımımız"
-- Ürün/hizmetin tek cümlelik açıklaması
-- Mevcut alternatiflerden farkımız
-- Müşteri için yarattığımız değer ($X tasarruf, %Y artış)
-Key Message: "[Ürün adı] ile müşteriler [spesifik fayda] elde ediyor"
-
-3️⃣ PAZAR FIRSATI
-"Bu pasta ne kadar büyük?"
-- Hedef pazarın büyüklüğü (gerçekçi, ulaşılabilir segment)
-- Bizim hedeflediğimiz dilim ($X/yıl potansiyel)
-- İlk 3 yılda %Y pazar payı hedefi
-Key Message: "İlk 3 yılda $X gelir hedefine ulaşacağız"
-
-4️⃣ İŞ MODELİ
-"Parayı nasıl kazanıyoruz?"
-- Gelir kalemleri ve fiyatlandırma ([Ürün A]: $X/ay, [Ürün B]: $Y/proje)
-- Gross margin: %Z
-- Birim ekonomisi detayları
-Key Message: "Her müşteriden $X kazanıyoruz - %Z gross margin"
-
-5️⃣ TRACTION (Bugüne Kadar)
-"Elimizde ne var?"
-- Bu yılki gelir: $X (geçen yıla göre %Y büyüme)
-- Önemli mihenk taşları
-- Product-market fit kanıtları
-Key Message: "$X gelir ve %Z büyüme ile product-market fit kanıtlandı"
-
-6️⃣ BÜYÜME PLANI (Yatırımla)
-"Yatırım alırsak nereye gidiyoruz?"
-- 1. Yıl hedefi: $X gelir
-- 3. Yıl hedefi: $Y gelir
-- Ana büyüme motorları
-Key Message: "Yatırımla 3 yılda $X'den $Y'ye büyüyoruz"
-
-7️⃣ USE OF FUNDS
-"Yatırımı nasıl kullanacağız?"
-- $X toplam yatırım dağılımı:
-  * Ürün Geliştirme: %A ($X)
-  * Satış & Pazarlama: %B ($X)
-  * Ekip: %C ($X)
-  * Operasyon: %D ($X)
-Key Message: "$X yatırımın %Y'si [en kritik kalem]'e gidiyor"
-
-8️⃣ FİNANSAL PROJEKSİYON
-"Rakamlar ne söylüyor?"
-- Yatırımla: $X gelir, $Y kâr (3. Yıl)
-- Yatırımsız: $X gelir, $Y kâr (3. Yıl)
-- Değerleme farkı: +$Z
-Key Message: "Yatırımla $X daha fazla değer yaratıyoruz"
-
-9️⃣ EKİP
-"Neden biz başaracağız?"
-- Kurucu ekip ve ilgili deneyimleri
-- Bu problemi çözmek için neden doğru ekip
-- Kilit danışmanlar (varsa)
-Key Message: "Ekibimiz [X yıl] sektör deneyimi ile bu problemi çözmeye hazır"
-
-🔟 THE ASK
-"Ne istiyoruz, ne veriyoruz?"
-- Yatırım tutarı: $X
-- Karşılığında: %Y equity
-- Pre-money değerleme: $X
-- Yatırımcı getirisi: 3Y MOIC Xx, 5Y MOIC Xx
-Key Message: "$X yatırım, 5 yılda $Y'ye dönüşüyor - Xx MOIC"
-
-🚫 YASAK:
-- Finans analisti dili ("gelir konsantrasyonu", "organik büyüme sınırı" gibi)
-- Genel ifadeler ("ölçeklenebilir", "inovatif", "dijital dönüşüm")
-- Rakam olmayan maddeler
-
-✅ ZORUNLU:
-- Startup kurucusu tonu
-- Her bullet'ta $ veya % formatında rakam
-- Odak proje ismi başlıklarda (varsa)
-- Speaker notes'ta samimi, ikna edici açıklama
+${L.section1Output}
+- ${L.insights5to7}
+  - ${L.eachInsightConfidence}
+  - ${L.eachInsightSource}
+- ${L.recommendations3to5}
+- ${L.quarterlyAnalysis}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📈 BÖLÜM 4: GELECEK YIL PROJEKSİYONU (Simülasyon Yılı +1)
+${L.section2Deal}
 
-⚠️ KRİTİK: HER ZAMAN POZİTİF SENARYO (A) BAZ ALINIR!
+${L.valuationTransparency}
+${L.showFormulaForEach}
 
-🎯 PROJEKSİYON KURALLARI:
-1. Base = Senaryo A'nın yıl sonu değerleri
-2. Büyüme = %40-100 arası (yatırım etkisi)
-3. Her çeyrek için gelir > 0, gider > 0
-4. Q3-Q4'te nakit akışı POZİTİFE dönmeli
-5. Net kâr pozitif veya break-even yakını olmalı
+${L.preMoneyFormula}
+   ${L.preMoneyExample}
 
-📊 KALEM BAZLI PROJEKSİYON (BİLİMSEL MODEL):
+${L.postMoneyFormula}
+   ${L.postMoneyExample}
 
-🎯 ODAK PROJE HESAPLAMASI:
-Adım 1: Investment_Product = Total_Investment × Product_Ratio (genellikle %40)
-Adım 2: Revenue_Uplift = Investment_Product × Multiplier (SaaS:2.0, Service:1.3, Ürün:1.8)
-Adım 3: Growth = Revenue_Uplift / Current_Revenue
+${L.revenueMultipleFormula}
+   ${L.revenueMultipleExample}
 
-📉 NON-FOCUS KURALI (GÜNCELLENDİ):
-- Odak OLMAYAN projeler: focusProjectInfo.organicGrowthRate değeri uygulanır
-- Eğer organicGrowthRate belirtilmemişse: %0 büyüme (tam izolasyon)
-- Örnek: organicGrowthRate = 5 ise, non-focus projeler %5 büyüme alır
+${L.moicFormula}
+   ${L.moicExample}
 
-⏱️ J-CURVE (Çeyreklik Dağılım):
-- Q1: Yıllık büyümenin %10'u (hazırlık dönemi)
-- Q2: Yıllık büyümenin %25'i (ilk traction)
-- Q3: Yıllık büyümenin %65'i (momentum)
-- Q4: Yıllık büyümenin %100'ü (tam ölçek)
+${L.backEveryNumber}
 
-📊 GİDER MODELİ (Operating Leverage):
-- Sabit giderler: %5-10 artış (enflasyon etkisi)
-- Değişken giderler: Gelir artışı × 0.5 (margin expansion)
-- Yatırım doğrudan etkisi: Personel + Pazarlama budgets
+${L.dealOutput}
+- ${L.dealScoreOutput}
+- ${L.valuationVerdictOutput}
+- ${L.investorAttractivenessOutput}
+- ${L.riskFactorsOutput}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-📧 BÖLÜM 5: EXECUTIVE SUMMARY (YAPILANDIRILMIŞ FORMAT - ZORUNLU)
+${L.section3Pitch}
 
-⚠️ KRİTİK: Executive summary bir OBJE olmalı, düz metin DEĞİL!
+${L.criticalNumbers}
 
-1️⃣ short_pitch (150 kelime): Yatırımcı özeti
-   - "[Gelir Kalemi 1], [Gelir Kalemi 2], [Gelir Kalemi 3] üzerinden gelir üreten..."
-   - Şirketin ne yaptığını SOMUT olarak anlat
-   - Rakamlarla destekle
+${L.generate10Slides}
 
-2️⃣ revenue_items (zorunlu): Top gelir kalemleri listesi
-   - Format: "[Kalem1] ($X), [Kalem2] ($Y), [Kalem3] ($Z)"
-   - En az 3 kalem, $ formatında
+${L.languageAndTone}
+- ${L.speakAsFounder}
+- ${L.confidentRealistic}
+- ${L.numbersSupport}
+- ${L.exciteInvestor}
 
-3️⃣ scenario_comparison (zorunlu): A vs B karşılaştırması
-   - Format: "Pozitif ([A adı]): $X gelir, $Y kâr | Negatif ([B adı]): $X gelir, $Y kâr | Fark: $X (%Y)"
-   - Her iki senaryonun ismi ve rakamları ZORUNLU
+${L.forEachSlide}
+- ${L.titleMax8}
+- ${L.keyMessageWithNumber}
+- ${L.contentBullets}
+- ${L.speakerNotesMax80}
+  ${L.speakerNotesRule}
+  - ${L.max80Words}
+  - ${L.noTechJargon}
+  - ${L.catchInvestorAttention}
+  - ${L.atLeast1Number}
 
-4️⃣ investment_impact (zorunlu): Yatırım alamazsak ne olur
-   - Format: "Yatırım alamazsak $X daha az gelir, %Y düşük büyüme, [risk açıklaması]"
-   - Fırsat maliyetini NET olarak belirt
+${L.slideStructure}
+${L.slide1Problem}
+${L.slide2Solution}
+${L.slide3Market}
+${L.slide4BusinessModel}
+${L.slide5Traction}
+${L.slide6GrowthPlan}
+${L.slide7UseOfFunds}
+${L.slide8Financials}
+${L.slide9Team}
+${L.slide10TheAsk}
+
+${L.forbidden}
+- ${L.forbiddenAnalystLang}
+- ${L.forbiddenGeneral}
+- ${L.forbiddenNoBullets}
+
+${L.required}
+- ${L.requiredFounderTone}
+- ${L.requiredEveryBullet}
+- ${L.requiredProjectName}
+- ${L.requiredSpeakerNotes}
 
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
-🚫 YAPMA:
-- Coğrafi tahminler (Kuzey Amerika, Avrupa vb.)
-- Pazar büyüklüğü rakamları
-- Rakip şirket isimleri
-- Teknoloji/entegrasyon tahminleri
-- Yasal yapı önerileri
-- Harici kaynak referansları
+${L.section4Projection}
 
-✅ YAP:
-- Sadece verilen verilerden analiz
-- Her rakamın kaynağını belirt
-- Confidence score ver
-- Senaryo A = Pozitif, B = Negatif olarak referans al
-- Gelecek yıl projeksiyonunu Senaryo A baz alarak yap
+${L.criticalPositiveBase}
 
-DİL: Profesyonel Türkçe, VC terminolojisine hakim.`;
+${L.projectionRules}
+${L.baseEqualsA}
+${L.growth40to100}
+${L.everyQRevenue}
+${L.q3q4Positive}
+${L.netProfitPositive}
 
+${L.itemizedProjection}
+
+${L.focusProjectCalc}
+${L.step1}
+${L.step2}
+${L.step3}
+
+${L.nonFocusRuleUpdated}
+- ${L.nonFocusOrganicRate}
+- ${L.ifNotSpecified}
+- ${L.exampleOrganicRate}
+
+${L.jCurveQuarterly}
+- ${L.q1Yearly10}
+- ${L.q2Yearly25}
+- ${L.q3Yearly65}
+- ${L.q4Yearly100}
+
+${L.expenseModel}
+- ${L.fixedExpenses5to10}
+- ${L.variableExpenses05}
+- ${L.investmentDirect}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${L.section5Executive}
+
+${L.criticalObject}
+
+${L.shortPitch150}
+${L.revenueItemsReq}
+${L.scenarioCompReq}
+${L.investmentImpactReq}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${L.doNot}
+- ${L.doNotGeo}
+- ${L.doNotMarketSize}
+- ${L.doNotCompetitor}
+- ${L.doNotTech}
+- ${L.doNotLegal}
+- ${L.doNotExternal}
+
+${L.doThis}
+- ${L.doAnalyzeData}
+- ${L.doSourceNumbers}
+- ${L.doConfidenceScore}
+- ${L.doScenarioRef}
+- ${L.doProjectionBase}
+
+${L.language}${L.languageVC}`;
+
+// =====================================================
+// BILINGUAL USER PROMPT BUILDER
+// =====================================================
+function buildUserPrompt(
+  data: {
+    scenarioA: any;
+    scenarioB: any;
+    metrics: any;
+    quarterly: any;
+    dealConfig: any;
+    exitPlan: any;
+    capitalNeeds: any;
+    historicalBalance: any;
+    quarterlyItemized: any;
+    exchangeRate: number | null;
+    focusProjectInfo: any;
+    previousEditedProjections: any;
+  },
+  scenarioRelationship: ScenarioRelationship,
+  yearContext: {
+    baseYear: number;
+    scenarioYear: number;
+    scenarioBYear: number;
+    year2: number;
+    year3: number;
+    year5: number;
+    exitPlanBaseYear: number;
+  },
+  L: PromptLabels
+): string {
+  const { scenarioA, scenarioB, metrics, quarterly, dealConfig, exitPlan, capitalNeeds, historicalBalance, quarterlyItemized, exchangeRate, focusProjectInfo, previousEditedProjections } = data;
+  const { baseYear, scenarioYear, scenarioBYear, year2, year3, year5 } = yearContext;
+
+  // Currency note
+  const currencyNote = exchangeRate ? `
+${L.currencyInfo}
+- ${L.allValuesNormalized}
+- ${L.balanceConverted} ${exchangeRate.toFixed(2)} ${L.tlUsd}
+- ${L.scenarioAlreadyUsd}
+- ${L.comparisonsHomogeneous}
+` : '';
+
+  // Historical balance section
+  const historicalBalanceSection = historicalBalance ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${currencyNote}
+${L.historicalBalanceSection} (${historicalBalance.year}) - USD:
+
+${L.cashPosition}
+- ${L.cashOnHand} $${(historicalBalance.cash_on_hand || 0).toLocaleString()}
+- ${L.bank} $${(historicalBalance.bank_balance || 0).toLocaleString()}
+- ${L.totalLiquidAssets} $${((historicalBalance.cash_on_hand || 0) + (historicalBalance.bank_balance || 0)).toLocaleString()}
+
+${L.receivablesPayables}
+- ${L.tradeReceivables} $${(historicalBalance.trade_receivables || 0).toLocaleString()}
+- ${L.tradePayables} $${(historicalBalance.trade_payables || 0).toLocaleString()}
+- ${L.netWorkingCapital} $${((historicalBalance.trade_receivables || 0) - (historicalBalance.trade_payables || 0)).toLocaleString()}
+
+${L.assetsLiabilities}
+- ${L.totalAssets} $${(historicalBalance.total_assets || 0).toLocaleString()}
+- ${L.totalLiabilities} $${(historicalBalance.total_liabilities || 0).toLocaleString()}
+- ${L.totalEquity} $${(historicalBalance.total_equity || 0).toLocaleString()}
+
+${L.profitCapital}
+- ${L.periodNetProfit} $${(historicalBalance.current_profit || 0).toLocaleString()}
+- ${L.retainedEarnings} $${(historicalBalance.retained_earnings || 0).toLocaleString()}
+- ${L.paidCapital} $${(historicalBalance.paid_capital || 0).toLocaleString()}
+- ${L.bankLoans} $${(historicalBalance.bank_loans || 0).toLocaleString()}
+
+${L.howToUseData}
+1. ${L.receivablesToAssets} ${((historicalBalance.trade_receivables || 0) / (historicalBalance.total_assets || 1) * 100).toFixed(1)}% ${L.ifAbove30Collection}
+2. ${L.bankLoansToAssets} ${((historicalBalance.bank_loans || 0) / (historicalBalance.total_assets || 1) * 100).toFixed(1)}% ${L.debtRiskAnalysis}
+3. ${L.retainedEarningsStatus} ${(historicalBalance.retained_earnings || 0) < 0 ? L.negativeRecovery : L.positiveHealthy}
+${L.compareGrowthTargets}
+` : `
+
+${L.noHistoricalBalance}
+${L.analyzeOnlyScenario}
+`;
+
+  // Year context section
+  const yearContextSection = scenarioRelationship.type === 'successor_projection' ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${L.yearStructureRoles} (📈 ${L.successorProjection})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${L.scenarioType} 📈 ${L.successorProjection}
+${L.bothScenariosPositive}
+
+${L.timeline}
+┌────────────────┬──────────────────────────────────────────┐
+│ ${baseYear} (${L.base})    │ ${L.completedYear}     │
+│ ${scenarioBYear} (${L.baseYearLabel})  │ "${scenarioB.name}" - ${L.investmentTarget}     │
+│ ${scenarioYear} (${L.future})  │ "${scenarioA.name}" - ${L.successProjection}│
+│ ${year3} (${L.year3Plus})   │ ${L.moic3YearPoint} (${scenarioBYear}) │
+│ ${year5} (${L.year5Plus})   │ ${L.moic5YearPoint} (${scenarioBYear}) │
+└────────────────┴──────────────────────────────────────────┘
+
+${L.scenarioRoles}
+- "${scenarioB.name}" (${scenarioBYear}) = ${L.baseScenario}
+  - ${L.thisYearInvestmentTarget}
+  - ${L.allExitPlanBased}
+  - ${L.pitchDeckTraction}
+
+- "${scenarioA.name}" (${scenarioYear}) = ${L.futureProjection}
+  - ${L.ifBaseSucceeds}
+  - ${L.notNegativePositive}
+  - Pitch deck "Growth Plan"
+
+${L.criticalInstructions}
+1. ${L.allProjectionsBased}
+2. ${L.moic3YearBased} ${scenarioBYear}
+3. ${L.moic5YearBased} ${scenarioBYear}
+4. ${L.storyFormat}
+5. ${L.nextYearProjectionEquals} ${year2}
+` : `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+${L.yearStructureRoles} (⚖️ ${L.positiveVsNegative})
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${L.scenarioType} ⚖️ ${L.positiveVsNegative}
+
+${L.timeline}
+┌────────────────┬──────────────────────────────────────────┐
+│ ${baseYear} (${L.base})    │ ${L.completedYear}     │
+│ ${scenarioYear} (${L.year1})   │ ${L.scenarioYear}    │
+│ ${year2} (${L.year2})   │ ${L.firstProjectionYear}                    │
+│ ${year3} (${L.year3Plus})  │ ${L.moic3YearPoint}         │
+│ ${year5} (${L.year5Plus})  │ ${L.moic5YearPoint}         │
+└────────────────┴──────────────────────────────────────────┘
+
+${L.scenarioRoles}
+- ${L.scenarioAPositive} = "${scenarioA.name}"
+  - ${scenarioYear} ${L.investmentYear}
+  - ${L.dashboardFocused}
+  - ${L.exitPlanMoicBased}
+
+- ${L.scenarioBNegative} = "${scenarioB.name}"  
+  - ${scenarioYear} ${L.riskScenarioLabel}
+  - ${L.onlyForRiskDownside}
+
+${L.criticalInstructions}
+${L.allProjectionsBased}
+${L.moic3YearBased} ${year3}
+${L.moic5YearBased} ${year5}
+${L.useSpecificYears}${year3} $2.5M ${L.valuation}
+${L.refNegativeAs}
+${L.nextYearProjectionEquals} ${scenarioYear + 1} (${year2})
+`;
+
+  // Focus project section
+  const focusProjectSection = focusProjectInfo && focusProjectInfo.projects && focusProjectInfo.projects.length > 0 ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${L.focusProjectInfo}
+
+${L.selectedFocusProjects} ${focusProjectInfo.projects.join(', ')}
+
+${L.projectDescription}
+${focusProjectInfo.notes || L.notSpecifiedAiSuggest}
+
+${L.organicGrowthRate} %${focusProjectInfo.organicGrowthRate || 0}
+
+${L.growthPlan}
+${focusProjectInfo.growthPlan || L.notSpecifiedAiSuggest}
+
+${L.investmentDistribution}
+- ${L.productDevelopment} %${focusProjectInfo.investmentAllocation?.product || 40} ($${Math.round(dealConfig.investmentAmount * (focusProjectInfo.investmentAllocation?.product || 40) / 100).toLocaleString()})
+- ${L.marketing} %${focusProjectInfo.investmentAllocation?.marketing || 30} ($${Math.round(dealConfig.investmentAmount * (focusProjectInfo.investmentAllocation?.marketing || 30) / 100).toLocaleString()})
+- ${L.personnel} %${focusProjectInfo.investmentAllocation?.hiring || 20} ($${Math.round(dealConfig.investmentAmount * (focusProjectInfo.investmentAllocation?.hiring || 20) / 100).toLocaleString()})
+- ${L.operations} %${focusProjectInfo.investmentAllocation?.operations || 10} ($${Math.round(dealConfig.investmentAmount * (focusProjectInfo.investmentAllocation?.operations || 10) / 100).toLocaleString()})
+
+${L.analysisInstruction}
+${L.presentAsGrowthEngine}
+${L.createUseOfFunds}
+${L.includeGrowthPlan}
+${L.everySlideKeyMessage}
+${L.highlightInExecutive}
+` : `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${L.noFocusProjectSpecified}
+${L.userDidntSelectFocus}
+${L.autoSelectHighestGrowth}
+${L.identifyBiggestDiffItem}
+${L.useAsGrowthStory}
+`;
+
+  // User edits section
+  const userEditsSection = previousEditedProjections ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${L.userEdits}
+
+${L.userMadeChanges}
+${L.updateAnalysisWithChanges}
+
+${L.editedRevenueProjection}
+${(previousEditedProjections.revenue || []).filter((i: any) => i.userEdited).map((r: any) => 
+  `${r.category}: Q1=$${Math.round(r.q1).toLocaleString()}, Q2=$${Math.round(r.q2).toLocaleString()}, Q3=$${Math.round(r.q3).toLocaleString()}, Q4=$${Math.round(r.q4).toLocaleString()} | ${L.total}=$${Math.round(r.total || (r.q1+r.q2+r.q3+r.q4)).toLocaleString()} ${L.userEdited}`
+).join('\n') || L.noRevenueEdit}
+
+${L.editedExpenseProjection}
+${(previousEditedProjections.expense || []).filter((i: any) => i.userEdited).map((e: any) => 
+  `${e.category}: Q1=$${Math.round(e.q1).toLocaleString()}, Q2=$${Math.round(e.q2).toLocaleString()}, Q3=$${Math.round(e.q3).toLocaleString()}, Q4=$${Math.round(e.q4).toLocaleString()} | ${L.total}=$${Math.round(e.total || (e.q1+e.q2+e.q3+e.q4)).toLocaleString()} ${L.userEdited}`
+).join('\n') || L.noExpenseEdit}
+
+${L.editAnalysisInstruction}
+${L.validateChanges}
+${L.ifChangesAffectTotals}
+${L.indicateAggressiveConservative}
+` : '';
+
+  // Build the full prompt
+  return `
+${historicalBalanceSection}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${L.scenarioDataSection}
+
+SCENARIO A (${scenarioA.name}):
+- ${L.targetYear} ${scenarioA.targetYear}
+- ${L.totalRevenue} $${metrics.scenarioA.totalRevenue.toLocaleString()}
+- ${L.totalExpenses} $${metrics.scenarioA.totalExpenses.toLocaleString()}
+- ${L.netProfit} $${metrics.scenarioA.netProfit.toLocaleString()}
+- ${L.profitMargin} %${metrics.scenarioA.profitMargin.toFixed(1)}
+- ${L.quarterlyNet} Q1: $${quarterly.a.q1.toLocaleString()}, Q2: $${quarterly.a.q2.toLocaleString()}, Q3: $${quarterly.a.q3.toLocaleString()}, Q4: $${quarterly.a.q4.toLocaleString()}
+
+SCENARIO B (${scenarioB.name}):
+- ${L.targetYear} ${scenarioB.targetYear}
+- ${L.totalRevenue} $${metrics.scenarioB.totalRevenue.toLocaleString()}
+- ${L.totalExpenses} $${metrics.scenarioB.totalExpenses.toLocaleString()}
+- ${L.netProfit} $${metrics.scenarioB.netProfit.toLocaleString()}
+- ${L.profitMargin} %${metrics.scenarioB.profitMargin.toFixed(1)}
+- ${L.quarterlyNet} Q1: $${quarterly.b.q1.toLocaleString()}, Q2: $${quarterly.b.q2.toLocaleString()}, Q3: $${quarterly.b.q3.toLocaleString()}, Q4: $${quarterly.b.q4.toLocaleString()}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${L.dealConfigSection}
+- ${L.requestedInvestment} $${dealConfig.investmentAmount.toLocaleString()}
+- ${L.offeredEquity} %${dealConfig.equityPercentage}
+- ${L.sectorMultiple} ${dealConfig.sectorMultiple}x
+- ${L.safetyMargin} %${dealConfig.safetyMargin}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${L.calculatedExitPlan} (${scenarioYear}, ${L.basedOnPositive}):
+- ${L.postMoneyValuation} $${exitPlan.postMoneyValuation.toLocaleString()}
+- ${year3} (3Y) ${L.yearInvestorShare} $${exitPlan.investorShare3Year.toLocaleString()}
+- ${year5} (5Y) ${L.yearInvestorShare} $${exitPlan.investorShare5Year.toLocaleString()}
+- ${L.moic} (${year3}): ${exitPlan.moic3Year.toFixed(2)}x
+- ${L.moic} (${year5}): ${exitPlan.moic5Year.toFixed(2)}x
+- ${L.breakEvenYear} ${exitPlan.breakEvenYear || 'N/A'}
+
+${exitPlan.allYears && exitPlan.allYears.length > 0 ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${L.fiveYearProjectionDetails}
+
+${exitPlan.allYears.map((year: any, i: number) => {
+  const valuations = year.valuations || {};
+  return `
+🗓️ ${year.actualYear || (scenarioYear + i + 1)} (${year.growthStage === 'aggressive' ? L.aggressiveGrowth : L.normalizedGrowth} ${L.stage}):
+- ${L.revenue} $${(year.revenue || 0).toLocaleString()}
+- ${L.expenses} $${(year.expenses || 0).toLocaleString()}
+- ${L.netProfit} $${(year.netProfit || 0).toLocaleString()}
+- ${L.ebitda} $${(year.ebitda || 0).toLocaleString()} (${L.margin} %${(year.ebitdaMargin || 0).toFixed(1)})
+- ${L.freeCashFlow} $${(year.freeCashFlow || 0).toLocaleString()}
+- ${L.appliedGrowthRate} %${((year.appliedGrowthRate || 0) * 100).toFixed(1)}
+
+${L.valuationMethods}
+├─ ${L.revenueMultiple} (${dealConfig.sectorMultiple}x): $${(valuations.revenueMultiple || 0).toLocaleString()}
+├─ ${L.ebitdaMultiple} $${(valuations.ebitdaMultiple || 0).toLocaleString()}
+├─ ${L.dcfDiscount} $${(valuations.dcf || 0).toLocaleString()}
+├─ ${L.vcMethod} $${(valuations.vcMethod || 0).toLocaleString()}
+└─ ${L.weightedValuation} $${(valuations.weighted || year.companyValuation || 0).toLocaleString()}
+`;
+}).join('\n')}
+
+${L.valuationMethodology}
+${L.revenueMultipleWeight}
+${L.ebitdaMultipleWeight}
+${L.dcfWeight}
+${L.vcMethodWeight}
+
+${L.valuationAnalysisInstructions}
+${L.weightedFormula}
+${L.useYear5Weighted}
+${L.ebitdaMarginTrend}
+${L.dcfVsRevenueMultiple}
+${L.vcMethodRealistic}
+${L.getAllValuations}
+` : ''}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${L.deathValleyAnalysis}
+- ${L.criticalQuarter} ${capitalNeeds.criticalQuarter}
+- ${L.minCumulativeCash} $${capitalNeeds.minCumulativeCash.toLocaleString()}
+- ${L.calculatedRequiredInvestment} $${capitalNeeds.requiredInvestment.toLocaleString()}
+- ${L.monthlyBurnRate} $${capitalNeeds.burnRateMonthly.toLocaleString()}
+- ${L.runway} ${capitalNeeds.runwayMonths} ${L.months}
+- ${L.selfSustaining} ${capitalNeeds.selfSustaining ? L.yes : L.no}
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${yearContextSection}
+
+${L.revenueExpenseDetails}
+
+${L.scenarioARevenues}
+${scenarioA.revenues.map((r: { category: string; projectedAmount: number }) => `- ${r.category}: $${r.projectedAmount.toLocaleString()}`).join('\n')}
+
+${L.scenarioAExpenses}
+${scenarioA.expenses.map((e: { category: string; projectedAmount: number }) => `- ${e.category}: $${e.projectedAmount.toLocaleString()}`).join('\n')}
+
+${L.scenarioBRevenues}
+${scenarioB.revenues.map((r: { category: string; projectedAmount: number }) => `- ${r.category}: $${r.projectedAmount.toLocaleString()}`).join('\n')}
+
+${L.scenarioBExpenses}
+${scenarioB.expenses.map((e: { category: string; projectedAmount: number }) => `- ${e.category}: $${e.projectedAmount.toLocaleString()}`).join('\n')}
+
+${quarterlyItemized ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${L.quarterlyItemizedDetails}
+
+${L.scenarioAQuarterlyRevenues}
+${quarterlyItemized.scenarioA.revenues.map((r: any) => 
+  `${r.category}: Q1=$${Math.round(r.q1).toLocaleString()}, Q2=$${Math.round(r.q2).toLocaleString()}, Q3=$${Math.round(r.q3).toLocaleString()}, Q4=$${Math.round(r.q4).toLocaleString()} | ${L.total}=$${Math.round(r.total).toLocaleString()}`
+).join('\n')}
+
+${L.scenarioBQuarterlyRevenues}
+${quarterlyItemized.scenarioB.revenues.map((r: any) => 
+  `${r.category}: Q1=$${Math.round(r.q1).toLocaleString()}, Q2=$${Math.round(r.q2).toLocaleString()}, Q3=$${Math.round(r.q3).toLocaleString()}, Q4=$${Math.round(r.q4).toLocaleString()} | ${L.total}=$${Math.round(r.total).toLocaleString()}`
+).join('\n')}
+
+${L.scenarioDiffRevenues}
+${quarterlyItemized.diffs.revenues.map((d: any) => 
+  `${d.category}: Q1 ${L.diff}=$${Math.round(d.diffQ1).toLocaleString()}, Q2=$${Math.round(d.diffQ2).toLocaleString()}, Q3=$${Math.round(d.diffQ3).toLocaleString()}, Q4=$${Math.round(d.diffQ4).toLocaleString()} | ${L.totalDiff}=$${Math.round(d.totalDiff).toLocaleString()} (${d.percentChange.toFixed(1)}%)`
+).join('\n')}
+
+${L.scenarioDiffExpenses}
+${quarterlyItemized.diffs.expenses.map((d: any) => 
+  `${d.category}: Q1 ${L.diff}=$${Math.round(d.diffQ1).toLocaleString()}, Q2=$${Math.round(d.diffQ2).toLocaleString()}, Q3=$${Math.round(d.diffQ3).toLocaleString()}, Q4=$${Math.round(d.diffQ4).toLocaleString()} | ${L.totalDiff}=$${Math.round(d.totalDiff).toLocaleString()} (${d.percentChange.toFixed(1)}%)`
+).join('\n')}
+` : ''}
+
+${focusProjectSection}
+
+${userEditsSection}
+
+${L.analyzeAllData}
+`;
+}
+
+// =====================================================
+// MAIN SERVE FUNCTION
+// =====================================================
 serve(async (req) => {
-  // Handle CORS preflight
   if (req.method === "OPTIONS") {
     return new Response(null, { headers: corsHeaders });
   }
@@ -1074,21 +2311,20 @@ serve(async (req) => {
       exchangeRate,
       focusProjectInfo,
       previousEditedProjections,
-      language = 'tr' // Default to Turkish, can be 'en' for English
+      language = 'tr'
     } = await req.json();
 
-    // Language configuration for AI responses
+    // Select language labels
+    const L = PROMPT_LABELS[language as Language] || PROMPT_LABELS.tr;
     const isEnglish = language === 'en';
+    
     const langConfig = {
       aiLanguage: isEnglish ? 'English' : 'Turkish',
       responseInstruction: isEnglish 
         ? 'RESPOND IN ENGLISH ONLY. Use professional VC/investment terminology.'
         : 'TÜRKÇE YANIT VER. Profesyonel VC/yatırım terminolojisi kullan.',
-      positiveScenario: isEnglish ? 'Positive Scenario' : 'Pozitif Senaryo',
-      negativeScenario: isEnglish ? 'Negative Scenario' : 'Negatif Senaryo',
-      withInvestment: isEnglish ? 'With Investment' : 'Yatırım Alırsak',
-      withoutInvestment: isEnglish ? 'Without Investment' : 'Yatırım Alamazsak',
     };
+    
     console.log(`Language: ${language}, AI will respond in: ${langConfig.aiLanguage}`);
 
     const LOVABLE_API_KEY = Deno.env.get("LOVABLE_API_KEY");
@@ -1096,361 +2332,41 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    // Use the most powerful model for deep reasoning - now with fixed scenario logic
     const PRIMARY_MODEL_ID = "google/gemini-3-pro-preview";
-    const FALLBACK_MODEL_ID = "anthropic/claude-3.5-sonnet"; // Fallback if Gemini fails
+    const FALLBACK_MODEL_ID = "anthropic/claude-3.5-sonnet";
     
     // Detect scenario relationship type
     const scenarioRelationship = detectScenarioRelationship(scenarioA, scenarioB);
     console.log("Detected scenario relationship:", scenarioRelationship);
     
-    // Generate dynamic scenario rules based on relationship
-    const dynamicScenarioRules = generateDynamicScenarioRules(scenarioRelationship, scenarioA, scenarioB);
+    // Generate dynamic scenario rules with bilingual labels
+    const dynamicScenarioRules = generateDynamicScenarioRules(scenarioRelationship, scenarioA, scenarioB, L);
     
-    // Calculate year references based on scenario data
+    // Calculate year references
     const currentYear = new Date().getFullYear();
-    const baseYear = scenarioA.baseYear || currentYear - 1;    // 2025 - Last completed year
-    
-    // For successor_projection, use scenarioB as the base for calculations
+    const baseYear = scenarioA.baseYear || currentYear - 1;
     const exitPlanBaseYear = scenarioRelationship.type === 'successor_projection' 
       ? scenarioB.targetYear 
       : scenarioA.targetYear;
-    
-    const scenarioYear = scenarioA.targetYear || currentYear;  // 2026 - Scenario target year
+    const scenarioYear = scenarioA.targetYear || currentYear;
     const scenarioBYear = scenarioB.targetYear || currentYear;
-    const year2 = scenarioRelationship.projectionYear;  // Dynamic based on relationship
-    const year3 = exitPlanBaseYear + 3;  // 3-year MOIC based on correct base
-    const year5 = exitPlanBaseYear + 5;  // 5-year MOIC based on correct base
-
-    // Build year context section for AI - DYNAMIC based on scenario relationship
-    const yearContextSection = scenarioRelationship.type === 'successor_projection' ? `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📅 YIL YAPISI VE SENARYO ROLLERİ (ARDIŞIK YIL PROJEKSİYONU)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🔍 SENARYO TİPİ: 📈 ARDIŞIK YIL PROJEKSİYONU
-⚠️ HER İKİ SENARYO DA POZİTİF! Negatif karşılaştırma YAPMA!
-
-🗓️ ZAMAN ÇİZELGESİ:
-┌────────────────┬──────────────────────────────────────────┐
-│ ${baseYear} (Base)    │ Tamamlanan yıl - Gerçek finansallar     │
-│ ${scenarioBYear} (Baz Yıl)  │ "${scenarioB.name}" - Yatırım hedefi     │
-│ ${scenarioYear} (Gelecek)  │ "${scenarioA.name}" - Başarı projeksiyonu│
-│ ${year3} (3.Yıl)   │ MOIC 3Y hesaplama noktası (${scenarioBYear} bazlı) │
-│ ${year5} (5.Yıl)   │ MOIC 5Y hesaplama noktası (${scenarioBYear} bazlı) │
-└────────────────┴──────────────────────────────────────────┘
-
-🎯 SENARYO ROLLERI:
-- "${scenarioB.name}" (${scenarioBYear}) = BAZ SENARYO
-  - Yatırım alınan yıl
-  - Exit Plan, MOIC hesaplamaları BUNA DAYALI
-  - Pitch deck'in "Traction" ve "Business Model" bölümü
-
-- "${scenarioA.name}" (${scenarioYear}) = GELECEK PROJEKSİYON
-  - Baz senaryo başarılı olursa ulaşılacak hedef
-  - ⚠️ NEGATİF DEĞİL - POZİTİF BÜYÜME HİKAYESİ!
-  - Pitch deck'in "Growth Plan" bölümü
-
-⚠️ KRİTİK TALİMATLAR:
-1. Exit plan ve MOIC hesaplamaları ${scenarioBYear} (${scenarioB.name}) verilerine dayalı
-2. İki senaryo arasında "kayıp" veya "fırsat maliyeti" analizi YAPMA
-3. Her iki senaryoyu da POZİTİF büyüme hikayesi olarak sun
-4. Pitch deck'te: "${scenarioBYear}'de $X, ${scenarioYear}'de $Y'ye ulaşıyoruz" formatı
-5. Gelecek yıl projeksiyonu = ${year2}
-` : `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-📅 YIL YAPISI VE SENARYO ROLLERİ (POZİTİF VS NEGATİF)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🔍 SENARYO TİPİ: ⚖️ POZİTİF VS NEGATİF KARŞILAŞTIRMA
-
-🗓️ ZAMAN ÇİZELGESİ:
-┌────────────────┬──────────────────────────────────────────┐
-│ ${baseYear} (Base)    │ Tamamlanan yıl - Gerçek finansallar     │
-│ ${scenarioYear} (Year 1)   │ Senaryo yılı - Pozitif/Negatif hedef    │
-│ ${year2} (Year 2)   │ İlk projeksiyon yılı                    │
-│ ${year3} (Year 3+)  │ 3 Yıllık MOIC hesaplama noktası         │
-│ ${year5} (Year 5+)  │ 5 Yıllık MOIC hesaplama noktası         │
-└────────────────┴──────────────────────────────────────────┘
-
-🎯 SENARYO TANIMLARI:
-- SENARYO A (POZİTİF) = "${scenarioA.name}"
-  - ${scenarioYear} yılı HEDEFİ (yatırım alırsak)
-  - TÜM DASHBOARD VE ANALİZLER BUNA ODAKLI
-  - Exit Plan, MOIC, Pitch Deck bu senaryoya dayalı
-
-- SENARYO B (NEGATİF) = "${scenarioB.name}"  
-  - ${scenarioYear} yılı RİSK senaryosu (yatırım alamazsak)
-  - SADECE risk analizi ve downside değerlendirmesi için
-
-⚠️ KRİTİK TALİMATLAR:
-1. Tüm projeksiyon hesaplamaları POZİTİF SENARYO (A) verilerine dayalı
-2. MOIC 3 Yıl = ${year3} yılındaki değerleme bazlı
-3. MOIC 5 Yıl = ${year5} yılındaki değerleme bazlı
-4. Pitch deck'te SPESİFİK YILLARI kullan (örn: "${year3}'te $2.5M değerleme")
-5. Negatif senaryoyu "Yatırım alamazsak senaryosu" olarak referans ver
-6. Gelecek yıl projeksiyonu = ${scenarioYear + 1} (${year2})
-`;
-
-    // Build historical balance section if available
-    // Note: Balance values are already converted to USD by the frontend
-    const currencyNote = exchangeRate ? `
-💱 PARA BİRİMİ BİLGİSİ:
-- TÜM DEĞERLER USD CİNSİNDEN NORMALİZE EDİLMİŞTİR
-- Bilanço verileri TL'den dönüştürülmüştür (Ortalama Kur: ${exchangeRate.toFixed(2)} TL/USD)
-- Senaryo verileri zaten USD cinsindedir
-- Karşılaştırmalar homojen para birimi üzerinden yapılmalıdır
-` : '';
-
-    const historicalBalanceSection = historicalBalance ? `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-${currencyNote}
-GEÇMİŞ YIL BİLANÇOSU (${historicalBalance.year}) - USD:
-
-💰 NAKİT POZİSYONU:
-- Kasa: $${(historicalBalance.cash_on_hand || 0).toLocaleString()}
-- Banka: $${(historicalBalance.bank_balance || 0).toLocaleString()}
-- Toplam Likit Varlık: $${((historicalBalance.cash_on_hand || 0) + (historicalBalance.bank_balance || 0)).toLocaleString()}
-
-📊 ALACAK/BORÇ DURUMU:
-- Ticari Alacaklar: $${(historicalBalance.trade_receivables || 0).toLocaleString()}
-- Ticari Borçlar: $${(historicalBalance.trade_payables || 0).toLocaleString()}
-- Net Çalışma Sermayesi: $${((historicalBalance.trade_receivables || 0) - (historicalBalance.trade_payables || 0)).toLocaleString()}
-
-🏢 VARLIK/YÜKÜMLÜLÜK:
-- Toplam Varlıklar: $${(historicalBalance.total_assets || 0).toLocaleString()}
-- Toplam Yükümlülükler: $${(historicalBalance.total_liabilities || 0).toLocaleString()}
-- Toplam Özkaynak: $${(historicalBalance.total_equity || 0).toLocaleString()}
-
-📈 KAR/SERMAYE:
-- Dönem Net Kârı: $${(historicalBalance.current_profit || 0).toLocaleString()}
-- Geçmiş Yıllar Kârı: $${(historicalBalance.retained_earnings || 0).toLocaleString()}
-- Ödenmiş Sermaye: $${(historicalBalance.paid_capital || 0).toLocaleString()}
-- Banka Kredileri: $${(historicalBalance.bank_loans || 0).toLocaleString()}
-
-🔍 BU VERİYİ ŞÖYLE KULLAN:
-1. Alacak/Toplam Varlık oranı ${((historicalBalance.trade_receivables || 0) / (historicalBalance.total_assets || 1) * 100).toFixed(1)}% - %30'dan yüksekse tahsilat sorunu var
-2. Banka Kredisi/Varlık oranı ${((historicalBalance.bank_loans || 0) / (historicalBalance.total_assets || 1) * 100).toFixed(1)}% - borçluluk riski analiz et
-3. Geçmiş Yıllar Kârı ${(historicalBalance.retained_earnings || 0) < 0 ? 'NEGATİF - Kurtarma Modu' : 'POZİTİF - Sağlıklı'}
-4. Bu yılki büyüme hedeflerini geçmiş yıl performansıyla karşılaştır
-` : `
-
-⚠️ GEÇMİŞ YIL BİLANÇOSU MEVCUT DEĞİL
-Analizi sadece senaryo verileriyle yap, ancak bilanço verisi olmadan tam risk analizi yapılamayacağını belirt.
-`;
-
-    const userPrompt = `
-${historicalBalanceSection}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-SENARYO VERİLERİ:
-
-SENARYO A (${scenarioA.name}):
-- Hedef Yıl: ${scenarioA.targetYear}
-- Toplam Gelir: $${metrics.scenarioA.totalRevenue.toLocaleString()}
-- Toplam Gider: $${metrics.scenarioA.totalExpenses.toLocaleString()}
-- Net Kâr: $${metrics.scenarioA.netProfit.toLocaleString()}
-- Kâr Marjı: %${metrics.scenarioA.profitMargin.toFixed(1)}
-- Çeyreklik Net: Q1: $${quarterly.a.q1.toLocaleString()}, Q2: $${quarterly.a.q2.toLocaleString()}, Q3: $${quarterly.a.q3.toLocaleString()}, Q4: $${quarterly.a.q4.toLocaleString()}
-
-SENARYO B (${scenarioB.name}):
-- Hedef Yıl: ${scenarioB.targetYear}
-- Toplam Gelir: $${metrics.scenarioB.totalRevenue.toLocaleString()}
-- Toplam Gider: $${metrics.scenarioB.totalExpenses.toLocaleString()}
-- Net Kâr: $${metrics.scenarioB.netProfit.toLocaleString()}
-- Kâr Marjı: %${metrics.scenarioB.profitMargin.toFixed(1)}
-- Çeyreklik Net: Q1: $${quarterly.b.q1.toLocaleString()}, Q2: $${quarterly.b.q2.toLocaleString()}, Q3: $${quarterly.b.q3.toLocaleString()}, Q4: $${quarterly.b.q4.toLocaleString()}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-DEAL CONFIG (Kullanıcı Girişi):
-- Talep Edilen Yatırım: $${dealConfig.investmentAmount.toLocaleString()}
-- Teklif Edilen Hisse: %${dealConfig.equityPercentage}
-- Sektör Çarpanı: ${dealConfig.sectorMultiple}x
-- Güvenlik Marjı: %${dealConfig.safetyMargin}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-HESAPLANMIŞ EXIT PLANI (${scenarioYear} bazlı, POZİTİF SENARYO):
-- Post-Money Değerleme: $${exitPlan.postMoneyValuation.toLocaleString()}
-- ${year3} (3. Yıl) Yatırımcı Payı: $${exitPlan.investorShare3Year.toLocaleString()}
-- ${year5} (5. Yıl) Yatırımcı Payı: $${exitPlan.investorShare5Year.toLocaleString()}
-- MOIC (${year3}): ${exitPlan.moic3Year.toFixed(2)}x
-- MOIC (${year5}): ${exitPlan.moic5Year.toFixed(2)}x
-- Break-Even Yılı: ${exitPlan.breakEvenYear || 'Belirsiz'}
-
-${exitPlan.allYears && exitPlan.allYears.length > 0 ? `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📊 5 YILLIK FİNANSAL PROJEKSİYON DETAYLARI (HESAPLANMIŞ):
-
-${exitPlan.allYears.map((year: any, i: number) => {
-  const valuations = year.valuations || {};
-  return `
-🗓️ ${year.actualYear || (scenarioYear + i + 1)} (${year.growthStage === 'aggressive' ? 'Agresif Büyüme' : 'Normalize Büyüme'} Aşaması):
-- Gelir: $${(year.revenue || 0).toLocaleString()}
-- Gider: $${(year.expenses || 0).toLocaleString()}
-- Net Kâr: $${(year.netProfit || 0).toLocaleString()}
-- EBITDA: $${(year.ebitda || 0).toLocaleString()} (Marj: %${(year.ebitdaMargin || 0).toFixed(1)})
-- Serbest Nakit Akışı (FCF): $${(year.freeCashFlow || 0).toLocaleString()}
-- Uygulanan Büyüme Oranı: %${((year.appliedGrowthRate || 0) * 100).toFixed(1)}
-
-DEĞERLEME METODLARI:
-├─ Ciro Çarpanı (${dealConfig.sectorMultiple}x): $${(valuations.revenueMultiple || 0).toLocaleString()}
-├─ EBITDA Çarpanı: $${(valuations.ebitdaMultiple || 0).toLocaleString()}
-├─ DCF (%30 iskonto): $${(valuations.dcf || 0).toLocaleString()}
-├─ VC Metodu (10x ROI): $${(valuations.vcMethod || 0).toLocaleString()}
-└─ ⭐ AĞIRLIKLI DEĞERLEME: $${(valuations.weighted || year.companyValuation || 0).toLocaleString()}
-`;
-}).join('\n')}
-
-💰 DEĞERLEME METODOLOJİSİ:
-1. CİRO ÇARPANI (%30 Ağırlık): Gelir × Sektör Çarpanı
-2. EBITDA ÇARPANI (%25 Ağırlık): EBITDA × EBITDA Çarpanı (SaaS:15x, E-ticaret:8x)
-3. DCF (%30 Ağırlık): 5 yıllık FCF NPV + Terminal Value (%30 iskonto, %3 terminal)
-4. VC METODU (%15 Ağırlık): 5. Yıl Değerleme ÷ 10x ROI
-
-🔍 DEĞERLEME ANALİZ TALİMATLARI:
-1. AĞIRLIKLI değerleme = (Ciro×0.30) + (EBITDA×0.25) + (DCF×0.30) + (VC×0.15)
-2. Pitch deck'te 5. yıl ağırlıklı değerlemeyi kullan - UYDURMA değil HESAPLANMIŞ
-3. EBITDA marjı trendi: İlk yıllardan son yıllara nasıl değişiyor?
-4. DCF vs Revenue Multiple farkını yorumla - hangisi daha güvenilir?
-5. VC metodunun gerçekçiliğini değerlendir (10x ROI makul mü?)
-6. HER değerleme rakamını bu bölümden al, UYDURMA
-` : ''}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-DEATH VALLEY ANALİZİ (POZİTİF SENARYO BAZLI):
-- Kritik Çeyrek: ${capitalNeeds.criticalQuarter}
-- Minimum Kümülatif Nakit: $${capitalNeeds.minCumulativeCash.toLocaleString()}
-- Hesaplanan Gereken Yatırım: $${capitalNeeds.requiredInvestment.toLocaleString()}
-- Aylık Burn Rate: $${capitalNeeds.burnRateMonthly.toLocaleString()}
-- Runway: ${capitalNeeds.runwayMonths} ay
-- Kendi Kendini Finanse Edebilir mi: ${capitalNeeds.selfSustaining ? 'Evet' : 'Hayır'}
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-${yearContextSection}
-
-GELİR/GİDER DETAYLARI:
-
-Senaryo A Gelirleri:
-${scenarioA.revenues.map((r: { category: string; projectedAmount: number }) => `- ${r.category}: $${r.projectedAmount.toLocaleString()}`).join('\n')}
-
-Senaryo A Giderleri:
-${scenarioA.expenses.map((e: { category: string; projectedAmount: number }) => `- ${e.category}: $${e.projectedAmount.toLocaleString()}`).join('\n')}
-
-Senaryo B Gelirleri:
-${scenarioB.revenues.map((r: { category: string; projectedAmount: number }) => `- ${r.category}: $${r.projectedAmount.toLocaleString()}`).join('\n')}
-
-Senaryo B Giderleri:
-${scenarioB.expenses.map((e: { category: string; projectedAmount: number }) => `- ${e.category}: $${e.projectedAmount.toLocaleString()}`).join('\n')}
-
-${quarterlyItemized ? `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-ÇEYREKLİK BAZDA GELİR/GİDER DETAYLARI:
-
-SENARYO A - ÇEYREKLİK GELİRLER:
-${quarterlyItemized.scenarioA.revenues.map((r: any) => 
-  `${r.category}: Q1=$${Math.round(r.q1).toLocaleString()}, Q2=$${Math.round(r.q2).toLocaleString()}, Q3=$${Math.round(r.q3).toLocaleString()}, Q4=$${Math.round(r.q4).toLocaleString()} | Toplam=$${Math.round(r.total).toLocaleString()}`
-).join('\n')}
-
-SENARYO B - ÇEYREKLİK GELİRLER:
-${quarterlyItemized.scenarioB.revenues.map((r: any) => 
-  `${r.category}: Q1=$${Math.round(r.q1).toLocaleString()}, Q2=$${Math.round(r.q2).toLocaleString()}, Q3=$${Math.round(r.q3).toLocaleString()}, Q4=$${Math.round(r.q4).toLocaleString()} | Toplam=$${Math.round(r.total).toLocaleString()}`
-).join('\n')}
-
-SENARYO FARKLARI - GELİR KALEMLERİ:
-${quarterlyItemized.diffs.revenues.map((d: any) => 
-  `${d.category}: Q1 Fark=$${Math.round(d.diffQ1).toLocaleString()}, Q2=$${Math.round(d.diffQ2).toLocaleString()}, Q3=$${Math.round(d.diffQ3).toLocaleString()}, Q4=$${Math.round(d.diffQ4).toLocaleString()} | Toplam Fark=$${Math.round(d.totalDiff).toLocaleString()} (${d.percentChange.toFixed(1)}%)`
-).join('\n')}
-
-SENARYO FARKLARI - GİDER KALEMLERİ:
-${quarterlyItemized.diffs.expenses.map((d: any) => 
-  `${d.category}: Q1 Fark=$${Math.round(d.diffQ1).toLocaleString()}, Q2=$${Math.round(d.diffQ2).toLocaleString()}, Q3=$${Math.round(d.diffQ3).toLocaleString()}, Q4=$${Math.round(d.diffQ4).toLocaleString()} | Toplam Fark=$${Math.round(d.totalDiff).toLocaleString()} (${d.percentChange.toFixed(1)}%)`
-).join('\n')}
-
-📊 ÇEYREKLİK ANALİZ TALİMATLARI:
-1. Hangi gelir kalemi büyümeyi sürüklüyor? (En yüksek pozitif fark)
-2. Hangi gider kalemi sermaye ihtiyacının ana nedeni? (En yüksek artış)
-3. Q1-Q4 arasında hangi çeyrek kritik? (Cash flow açısından)
-4. Mevsimsel trendler var mı? (Q1 düşük, Q4 yüksek gibi)
-5. Büyüme senaryosu hangi kalemde en agresif?
-` : ''}
-
-${focusProjectInfo ? `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-🎯 ODAK PROJE(LER) BİLGİSİ (KULLANICI SEÇİMİ):
-
-${focusProjectInfo.projects.map((p: any, i: number) => `
-📌 Proje ${i + 1}: ${p.projectName}
-- Mevcut Gelir: $${(p.currentRevenue || 0).toLocaleString()}
-- Hedef Gelir: $${(p.projectedRevenue || 0).toLocaleString()}
-- Büyüme: %${p.currentRevenue > 0 ? (((p.projectedRevenue / p.currentRevenue) - 1) * 100).toFixed(1) : '∞'}
-`).join('\n')}
-
-💰 TOPLAM:
-- Toplam Mevcut: $${(focusProjectInfo.combinedCurrentRevenue || 0).toLocaleString()}
-- Toplam Hedef: $${(focusProjectInfo.combinedProjectedRevenue || 0).toLocaleString()}
-- Büyüme Oranı: %${focusProjectInfo.combinedCurrentRevenue > 0 ? (((focusProjectInfo.combinedProjectedRevenue / focusProjectInfo.combinedCurrentRevenue) - 1) * 100).toFixed(1) : '∞'}
-
-📈 BÜYÜME PLANI (Kullanıcı Girişi):
-${focusProjectInfo.growthPlan || 'Belirtilmedi - AI en mantıklı büyüme stratejisini önersin'}
-
-💵 YATIRIM DAĞILIMI (Kullanıcı Tercihi):
-- Ürün Geliştirme: %${focusProjectInfo.investmentAllocation?.product || 40} ($${Math.round(dealConfig.investmentAmount * (focusProjectInfo.investmentAllocation?.product || 40) / 100).toLocaleString()})
-- Pazarlama: %${focusProjectInfo.investmentAllocation?.marketing || 30} ($${Math.round(dealConfig.investmentAmount * (focusProjectInfo.investmentAllocation?.marketing || 30) / 100).toLocaleString()})
-- Personel: %${focusProjectInfo.investmentAllocation?.hiring || 20} ($${Math.round(dealConfig.investmentAmount * (focusProjectInfo.investmentAllocation?.hiring || 20) / 100).toLocaleString()})
-- Operasyon: %${focusProjectInfo.investmentAllocation?.operations || 10} ($${Math.round(dealConfig.investmentAmount * (focusProjectInfo.investmentAllocation?.operations || 10) / 100).toLocaleString()})
-
-🔍 ANALİZ TALİMATI:
-1. Pitch deck'te bu proje(leri) ana büyüme motoru olarak sun
-2. Yatırım dağılımına göre "Use of Funds" slaytını oluştur (spesifik $ tutarları ile)
-3. Büyüme planını speaker notes'a dahil et
-4. Her slaytın key_message'ında proje ismi ve $ rakamı olsun
-5. Executive summary'de odak proje(leri) vurgula
-` : `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-⚠️ ODAK PROJE BELİRTİLMEDİ
-Kullanıcı odak proje seçmedi. Analiz yaparken:
-1. En yüksek büyüme potansiyeli olan gelir kalemini otomatik seç
-2. Senaryo A vs B arasındaki en büyük farkı yaratan kalemi belirle
-3. Bu kalemi ana büyüme hikayesi olarak kullan
-`}
-
-${previousEditedProjections ? `
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-
-📝 KULLANICI DÜZENLEMELERİ (Önceki Analiz Sonrası):
-
-Kullanıcı AI tarafından önerilen projeksiyon tablolarında değişiklik yaptı.
-Bu değişiklikleri dikkate alarak analizi güncelle.
-
-Düzenlenmiş Gelir Projeksiyonu (Sonraki Yıl):
-${(previousEditedProjections.revenue || []).filter((i: any) => i.userEdited).map((r: any) => 
-  `${r.category}: Q1=$${Math.round(r.q1).toLocaleString()}, Q2=$${Math.round(r.q2).toLocaleString()}, Q3=$${Math.round(r.q3).toLocaleString()}, Q4=$${Math.round(r.q4).toLocaleString()} | Toplam=$${Math.round(r.total || (r.q1+r.q2+r.q3+r.q4)).toLocaleString()} [KULLANICI DÜZENLEDİ]`
-).join('\n') || 'Gelir düzenlemesi yok'}
-
-Düzenlenmiş Gider Projeksiyonu (Sonraki Yıl):
-${(previousEditedProjections.expense || []).filter((i: any) => i.userEdited).map((e: any) => 
-  `${e.category}: Q1=$${Math.round(e.q1).toLocaleString()}, Q2=$${Math.round(e.q2).toLocaleString()}, Q3=$${Math.round(e.q3).toLocaleString()}, Q4=$${Math.round(e.q4).toLocaleString()} | Toplam=$${Math.round(e.total || (e.q1+e.q2+e.q3+e.q4)).toLocaleString()} [KULLANICI DÜZENLEDİ]`
-).join('\n') || 'Gider düzenlemesi yok'}
-
-🔍 ANALİZ TALİMATI:
-1. Kullanıcının yaptığı değişiklikleri doğrula ve mantıklı olup olmadığını değerlendir
-2. Değişiklikler toplam rakamları etkileyecekse, bunu insights ve pitch deck'e yansıt
-3. Kullanıcının değişiklikleri agresif/konservatif mi belirt
-` : ''}
-
-Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı verileri ve ODAK PROJE bilgisini) analiz et ve yukarıdaki 5 bölümün hepsini içeren yapılandırılmış çıktı üret.
-`;
+    const year2 = scenarioRelationship.projectionYear;
+    const year3 = exitPlanBaseYear + 3;
+    const year5 = exitPlanBaseYear + 5;
+
+    // Build bilingual user prompt
+    const userPrompt = buildUserPrompt(
+      { scenarioA, scenarioB, metrics, quarterly, dealConfig, exitPlan, capitalNeeds, historicalBalance, quarterlyItemized, exchangeRate, focusProjectInfo, previousEditedProjections },
+      scenarioRelationship,
+      { baseYear, scenarioYear, scenarioBYear, year2, year3, year5, exitPlanBaseYear },
+      L
+    );
 
     console.log("Calling Lovable AI with Pro model for unified analysis...");
+
+    // Build system prompt with bilingual content
+    const systemPrompt = getUnifiedMasterPrompt(dynamicScenarioRules, L) + 
+      `\n\n${L.languageInstruction} ${langConfig.responseInstruction}\n${L.allContentMustBe} ${langConfig.aiLanguage}.`;
 
     const response = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
       method: "POST",
@@ -1461,10 +2377,7 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
       body: JSON.stringify({
         model: PRIMARY_MODEL_ID,
         messages: [
-          { 
-            role: "system", 
-            content: getUnifiedMasterPrompt(dynamicScenarioRules) + `\n\n🌐 LANGUAGE INSTRUCTION: ${langConfig.responseInstruction}\nAll insights, recommendations, pitch deck slides, and strategy notes MUST be in ${langConfig.aiLanguage}.`
-          },
+          { role: "system", content: systemPrompt },
           { role: "user", content: userPrompt }
         ],
         tools: [getUnifiedAnalysisToolSchema()],
@@ -1475,7 +2388,7 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
     let usedModel = PRIMARY_MODEL_ID;
     let finalResponse = response;
 
-    // Handle rate limit and credit errors immediately (no fallback)
+    // Handle rate limit and credit errors
     if (response.status === 429) {
       const errorText = await response.text();
       console.error("Rate limit exceeded:", errorText);
@@ -1493,13 +2406,12 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
       );
     }
 
-    // If primary model fails with other errors, try fallback
+    // Fallback to Claude if primary fails
     if (!response.ok) {
       const errorText = await response.text();
       console.error(`Primary model (${PRIMARY_MODEL_ID}) failed:`, response.status, errorText);
       console.log(`Attempting fallback to ${FALLBACK_MODEL_ID}...`);
 
-      // Retry with fallback model - uses simpler schema for better Claude compatibility
       const fallbackResponse = await fetch("https://ai.gateway.lovable.dev/v1/chat/completions", {
         method: "POST",
         headers: {
@@ -1509,13 +2421,10 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
         body: JSON.stringify({
           model: FALLBACK_MODEL_ID,
           messages: [
-            { 
-              role: "system", 
-              content: getUnifiedMasterPrompt(dynamicScenarioRules) + `\n\n🌐 LANGUAGE INSTRUCTION: ${langConfig.responseInstruction}\nAll insights, recommendations, pitch deck slides, and strategy notes MUST be in ${langConfig.aiLanguage}.`
-            },
+            { role: "system", content: systemPrompt },
             { role: "user", content: userPrompt }
           ],
-          tools: [getFallbackToolSchema()],  // Simpler schema for Claude fallback
+          tools: [getFallbackToolSchema()],
           tool_choice: { type: "function", function: { name: "generate_unified_analysis" } }
         }),
       });
@@ -1534,31 +2443,28 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
     const data = await finalResponse.json();
     console.log(`AI response received successfully from ${usedModel}`);
     
-    // Debug: log the response structure
     console.log("Response structure:", JSON.stringify({
       hasChoices: !!data.choices,
       choicesLength: data.choices?.length,
       hasMessage: !!data.choices?.[0]?.message,
       hasToolCalls: !!data.choices?.[0]?.message?.tool_calls,
       toolCallsLength: data.choices?.[0]?.message?.tool_calls?.length,
-      hasContent: !!data.choices?.[0]?.message?.content,
-      contentPreview: data.choices?.[0]?.message?.content?.substring?.(0, 200)
     }));
 
-    // Extract the function call result
+    // Extract function call result
     const toolCall = data.choices?.[0]?.message?.tool_calls?.[0];
     if (toolCall?.function?.arguments) {
       try {
         const analysisResult = JSON.parse(toolCall.function.arguments);
         console.log("Successfully parsed tool call arguments");
         
-        // Add projection_year and model metadata to the response
         const responseWithMetadata = {
           ...analysisResult,
           projection_year: scenarioRelationship.projectionYear,
           _metadata: {
             model_used: usedModel,
-            is_fallback: usedModel !== PRIMARY_MODEL_ID
+            is_fallback: usedModel !== PRIMARY_MODEL_ID,
+            language: language
           }
         };
 
@@ -1576,27 +2482,22 @@ Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı
     if (content) {
       console.log("Trying to parse content directly, length:", content.length);
       try {
-        // Try to extract JSON from markdown code blocks if present
         let jsonContent = content;
         const jsonMatch = content.match(/```(?:json)?\s*([\s\S]*?)```/);
         if (jsonMatch) {
           jsonContent = jsonMatch[1].trim();
-          console.log("Extracted JSON from code block");
         }
         
         const parsed = JSON.parse(jsonContent);
-        console.log("Successfully parsed content as JSON");
         return new Response(
           JSON.stringify(parsed),
           { headers: { ...corsHeaders, "Content-Type": "application/json" } }
         );
       } catch (contentParseError) {
         console.error("Failed to parse content as JSON:", contentParseError);
-        console.log("Raw content (first 500 chars):", content.substring(0, 500));
       }
     }
 
-    // Last resort: return partial data if available
     console.error("No valid response structure found in AI response");
     throw new Error("No valid response from AI - check logs for response structure");
   } catch (error) {
