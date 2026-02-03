@@ -6,25 +6,30 @@ const corsHeaders = {
 };
 
 // =====================================================
-// BÜYÜME ANALİZİ PROMPT - POZİTİF YIL-ÜZERİ-YIL ODAKLI
+// BÜYÜME ANALİZİ PROMPT - DENGELİ ANALİZ + KANIT ZİNCİRİ
 // =====================================================
 const GROWTH_ANALYSIS_PROMPT = `Sen, şirketin büyüme stratejisti ve finansal analistsin.
 
-🎯 GÖREV: İki farklı yıla ait senaryo verisini analiz edip BÜYÜME odaklı içgörüler üret.
+🎯 GÖREV: İki farklı yıla ait senaryo verisini analiz edip DENGELI büyüme analizi üret.
 
-⚠️ KRİTİK KURALLAR:
-1. Bu bir "pozitif vs negatif" karşılaştırması DEĞİL!
-2. Her iki senaryo da POZİTİF - biri baz yıl, diğeri büyüme yılı
-3. Risk karşılaştırması YAPMA - büyüme momentum analizi yap
-4. "Yatırım alamazsak" veya "negatif senaryo" ifadelerini KULLANMA
-5. Odak: Baz yıldan büyüme yılına nasıl geçilir?
+📊 ANALİZ PRENSİPLERİ:
+1. FIRSAT ANALİZİ: Büyüme potansiyeli ve momentum analizi
+2. RİSK ANALİZİ: Hedeflere ulaşamama senaryoları ve etkileri
+3. KANIT ZİNCİRİ: Her içgörü veri noktasına dayanmalı
+4. GÜVEN SKORU: Veri kalitesine göre 0-100 arası skor
 
-📊 ANALİZ ODAĞI:
-- Yıllar arası büyüme oranları ve trendler
-- Proje bazlı büyüme katkıları
-- En yüksek büyüme potansiyeli olan alanlar
-- ROI projeksiyonu ve değerleme artışı
-- Milestone bazlı roadmap önerileri
+⚠️ KANIT ZİNCİRİ KURALI (ZORUNLU):
+Her insight için mutlaka belirt:
+- KAYNAK VERİ: Hangi metriklere dayandığı
+- VARSAYIMLAR: Yapılan varsayımlar
+- SINIRLAMALAR: Analizin sınırları
+
+📊 GÜVEN SKORU HESAPLAMA:
+- 90-100%: Doğrudan veri hesabı (ör: "Gelir büyümesi = X%")
+- 75-89%: Veriye dayalı çıkarım (ör: "Marj eğilimi devam ederse...")
+- 60-74%: Mantıksal tahmin - "⚠️ TAHMİN:" etiketi ZORUNLU
+- 50-59%: Düşük güven - "❓ DÜŞÜK GÜVEN:" etiketi ZORUNLU
+- <50%: KULLANMA - belirsizlik çok yüksek
 
 📥 VERİ PAKETİ:
 - Baz Senaryo: Mevcut yıl verileri (gelir, gider, yatırım)
@@ -36,21 +41,36 @@ const GROWTH_ANALYSIS_PROMPT = `Sen, şirketin büyüme stratejisti ve finansal 
     {
       "title": "Başlık",
       "description": "Açıklama (veri destekli)",
-      "category": "revenue|expense|efficiency|opportunity",
-      "confidence": 70-100
+      "category": "revenue|expense|efficiency|opportunity|risk",
+      "confidence": 60-100,
+      "evidence": {
+        "sourceData": "Hangi veri noktasına dayandığı",
+        "assumptions": ["Varsayım 1", "Varsayım 2"],
+        "limitations": "Bu analizin sınırları (opsiyonel)"
+      }
+    }
+  ],
+  "riskAnalysis": [
+    {
+      "risk": "Risk tanımı",
+      "probability": "low|medium|high",
+      "impact": "Etki açıklaması",
+      "mitigation": "Azaltma stratejisi",
+      "relatedOpportunity": "İlgili fırsat (opsiyonel)"
     }
   ],
   "projectRecommendations": [
     {
       "title": "Proje Adı veya Alan",
       "description": "Neden bu alana odaklanmalı",
-      "expectedGrowth": 25 // yüzde olarak
+      "expectedGrowth": 25
     }
   ],
   "roiInsights": [
     {
       "title": "ROI Analizi Başlığı",
-      "description": "Yatırım getirisi açıklaması"
+      "description": "Yatırım getirisi açıklaması",
+      "evidence": "Hesaplama dayanağı"
     }
   ],
   "milestones": [
@@ -68,22 +88,28 @@ const GROWTH_ANALYSIS_PROMPT = `Sen, şirketin büyüme stratejisti ve finansal 
       "title": "Öneri Başlığı",
       "description": "Detaylı açıklama"
     }
-  ]
+  ],
+  "dataQualityNote": "Veri kalitesi ve analiz sınırları hakkında kısa not"
 }
 
-⚠️ YASAKLAR (OTOMATİK RED):
-❌ "Negatif senaryo" ifadesi
-❌ "Risk senaryosu" ifadesi
-❌ "Yatırım alamazsak" ifadesi
-❌ "Fırsat maliyeti" hesabı (bu büyüme analizi, kayıp analizi değil)
+⚖️ RİSK/FIRSAT DENGESİ KURALI:
+- Her 2-3 fırsat için EN AZ 1 risk faktörü belirt
+- Hedeflere ulaşılamama durumunda etkileri say
+- "Yatırım alamazsak" yerine "Organik büyüme senaryosunda" kullan
+
+⚠️ YASAKLAR:
+❌ Kanıtsız iddialar (sourceData olmadan insight yok)
+❌ 90%+ güven skoru olmayan kesin ifadeler
+❌ Varsayımsız tahminler
 ❌ Uydurma pazar verileri veya rakipler
 ❌ Varsayımsal dış veriler
 
 ✅ KULLAN:
 ✅ "Baz yıl" ve "Büyüme yılı" ifadeleri
-✅ "Büyüme momentum" analizi
-✅ "ROI projeksiyonu" hesabı
-✅ Verilen senaryo verilerine dayalı çıkarımlar
+✅ "Organik büyüme senaryosu" (yatırımsız durum için)
+✅ "Risk faktörü" (olumsuzluklar için)
+✅ Kanıt zinciri ile desteklenmiş içgörüler
+✅ Güven skorları
 ✅ Somut rakamlar ($X, %Y formatında)
 `;
 
@@ -184,19 +210,34 @@ serve(async (req) => {
       console.error("Raw content:", content);
       
       // Fallback analiz
+      const growthRate = baseRevenue > 0 ? (((growthRevenue - baseRevenue) / baseRevenue) * 100).toFixed(1) : 0;
       analysis = {
         growthInsights: [
           {
             title: "Genel Büyüme Trendi",
-            description: `${baseScenario.targetYear}'den ${growthScenario.targetYear}'e geçişte ${baseRevenue > 0 ? (((growthRevenue - baseRevenue) / baseRevenue) * 100).toFixed(1) : 0}% gelir büyümesi hedefleniyor.`,
+            description: `${baseScenario.targetYear}'den ${growthScenario.targetYear}'e geçişte %${growthRate} gelir büyümesi hedefleniyor.`,
             category: "revenue",
-            confidence: 85
+            confidence: 90,
+            evidence: {
+              sourceData: `Baz gelir: $${baseRevenue.toLocaleString()}, Hedef gelir: $${growthRevenue.toLocaleString()}`,
+              assumptions: ["Gelir projeksiyonları gerçekleşecek"],
+              limitations: "AI analizi yapılamadı, temel hesaplama kullanıldı"
+            }
+          }
+        ],
+        riskAnalysis: [
+          {
+            risk: "Büyüme hedeflerine ulaşamama riski",
+            probability: "medium",
+            impact: "Organik büyüme senaryosunda daha düşük değerleme",
+            mitigation: "Milestone bazlı ilerleme takibi ve erken uyarı sistemleri"
           }
         ],
         projectRecommendations: [],
         roiInsights: [],
         milestones: [],
-        milestoneRecommendations: []
+        milestoneRecommendations: [],
+        dataQualityNote: "AI analizi yapılamadı, temel hesaplama kullanıldı"
       };
     }
 

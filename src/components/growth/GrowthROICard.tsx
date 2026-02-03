@@ -1,22 +1,27 @@
 import { useMemo } from 'react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { SimulationScenario } from '@/types/simulation';
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { SimulationScenario, SECTOR_MULTIPLES } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
-import { 
-  DollarSign, 
-  TrendingUp, 
-  Target, 
-  ArrowRight, 
+import { calculateDynamicMultiple, DynamicMultipleResult } from '@/lib/valuationCalculator';
+import {
+  DollarSign,
+  TrendingUp,
+  Target,
+  ArrowRight,
   Percent,
   Calculator,
   PiggyBank,
+  Info,
 } from 'lucide-react';
 
 interface GrowthROICardProps {
   baseScenario: SimulationScenario;
   growthScenario: SimulationScenario;
   aiAnalysis?: any;
+  /** Sector for valuation multiple (e.g., 'SaaS', 'Fintech', 'E-commerce') */
+  sector?: string;
 }
 
 interface ROIMetric {
@@ -31,50 +36,69 @@ export function GrowthROICard({
   baseScenario,
   growthScenario,
   aiAnalysis,
+  sector = 'Consulting', // Default to most conservative multiple (3x)
 }: GrowthROICardProps) {
   // ROI Metrikleri Hesapla
   const roiMetrics = useMemo(() => {
     // Gelir ve gider toplamları
     const baseRevenue = baseScenario.revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
     const growthRevenue = growthScenario.revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
-    
+
     const baseExpense = baseScenario.expenses.reduce((sum, e) => sum + e.projectedAmount, 0);
     const growthExpense = growthScenario.expenses.reduce((sum, e) => sum + e.projectedAmount, 0);
-    
+
     const baseProfit = baseRevenue - baseExpense;
     const growthProfit = growthRevenue - growthExpense;
-    
+
     // Yatırım toplamları (varsa)
     const baseInvestment = baseScenario.investments.reduce((sum, i) => sum + i.amount, 0);
     const growthInvestment = growthScenario.investments.reduce((sum, i) => sum + i.amount, 0);
     const totalInvestment = baseInvestment + growthInvestment;
-    
-    // Büyüme oranları
+
+    // Büyüme oranları (decimal format for Rule of 40)
     const revenueGrowthRate = baseRevenue > 0 ? ((growthRevenue - baseRevenue) / baseRevenue) * 100 : 0;
+    const revenueGrowthDecimal = revenueGrowthRate / 100;
     const profitGrowthRate = baseProfit !== 0 ? ((growthProfit - baseProfit) / Math.abs(baseProfit)) * 100 : 0;
-    
+
+    // Kâr marjı (decimal format for Rule of 40)
+    const profitMarginDecimal = growthRevenue > 0 ? growthProfit / growthRevenue : 0;
+
     // ROI hesabı
     const profitIncrease = growthProfit - baseProfit;
     const roi = totalInvestment > 0 ? (profitIncrease / totalInvestment) * 100 : profitGrowthRate;
-    
-    // Basit değerleme (3x gelir çarpanı)
-    const multiple = 3;
-    const baseValuation = baseRevenue * multiple;
-    const growthValuation = growthRevenue * multiple;
+
+    // Dynamic valuation with Rule of 40 adjustment
+    // Uses sector-based multiple adjusted by growth + profitability score
+    const multipleResult = calculateDynamicMultiple(
+      sector,
+      revenueGrowthDecimal,
+      profitMarginDecimal
+    );
+
+    const baseValuation = baseRevenue * multipleResult.adjustedMultiple;
+    const growthValuation = growthRevenue * multipleResult.adjustedMultiple;
     const valuationIncrease = growthValuation - baseValuation;
-    
+
+    // Valuation range (±25% uncertainty)
+    const valuationRange = {
+      low: growthValuation * 0.75,
+      mid: growthValuation,
+      high: growthValuation * 1.25,
+    };
+
     // MOIC (yatırım varsa)
     const moic = totalInvestment > 0 ? (growthValuation / totalInvestment) : 0;
-    
+
     return {
       revenue: { base: baseRevenue, growth: growthRevenue, rate: revenueGrowthRate },
       profit: { base: baseProfit, growth: growthProfit, rate: profitGrowthRate },
       investment: { total: totalInvestment, base: baseInvestment, growth: growthInvestment },
-      valuation: { base: baseValuation, growth: growthValuation, increase: valuationIncrease },
+      valuation: { base: baseValuation, growth: growthValuation, increase: valuationIncrease, range: valuationRange },
       roi,
       moic,
+      multipleInfo: multipleResult,
     };
-  }, [baseScenario, growthScenario]);
+  }, [baseScenario, growthScenario, sector]);
   
   // Metrik kartları
   const metrics: ROIMetric[] = [
@@ -93,18 +117,18 @@ export function GrowthROICard({
       color: roiMetrics.profit.growth > 0 ? 'emerald' : 'amber',
     },
     {
-      label: 'Değerleme Artışı',
-      value: formatCompactUSD(roiMetrics.valuation.increase),
-      subValue: `${formatCompactUSD(roiMetrics.valuation.base)} → ${formatCompactUSD(roiMetrics.valuation.growth)}`,
+      label: 'Değerleme',
+      value: formatCompactUSD(roiMetrics.valuation.growth),
+      subValue: `${sector} ${roiMetrics.multipleInfo.adjustedMultiple.toFixed(1)}x • R40: ${roiMetrics.multipleInfo.ruleOf40Score.toFixed(0)}`,
       icon: <Target className="h-5 w-5" />,
       color: 'blue',
     },
     {
       label: roiMetrics.investment.total > 0 ? 'MOIC' : 'Kâr Marjı',
-      value: roiMetrics.investment.total > 0 
+      value: roiMetrics.investment.total > 0
         ? `${roiMetrics.moic.toFixed(1)}x`
         : `${((roiMetrics.profit.growth / roiMetrics.revenue.growth) * 100).toFixed(1)}%`,
-      subValue: roiMetrics.investment.total > 0 
+      subValue: roiMetrics.investment.total > 0
         ? `${formatCompactUSD(roiMetrics.investment.total)} yatırım`
         : 'Net kâr / Gelir',
       icon: roiMetrics.investment.total > 0 ? <Calculator className="h-5 w-5" /> : <Percent className="h-5 w-5" />,
@@ -153,24 +177,44 @@ export function GrowthROICard({
       </Card>
       
       {/* Metrik Kartları */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-        {metrics.map((metric) => (
-          <Card key={metric.label} className={colorClasses[metric.color]}>
-            <CardContent className="pt-4">
-              <div className="flex items-start justify-between mb-2">
-                <span className={`${colorClasses[metric.color].split(' ')[2]}`}>
-                  {metric.icon}
-                </span>
-              </div>
-              <p className="text-2xl font-bold">{metric.value}</p>
-              <p className="text-xs text-muted-foreground mt-1">{metric.label}</p>
-              {metric.subValue && (
-                <p className="text-xs text-muted-foreground/70 mt-0.5">{metric.subValue}</p>
-              )}
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+      <TooltipProvider>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+          {metrics.map((metric) => (
+            <Card key={metric.label} className={colorClasses[metric.color]}>
+              <CardContent className="pt-4">
+                <div className="flex items-start justify-between mb-2">
+                  <span className={`${colorClasses[metric.color].split(' ')[2]}`}>
+                    {metric.icon}
+                  </span>
+                  {metric.label === 'Değerleme' && (
+                    <Tooltip>
+                      <TooltipTrigger>
+                        <Info className="h-4 w-4 text-muted-foreground/50 hover:text-muted-foreground" />
+                      </TooltipTrigger>
+                      <TooltipContent className="max-w-xs">
+                        <div className="space-y-1 text-xs">
+                          <p className="font-medium">Değerleme Detayları</p>
+                          <p>Sektör: {sector} (baz: {roiMetrics.multipleInfo.baseMultiple}x)</p>
+                          <p>Rule of 40: {roiMetrics.multipleInfo.ruleOf40Score.toFixed(0)} (büyüme + marj)</p>
+                          <p>{roiMetrics.multipleInfo.adjustmentReason}</p>
+                          <p className="pt-1 border-t mt-1">
+                            Aralık: {formatCompactUSD(roiMetrics.valuation.range.low)} - {formatCompactUSD(roiMetrics.valuation.range.high)}
+                          </p>
+                        </div>
+                      </TooltipContent>
+                    </Tooltip>
+                  )}
+                </div>
+                <p className="text-2xl font-bold">{metric.value}</p>
+                <p className="text-xs text-muted-foreground mt-1">{metric.label}</p>
+                {metric.subValue && (
+                  <p className="text-xs text-muted-foreground/70 mt-0.5">{metric.subValue}</p>
+                )}
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+      </TooltipProvider>
       
       {/* Yatırım Akışı (varsa) */}
       {roiMetrics.investment.total > 0 && (

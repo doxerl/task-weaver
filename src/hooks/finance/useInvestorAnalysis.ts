@@ -30,8 +30,17 @@ import {
   calculateVCValuation,
   calculateWeightedValuation,
   getEBITDAMultiple,
-  DEFAULT_VALUATION_CONFIG
+  DEFAULT_VALUATION_CONFIG,
+  calculateDynamicMultiple
 } from '@/lib/valuationCalculator';
+import {
+  ExpenseCategory,
+  EXPENSE_CATEGORY_ELASTICITIES
+} from '@/types/simulation';
+import {
+  EXPENSE_CODE_TO_CATEGORY,
+  inferExpenseCategoryFromName
+} from '@/constants/simulation';
 
 interface QuarterlyData {
   q1: number;
@@ -46,6 +55,144 @@ interface ScenarioSummary {
   netProfit: number;
   profitMargin: number;
 }
+
+// =====================================================
+// CATEGORY-BASED EXPENSE PROJECTION
+// =====================================================
+
+/**
+ * Input for expense projection
+ */
+export interface ExpenseProjectionInput {
+  /** Expense category/name */
+  category: string;
+  /** Expense amount */
+  amount: number;
+  /** Optional expense code for more accurate categorization */
+  code?: string;
+}
+
+/**
+ * Result of expense projection
+ */
+export interface ExpenseProjectionResult {
+  /** Original category name */
+  category: string;
+  /** Original amount */
+  originalAmount: number;
+  /** Projected amount after growth */
+  projectedAmount: number;
+  /** Elasticity that was applied */
+  appliedElasticity: number;
+  /** Inferred expense type */
+  expenseType: ExpenseCategory;
+  /** Growth rate applied */
+  appliedGrowthRate: number;
+}
+
+/**
+ * Project expenses using category-based elasticities
+ *
+ * Different expense categories grow at different rates relative to revenue:
+ * - COGS: 1.0x (direct costs scale with revenue)
+ * - SALES_MARKETING: 0.8x (can show efficiency gains)
+ * - R_D: 0.5x (mostly fixed team costs)
+ * - G_A: 0.3x (largely fixed overhead)
+ *
+ * @param expenses - Array of expense items with category and amount
+ * @param revenueGrowthRate - Revenue growth rate as decimal
+ * @returns Array of projected expenses with applied elasticities
+ */
+export const projectExpensesByCategory = (
+  expenses: ExpenseProjectionInput[],
+  revenueGrowthRate: number
+): ExpenseProjectionResult[] => {
+  return expenses.map(expense => {
+    // Determine expense category from code or name
+    const expenseType: ExpenseCategory = expense.code
+      ? (EXPENSE_CODE_TO_CATEGORY[expense.code.toUpperCase()] || inferExpenseCategoryFromName(expense.category))
+      : inferExpenseCategoryFromName(expense.category);
+
+    const elasticityConfig = EXPENSE_CATEGORY_ELASTICITIES[expenseType];
+
+    // Calculate growth rate for this category with bounds
+    const categoryGrowthRate = Math.max(
+      elasticityConfig.minGrowth,
+      Math.min(
+        elasticityConfig.maxGrowth,
+        revenueGrowthRate * elasticityConfig.elasticity
+      )
+    );
+
+    return {
+      category: expense.category,
+      originalAmount: expense.amount,
+      projectedAmount: expense.amount * (1 + categoryGrowthRate),
+      appliedElasticity: elasticityConfig.elasticity,
+      expenseType,
+      appliedGrowthRate: categoryGrowthRate
+    };
+  });
+};
+
+/**
+ * Calculate weighted average elasticity from itemized expenses
+ * Used when we have expense breakdown but want a single multiplier
+ *
+ * @param expenses - Array of expense items
+ * @returns Weighted average elasticity (0.3 to 1.0)
+ */
+export const calculateWeightedElasticity = (
+  expenses: ExpenseProjectionInput[]
+): number => {
+  if (expenses.length === 0) return 0.6; // Default fallback
+
+  let totalAmount = 0;
+  let weightedSum = 0;
+
+  expenses.forEach(expense => {
+    const expenseType: ExpenseCategory = expense.code
+      ? (EXPENSE_CODE_TO_CATEGORY[expense.code.toUpperCase()] || inferExpenseCategoryFromName(expense.category))
+      : inferExpenseCategoryFromName(expense.category);
+
+    const elasticity = EXPENSE_CATEGORY_ELASTICITIES[expenseType].elasticity;
+
+    totalAmount += expense.amount;
+    weightedSum += expense.amount * elasticity;
+  });
+
+  if (totalAmount === 0) return 0.6;
+
+  return weightedSum / totalAmount;
+};
+
+/**
+ * Project total expenses with optional category breakdown
+ * Maintains backwards compatibility with existing code
+ *
+ * @param totalExpenses - Total expense amount
+ * @param revenueGrowthRate - Revenue growth rate
+ * @param itemizedExpenses - Optional itemized expenses for category-based projection
+ * @returns Projected total expenses
+ */
+export const projectTotalExpenses = (
+  totalExpenses: number,
+  revenueGrowthRate: number,
+  itemizedExpenses?: ExpenseProjectionInput[]
+): number => {
+  if (itemizedExpenses && itemizedExpenses.length > 0) {
+    // Use category-based projection
+    const projectedExpenses = projectExpensesByCategory(itemizedExpenses, revenueGrowthRate);
+    return projectedExpenses.reduce((sum, e) => sum + e.projectedAmount, 0);
+  }
+
+  // Fallback to weighted average elasticity (default: 0.6)
+  const elasticity = itemizedExpenses
+    ? calculateWeightedElasticity(itemizedExpenses)
+    : 0.6;
+
+  return totalExpenses * (1 + (revenueGrowthRate * elasticity));
+};
 
 // Calculate "Death Valley" - the deepest cumulative cash deficit
 // Enhanced with year-end balance, 2-year projections, and investment tiers
@@ -349,7 +496,12 @@ export const projectFutureRevenue = (
     }
     
     revenue = revenue * (1 + effectiveGrowthRate);
-    expenses = expenses * (1 + (effectiveGrowthRate * 0.6)); // Giderler gelirden daha yavaş büyür
+    // Operating leverage: expenses grow slower than revenue
+    // Default elasticity: 0.6 (expenses grow at 60% of revenue growth rate)
+    // For category-based projection, use projectExpensesByCategory() with itemized expenses
+    // Category elasticities: COGS=1.0, S&M=0.8, R&D=0.5, G&A=0.3, OTHER=0.6
+    const expenseElasticity = 0.6; // TODO: Pass itemizedExpenses to use calculateWeightedElasticity()
+    expenses = expenses * (1 + (effectiveGrowthRate * expenseElasticity));
     const netProfit = revenue - expenses;
     cumulativeProfit += netProfit;
     
