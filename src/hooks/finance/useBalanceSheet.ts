@@ -36,7 +36,17 @@ export function useBalanceSheet(year: number): {
   // Extract stable references to avoid undefined access in useMemo deps
   // Use safe defaults to prevent hook dependency array issues
   const hubIsLoading = hub?.isLoading ?? true;
-  const hubBalanceData = hub?.balanceData;
+  const emptyBalanceData = {
+    cashOnHand: 0, bankBalance: 0, tradeReceivables: 0, partnerReceivables: 0,
+    vatDeductible: 0, otherVat: 0, inventory: 0, currentAssetsTotal: 0,
+    equipment: 0, vehicles: 0, depreciation: 0, fixedAssetsTotal: 0, totalAssets: 0,
+    tradePayables: 0, calculatedVatPayable: 0, taxPayable: 0, partnerPayables: 0,
+    personnelPayables: 0, taxPayables: 0, socialSecurityPayables: 0,
+    deferredTaxLiabilities: 0, taxProvision: 0, shortTermLoanDebt: 0, shortTermTotal: 0,
+    bankLoans: 0, longTermTotal: 0,
+    paidCapital: 0, unpaidCapital: 0, retainedEarnings: 0, currentProfit: 0,
+  };
+  const hubBalanceData = hub?.balanceData ?? emptyBalanceData;
   const hubUncategorizedCount = hub?.uncategorizedCount ?? 0;
   const hubUncategorizedTotal = hub?.uncategorizedTotal ?? 0;
   const hubOperatingProfit = hub?.operatingProfit ?? 0;
