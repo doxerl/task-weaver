@@ -4,6 +4,25 @@ import { useYearlyBalanceSheet } from './useYearlyBalanceSheet';
 import { useIncomeStatement } from './useIncomeStatement';
 import { BalanceSheet } from '@/types/finance';
 
+// Stable default values outside hook to prevent recreation on each render
+const EMPTY_BALANCE_DATA = {
+  cashOnHand: 0, bankBalance: 0, tradeReceivables: 0, partnerReceivables: 0,
+  vatDeductible: 0, otherVat: 0, inventory: 0, currentAssetsTotal: 0,
+  equipment: 0, vehicles: 0, depreciation: 0, fixedAssetsTotal: 0, totalAssets: 0,
+  tradePayables: 0, calculatedVatPayable: 0, taxPayable: 0, partnerPayables: 0,
+  personnelPayables: 0, taxPayables: 0, socialSecurityPayables: 0,
+  deferredTaxLiabilities: 0, taxProvision: 0, shortTermLoanDebt: 0, shortTermTotal: 0,
+  bankLoans: 0, longTermTotal: 0,
+  paidCapital: 0, unpaidCapital: 0, retainedEarnings: 0, currentProfit: 0,
+};
+
+const EMPTY_CASH_FLOW_SUMMARY: CashFlowSummary = {
+  inflows: 0,
+  outflows: 0,
+  net: 0,
+  outflowsByType: { expenses: 0, partnerPayments: 0, investments: 0, financing: 0, other: 0 }
+};
+
 export function useBalanceSheet(year: number): { 
   balanceSheet: BalanceSheet; 
   isLoading: boolean; 
@@ -33,31 +52,15 @@ export function useBalanceSheet(year: number): {
   const hub = useFinancialDataHub(year, manualBankBalance);
   const incomeStatement = useIncomeStatement(year);
 
-  // Extract stable references to avoid undefined access in useMemo deps
-  // Use safe defaults to prevent hook dependency array issues
+  // Extract stable references using module-level constants for defaults
   const hubIsLoading = hub?.isLoading ?? true;
-  const emptyBalanceData = {
-    cashOnHand: 0, bankBalance: 0, tradeReceivables: 0, partnerReceivables: 0,
-    vatDeductible: 0, otherVat: 0, inventory: 0, currentAssetsTotal: 0,
-    equipment: 0, vehicles: 0, depreciation: 0, fixedAssetsTotal: 0, totalAssets: 0,
-    tradePayables: 0, calculatedVatPayable: 0, taxPayable: 0, partnerPayables: 0,
-    personnelPayables: 0, taxPayables: 0, socialSecurityPayables: 0,
-    deferredTaxLiabilities: 0, taxProvision: 0, shortTermLoanDebt: 0, shortTermTotal: 0,
-    bankLoans: 0, longTermTotal: 0,
-    paidCapital: 0, unpaidCapital: 0, retainedEarnings: 0, currentProfit: 0,
-  };
-  const hubBalanceData = hub?.balanceData ?? emptyBalanceData;
+  const hubBalanceData = hub?.balanceData ?? EMPTY_BALANCE_DATA;
   const hubUncategorizedCount = hub?.uncategorizedCount ?? 0;
   const hubUncategorizedTotal = hub?.uncategorizedTotal ?? 0;
   const hubOperatingProfit = hub?.operatingProfit ?? 0;
   const hubIncomeSummaryNet = hub?.incomeSummary?.net ?? 0;
   const hubExpenseSummaryNet = hub?.expenseSummary?.net ?? 0;
-  const hubCashFlowSummary = hub?.cashFlowSummary ?? {
-    inflows: 0,
-    outflows: 0,
-    net: 0,
-    outflowsByType: { expenses: 0, partnerPayments: 0, investments: 0, financing: 0, other: 0 }
-  };
+  const hubCashFlowSummary = hub?.cashFlowSummary ?? EMPTY_CASH_FLOW_SUMMARY;
   const incomeStatementNetProfit = incomeStatement?.statement?.netProfit;
 
   return useMemo(() => {
