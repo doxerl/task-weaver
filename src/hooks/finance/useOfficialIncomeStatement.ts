@@ -101,14 +101,15 @@ export function calculateStatementTotals(data: Partial<YearlyIncomeStatementForm
 export function useOfficialIncomeStatement(year: number) {
   const { user } = useAuthContext();
   const queryClient = useQueryClient();
-  const userId = user?.id;
+  // Stabilize userId to prevent hook dependency instability during auth changes
+  const userId = user?.id ?? null;
   
   // Memoize empty statement to prevent infinite re-renders
   const emptyStatement = useMemo(() => getEmptyStatement(year), [year]);
 
   // Fetch official statement for the year
   const { data: officialStatement, isLoading } = useQuery({
-    queryKey: ['official-income-statement', year, userId],
+    queryKey: ['official-income-statement', year, userId] as const,
     queryFn: async () => {
       if (!userId) return null;
 
