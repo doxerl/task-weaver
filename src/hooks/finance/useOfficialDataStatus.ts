@@ -21,39 +21,41 @@ export interface OfficialDataStatus {
  */
 export function useOfficialDataStatus(year: number): OfficialDataStatus {
   const { user } = useAuthContext();
+  // Stabilize userId to prevent hook dependency instability during auth changes
+  const userId = user?.id ?? null;
 
   // Query income statement lock status directly
   const { data: incomeStatementData, isLoading: incomeLoading } = useQuery({
-    queryKey: ['official-income-statement-lock', user?.id, year],
+    queryKey: ['official-income-statement-lock', userId, year] as const,
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!userId) return null;
       const { data, error } = await supabase
         .from('yearly_income_statements')
         .select('is_locked')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('year', year)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
-    enabled: !!user?.id,
+    enabled: !!userId,
   });
 
   // Query balance sheet lock status directly
   const { data: balanceSheetData, isLoading: balanceLoading } = useQuery({
-    queryKey: ['yearly-balance-sheet-lock', user?.id, year],
+    queryKey: ['yearly-balance-sheet-lock', userId, year] as const,
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!userId) return null;
       const { data, error } = await supabase
         .from('yearly_balance_sheets')
         .select('is_locked')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('year', year)
         .maybeSingle();
       if (error) throw error;
       return data;
     },
-    enabled: !!user?.id,
+    enabled: !!userId,
   });
 
   const incomeStatementLocked = incomeStatementData?.is_locked ?? false;
