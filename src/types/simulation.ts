@@ -762,6 +762,130 @@ export const DEFAULT_DEAL_CONFIG: DealConfiguration = {
 };
 
 // =====================================================
+// EXPENSE CATEGORY TYPES (For Category-Based Projections)
+// =====================================================
+
+/**
+ * Expense categories for growth modeling
+ * Each category has different elasticity relative to revenue growth
+ */
+export type ExpenseCategory = 'COGS' | 'SALES_MARKETING' | 'R_D' | 'G_A' | 'OTHER';
+
+/**
+ * Configuration for how an expense category grows relative to revenue
+ */
+export interface ExpenseCategoryElasticity {
+  /** Category identifier */
+  category: ExpenseCategory;
+  /** Multiplier relative to revenue growth (1.0 = same as revenue, 0.5 = half) */
+  elasticity: number;
+  /** Minimum growth rate floor (e.g., inflation baseline) */
+  minGrowth: number;
+  /** Maximum reasonable growth cap */
+  maxGrowth: number;
+  /** Human-readable description */
+  description: string;
+}
+
+/**
+ * Default elasticity configurations for each expense category
+ *
+ * COGS (Cost of Goods Sold): Direct costs that scale 1:1 with revenue
+ * SALES_MARKETING: High during growth phase, can show efficiency gains
+ * R_D (Research & Development): Semi-fixed, mostly team costs
+ * G_A (General & Administrative): Largely fixed overhead
+ * OTHER: Default elasticity for uncategorized expenses
+ */
+export const EXPENSE_CATEGORY_ELASTICITIES: Record<ExpenseCategory, ExpenseCategoryElasticity> = {
+  'COGS': {
+    category: 'COGS',
+    elasticity: 1.0,
+    minGrowth: 0,
+    maxGrowth: 1.5,
+    description: 'Satılan Malın Maliyeti - doğrudan gelirle ölçeklenir'
+  },
+  'SALES_MARKETING': {
+    category: 'SALES_MARKETING',
+    elasticity: 0.8,
+    minGrowth: 0.05,
+    maxGrowth: 1.5,
+    description: 'Satış ve Pazarlama - büyüme döneminde yüksek, verimlilik mümkün'
+  },
+  'R_D': {
+    category: 'R_D',
+    elasticity: 0.5,
+    minGrowth: 0.05,
+    maxGrowth: 0.8,
+    description: 'Ar-Ge - çoğunlukla sabit ekip maliyetleri'
+  },
+  'G_A': {
+    category: 'G_A',
+    elasticity: 0.3,
+    minGrowth: 0.03,
+    maxGrowth: 0.5,
+    description: 'Genel Yönetim Giderleri - büyük ölçüde sabit'
+  },
+  'OTHER': {
+    category: 'OTHER',
+    elasticity: 0.6,
+    minGrowth: 0,
+    maxGrowth: 1.0,
+    description: 'Diğer giderler - varsayılan elastikiyet'
+  }
+};
+
+// =====================================================
+// AI EVIDENCE CHAIN TYPES (For Transparent Analysis)
+// =====================================================
+
+/**
+ * Evidence chain for AI-generated insights
+ * Ensures transparency about data sources and assumptions
+ */
+export interface EvidenceChain {
+  /** Which data point(s) this insight is based on */
+  sourceData: string;
+  /** List of assumptions made in the analysis */
+  assumptions: string[];
+  /** Known limitations of this analysis */
+  limitations?: string;
+  /** How the number/conclusion was derived */
+  calculationMethod?: string;
+}
+
+/**
+ * Enhanced insight with evidence chain and confidence scoring
+ */
+export interface EvidencedInsight {
+  /** Insight title */
+  title: string;
+  /** Detailed description with data support */
+  description: string;
+  /** Category of insight */
+  category: 'revenue' | 'expense' | 'efficiency' | 'opportunity' | 'risk';
+  /** Confidence score 0-100 based on data quality */
+  confidence: number;
+  /** Evidence chain showing data source */
+  evidence: EvidenceChain;
+}
+
+/**
+ * Risk analysis item for balanced AI output
+ */
+export interface RiskAnalysisItem {
+  /** Risk description */
+  risk: string;
+  /** Probability assessment */
+  probability: 'low' | 'medium' | 'high';
+  /** Impact description */
+  impact: string;
+  /** Mitigation strategy */
+  mitigation: string;
+  /** Related opportunity (for balance) */
+  relatedOpportunity?: string;
+}
+
+// =====================================================
 // PROFESSIONAL ANALYSIS TYPES (New)
 // =====================================================
 

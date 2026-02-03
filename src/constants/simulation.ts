@@ -218,6 +218,128 @@ export const EXPENSE_CATEGORY_MAP: Record<string, string> = {
   'DİĞER': 'Diğer Giderler',
 } as const;
 
+// =====================================================
+// EXPENSE CODE TO CATEGORY MAPPING (For Growth Projections)
+// =====================================================
+import type { ExpenseCategory } from '@/types/simulation';
+
+/**
+ * Maps expense codes/names to expense categories for growth modeling
+ * Used by projectExpensesByCategory() to determine elasticity
+ *
+ * Categories:
+ * - COGS: Direct costs (production, materials)
+ * - SALES_MARKETING: Sales & marketing expenses
+ * - R_D: Research & development
+ * - G_A: General & administrative
+ * - OTHER: Uncategorized
+ */
+export const EXPENSE_CODE_TO_CATEGORY: Record<string, ExpenseCategory> = {
+  // COGS (Cost of Goods Sold) - Direct costs that scale with revenue
+  'URETIM': 'COGS',
+  'MALZEME': 'COGS',
+  'SATISLAR_MALIYETI': 'COGS',
+  'HAMMADDE': 'COGS',
+  'YARIMAMUL': 'COGS',
+  'DIREK_ISCILIK': 'COGS',
+
+  // Sales & Marketing - Growth-driven expenses
+  'PAZARLAMA': 'SALES_MARKETING',
+  'FUAR': 'SALES_MARKETING',
+  'REKLAM': 'SALES_MARKETING',
+  'SATIS': 'SALES_MARKETING',
+  'PROMOSYON': 'SALES_MARKETING',
+  'KOMISYON': 'SALES_MARKETING',
+  'ILAN': 'SALES_MARKETING',
+
+  // R&D - Semi-fixed, innovation costs
+  'AR_GE': 'R_D',
+  'ARGE': 'R_D',
+  'YAZILIM': 'R_D',
+  'GELISTIRME': 'R_D',
+  'ARASTIRMA': 'R_D',
+
+  // G&A (General & Administrative) - Largely fixed overhead
+  'KIRA': 'G_A',
+  'MUHASEBE': 'G_A',
+  'IDARI': 'G_A',
+  'SIGORTA': 'G_A',
+  'SİGORTA': 'G_A',
+  'OFIS': 'G_A',
+  'TELEKOM': 'G_A',
+  'İLETİŞİM': 'G_A',
+  'ILETISIM': 'G_A',
+  'BANKA': 'G_A',
+  'PROFESYONEL': 'G_A',
+  'HUKUK': 'G_A',
+  'VERGI': 'G_A',
+  'VERGİ': 'G_A',
+  'AIDAT': 'G_A',
+  'BAKIM': 'G_A',
+  'TEMIZLIK': 'G_A',
+  'GUVENLIK': 'G_A',
+
+  // Personnel - Default to G&A (can be overridden based on department)
+  'PERSONEL': 'G_A',
+  'MAAS': 'G_A',
+  'SGK': 'G_A',
+  'PRIM': 'G_A',
+
+  // Travel & Entertainment - Split between S&M and G&A, default to G&A
+  'SEYAHAT': 'G_A',
+  'KONAKLAMA': 'G_A',
+  'YEMEK': 'G_A',
+  'TEMSIL': 'G_A',
+  'AGIRLI': 'G_A',
+
+  // Training - Default to G&A
+  'EGITIM': 'G_A',
+  'EĞİTİM': 'G_A',
+
+  // Other/Default
+  'DIGER': 'OTHER',
+  'DİĞER': 'OTHER',
+  'DIGER_GIDER': 'OTHER',
+} as const;
+
+/**
+ * Infer expense category from expense name using keyword matching
+ * Used as fallback when expense code is not in EXPENSE_CODE_TO_CATEGORY
+ *
+ * @param name - Expense name/description
+ * @returns Inferred ExpenseCategory
+ */
+export const inferExpenseCategoryFromName = (name: string): ExpenseCategory => {
+  const lowerName = name.toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  // COGS patterns
+  if (/maliyet|uretim|hammadde|malzeme|direk.*(iscilik|maliyet)/i.test(lowerName)) {
+    return 'COGS';
+  }
+
+  // Sales & Marketing patterns
+  if (/pazarlama|marketing|fuar|reklam|sales|satis|promosyon|komisyon|ilan/i.test(lowerName)) {
+    return 'SALES_MARKETING';
+  }
+
+  // R&D patterns
+  if (/ar-ge|arge|r&d|yazilim|development|gelistirme|arastirma|inovasyon/i.test(lowerName)) {
+    return 'R_D';
+  }
+
+  // G&A patterns
+  if (/kira|rent|ofis|idari|admin|muhasebe|sigorta|hukuk|vergi|banka|aidat|temizlik|guvenlik/i.test(lowerName)) {
+    return 'G_A';
+  }
+
+  // Personnel (default to G&A)
+  if (/personel|maas|ucret|sgk|prim|calisan/i.test(lowerName)) {
+    return 'G_A';
+  }
+
+  return 'OTHER';
+};
+
 /** Expense categories hidden from projections */
 export const HIDDEN_EXPENSE_CATEGORIES = [
   'Amortisman',
