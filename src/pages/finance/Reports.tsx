@@ -311,7 +311,7 @@ export default function Reports() {
       <div className="p-4 space-y-4">
         {/* Header */}
         <div className="flex items-center gap-2 flex-wrap">
-          <Link to="/" className="p-2 hover:bg-accent rounded-lg">
+          <Link to="/finance/" className="p-2 hover:bg-accent rounded-lg">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold flex-1">{t('reports.title')}</h1>
@@ -328,7 +328,7 @@ export default function Reports() {
               {[2026, 2025, 2024].map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
             </SelectContent>
           </Select>
-          <Link to="/simulation">
+          <Link to="/finance/simulation">
             <Button variant="outline" size="sm" className="gap-1">
               <TrendingUp className="h-4 w-4" />
               <span className="hidden sm:inline">{t('reports.simulation', { year: 2026 })}</span>
@@ -366,7 +366,7 @@ export default function Reports() {
             <AlertTitle>{t('reports.uncategorizedTitle')}</AlertTitle>
             <AlertDescription>
               {t('reports.uncategorizedDetail', { count: hub.uncategorizedCount, amount: new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(hub.uncategorizedTotal) })}{' '}
-              <Link to="/bank-transactions" className="underline font-medium">
+              <Link to="/finance/bank-transactions" className="underline font-medium">
                 {t('reports.goToCategorize')}
               </Link>
             </AlertDescription>

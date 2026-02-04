@@ -414,7 +414,7 @@ export default function BankTransactions() {
 
         {/* Header */}
         <div className="flex items-center gap-3">
-          <Link to="/" className="p-2 hover:bg-accent rounded-lg">
+          <Link to="/finance/" className="p-2 hover:bg-accent rounded-lg">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold flex-1">Banka İşlemleri</h1>
@@ -646,7 +646,7 @@ export default function BankTransactions() {
               ) : (
                 <>
                   Henüz işlem yok.
-                  <Link to="/bank-import" className="block mt-2 text-primary underline">
+                  <Link to="/finance/bank-import" className="block mt-2 text-primary underline">
                     Banka ekstresi yükle
                   </Link>
                 </>

@@ -274,7 +274,7 @@ export function TransactionEditor({ transactions, onSave, isSaving }: Transactio
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
             <CardTitle className="text-lg">İşlemleri Etiketle</CardTitle>
-            <Link to="/categories">
+            <Link to="/finance/categories">
               <Button variant="ghost" size="icon" className="h-6 w-6" title="Kategorileri Yönet">
                 <Settings2 className="h-4 w-4" />
               </Button>

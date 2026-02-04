@@ -833,7 +833,7 @@ const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to="/receipts" className="p-2 hover:bg-accent rounded-lg">
+            <Link to="/finance/receipts" className="p-2 hover:bg-accent rounded-lg">
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <h1 className="text-xl font-bold">Fiş/Fatura Yükle</h1>
@@ -1941,7 +1941,7 @@ const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
                     receiptFilter === 'received' ? 'Alınan Belgeler' : 'Kesilen Belgeler'} ({receiptFilter === 'all' ? recentReceipts.length : receiptSummary.filteredReceipts.length})
               </h2>
               <Link 
-                to="/receipts" 
+                to="/finance/receipts" 
                 className="text-sm text-primary hover:underline"
               >
                 Tümünü Gör →
