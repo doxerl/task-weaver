@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { toast } from '@/hooks/use-toast';
 import { calculateStatementTotals } from './useOfficialIncomeStatement';
@@ -48,7 +48,7 @@ interface UploadState {
 }
 
 export function useIncomeStatementUpload(year: number) {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
   const queryClient = useQueryClient();
   const userId = user?.id ?? null;
 

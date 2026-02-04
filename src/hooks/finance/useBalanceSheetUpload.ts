@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { useQueryClient, useQuery } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { BALANCE_SHEET_ACCOUNT_MAP, BalanceSheetParsedAccount } from '@/types/officialFinance';
 import { sanitizeFileName } from '@/lib/fileUtils';
@@ -17,7 +17,7 @@ export interface BalanceSheetUploadResult {
 }
 
 export function useBalanceSheetUpload(year: number) {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
   const userId = user?.id ?? null;
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
