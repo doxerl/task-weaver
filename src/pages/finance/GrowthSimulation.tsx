@@ -278,7 +278,7 @@ function GrowthSimulationContent() {
               variant="outline" 
               size="sm" 
               className="gap-2"
-              onClick={() => navigate('/simulation/compare')}
+              onClick={() => navigate('/finance/simulation/compare')}
               disabled={scenariosHook.scenarios.length < 2}
             >
               <GitCompare className="h-4 w-4" />
@@ -288,7 +288,7 @@ function GrowthSimulationContent() {
               variant="outline" 
               size="sm" 
               className="gap-2"
-              onClick={() => navigate('/simulation/growth')}
+              onClick={() => navigate('/finance/simulation/growth')}
               disabled={scenariosHook.scenarios.length < 2}
             >
               <TrendingUp className="h-4 w-4" />

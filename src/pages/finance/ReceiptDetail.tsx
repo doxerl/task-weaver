@@ -53,7 +53,7 @@ export default function ReceiptDetail() {
       <div className="min-h-screen bg-background pb-20">
         <div className="p-4">
           <div className="flex items-center gap-3 mb-6">
-            <Link to="/receipts" className="p-2 hover:bg-accent rounded-lg">
+            <Link to="/finance/receipts" className="p-2 hover:bg-accent rounded-lg">
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <h1 className="text-xl font-bold">Fatura Bulunamadı</h1>
@@ -61,7 +61,7 @@ export default function ReceiptDetail() {
           <Card>
             <CardContent className="p-8 text-center text-muted-foreground">
               Bu ID'ye sahip fatura bulunamadı.
-              <Link to="/receipts" className="block mt-2 text-primary underline">
+              <Link to="/finance/receipts" className="block mt-2 text-primary underline">
                 Faturalara Dön
               </Link>
             </CardContent>
@@ -77,7 +77,7 @@ export default function ReceiptDetail() {
 
   const handleDelete = async () => {
     await deleteReceipt.mutateAsync(receipt.id);
-    navigate('/receipts');
+    navigate('/finance/receipts');
   };
 
   return (
@@ -85,7 +85,7 @@ export default function ReceiptDetail() {
       <div className="p-4 space-y-4">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <Link to="/receipts" className="p-2 hover:bg-accent rounded-lg">
+          <Link to="/finance/receipts" className="p-2 hover:bg-accent rounded-lg">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold flex-1">

@@ -65,7 +65,7 @@ export default function CostCenterAnalysis() {
       <div className="p-4 space-y-4">
         {/* Header */}
         <div className="flex items-center gap-2">
-          <Link to="/reports" className="p-2 hover:bg-accent rounded-lg">
+          <Link to="/finance/reports" className="p-2 hover:bg-accent rounded-lg">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold flex-1">Maliyet Merkezi Analizi</h1>

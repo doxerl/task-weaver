@@ -348,7 +348,7 @@ export default function BankImport() {
       <div className="min-h-screen bg-background pb-20">
         <div className="p-4 space-y-6">
           <div className="flex items-center gap-3">
-            <Link to="/" className="p-2 hover:bg-accent rounded-lg">
+            <Link to="/finance/" className="p-2 hover:bg-accent rounded-lg">
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <h1 className="text-xl font-bold">Banka Hareketi Yükle</h1>
@@ -371,7 +371,7 @@ export default function BankImport() {
                 </Button>
                 <Button
                   className="flex-1"
-                  onClick={() => navigate('/bank-transactions')}
+                  onClick={() => navigate('/finance/bank-transactions')}
                 >
                   İşlemleri Gör
                 </Button>
@@ -389,7 +389,7 @@ export default function BankImport() {
     <div className="min-h-screen bg-background pb-20">
       <div className="p-4 space-y-6">
         <div className="flex items-center gap-3">
-          <Link to="/" className="p-2 hover:bg-accent rounded-lg">
+          <Link to="/finance/" className="p-2 hover:bg-accent rounded-lg">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold">Banka Hareketi Yükle</h1>
@@ -404,7 +404,7 @@ export default function BankImport() {
               <p>{selectedYear} yılı için resmi veriler kilitli olduğundan yeni banka ekstresi yüklenemez.</p>
               <p className="text-sm mt-1">Kilitli modüller: {lockedModules.join(', ')}</p>
               <Button asChild variant="outline" size="sm" className="mt-3">
-                <Link to="/official-data">Resmi Veri Sayfasına Git</Link>
+                <Link to="/finance/official-data">Resmi Veri Sayfasına Git</Link>
               </Button>
             </AlertDescription>
           </Alert>

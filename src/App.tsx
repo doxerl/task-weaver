@@ -46,28 +46,29 @@ const App = () => (
               <CurrencyProvider>
                 <Toaster />
                 <Sonner position="top-center" />
-                <BrowserRouter basename="/finance">
+                <BrowserRouter>
                   <Routes>
-                    <Route path="/" element={<ProtectedRoute><FinanceDashboard /></ProtectedRoute>} />
+                    <Route path="/" element={<Navigate to="/finance" replace />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
                     <Route path="/week" element={<ProtectedRoute><Week /></ProtectedRoute>} />
-                    <Route path="/bank-import" element={<ProtectedRoute><BankImport /></ProtectedRoute>} />
-                    <Route path="/bank-transactions" element={<ProtectedRoute><BankTransactions /></ProtectedRoute>} />
-                    <Route path="/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
-                    <Route path="/receipts/upload" element={<ProtectedRoute><ReceiptUpload /></ProtectedRoute>} />
-                    <Route path="/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
-                    <Route path="/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
-                    <Route path="/vat-report" element={<ProtectedRoute><VatReport /></ProtectedRoute>} />
-                    <Route path="/manual-entry" element={<ProtectedRoute><ManualEntry /></ProtectedRoute>} />
-                    <Route path="/receipts/:id" element={<ProtectedRoute><ReceiptDetail /></ProtectedRoute>} />
-                    <Route path="/balance-sheet" element={<ProtectedRoute><BalanceSheet /></ProtectedRoute>} />
-                    <Route path="/cost-center" element={<ProtectedRoute><CostCenterAnalysis /></ProtectedRoute>} />
-                    <Route path="/simulation" element={<ProtectedRoute><GrowthSimulation /></ProtectedRoute>} />
-                    <Route path="/simulation/compare" element={<ProtectedRoute><ScenarioComparisonPage /></ProtectedRoute>} />
-                    <Route path="/simulation/growth" element={<ProtectedRoute><GrowthComparisonPage /></ProtectedRoute>} />
-                    <Route path="/official-data" element={<ProtectedRoute><OfficialData /></ProtectedRoute>} />
+                    <Route path="/finance" element={<ProtectedRoute><FinanceDashboard /></ProtectedRoute>} />
+                    <Route path="/finance/bank-import" element={<ProtectedRoute><BankImport /></ProtectedRoute>} />
+                    <Route path="/finance/bank-transactions" element={<ProtectedRoute><BankTransactions /></ProtectedRoute>} />
+                    <Route path="/finance/receipts" element={<ProtectedRoute><Receipts /></ProtectedRoute>} />
+                    <Route path="/finance/receipts/upload" element={<ProtectedRoute><ReceiptUpload /></ProtectedRoute>} />
+                    <Route path="/finance/categories" element={<ProtectedRoute><Categories /></ProtectedRoute>} />
+                    <Route path="/finance/reports" element={<ProtectedRoute><Reports /></ProtectedRoute>} />
+                    <Route path="/finance/vat-report" element={<ProtectedRoute><VatReport /></ProtectedRoute>} />
+                    <Route path="/finance/manual-entry" element={<ProtectedRoute><ManualEntry /></ProtectedRoute>} />
+                    <Route path="/finance/receipts/:id" element={<ProtectedRoute><ReceiptDetail /></ProtectedRoute>} />
+                    <Route path="/finance/balance-sheet" element={<ProtectedRoute><BalanceSheet /></ProtectedRoute>} />
+                    <Route path="/finance/cost-center" element={<ProtectedRoute><CostCenterAnalysis /></ProtectedRoute>} />
+                    <Route path="/finance/simulation" element={<ProtectedRoute><GrowthSimulation /></ProtectedRoute>} />
+                    <Route path="/finance/simulation/compare" element={<ProtectedRoute><ScenarioComparisonPage /></ProtectedRoute>} />
+                    <Route path="/finance/simulation/growth" element={<ProtectedRoute><GrowthComparisonPage /></ProtectedRoute>} />
+                    <Route path="/finance/official-data" element={<ProtectedRoute><OfficialData /></ProtectedRoute>} />
                     <Route path="*" element={<NotFound />} />
                   </Routes>
                 </BrowserRouter>

@@ -84,7 +84,7 @@ export default function Categories() {
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to="/" className="p-2 hover:bg-accent rounded-lg">
+            <Link to="/finance/" className="p-2 hover:bg-accent rounded-lg">
               <ArrowLeft className="h-5 w-5" />
             </Link>
             <h1 className="text-xl font-bold">{t('finance:categories.title')}</h1>
