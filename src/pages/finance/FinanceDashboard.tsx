@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useYear } from '@/contexts/YearContext';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
@@ -17,17 +18,18 @@ import { AppHeader } from '@/components/AppHeader';
 export default function FinanceDashboard() {
   const { t } = useTranslation(['finance', 'common']);
   const { selectedYear: year, setSelectedYear: setYear } = useYear();
+  const { user, loading: authLoading } = useAuthContext();
   
-  // All hooks must be called in the same order every render
+  // All hooks MUST be called before any conditional returns (React rules)
   const calc = useFinancialCalculations(year);
   const vat = useVatCalculations(year);
   const { balanceSheet, isLoading: balanceLoading } = useBalanceSheet(year);
   const costCenter = useCostCenterAnalysis(year);
   const incomeStatement = useIncomeStatement(year);
 
-  // Loading guard - show loading state while any critical hook is loading
-  const isAnyLoading = calc.isLoading || vat.isLoading || balanceLoading || 
-                       costCenter.isLoading || incomeStatement.isLoading;
+  // Combined loading check - includes auth loading and all data hooks
+  const isAnyLoading = authLoading || !user || calc.isLoading || vat.isLoading || 
+                       balanceLoading || costCenter.isLoading || incomeStatement.isLoading;
 
   if (isAnyLoading) {
     return (

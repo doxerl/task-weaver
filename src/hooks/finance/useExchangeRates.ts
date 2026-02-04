@@ -2,6 +2,9 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useMemo, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 
+// Note: This hook doesn't require userId-based queryKey stabilization
+// because it queries public exchange rate data, not user-specific data
+
 // Hardcoded monthly average USD/TRY rates (TCMB source) as fallback
 const FALLBACK_USD_TRY_RATES: Record<string, number> = {
   // 2024

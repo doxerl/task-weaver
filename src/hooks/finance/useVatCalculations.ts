@@ -79,6 +79,35 @@ export interface VatCalculations {
   isLoading: boolean;
 }
 
+// Default empty VAT calculations
+const EMPTY_VAT_CALCULATIONS: VatCalculations & { isOfficial: boolean; officialWarning?: string } = {
+  totalCalculatedVat: 0,
+  totalDeductibleVat: 0,
+  netVatPayable: 0,
+  receiptCalculatedVat: 0,
+  receiptDeductibleVat: 0,
+  bankCalculatedVat: 0,
+  bankDeductibleVat: 0,
+  byMonth: {},
+  byVatRate: {},
+  bySource: {
+    receipts: { calculated: 0, deductible: 0, count: 0 },
+    bank: { calculated: 0, deductible: 0, count: 0 }
+  },
+  foreignInvoices: {
+    count: 0,
+    totalAmountTry: 0,
+    byMonth: {},
+  },
+  issuedCount: 0,
+  receivedCount: 0,
+  bankIncomeCount: 0,
+  bankExpenseCount: 0,
+  missingVatCount: 0,
+  isLoading: false,
+  isOfficial: false,
+};
+
 export function useVatCalculations(year: number): VatCalculations & { isOfficial: boolean; officialWarning?: string } {
   const { receipts, isLoading: receiptsLoading } = useReceipts(year);
   const { transactions, isLoading: txLoading } = useBankTransactions(year);
@@ -86,66 +115,22 @@ export function useVatCalculations(year: number): VatCalculations & { isOfficial
   
   const isLoading = receiptsLoading || txLoading;
 
-  // If official data is locked, return empty VAT calculations with warning
-  if (isAnyLocked && !isLoading) {
-    return {
-      totalCalculatedVat: 0,
-      totalDeductibleVat: 0,
-      netVatPayable: 0,
-      receiptCalculatedVat: 0,
-      receiptDeductibleVat: 0,
-      bankCalculatedVat: 0,
-      bankDeductibleVat: 0,
-      byMonth: {},
-      byVatRate: {},
-      bySource: {
-        receipts: { calculated: 0, deductible: 0, count: 0 },
-        bank: { calculated: 0, deductible: 0, count: 0 }
-      },
-      foreignInvoices: {
-        count: 0,
-        totalAmountTry: 0,
-        byMonth: {},
-      },
-      issuedCount: 0,
-      receivedCount: 0,
-      bankIncomeCount: 0,
-      bankExpenseCount: 0,
-      missingVatCount: 0,
-      isLoading: false,
-      isOfficial: true,
-      officialWarning: 'Resmi veri modunda KDV dinamik hesaplanmaz',
-    };
-  }
-
+  // useMemo MUST be called unconditionally - conditional logic inside
   return useMemo(() => {
+    // Official data locked - return empty calculations with warning
+    if (isAnyLocked && !isLoading) {
+      return {
+        ...EMPTY_VAT_CALCULATIONS,
+        isOfficial: true,
+        officialWarning: 'Resmi veri modunda KDV dinamik hesaplanmaz',
+      };
+    }
+
+    // Loading state
     if (isLoading || !receipts) {
       return {
-        totalCalculatedVat: 0,
-        totalDeductibleVat: 0,
-        netVatPayable: 0,
-        receiptCalculatedVat: 0,
-        receiptDeductibleVat: 0,
-        bankCalculatedVat: 0,
-        bankDeductibleVat: 0,
-        byMonth: {},
-        byVatRate: {},
-        bySource: {
-          receipts: { calculated: 0, deductible: 0, count: 0 },
-          bank: { calculated: 0, deductible: 0, count: 0 }
-        },
-        foreignInvoices: {
-          count: 0,
-          totalAmountTry: 0,
-          byMonth: {},
-        },
-        issuedCount: 0,
-        receivedCount: 0,
-        bankIncomeCount: 0,
-        bankExpenseCount: 0,
-        missingVatCount: 0,
+        ...EMPTY_VAT_CALCULATIONS,
         isLoading: true,
-        isOfficial: false,
       };
     }
 
@@ -349,5 +334,5 @@ export function useVatCalculations(year: number): VatCalculations & { isOfficial
       isLoading: false,
       isOfficial: false,
     };
-  }, [receipts, transactions, isLoading]);
+  }, [receipts, transactions, isLoading, isAnyLocked]);
 }

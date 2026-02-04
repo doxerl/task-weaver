@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -40,8 +41,14 @@ export function useFixedExpenses() {
   const userId = user?.id ?? null;
   const queryClient = useQueryClient();
 
+  // Stable queryKey reference to prevent hook dependency issues
+  const queryKey = useMemo(
+    () => ['fixed-expense-definitions', userId] as const,
+    [userId]
+  );
+
   const { data: definitions = [], isLoading } = useQuery({
-    queryKey: ['fixed-expense-definitions', userId] as const,
+    queryKey,
     queryFn: async () => {
       if (!userId) return [];
       
