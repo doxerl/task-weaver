@@ -59,17 +59,63 @@ function calculateApproximateIRR(
   return irr * 100;
 }
 
+/**
+ * Sensitivity scenario calculation with Fixed/Variable expense modeling
+ *
+ * CRITICAL FIX: Previous implementation kept expenses constant when revenue changed.
+ * This is unrealistic as:
+ * - Variable costs (COGS, commissions) scale with revenue
+ * - Fixed costs (rent, salaries) are sticky and don't change immediately
+ *
+ * New approach:
+ * - Fixed costs: Don't change with revenue
+ * - Variable costs: Scale proportionally with revenue change
+ *
+ * @param revenues - Revenue items
+ * @param expenses - Expense items
+ * @param investments - Investment items
+ * @param revenueChange - Revenue change as decimal (e.g., -0.20 for -20%)
+ * @param scenarioName - Name for this scenario
+ * @param fixedCostRatio - Ratio of costs that are fixed (default: 0.6)
+ * @param downwardElasticity - How much variable costs drop when revenue drops (default: 0.3)
+ * @param upwardElasticity - How much variable costs increase when revenue grows (default: 0.7)
+ */
 function calculateScenario(
   revenues: ProjectionItem[],
   expenses: ProjectionItem[],
   investments: InvestmentItem[],
   revenueChange: number,
-  scenarioName: string
+  scenarioName: string,
+  fixedCostRatio: number = 0.6,
+  downwardElasticity: number = 0.3,
+  upwardElasticity: number = 0.7
 ): SensitivityScenario {
   const baseRevenue = revenues.reduce((sum, r) => sum + r.projectedAmount, 0);
   const adjustedRevenue = baseRevenue * (1 + revenueChange);
-  const totalExpense = expenses.reduce((sum, e) => sum + e.projectedAmount, 0);
-  const profit = adjustedRevenue - totalExpense;
+  const totalBaseExpense = expenses.reduce((sum, e) => sum + e.projectedAmount, 0);
+
+  // Split expenses into fixed and variable
+  const fixedExpenses = totalBaseExpense * fixedCostRatio;
+  const variableExpenses = totalBaseExpense * (1 - fixedCostRatio);
+
+  // Calculate adjusted expenses based on revenue change
+  // Use different elasticity for revenue decrease vs increase
+  let adjustedVariableExpenses: number;
+
+  if (revenueChange < 0) {
+    // Revenue decrease: Variable costs are sticky (don't drop as fast)
+    // e.g., with -20% revenue and 0.3 elasticity: variable costs drop only 6%
+    adjustedVariableExpenses = variableExpenses * (1 + revenueChange * downwardElasticity);
+  } else {
+    // Revenue increase: Variable costs scale up faster
+    // e.g., with +20% revenue and 0.7 elasticity: variable costs increase 14%
+    adjustedVariableExpenses = variableExpenses * (1 + revenueChange * upwardElasticity);
+  }
+
+  // Total adjusted expense = fixed (unchanged) + adjusted variable
+  const adjustedExpense = fixedExpenses + adjustedVariableExpenses;
+
+  const profit = adjustedRevenue - adjustedExpense;
   const margin = adjustedRevenue > 0 ? (profit / adjustedRevenue) * 100 : 0;
   const totalInvestment = investments.reduce((sum, i) => sum + i.amount, 0);
   const roi = totalInvestment > 0 ? (profit / totalInvestment) * 100 : 0;
@@ -78,7 +124,7 @@ function calculateScenario(
     name: scenarioName,
     revenueChange: revenueChange * 100,
     revenue: adjustedRevenue,
-    expense: totalExpense,
+    expense: adjustedExpense,
     profit,
     margin,
     roi,

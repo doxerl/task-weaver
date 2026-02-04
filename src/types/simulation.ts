@@ -295,7 +295,110 @@ export interface DealConfiguration {
   equityPercentage: number;      // Teklif edilen hisse %
   sectorMultiple: number;        // Çıkış çarpanı (SaaS: 8x, E-ticaret: 2x)
   safetyMargin: number;          // Güvenlik tamponu % (varsayılan: 20)
+  // NEW: Dilution parameters for realistic investor returns
+  valuationType?: 'pre-money' | 'post-money';  // Değerleme tipi (varsayılan: post-money)
+  dilutionConfig?: DilutionConfiguration;      // Seyreltme konfigürasyonu
 }
+
+/**
+ * Dilution Configuration for realistic MOIC/IRR calculations
+ *
+ * CRITICAL: Without dilution modeling, investor returns are systematically overstated.
+ * This configuration allows modeling of:
+ * - Future funding rounds (Series B, C, etc.)
+ * - Employee option pool (ESOP)
+ * - Liquidation preferences (optional)
+ */
+export interface DilutionConfiguration {
+  /** Expected number of future funding rounds before exit (default: 2) */
+  expectedFutureRounds: number;
+  /** Average dilution per future round as decimal (default: 0.20 = 20%) */
+  avgDilutionPerRound: number;
+  /** Employee option pool size as decimal (default: 0.10 = 10%) */
+  esopPoolSize: number;
+  /** Whether ESOP is created pre-money (dilutes founders more) or post-money */
+  esopPreMoney: boolean;
+  /** Liquidation preference multiplier (default: 1.0 = 1x non-participating) */
+  liquidationPreference: number;
+  /** Whether liquidation preference is participating */
+  participatingPreferred: boolean;
+}
+
+/**
+ * Default dilution configuration for realistic modeling
+ */
+export const DEFAULT_DILUTION_CONFIG: DilutionConfiguration = {
+  expectedFutureRounds: 2,
+  avgDilutionPerRound: 0.20,
+  esopPoolSize: 0.10,
+  esopPreMoney: true,
+  liquidationPreference: 1.0,
+  participatingPreferred: false,
+};
+
+/**
+ * Calculate ownership at exit accounting for dilution
+ *
+ * Formula: ownership_exit = ownership_entry × (1 - total_dilution)
+ * where total_dilution = 1 - (1 - avgDilution)^numRounds × (1 - esopDilution)
+ *
+ * @param entryOwnership - Ownership percentage at entry (as decimal, e.g., 0.10 for 10%)
+ * @param config - Dilution configuration
+ * @returns Ownership percentage at exit (as decimal)
+ */
+export const calculateOwnershipAtExit = (
+  entryOwnership: number,
+  config: DilutionConfiguration = DEFAULT_DILUTION_CONFIG
+): number => {
+  // Calculate dilution from future rounds
+  // Each round dilutes by avgDilutionPerRound, compounding
+  const roundsDilutionFactor = Math.pow(
+    1 - config.avgDilutionPerRound,
+    config.expectedFutureRounds
+  );
+
+  // Calculate ESOP dilution (if pre-money, affects all shareholders)
+  const esopDilutionFactor = config.esopPreMoney
+    ? 1 - config.esopPoolSize
+    : 1; // Post-money ESOP doesn't dilute existing investors
+
+  // Total dilution factor
+  const totalDilutionFactor = roundsDilutionFactor * esopDilutionFactor;
+
+  return entryOwnership * totalDilutionFactor;
+};
+
+/**
+ * Calculate investor proceeds at exit with waterfall
+ *
+ * Simplified waterfall:
+ * 1. Liquidation preference first (if any)
+ * 2. Remaining distributed pro-rata
+ *
+ * @param exitValue - Total company exit value
+ * @param ownershipAtExit - Investor ownership at exit
+ * @param investmentAmount - Original investment amount
+ * @param config - Dilution configuration
+ * @returns Investor proceeds at exit
+ */
+export const calculateExitProceeds = (
+  exitValue: number,
+  ownershipAtExit: number,
+  investmentAmount: number,
+  config: DilutionConfiguration = DEFAULT_DILUTION_CONFIG
+): number => {
+  const liquidationPreferenceAmount = investmentAmount * config.liquidationPreference;
+
+  if (config.participatingPreferred) {
+    // Participating preferred: Get preference + pro-rata share of remainder
+    const remainder = Math.max(0, exitValue - liquidationPreferenceAmount);
+    return liquidationPreferenceAmount + (remainder * ownershipAtExit);
+  } else {
+    // Non-participating: Choose higher of preference or pro-rata
+    const proRataShare = exitValue * ownershipAtExit;
+    return Math.max(liquidationPreferenceAmount, proRataShare);
+  }
+};
 
 /** Capital Requirement Calculation (Death Valley Analysis) */
 export interface CapitalRequirement {
@@ -1250,3 +1353,243 @@ export interface EnhancedNextYearProjection extends NextYearProjection {
   };
   focus_project_analysis?: FocusProjectAnalysis;
 }
+
+// =====================================================
+// CAP TABLE TYPES
+// =====================================================
+
+/**
+ * Shareholder type in cap table
+ */
+export type ShareholderType = 'founder' | 'co-founder' | 'investor' | 'esop' | 'advisor' | 'employee';
+
+/**
+ * Vesting schedule for shares
+ */
+export interface VestingSchedule {
+  /** Total vesting period in months (typically 48) */
+  totalMonths: number;
+  /** Cliff period in months (typically 12) */
+  cliffMonths: number;
+  /** Start date of vesting */
+  startDate: string;
+  /** Vesting schedule type */
+  scheduleType: 'linear' | 'back-loaded' | 'front-loaded';
+  /** Percentage vested so far */
+  vestedPercent: number;
+}
+
+/**
+ * Individual shareholder in cap table
+ */
+export interface Shareholder {
+  /** Unique identifier */
+  id: string;
+  /** Name of shareholder */
+  name: string;
+  /** Type of shareholder */
+  type: ShareholderType;
+  /** Number of shares held */
+  shares: number;
+  /** Ownership percentage (basic) */
+  ownershipPercent: number;
+  /** Fully diluted ownership percentage */
+  fullyDilutedPercent: number;
+  /** Investment amount (for investors) */
+  investmentAmount?: number;
+  /** Share price at investment */
+  pricePerShare?: number;
+  /** Vesting schedule (for ESOP/employees) */
+  vestingSchedule?: VestingSchedule;
+  /** Notes about the shareholder */
+  notes?: string;
+}
+
+/**
+ * Funding round information
+ */
+export interface FundingRound {
+  /** Unique identifier */
+  id: string;
+  /** Round name (Seed, Series A, etc.) */
+  name: string;
+  /** Date of the round */
+  date: string;
+  /** Amount raised */
+  amountRaised: number;
+  /** Pre-money valuation */
+  preMoneyValuation: number;
+  /** Post-money valuation */
+  postMoneyValuation: number;
+  /** Shares issued */
+  sharesIssued: number;
+  /** Price per share */
+  pricePerShare: number;
+  /** Lead investor name */
+  leadInvestor?: string;
+  /** List of participating investors */
+  investors: string[];
+  /** Liquidation preference multiplier */
+  liquidationPreference: number;
+  /** Is participating preferred */
+  participatingPreferred: boolean;
+}
+
+/**
+ * ESOP (Employee Stock Option Pool) configuration
+ */
+export interface ESOPPool {
+  /** Total shares allocated to pool */
+  totalShares: number;
+  /** Shares allocated to employees */
+  allocatedShares: number;
+  /** Shares available for future grants */
+  availableShares: number;
+  /** Pool size as percentage of fully diluted */
+  poolPercent: number;
+  /** Whether pool is pre-money or post-money */
+  isPreMoney: boolean;
+}
+
+/**
+ * Complete Cap Table structure
+ */
+export interface CapTable {
+  /** Company name */
+  companyName: string;
+  /** List of shareholders */
+  shareholders: Shareholder[];
+  /** Total authorized shares */
+  authorizedShares: number;
+  /** Total issued shares */
+  issuedShares: number;
+  /** Fully diluted shares (issued + ESOP reserved) */
+  fullyDilutedShares: number;
+  /** ESOP pool configuration */
+  esopPool: ESOPPool;
+  /** List of funding rounds */
+  rounds: FundingRound[];
+  /** Last updated date */
+  lastUpdated: string;
+}
+
+/**
+ * Create default empty cap table
+ */
+export const createDefaultCapTable = (companyName: string): CapTable => ({
+  companyName,
+  shareholders: [
+    {
+      id: 'founder-1',
+      name: 'Kurucu',
+      type: 'founder',
+      shares: 8000000,
+      ownershipPercent: 80,
+      fullyDilutedPercent: 72,
+      notes: 'Kurucu ortak',
+    },
+    {
+      id: 'esop-pool',
+      name: 'ESOP Havuzu',
+      type: 'esop',
+      shares: 1000000,
+      ownershipPercent: 10,
+      fullyDilutedPercent: 10,
+      notes: 'Çalışan opsiyon havuzu',
+    },
+  ],
+  authorizedShares: 10000000,
+  issuedShares: 9000000,
+  fullyDilutedShares: 10000000,
+  esopPool: {
+    totalShares: 1000000,
+    allocatedShares: 0,
+    availableShares: 1000000,
+    poolPercent: 10,
+    isPreMoney: true,
+  },
+  rounds: [],
+  lastUpdated: new Date().toISOString(),
+});
+
+// =====================================================
+// UNIT ECONOMICS TYPES
+// =====================================================
+
+/**
+ * Unit Economics metrics for investor analysis
+ */
+export interface UnitEconomics {
+  /** Customer Acquisition Cost */
+  cac: number;
+  /** Lifetime Value */
+  ltv: number;
+  /** LTV/CAC Ratio (target > 3x) */
+  ltvCacRatio: number;
+  /** CAC Payback Period in months */
+  paybackMonths: number;
+  /** Gross Margin percentage */
+  grossMargin: number;
+  /** Net Revenue Retention (NRR) percentage */
+  netRetention: number;
+  /** Burn Multiple (Net Burn / Net New ARR) */
+  burnMultiple: number;
+  /** Magic Number (Net New ARR / S&M Spend) */
+  magicNumber: number;
+  /** Average Revenue Per User/Account */
+  arpu: number;
+  /** Monthly Churn Rate */
+  monthlyChurnRate: number;
+  /** Average Contract Value */
+  acv: number;
+}
+
+/**
+ * Calculate LTV from ARPU, gross margin, and churn
+ */
+export const calculateLTV = (
+  arpu: number,
+  grossMargin: number,
+  monthlyChurnRate: number
+): number => {
+  if (monthlyChurnRate <= 0) return arpu * grossMargin * 120;
+  return (arpu * grossMargin) / monthlyChurnRate;
+};
+
+/**
+ * Calculate LTV/CAC ratio
+ */
+export const calculateLTVCACRatio = (ltv: number, cac: number): number => {
+  if (cac <= 0) return 0;
+  return ltv / cac;
+};
+
+/**
+ * Calculate CAC payback period in months
+ */
+export const calculatePaybackMonths = (
+  cac: number,
+  arpu: number,
+  grossMargin: number
+): number => {
+  const monthlyContribution = arpu * grossMargin;
+  if (monthlyContribution <= 0) return Infinity;
+  return cac / monthlyContribution;
+};
+
+/**
+ * Create default unit economics
+ */
+export const createDefaultUnitEconomics = (): UnitEconomics => ({
+  cac: 0,
+  ltv: 0,
+  ltvCacRatio: 0,
+  paybackMonths: 0,
+  grossMargin: 0.7,
+  netRetention: 1.0,
+  burnMultiple: 0,
+  magicNumber: 0,
+  arpu: 0,
+  monthlyChurnRate: 0.02,
+  acv: 0,
+});

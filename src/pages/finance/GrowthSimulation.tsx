@@ -1,15 +1,36 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import { RotateCcw, TrendingUp, TrendingDown, Save, Plus, Loader2, FileText, GitCompare } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  RotateCcw,
+  TrendingUp,
+  TrendingDown,
+  Save,
+  Plus,
+  Loader2,
+  FileText,
+  GitCompare,
+  DollarSign,
+  AlertTriangle,
+  ChevronDown,
+  ChevronUp,
+  PiggyBank,
+  Percent,
+} from 'lucide-react';
+import { SECTOR_MULTIPLES, DEFAULT_DILUTION_CONFIG } from '@/types/simulation';
+import { calculateMOICWithDilution } from '@/lib/valuationService';
+import { formatCompactUSD } from '@/lib/formatters';
 import { useGrowthSimulation } from '@/hooks/finance/useGrowthSimulation';
 import { useScenarios } from '@/hooks/finance/useScenarios';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
@@ -39,6 +60,15 @@ function GrowthSimulationContent() {
   const [showNewScenarioDialog, setShowNewScenarioDialog] = useState(false);
   const [scenarioType, setScenarioType] = useState<'positive' | 'negative'>('positive');
   const [urlScenarioLoaded, setUrlScenarioLoaded] = useState(false);
+
+  // =====================================================
+  // INLINE DEAL SIMULATOR STATE
+  // =====================================================
+  const [dealSimulatorOpen, setDealSimulatorOpen] = useState(false);
+  const [investmentAmount, setInvestmentAmount] = useState(150000);
+  const [equityPercentage, setEquityPercentage] = useState(10);
+  const [sectorMultiple, setSectorMultiple] = useState(5);
+  const [valuationType, setValuationType] = useState<'pre-money' | 'post-money'>('post-money');
   
   const {
     scenarioName,
@@ -68,6 +98,131 @@ function GrowthSimulationContent() {
     loadBaseScenario,
     clearBaseScenario,
   } = simulation;
+
+  // =====================================================
+  // CASH FLOW ANALYSIS & DEAL SIMULATOR CALCULATIONS
+  // =====================================================
+
+  // Calculate quarterly cash flow from projections
+  const quarterlyCashFlow = useMemo(() => {
+    const revenueQ = revenues.reduce(
+      (acc, r) => ({
+        q1: acc.q1 + (r.projectedQuarterly?.q1 || 0),
+        q2: acc.q2 + (r.projectedQuarterly?.q2 || 0),
+        q3: acc.q3 + (r.projectedQuarterly?.q3 || 0),
+        q4: acc.q4 + (r.projectedQuarterly?.q4 || 0),
+      }),
+      { q1: 0, q2: 0, q3: 0, q4: 0 }
+    );
+
+    const expenseQ = expenses.reduce(
+      (acc, e) => ({
+        q1: acc.q1 + (e.projectedQuarterly?.q1 || 0),
+        q2: acc.q2 + (e.projectedQuarterly?.q2 || 0),
+        q3: acc.q3 + (e.projectedQuarterly?.q3 || 0),
+        q4: acc.q4 + (e.projectedQuarterly?.q4 || 0),
+      }),
+      { q1: 0, q2: 0, q3: 0, q4: 0 }
+    );
+
+    return {
+      q1: revenueQ.q1 - expenseQ.q1,
+      q2: revenueQ.q2 - expenseQ.q2,
+      q3: revenueQ.q3 - expenseQ.q3,
+      q4: revenueQ.q4 - expenseQ.q4,
+    };
+  }, [revenues, expenses]);
+
+  // Calculate death valley and investment need
+  const cashAnalysis = useMemo(() => {
+    const flows = [quarterlyCashFlow.q1, quarterlyCashFlow.q2, quarterlyCashFlow.q3, quarterlyCashFlow.q4];
+    let cumulative = 0;
+    let minCash = 0;
+    let deathValleyQuarter = '';
+
+    for (let i = 0; i < flows.length; i++) {
+      cumulative += flows[i];
+      if (cumulative < minCash) {
+        minCash = cumulative;
+        deathValleyQuarter = `Q${i + 1}`;
+      }
+    }
+
+    const yearEndCash = flows.reduce((sum, f) => sum + f, 0);
+    const needsInvestment = minCash < 0 || yearEndCash < 0;
+    const suggestedInvestment = needsInvestment ? Math.abs(minCash) * 1.25 : 0; // 25% buffer
+
+    return {
+      deathValley: minCash,
+      deathValleyQuarter,
+      yearEndCash,
+      needsInvestment,
+      suggestedInvestment: Math.max(suggestedInvestment, 50000), // Minimum $50K if needed
+      monthlyBurn: Math.abs(Math.min(0, yearEndCash / 12)),
+    };
+  }, [quarterlyCashFlow]);
+
+  // Auto-open deal simulator if investment needed (for negative scenarios)
+  useEffect(() => {
+    if (cashAnalysis.needsInvestment && scenarioType === 'negative' && !dealSimulatorOpen) {
+      setDealSimulatorOpen(true);
+      setInvestmentAmount(Math.round(cashAnalysis.suggestedInvestment));
+    }
+  }, [cashAnalysis.needsInvestment, scenarioType, cashAnalysis.suggestedInvestment, dealSimulatorOpen]);
+
+  // Calculate deal metrics
+  const dealMetrics = useMemo(() => {
+    // Post-money calculation
+    const postMoneyValuation = investmentAmount / (equityPercentage / 100);
+    const preMoneyValuation = postMoneyValuation - investmentAmount;
+
+    // If user selected pre-money, recalculate
+    let effectivePreMoney = preMoneyValuation;
+    let effectivePostMoney = postMoneyValuation;
+    let effectiveEquity = equityPercentage;
+
+    if (valuationType === 'pre-money') {
+      // User entered pre-money, calculate post-money and equity
+      effectivePreMoney = postMoneyValuation; // Treat input as pre-money
+      effectivePostMoney = effectivePreMoney + investmentAmount;
+      effectiveEquity = (investmentAmount / effectivePostMoney) * 100;
+    }
+
+    // 5-year exit value estimation (simplified)
+    const currentRevenue = summary.projected.totalRevenue;
+    const growthRate = 0.3; // 30% annual growth assumption
+    const year5Revenue = currentRevenue * Math.pow(1 + growthRate, 5);
+    const year5ExitValue = year5Revenue * sectorMultiple;
+
+    // MOIC with dilution
+    const moicResult = calculateMOICWithDilution(
+      investmentAmount,
+      effectiveEquity,
+      year5ExitValue,
+      DEFAULT_DILUTION_CONFIG,
+      5
+    );
+
+    // Founder dilution calculation
+    const founderPreInvestment = 100;
+    const founderPostInvestment = founderPreInvestment - effectiveEquity;
+    const founderPostESOP = founderPostInvestment * (1 - DEFAULT_DILUTION_CONFIG.esopPoolSize);
+
+    return {
+      preMoneyValuation: effectivePreMoney,
+      postMoneyValuation: effectivePostMoney,
+      effectiveEquity,
+      year5ExitValue,
+      moicNoDilution: moicResult.moicNoDilution,
+      moicWithDilution: moicResult.moicWithDilution,
+      investorProceeds: moicResult.investorProceeds,
+      ownershipAtExit: moicResult.ownershipAtExit,
+      irrEstimate: moicResult.irrEstimate,
+      founderPreInvestment,
+      founderPostInvestment,
+      founderPostESOP,
+    };
+  }, [investmentAmount, equityPercentage, sectorMultiple, valuationType, summary.projected.totalRevenue]);
 
   // URL'den senaryo yükleme - sayfa ilk açıldığında
   useEffect(() => {
@@ -378,6 +533,203 @@ function GrowthSimulationContent() {
             baseYear={baseYear}
             targetYear={targetYear}
           />
+        )}
+
+        {/* ============================================= */}
+        {/* INLINE DEAL SIMULATOR - Nakit Durumuna Göre */}
+        {/* ============================================= */}
+        {(cashAnalysis.needsInvestment || scenarioType === 'positive') && (
+          <Collapsible open={dealSimulatorOpen} onOpenChange={setDealSimulatorOpen}>
+            <Card className={`border-2 ${
+              cashAnalysis.needsInvestment
+                ? 'border-red-500/50 bg-red-500/5'
+                : 'border-blue-500/30 bg-blue-500/5'
+            }`}>
+              <CollapsibleTrigger asChild>
+                <CardHeader className="cursor-pointer hover:bg-muted/50 transition-colors pb-2">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-3">
+                      {cashAnalysis.needsInvestment ? (
+                        <AlertTriangle className="h-5 w-5 text-red-500" />
+                      ) : (
+                        <PiggyBank className="h-5 w-5 text-blue-500" />
+                      )}
+                      <div>
+                        <CardTitle className="text-sm">
+                          {cashAnalysis.needsInvestment
+                            ? t('simulation:investment.dealSimulator.title') + ' ⚠️'
+                            : t('simulation:investment.dealSimulator.title')
+                          }
+                        </CardTitle>
+                        <CardDescription className="text-xs">
+                          {cashAnalysis.needsInvestment ? (
+                            <>
+                              Death Valley: <span className="text-red-500 font-semibold">{formatCompactUSD(cashAnalysis.deathValley)}</span>
+                              {' '}({cashAnalysis.deathValleyQuarter}) •
+                              {t('simulation:investment.dealSimulator.suggested')}: <span className="text-amber-500 font-semibold">{formatCompactUSD(cashAnalysis.suggestedInvestment)}</span>
+                            </>
+                          ) : (
+                            t('simulation:investment.dealSimulator.description')
+                          )}
+                        </CardDescription>
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      {cashAnalysis.needsInvestment && (
+                        <Badge variant="destructive" className="text-xs">
+                          {t('simulation:capital.notSelfSustaining')}
+                        </Badge>
+                      )}
+                      {dealSimulatorOpen ? (
+                        <ChevronUp className="h-4 w-4 text-muted-foreground" />
+                      ) : (
+                        <ChevronDown className="h-4 w-4 text-muted-foreground" />
+                      )}
+                    </div>
+                  </div>
+                </CardHeader>
+              </CollapsibleTrigger>
+
+              <CollapsibleContent>
+                <CardContent className="space-y-4 pt-0">
+                  {/* Input Section */}
+                  <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                    {/* Investment Amount */}
+                    <div className="space-y-2">
+                      <Label className="text-xs">{t('simulation:investment.dealSimulator.investmentAmount')}</Label>
+                      <div className="relative">
+                        <DollarSign className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input
+                          type="number"
+                          value={investmentAmount}
+                          onChange={(e) => setInvestmentAmount(Number(e.target.value))}
+                          className="pl-8 font-mono"
+                        />
+                      </div>
+                      {cashAnalysis.needsInvestment && (
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="w-full text-xs"
+                          onClick={() => setInvestmentAmount(Math.round(cashAnalysis.suggestedInvestment))}
+                        >
+                          {t('simulation:investment.dealSimulator.suggestedAmount')}: {formatCompactUSD(cashAnalysis.suggestedInvestment)}
+                        </Button>
+                      )}
+                    </div>
+
+                    {/* Equity Percentage */}
+                    <div className="space-y-2">
+                      <Label className="text-xs flex items-center gap-1">
+                        <Percent className="h-3 w-3" />
+                        {t('simulation:investment.dealSimulator.equityRatio')}: {equityPercentage}%
+                      </Label>
+                      <Slider
+                        value={[equityPercentage]}
+                        onValueChange={([v]) => setEquityPercentage(v)}
+                        min={5}
+                        max={30}
+                        step={1}
+                        className="mt-3"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {valuationType === 'post-money' ? 'Post-Money' : 'Pre-Money'}: {formatCompactUSD(dealMetrics.postMoneyValuation)}
+                      </p>
+                    </div>
+
+                    {/* Valuation Type */}
+                    <div className="space-y-2">
+                      <Label className="text-xs">{t('simulation:investment.dealSimulator.valuation')} Tipi</Label>
+                      <Select value={valuationType} onValueChange={(v: 'pre-money' | 'post-money') => setValuationType(v)}>
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="post-money">Post-Money</SelectItem>
+                          <SelectItem value="pre-money">Pre-Money</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      <p className="text-xs text-muted-foreground">
+                        {valuationType === 'post-money'
+                          ? `Pre: ${formatCompactUSD(dealMetrics.preMoneyValuation)}`
+                          : `Post: ${formatCompactUSD(dealMetrics.postMoneyValuation)}`
+                        }
+                      </p>
+                    </div>
+
+                    {/* Sector Multiple */}
+                    <div className="space-y-2">
+                      <Label className="text-xs">{t('simulation:investment.dealSimulator.sectorMultiple')}</Label>
+                      <Select
+                        value={String(sectorMultiple)}
+                        onValueChange={(v) => setSectorMultiple(Number(v))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {Object.entries(SECTOR_MULTIPLES).map(([sector, multiple]) => (
+                            <SelectItem key={sector} value={String(multiple)}>
+                              {sector} ({multiple}x)
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                  </div>
+
+                  {/* Results Section */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 pt-2 border-t">
+                    {/* Valuation Box */}
+                    <div className="p-3 rounded-lg bg-muted/50 border">
+                      <p className="text-xs text-muted-foreground mb-1">{t('simulation:investment.dealSimulator.postMoneyValuation')}</p>
+                      <p className="text-lg font-bold text-primary">{formatCompactUSD(dealMetrics.postMoneyValuation)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Pre: {formatCompactUSD(dealMetrics.preMoneyValuation)}
+                      </p>
+                    </div>
+
+                    {/* Investor Return Box */}
+                    <div className="p-3 rounded-lg bg-emerald-500/10 border border-emerald-500/30">
+                      <p className="text-xs text-muted-foreground mb-1">5Y MOIC (Dilution ile)</p>
+                      <p className="text-lg font-bold text-emerald-500">{dealMetrics.moicWithDilution.toFixed(1)}x</p>
+                      <p className="text-xs text-muted-foreground">
+                        IRR: ~{dealMetrics.irrEstimate.toFixed(0)}%
+                      </p>
+                    </div>
+
+                    {/* Investor Proceeds Box */}
+                    <div className="p-3 rounded-lg bg-blue-500/10 border border-blue-500/30">
+                      <p className="text-xs text-muted-foreground mb-1">Yatırımcı 5Y Exit Getiri</p>
+                      <p className="text-lg font-bold text-blue-500">{formatCompactUSD(dealMetrics.investorProceeds)}</p>
+                      <p className="text-xs text-muted-foreground">
+                        Exit Ownership: {dealMetrics.ownershipAtExit.toFixed(1)}%
+                      </p>
+                    </div>
+
+                    {/* Founder Dilution Box */}
+                    <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/30">
+                      <p className="text-xs text-muted-foreground mb-1">Kurucu Hissesi</p>
+                      <p className="text-lg font-bold text-amber-500">
+                        %{dealMetrics.founderPreInvestment} → %{dealMetrics.founderPostESOP.toFixed(0)}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        ESOP sonrası (10% havuz)
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Warning for high dilution */}
+                  {dealMetrics.moicWithDilution < 3 && (
+                    <div className="flex items-center gap-2 p-2 rounded bg-amber-500/10 text-xs text-amber-600">
+                      <AlertTriangle className="h-4 w-4" />
+                      MOIC 3x altında - yatırımcılar için çekicilik düşük olabilir. Değerlemeyi veya çıkış çarpanını gözden geçirin.
+                    </div>
+                  )}
+                </CardContent>
+              </CollapsibleContent>
+            </Card>
+          </Collapsible>
         )}
 
         {/* Projections Content */}

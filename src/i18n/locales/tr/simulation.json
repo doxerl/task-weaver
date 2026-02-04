@@ -839,8 +839,8 @@
     "itemsOver40": "{{items}} kalemlerinde senaryolar arası fark %40'ın üzerinde"
   },
   "quarterlyTable": {
-    "title": "Çeyreklik Nakit Akışı Karşılaştırması",
-    "description": "Yatırımlı (pozitif) ve yatırımsız (negatif) senaryo çeyreklik detayları",
+    "title": "Operasyonel Plan & Nakit Akışı",
+    "description": "Çeyreklik gelir/gider/nakit akışı projeksiyonu - yatırımlı ve yatırımsız senaryolar",
     "invested": "Yatırımlı ({{name}})",
     "uninvested": "Yatırımsız ({{name}})",
     "startingBalance": "+{{amount}} başlangıç",

@@ -839,8 +839,8 @@
     "itemsOver40": "{{items}} items have over 40% difference between scenarios"
   },
   "quarterlyTable": {
-    "title": "Quarterly Cash Flow Comparison",
-    "description": "Invested (positive) and uninvested (negative) scenario quarterly details",
+    "title": "Operating Plan & Cash Flow",
+    "description": "Quarterly revenue/expense/cash flow projection - invested vs uninvested scenarios",
     "invested": "Invested ({{name}})",
     "uninvested": "Uninvested ({{name}})",
     "startingBalance": "+{{amount}} starting",
