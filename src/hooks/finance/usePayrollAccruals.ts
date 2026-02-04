@@ -8,8 +8,14 @@ export function usePayrollAccruals(year: number) {
   const { user } = useAuthContext();
   const userId = user?.id ?? null;
   
+  // Stable queryKey reference to prevent hook state corruption during HMR/auth transitions
+  const queryKey = useMemo(
+    () => ['payroll-accruals', userId, year] as const,
+    [userId, year]
+  );
+
   const queryResult = useQuery({
-    queryKey: ['payroll-accruals', userId, year] as const,
+    queryKey,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('payroll_accruals')
