@@ -2,15 +2,9 @@ import React, { useMemo, memo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Slider } from '@/components/ui/slider';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import {
-  DollarSign,
   TrendingUp,
   AlertTriangle,
-  PiggyBank,
   Rocket,
   CheckCircle2,
   Target,
@@ -32,10 +26,9 @@ import {
   CartesianGrid,
   ReferenceLine,
 } from 'recharts';
-import { 
-  SimulationScenario, 
-  DealConfiguration, 
-  SECTOR_MULTIPLES,
+import {
+  SimulationScenario,
+  DealConfiguration,
   InvestmentScenarioComparison,
   MultiYearCapitalPlan,
   NextYearProjection
@@ -256,90 +249,6 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
 
   return (
     <div className="space-y-4">
-      {/* Deal Configuration */}
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm flex items-center gap-2">
-            <DollarSign className="h-4 w-4 text-primary" />
-            {t('simulation:investment.dealSimulator.title')}
-          </CardTitle>
-          <CardDescription className="text-xs">
-            {t('simulation:investment.dealSimulator.description')}
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="grid grid-cols-3 gap-4">
-            <div className="space-y-2">
-              <Label className="text-xs">{t('simulation:investment.dealSimulator.investmentAmount')}</Label>
-              <div className="relative">
-                <DollarSign className="absolute left-2 top-2.5 h-4 w-4 text-muted-foreground" />
-                <Input
-                  type="number"
-                  value={dealConfig.investmentAmount}
-                  onChange={(e) => onDealConfigChange({ investmentAmount: Number(e.target.value) })}
-                  className="pl-8 font-mono"
-                />
-              </div>
-              <p className="text-xs text-muted-foreground">
-                {t('simulation:investment.dealSimulator.suggested')}: {formatCompactUSD(capitalNeedB.requiredInvestment)}
-                {capitalNeedB.calculationBasis && capitalNeedB.calculationBasis !== 'none' && (
-                  <span className="text-[10px] ml-1 opacity-70">
-                    ({capitalNeedB.calculationBasis === 'death_valley' ? t('simulation:investment.dealSimulator.deathValleyBased') : t('simulation:investment.dealSimulator.yearEndDeficitBased')})
-                  </span>
-                )}
-              </p>
-              {/* Year-based additional capital suggestions */}
-              {multiYearCapitalPlan.years.length > 1 && multiYearCapitalPlan.years[1]?.requiredCapital > 0 && (
-                <p className="text-xs text-amber-500">
-                  <strong>{multiYearCapitalPlan.years[1]?.year}:</strong> {formatCompactUSD(multiYearCapitalPlan.years[1]?.requiredCapital)}
-                  <span className="text-[10px] ml-1">({t('simulation:investment.dealSimulator.additionalCapital')})</span>
-                </p>
-              )}
-              {multiYearCapitalPlan.selfSustainingFromYear && (
-                <p className="text-xs text-emerald-500 flex items-center gap-1 mt-1">
-                  <CheckCircle2 className="h-3 w-3" />
-                  {t('simulation:investment.dealSimulator.selfFinancing')} ({multiYearCapitalPlan.selfSustainingFromYear}+)
-                </p>
-              )}
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs">{t('simulation:investment.dealSimulator.equityRatio')}: %{dealConfig.equityPercentage}</Label>
-              <Slider
-                value={[dealConfig.equityPercentage]}
-                onValueChange={([value]) => onDealConfigChange({ equityPercentage: value })}
-                min={5}
-                max={30}
-                step={1}
-                className="mt-3"
-              />
-              <p className="text-xs text-muted-foreground">
-                {t('simulation:investment.dealSimulator.valuation')}: {formatCompactUSD(exitPlan.postMoneyValuation)}
-              </p>
-            </div>
-
-            <div className="space-y-2">
-              <Label className="text-xs">{t('simulation:investment.dealSimulator.sectorMultiple')}</Label>
-              <Select 
-                value={String(dealConfig.sectorMultiple)}
-                onValueChange={(v) => onDealConfigChange({ sectorMultiple: Number(v) })}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  {Object.entries(SECTOR_MULTIPLES).map(([sector, multiple]) => (
-                    <SelectItem key={sector} value={String(multiple)}>
-                      {sector} ({multiple}x)
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
       {/* Investment Tier Selector - 3 options */}
       {capitalNeedB.investmentTiers && !capitalNeedB.selfSustaining && (
         <Card className="border-blue-500/20 bg-blue-500/5">
