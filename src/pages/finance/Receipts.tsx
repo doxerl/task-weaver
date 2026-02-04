@@ -580,7 +580,7 @@ export default function Receipts() {
 
         {/* Header */}
         <div className="flex items-center gap-3">
-          <Link to="/finance" className="p-2 hover:bg-accent rounded-lg">
+          <Link to="/" className="p-2 hover:bg-accent rounded-lg">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold flex-1">Fiş/Faturalar</h1>
@@ -675,7 +675,7 @@ export default function Receipts() {
               </p>
               <div className="flex items-center gap-2">
                 <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-                <Link to="/finance/receipts/upload?type=received&subtype=slip">
+                <Link to="/receipts/upload?type=received&subtype=slip">
                   <Button size="sm" className="gap-1">
                     <Plus className="h-4 w-4" />
                     <span className="hidden sm:inline">Alınan Fiş Yükle</span>
@@ -694,7 +694,7 @@ export default function Receipts() {
               </p>
               <div className="flex items-center gap-2">
                 <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-                <Link to="/finance/receipts/upload?type=received&subtype=invoice">
+                <Link to="/receipts/upload?type=received&subtype=invoice">
                   <Button size="sm" className="gap-1">
                     <Plus className="h-4 w-4" />
                     <span className="hidden sm:inline">Alınan Fatura Yükle</span>
@@ -713,7 +713,7 @@ export default function Receipts() {
               </p>
               <div className="flex items-center gap-2">
                 <ViewToggle viewMode={viewMode} setViewMode={setViewMode} />
-                <Link to="/finance/receipts/upload?type=issued">
+                <Link to="/receipts/upload?type=issued">
                   <Button size="sm" className="gap-1 bg-green-600 hover:bg-green-700">
                     <Plus className="h-4 w-4" />
                     <span className="hidden sm:inline">Kesilen Fatura Yükle</span>

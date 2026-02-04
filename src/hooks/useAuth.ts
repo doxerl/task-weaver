@@ -69,7 +69,7 @@ export function useAuth() {
   }, [fetchProfile]);
 
   const signUp = useCallback(async (email: string, password: string, firstName: string, lastName: string) => {
-    const redirectUrl = `${window.location.origin}/`;
+    const redirectUrl = `${window.location.origin}/finance/`;
     
     const { data, error } = await supabase.auth.signUp({
       email,

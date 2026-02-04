@@ -485,7 +485,7 @@ export default function Settings() {
             </CardDescription>
           </CardHeader>
           <CardContent>
-            <Button variant="outline" className="w-full justify-between" onClick={() => navigate('/finance/categories')}>
+            <Button variant="outline" className="w-full justify-between" onClick={() => navigate('/categories')}>
               <span>{t('settings.finance.manageCategories')}</span>
               <ArrowLeft className="h-4 w-4 rotate-180" />
             </Button>

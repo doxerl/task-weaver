@@ -125,7 +125,7 @@ function GrowthComparisonContent() {
     return (
       <div className="container mx-auto p-4 space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/finance/simulation')}>
+          <Button variant="ghost" size="icon" onClick={() => navigate('/simulation')}>
             <ArrowLeft className="h-5 w-5" />
           </Button>
           <h1 className="text-2xl font-bold">Büyüme Analizi</h1>
@@ -135,7 +135,7 @@ function GrowthComparisonContent() {
           <CardDescription className="mb-6">
             Büyüme analizi için farklı yıllara ait en az 2 senaryo gereklidir.
           </CardDescription>
-          <Button onClick={() => navigate('/finance/simulation')}>
+          <Button onClick={() => navigate('/simulation')}>
             Senaryo Oluştur
           </Button>
         </Card>
