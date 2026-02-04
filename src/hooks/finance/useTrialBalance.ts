@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { toast } from '@/hooks/use-toast';
 import type { OfficialTrialBalance, TrialBalanceAccount, YearlyIncomeStatementFormData } from '@/types/officialFinance';
 import { INCOME_STATEMENT_ACCOUNT_MAP } from '@/types/officialFinance';
@@ -8,7 +8,7 @@ import { calculateStatementTotals } from './useOfficialIncomeStatement';
 import { sanitizeFileName } from '@/lib/fileUtils';
 
 export function useTrialBalance(year: number, month: number | null = null) {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
   const userId = user?.id ?? null;
   const queryClient = useQueryClient();
 

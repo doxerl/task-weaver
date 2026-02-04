@@ -42,7 +42,7 @@ import {
   safeArray
 } from '@/types/simulation';
 import { generateScenarioHash } from '@/lib/scenarioHash';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/contexts/AuthContext';
 
 interface ScenarioSummary {
   totalRevenue: number;
@@ -65,7 +65,7 @@ interface CachedAnalysisInfo {
 }
 
 export function useUnifiedAnalysis() {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
   const userId = user?.id ?? null;
   const [analysis, setAnalysis] = useState<UnifiedAnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);

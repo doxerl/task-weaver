@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { useAuth } from '@/hooks/useAuth';
+import { useAuthContext } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
 import { 
   ProjectionItem, 
@@ -29,7 +29,7 @@ interface DatabaseScenario {
 }
 
 export function useScenarios() {
-  const { user } = useAuth();
+  const { user } = useAuthContext();
   const userId = user?.id ?? null; // ✅ Stabilize userId
   const [scenarios, setScenarios] = useState<SimulationScenario[]>([]);
   const [isLoading, setIsLoading] = useState(false);
