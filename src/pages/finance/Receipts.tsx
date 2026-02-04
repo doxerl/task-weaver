@@ -420,7 +420,7 @@ export default function Receipts() {
           receiptSubtype: documentType === 'received' ? receiptSubtype : undefined,
           onProgress: (progress) => {
             if (progress) {
-              setUploadProgress(zipFiles.length + progress.processed);
+              setUploadProgress(zipFiles.length + progress.processedFiles);
             }
           }
         });
