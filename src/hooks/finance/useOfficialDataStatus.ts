@@ -1,4 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
 
@@ -24,9 +25,19 @@ export function useOfficialDataStatus(year: number): OfficialDataStatus {
   // Stabilize userId to prevent hook dependency instability during auth changes
   const userId = user?.id ?? null;
 
+  // Stable queryKey references to prevent hook state corruption during HMR/auth transitions
+  const incomeQueryKey = useMemo(
+    () => ['official-income-statement-lock', userId, year] as const,
+    [userId, year]
+  );
+  const balanceQueryKey = useMemo(
+    () => ['yearly-balance-sheet-lock', userId, year] as const,
+    [userId, year]
+  );
+
   // Query income statement lock status directly
   const { data: incomeStatementData, isLoading: incomeLoading } = useQuery({
-    queryKey: ['official-income-statement-lock', userId, year] as const,
+    queryKey: incomeQueryKey,
     queryFn: async () => {
       if (!userId) return null;
       const { data, error } = await supabase
@@ -43,7 +54,7 @@ export function useOfficialDataStatus(year: number): OfficialDataStatus {
 
   // Query balance sheet lock status directly
   const { data: balanceSheetData, isLoading: balanceLoading } = useQuery({
-    queryKey: ['yearly-balance-sheet-lock', userId, year] as const,
+    queryKey: balanceQueryKey,
     queryFn: async () => {
       if (!userId) return null;
       const { data, error } = await supabase

@@ -5,7 +5,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Alert, AlertDescription } from '@/components/ui/alert';
 import { Badge } from '@/components/ui/badge';
-import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft, PenLine, Building2, Receipt, Scale, Truck, BarChart3, Shield } from 'lucide-react';
+import { TrendingUp, TrendingDown, Wallet, FileSpreadsheet, Camera, FileText, AlertTriangle, ArrowLeft, PenLine, Building2, Receipt, Scale, Truck, BarChart3, Shield, Loader2 } from 'lucide-react';
 import { useFinancialCalculations } from '@/hooks/finance/useFinancialCalculations';
 import { useVatCalculations } from '@/hooks/finance/useVatCalculations';
 import { useBalanceSheet } from '@/hooks/finance/useBalanceSheet';
@@ -17,11 +17,25 @@ import { AppHeader } from '@/components/AppHeader';
 export default function FinanceDashboard() {
   const { t } = useTranslation(['finance', 'common']);
   const { selectedYear: year, setSelectedYear: setYear } = useYear();
+  
+  // All hooks must be called in the same order every render
   const calc = useFinancialCalculations(year);
   const vat = useVatCalculations(year);
   const { balanceSheet, isLoading: balanceLoading } = useBalanceSheet(year);
   const costCenter = useCostCenterAnalysis(year);
   const incomeStatement = useIncomeStatement(year);
+
+  // Loading guard - show loading state while any critical hook is loading
+  const isAnyLoading = calc.isLoading || vat.isLoading || balanceLoading || 
+                       costCenter.isLoading || incomeStatement.isLoading;
+
+  if (isAnyLoading) {
+    return (
+      <div className="min-h-screen bg-background pb-20 flex items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-primary" />
+      </div>
+    );
+  }
 
   const formatCurrency = (n: number) => new Intl.NumberFormat('tr-TR', { style: 'currency', currency: 'TRY' }).format(n);
   const formatCompact = (n: number) => new Intl.NumberFormat('tr-TR', { notation: 'compact', maximumFractionDigits: 1 }).format(n);

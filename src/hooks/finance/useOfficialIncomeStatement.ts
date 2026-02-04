@@ -107,9 +107,15 @@ export function useOfficialIncomeStatement(year: number) {
   // Memoize empty statement to prevent infinite re-renders
   const emptyStatement = useMemo(() => getEmptyStatement(year), [year]);
 
+  // Stable queryKey reference to prevent hook state corruption during HMR/auth transitions
+  const queryKey = useMemo(
+    () => ['official-income-statement', year, userId] as const,
+    [year, userId]
+  );
+
   // Fetch official statement for the year
   const { data: officialStatement, isLoading } = useQuery({
-    queryKey: ['official-income-statement', year, userId] as const,
+    queryKey,
     queryFn: async () => {
       if (!userId) return null;
 

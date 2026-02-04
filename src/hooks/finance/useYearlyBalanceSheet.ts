@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { toast } from 'sonner';
@@ -51,8 +52,14 @@ export function useYearlyBalanceSheet(year: number) {
   // Stabilize userId to prevent hook state corruption during auth changes
   const userId = user?.id ?? null;
 
+  // Stable queryKey reference to prevent hook state corruption during HMR/auth transitions
+  const queryKey = useMemo(
+    () => ['yearly-balance-sheet', userId, year] as const,
+    [userId, year]
+  );
+
   const { data: yearlyBalance, isLoading } = useQuery({
-    queryKey: ['yearly-balance-sheet', userId, year] as const,
+    queryKey,
     queryFn: async () => {
       if (!userId) return null;
       
