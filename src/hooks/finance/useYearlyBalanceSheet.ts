@@ -71,7 +71,7 @@ export function useYearlyBalanceSheet(year: number) {
 
   const upsertMutation = useMutation({
     mutationFn: async (balanceData: Partial<YearlyBalanceSheet>) => {
-      if (!user?.id) throw new Error('User not authenticated');
+      if (!userId) throw new Error('User not authenticated');
 
       // Tüm sayısal değerleri tam sayıya yuvarla
       const roundedData = Object.fromEntries(
@@ -83,7 +83,7 @@ export function useYearlyBalanceSheet(year: number) {
 
       const payload = {
         ...roundedData,
-        user_id: user.id,
+        user_id: userId,
         year,
         updated_at: new Date().toISOString(),
       };
@@ -102,7 +102,7 @@ export function useYearlyBalanceSheet(year: number) {
       }
     },
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['yearly-balance-sheet', user?.id, year] });
+      queryClient.invalidateQueries({ queryKey: ['yearly-balance-sheet', userId, year] });
       toast.success('Yıllık bilanço kaydedildi');
     },
     onError: (error: Error) => {
@@ -112,7 +112,7 @@ export function useYearlyBalanceSheet(year: number) {
 
   const lockMutation = useMutation({
     mutationFn: async (lock: boolean) => {
-      if (!user?.id) throw new Error('User not authenticated');
+      if (!userId) throw new Error('User not authenticated');
       
       if (!yearlyBalance?.id) {
         throw new Error('Önce bilançoyu kaydedin');
@@ -126,7 +126,7 @@ export function useYearlyBalanceSheet(year: number) {
       if (error) throw error;
     },
     onSuccess: (_, lock) => {
-      queryClient.invalidateQueries({ queryKey: ['yearly-balance-sheet', user?.id, year] });
+      queryClient.invalidateQueries({ queryKey: ['yearly-balance-sheet', userId, year] });
       toast.success(lock ? 'Bilanço kilitlendi (Resmi Onaylı)' : 'Bilanço kilidi açıldı');
     },
     onError: (error: Error) => {

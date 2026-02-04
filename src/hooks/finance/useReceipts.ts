@@ -96,12 +96,12 @@ export function useReceipts(year?: number, month?: number) {
     sellerTaxNo?: string | null,
     documentType?: string | null
   ): Promise<Receipt | null> => {
-    if (!receiptNo || !user?.id) return null;
+    if (!receiptNo || !userId) return null;
     
     let query = supabase
       .from('receipts')
       .select('*, category:transaction_categories!category_id(*)')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('receipt_no', receiptNo);
     
     // document_type varsa, AYNI TİP belgede ara (kesilen vs kesilen, alınan vs alınan)
@@ -133,7 +133,7 @@ export function useReceipts(year?: number, month?: number) {
     fileName: string, 
     receiptDate: string | null
   ): Promise<Receipt | null> => {
-    if (!fileName || !user?.id) return null;
+    if (!fileName || !userId) return null;
     
     // Normalize file name (remove extension, lowercase, trim)
     const normalizedName = fileName.replace(/\.[^/.]+$/, '').toLowerCase().trim();
@@ -141,7 +141,7 @@ export function useReceipts(year?: number, month?: number) {
     let query = supabase
       .from('receipts')
       .select('*, category:transaction_categories!category_id(*)')
-      .eq('user_id', user.id);
+      .eq('user_id', userId);
     
     // If date available, filter by date as well
     if (receiptDate) {
@@ -168,14 +168,14 @@ export function useReceipts(year?: number, month?: number) {
     totalAmount: number | null,
     receiptDate: string | null
   ): Promise<Receipt | null> => {
-    if (!totalAmount || !receiptDate || !user?.id) return null;
+    if (!totalAmount || !receiptDate || !userId) return null;
     
     // VKN/TCKN varsa, öncelikli olarak onu kullan
     if (sellerTaxNo) {
       const { data } = await supabase
         .from('receipts')
         .select('*, category:transaction_categories!category_id(*)')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('receipt_date', receiptDate)
         .eq('seller_tax_no', sellerTaxNo)
         .gte('total_amount', totalAmount - 1)
@@ -192,7 +192,7 @@ export function useReceipts(year?: number, month?: number) {
     const { data } = await supabase
       .from('receipts')
       .select('*, category:transaction_categories!category_id(*)')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('receipt_date', receiptDate)
       .gte('total_amount', totalAmount - 1)
       .lte('total_amount', totalAmount + 1);
