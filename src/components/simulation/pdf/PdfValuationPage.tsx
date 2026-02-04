@@ -40,8 +40,12 @@ export function PdfValuationPage({
 
   // Calculate valuation methods based on year 5 data
   const revenue = year5?.revenue || 0;
-  const netProfit = year5?.netProfit || 0;
-  const ebitda = netProfit * 1.15; // Approximate EBITDA (add back 15% for D&A)
+  const expenses = year5?.expenses || 0;
+  
+  // CORRECTED FORMULA: EBITDA = Revenue - Expenses
+  // Previous approach (netProfit * 1.15) was conceptually incorrect
+  // EBITDA should be calculated as operating profit before non-cash charges
+  const ebitda = revenue - expenses;
 
   // Valuation calculations
   const revenueMultiple = revenue * dealConfig.sectorMultiple;

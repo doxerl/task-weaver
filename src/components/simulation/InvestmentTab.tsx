@@ -40,7 +40,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { InvestmentScenarioCard } from './InvestmentScenarioCard';
 import { FutureImpactChart } from './FutureImpactChart';
 import { AIInvestmentTimingCard } from './AIInvestmentTimingCard';
-import { QuarterlyCapitalTable } from './QuarterlyCapitalTable';
+import { QuarterlyCashFlowTable } from './QuarterlyCashFlowTable';
 import { ValuationMethodsCard } from './ValuationMethodsCard';
 import { getEBITDAMultiple, DEFAULT_VALUATION_CONFIG } from '@/lib/valuationCalculator';
 
@@ -300,9 +300,9 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
         targetYear={scenarioB.targetYear}
       />
 
-      {/* Quarterly Capital Table - Detaylı çeyreklik analiz */}
+      {/* Quarterly Cash Flow Table - Detaylı çeyreklik nakit akış analizi */}
       {quarterlyRevenueA && quarterlyExpenseA && quarterlyRevenueB && quarterlyExpenseB && (
-        <QuarterlyCapitalTable
+        <QuarterlyCashFlowTable
           quarterlyRevenueA={quarterlyRevenueA}
           quarterlyExpenseA={quarterlyExpenseA}
           quarterlyRevenueB={quarterlyRevenueB}

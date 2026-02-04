@@ -12,7 +12,7 @@ import {
 import { formatCompactUSD } from '@/lib/formatters';
 import { useTranslation } from 'react-i18next';
 
-interface QuarterlyCapitalTableProps {
+interface QuarterlyCashFlowTableProps {
   quarterlyRevenueA: { q1: number; q2: number; q3: number; q4: number };
   quarterlyExpenseA: { q1: number; q2: number; q3: number; q4: number };
   quarterlyRevenueB: { q1: number; q2: number; q3: number; q4: number };
@@ -32,7 +32,7 @@ interface QuarterData {
   isDeathValley: boolean;
 }
 
-export const QuarterlyCapitalTable: React.FC<QuarterlyCapitalTableProps> = ({
+export const QuarterlyCashFlowTable: React.FC<QuarterlyCashFlowTableProps> = ({
   quarterlyRevenueA,
   quarterlyExpenseA,
   quarterlyRevenueB,

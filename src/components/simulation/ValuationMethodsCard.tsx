@@ -6,11 +6,13 @@ import {
   BarChart3, 
   TrendingUp, 
   Rocket,
-  Scale
+  Scale,
+  AlertCircle
 } from 'lucide-react';
 import { ValuationBreakdown, ValuationConfiguration } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
 import { DEFAULT_VALUATION_CONFIG } from '@/lib/valuationCalculator';
+import { useTranslation } from 'react-i18next';
 
 interface ValuationMethodsCardProps {
   valuations: ValuationBreakdown;
@@ -57,20 +59,38 @@ export const ValuationMethodsCard: React.FC<ValuationMethodsCardProps> = ({
           </div>
           
           {/* EBITDA Multiple */}
-          <div className="p-3 rounded-lg bg-purple-500/10 border border-purple-500/20">
+          <div className={`p-3 rounded-lg border ${
+            valuations.ebitdaMultiple <= 0 
+              ? 'bg-muted/30 border-muted opacity-60' 
+              : 'bg-purple-500/10 border-purple-500/20'
+          }`}>
             <div className="flex items-center gap-2 mb-2">
-              <TrendingUp className="h-4 w-4 text-purple-500" />
+              <TrendingUp className={`h-4 w-4 ${valuations.ebitdaMultiple <= 0 ? 'text-muted-foreground' : 'text-purple-500'}`} />
               <span className="text-xs font-medium">EBITDA Çarpanı</span>
             </div>
-            <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
-              {formatCompactUSD(valuations.ebitdaMultiple)}
-            </div>
-            <div className="text-[10px] text-muted-foreground">
-              EBITDA x {ebitdaMultiple}x
-            </div>
-            <Badge variant="secondary" className="mt-1 text-[10px]">
-              Ağırlık: %{(weights.ebitdaMultiple * 100).toFixed(0)}
-            </Badge>
+            {valuations.ebitdaMultiple <= 0 ? (
+              <>
+                <div className="flex items-center gap-1 text-amber-500">
+                  <AlertCircle className="h-3 w-3" />
+                  <span className="text-xs font-medium">Devre Dışı</span>
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-1">
+                  EBITDA negatif - ağırlık diğer metodlara dağıtıldı
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="text-lg font-bold text-purple-600 dark:text-purple-400">
+                  {formatCompactUSD(valuations.ebitdaMultiple)}
+                </div>
+                <div className="text-[10px] text-muted-foreground">
+                  EBITDA x {ebitdaMultiple}x
+                </div>
+                <Badge variant="secondary" className="mt-1 text-[10px]">
+                  Ağırlık: %{(weights.ebitdaMultiple * 100).toFixed(0)}
+                </Badge>
+              </>
+            )}
           </div>
           
           {/* DCF */}
