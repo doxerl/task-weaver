@@ -230,7 +230,11 @@
       "preMoneyValuation": "Pre-money Değerleme",
       "postMoneyValuation": "Post-money Değerleme",
       "deathValleyBased": "Death Valley bazlı",
-      "yearEndDeficitBased": "Yıl Sonu Açığı bazlı"
+      "yearEndDeficitBased": "Yıl Sonu Açığı bazlı",
+      "projectionModel": "Projeksiyon Modeli",
+      "revenue": "Gelir",
+      "year5Revenue": "Year 5 Gelir",
+      "year5Valuation": "Year 5 Değerleme"
     },
     "options": {
       "title": "Yatırım Seçenekleri",

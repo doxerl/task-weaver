@@ -22,6 +22,11 @@ import {
 } from '@/types/simulation';
 import { calculateMOICWithDilution } from '@/lib/valuationService';
 import { formatCompactUSD } from '@/lib/formatters';
+import { 
+  STARTUP_GROWTH_PROFILES, 
+  calculateDecayYear5Revenue, 
+  type BusinessModel 
+} from '@/constants/simulation';
 
 export interface CashAnalysis {
   deathValley: number;
@@ -30,6 +35,13 @@ export interface CashAnalysis {
   needsInvestment: boolean;
   suggestedInvestment: number;
   monthlyBurn: number;
+}
+
+/** ExitPlan Year 5 projection data */
+export interface ExitPlanYear5 {
+  revenue: number;
+  companyValuation: number;
+  appliedGrowthRate?: number;
 }
 
 export interface DealSimulatorCardProps {
@@ -52,6 +64,12 @@ export interface DealSimulatorCardProps {
   onValuationTypeChange: (type: 'pre-money' | 'post-money') => void;
   onOpenChange: (open: boolean) => void;
 
+  // NEW: ExitPlan Year 5 projection (preferred source)
+  exitPlanYear5?: ExitPlanYear5;
+  
+  // NEW: Business model for fallback decay calculation
+  businessModel?: BusinessModel;
+
   // Optional: className for styling
   className?: string;
 }
@@ -70,11 +88,13 @@ export const DealSimulatorCard: React.FC<DealSimulatorCardProps> = ({
   onSectorMultipleChange,
   onValuationTypeChange,
   onOpenChange,
+  exitPlanYear5,
+  businessModel = 'SAAS',
   className,
 }) => {
   const { t } = useTranslation(['simulation', 'common']);
 
-  // Calculate deal metrics
+  // Calculate deal metrics with dynamic growth model
   const dealMetrics = useMemo(() => {
     // Post-money calculation
     const postMoneyValuation = investmentAmount / (equityPercentage / 100);
@@ -92,10 +112,24 @@ export const DealSimulatorCard: React.FC<DealSimulatorCardProps> = ({
       effectiveEquity = (investmentAmount / effectivePostMoney) * 100;
     }
 
-    // 5-year exit value estimation (simplified)
-    const growthRate = 0.3; // 30% annual growth assumption
-    const year5Revenue = currentRevenue * Math.pow(1 + growthRate, 5);
-    const year5ExitValue = year5Revenue * sectorMultiple;
+    // =====================================================
+    // 5-YEAR EXIT VALUE - DYNAMIC GROWTH MODEL
+    // =====================================================
+    let year5Revenue: number;
+    let year5ExitValue: number;
+    let projectionSource: 'exitPlan' | 'decayModel';
+
+    if (exitPlanYear5 && exitPlanYear5.companyValuation > 0) {
+      // Priority 1: Use ExitPlan projection (most accurate)
+      year5Revenue = exitPlanYear5.revenue;
+      year5ExitValue = exitPlanYear5.companyValuation;
+      projectionSource = 'exitPlan';
+    } else {
+      // Fallback: Use Startup Decay Growth Model
+      year5Revenue = calculateDecayYear5Revenue(currentRevenue, businessModel);
+      year5ExitValue = year5Revenue * sectorMultiple;
+      projectionSource = 'decayModel';
+    }
 
     // MOIC with dilution
     const moicResult = calculateMOICWithDilution(
@@ -115,7 +149,9 @@ export const DealSimulatorCard: React.FC<DealSimulatorCardProps> = ({
       preMoneyValuation: effectivePreMoney,
       postMoneyValuation: effectivePostMoney,
       effectiveEquity,
+      year5Revenue,
       year5ExitValue,
+      projectionSource,
       moicNoDilution: moicResult.moicNoDilution,
       moicWithDilution: moicResult.moicWithDilution,
       investorProceeds: moicResult.investorProceeds,
@@ -125,7 +161,7 @@ export const DealSimulatorCard: React.FC<DealSimulatorCardProps> = ({
       founderPostInvestment,
       founderPostESOP,
     };
-  }, [investmentAmount, equityPercentage, sectorMultiple, valuationType, currentRevenue]);
+  }, [investmentAmount, equityPercentage, sectorMultiple, valuationType, currentRevenue, exitPlanYear5, businessModel]);
 
   // Don't render if not needed
   if (!cashAnalysis.needsInvestment && scenarioType !== 'positive') {
@@ -311,6 +347,13 @@ export const DealSimulatorCard: React.FC<DealSimulatorCardProps> = ({
                   ESOP sonrasi (10% havuz)
                 </p>
               </div>
+            </div>
+
+            {/* Projection Model Transparency */}
+            <div className="text-xs text-muted-foreground bg-muted/30 p-2 rounded flex flex-wrap gap-x-4 gap-y-1">
+              <span>📊 {t('simulation:investment.dealSimulator.projectionModel')}: {dealMetrics.projectionSource === 'exitPlan' ? 'Two-Stage Growth' : 'Startup Decay'}</span>
+              <span>📈 Year 5 {t('simulation:investment.dealSimulator.revenue')}: {formatCompactUSD(dealMetrics.year5Revenue)}</span>
+              <span>🎯 Year 5 {t('simulation:investment.dealSimulator.valuation')}: {formatCompactUSD(dealMetrics.year5ExitValue)}</span>
             </div>
 
             {/* Warning for high dilution */}
