@@ -30,6 +30,7 @@ interface DatabaseScenario {
 
 export function useScenarios() {
   const { user } = useAuth();
+  const userId = user?.id ?? null; // ✅ Stabilize userId
   const [scenarios, setScenarios] = useState<SimulationScenario[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
@@ -37,7 +38,7 @@ export function useScenarios() {
 
   // Fetch all scenarios
   const fetchScenarios = useCallback(async () => {
-    if (!user) return;
+    if (!userId) return;
 
     setIsLoading(true);
     try {
@@ -72,11 +73,11 @@ export function useScenarios() {
     } finally {
       setIsLoading(false);
     }
-  }, [user]);
+  }, [userId]);
 
   // Save scenario
   const saveScenario = useCallback(async (scenario: Omit<SimulationScenario, 'id' | 'createdAt' | 'updatedAt'>, existingId?: string | null): Promise<string | null> => {
-    if (!user) {
+    if (!userId) {
       toast.error('Kaydetmek için giriş yapmalısınız');
       return null;
     }
@@ -93,7 +94,7 @@ export function useScenarios() {
         const { error } = await supabase
           .from('simulation_scenarios')
           .update({
-            user_id: user.id,
+            user_id: userId,
             name: scenario.name,
             base_year: scenario.baseYear,
             target_year: scenario.targetYear,
@@ -117,7 +118,7 @@ export function useScenarios() {
         const { data, error } = await supabase
           .from('simulation_scenarios')
           .insert({
-            user_id: user.id,
+            user_id: userId,
             name: scenario.name,
             base_year: scenario.baseYear,
             target_year: scenario.targetYear,
@@ -145,11 +146,11 @@ export function useScenarios() {
     } finally {
       setIsSaving(false);
     }
-  }, [user, fetchScenarios, scenarios]);
+  }, [userId, fetchScenarios, scenarios]);
 
   // Delete scenario
   const deleteScenario = useCallback(async (id: string) => {
-    if (!user) return false;
+    if (!userId) return false;
 
     try {
       const { error } = await supabase
@@ -172,7 +173,7 @@ export function useScenarios() {
       toast.error('Senaryo silinirken hata oluştu');
       return false;
     }
-  }, [user, fetchScenarios, currentScenarioId]);
+  }, [userId, fetchScenarios, currentScenarioId]);
 
   // Duplicate scenario
   const duplicateScenario = useCallback(async (id: string): Promise<string | null> => {
