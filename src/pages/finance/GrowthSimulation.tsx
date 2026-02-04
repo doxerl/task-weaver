@@ -19,7 +19,8 @@ import {
   FileText,
   GitCompare,
 } from 'lucide-react';
-import { DealSimulatorCard, CashAnalysis } from '@/components/simulation/DealSimulatorCard';
+import { DealSimulatorCard, CashAnalysis, ExitPlanYear5 } from '@/components/simulation/DealSimulatorCard';
+import { calculateDecayYear5Revenue, STARTUP_GROWTH_PROFILES, type BusinessModel } from '@/constants/simulation';
 import { useGrowthSimulation } from '@/hooks/finance/useGrowthSimulation';
 import { useScenarios } from '@/hooks/finance/useScenarios';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
@@ -150,6 +151,24 @@ function GrowthSimulationContent() {
       monthlyBurn: Math.abs(Math.min(0, yearEndCash / 12)),
     };
   }, [quarterlyCashFlow]);
+
+  // =====================================================
+  // EXIT PLAN YEAR 5 PROJECTION FOR MOIC CALCULATION
+  // =====================================================
+  const exitPlanYear5 = useMemo((): ExitPlanYear5 | undefined => {
+    const currentRevenue = summary.projected.totalRevenue;
+    if (!currentRevenue || currentRevenue <= 0) return undefined;
+    
+    // Use Startup Decay Model to project Year 5 revenue
+    const year5Revenue = calculateDecayYear5Revenue(currentRevenue, 'SAAS');
+    const year5Valuation = year5Revenue * sectorMultiple;
+    
+    return {
+      revenue: year5Revenue,
+      companyValuation: year5Valuation,
+      appliedGrowthRate: undefined, // Using decay model, not fixed rate
+    };
+  }, [summary.projected.totalRevenue, sectorMultiple]);
 
   // Auto-open deal simulator if investment needed (for negative scenarios)
   useEffect(() => {
@@ -487,6 +506,8 @@ function GrowthSimulationContent() {
           onSectorMultipleChange={setSectorMultiple}
           onValuationTypeChange={setValuationType}
           onOpenChange={setDealSimulatorOpen}
+          exitPlanYear5={exitPlanYear5}
+          businessModel="SAAS"
         />
 
         {/* Projections Content */}

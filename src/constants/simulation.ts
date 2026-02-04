@@ -368,3 +368,69 @@ export const HIDDEN_EXPENSE_CATEGORIES = [
   'Faiz',
   'Kambiyo',
 ] as const;
+
+// =====================================================
+// STARTUP GROWTH PROFILES (for MOIC Calculation)
+// =====================================================
+/**
+ * Startup Decay Growth Model
+ * Early-stage startups have high initial growth that decays over time
+ * Based on T2D3 framework and industry benchmarks
+ */
+export const STARTUP_GROWTH_PROFILES = {
+  /** SaaS/Software: T2D3-like aggressive growth */
+  SAAS: {
+    y1: 0,     // Base year (input)
+    y2: 1.50,  // 150% growth
+    y3: 1.00,  // 100% growth
+    y4: 0.75,  // 75% growth
+    y5: 0.50,  // 50% growth
+  },
+  /** Services/Consulting: More stable growth */
+  SERVICES: {
+    y1: 0,
+    y2: 0.80,  // 80%
+    y3: 0.50,  // 50%
+    y4: 0.35,  // 35%
+    y5: 0.25,  // 25%
+  },
+  /** E-commerce: Medium growth pace */
+  ECOMMERCE: {
+    y1: 0,
+    y2: 1.00,  // 100%
+    y3: 0.70,  // 70%
+    y4: 0.50,  // 50%
+    y5: 0.35,  // 35%
+  },
+  /** Product/License: Front-loaded growth */
+  PRODUCT: {
+    y1: 0,
+    y2: 1.20,  // 120%
+    y3: 0.80,  // 80%
+    y4: 0.50,  // 50%
+    y5: 0.30,  // 30%
+  },
+} as const;
+
+export type BusinessModel = keyof typeof STARTUP_GROWTH_PROFILES;
+
+/**
+ * Calculate Year 5 revenue using startup decay growth model
+ * @param year1Revenue - Current year revenue (Year 1 base)
+ * @param profile - Business model profile to use
+ * @returns Projected Year 5 revenue
+ */
+export const calculateDecayYear5Revenue = (
+  year1Revenue: number,
+  profile: BusinessModel = 'SAAS'
+): number => {
+  const rates = STARTUP_GROWTH_PROFILES[profile] || STARTUP_GROWTH_PROFILES.SAAS;
+  let revenue = year1Revenue;
+  
+  revenue *= (1 + rates.y2); // Year 2
+  revenue *= (1 + rates.y3); // Year 3
+  revenue *= (1 + rates.y4); // Year 4
+  revenue *= (1 + rates.y5); // Year 5
+  
+  return revenue;
+};

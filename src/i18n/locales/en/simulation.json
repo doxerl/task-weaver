@@ -230,7 +230,11 @@
       "preMoneyValuation": "Pre-money Valuation",
       "postMoneyValuation": "Post-money Valuation",
       "deathValleyBased": "Death Valley based",
-      "yearEndDeficitBased": "Year-End Deficit based"
+      "yearEndDeficitBased": "Year-End Deficit based",
+      "projectionModel": "Projection Model",
+      "revenue": "Revenue",
+      "year5Revenue": "Year 5 Revenue",
+      "year5Valuation": "Year 5 Valuation"
     },
     "options": {
       "title": "Investment Options",
