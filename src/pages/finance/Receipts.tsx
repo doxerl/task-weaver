@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useYear } from '@/contexts/YearContext';
 import { Card, CardContent } from '@/components/ui/card';
@@ -7,15 +7,16 @@ import { Checkbox } from '@/components/ui/checkbox';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
 import { Alert, AlertDescription } from '@/components/ui/alert';
+import { Progress } from '@/components/ui/progress';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuSeparator, DropdownMenuTrigger } from '@/components/ui/dropdown-menu';
-import { ArrowLeft, Loader2, Plus, Receipt as ReceiptIcon, FileText, Building2, ArrowRightLeft, Trash2, Eye, LayoutGrid, Table as TableIcon, FileCheck, Download, ChevronDown, Globe, Shield } from 'lucide-react';
+import { ArrowLeft, Loader2, Plus, Receipt as ReceiptIcon, FileText, Building2, ArrowRightLeft, Trash2, Eye, LayoutGrid, Table as TableIcon, FileCheck, Download, ChevronDown, Globe, Shield, Upload } from 'lucide-react';
 import { useReceipts } from '@/hooks/finance/useReceipts';
 import { useCategories } from '@/hooks/finance/useCategories';
 import { useOfficialDataStatus } from '@/hooks/finance/useOfficialDataStatus';
 import { cn } from '@/lib/utils';
 import { BottomTabBar } from '@/components/BottomTabBar';
-import { Receipt, ReceiptSubtype } from '@/types/finance';
+import { Receipt, ReceiptSubtype, DocumentType } from '@/types/finance';
 import { MissingVatAlert } from '@/components/finance/MissingVatAlert';
 import { ReceiptTable } from '@/components/finance/ReceiptTable';
 import { supabase } from '@/integrations/supabase/client';
@@ -202,20 +203,29 @@ export default function Receipts() {
   const [isExporting, setIsExporting] = useState(false);
   const { toast } = useToast();
   const { isAnyLocked } = useOfficialDataStatus(year);
-  
-  const { 
-    receipts, 
-    isLoading, 
-    updateCategory, 
-    toggleIncludeInReport, 
+
+  // Drag and drop state
+  const [isDragging, setIsDragging] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState(0);
+  const [uploadTotal, setUploadTotal] = useState(0);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const {
+    receipts,
+    isLoading,
+    updateCategory,
+    toggleIncludeInReport,
     deleteReceipt,
     missingVatReceipts,
     reprocessMultiple,
     reprocessProgress,
     reprocessedCount,
     reprocessResults,
+    uploadReceipt,
+    uploadReceiptsBatch,
   } = useReceipts(year);
-  
+
   const { grouped } = useCategories();
 
   // Filter receipts based on active tab
@@ -329,8 +339,234 @@ export default function Receipts() {
     return 'Kesilen fatura yükle';
   };
 
+  // Get document type based on active tab
+  const getDocumentType = (): DocumentType => {
+    return activeTab === 'issued' ? 'issued' : 'received';
+  };
+
+  // Get receipt subtype based on active tab
+  const getReceiptSubtype = (): ReceiptSubtype => {
+    return activeTab === 'invoice' ? 'invoice' : 'slip';
+  };
+
+  // Validate file type
+  const isValidFile = (file: File): boolean => {
+    const validTypes = [
+      'image/jpeg', 'image/jpg', 'image/png', 'image/gif', 'image/webp',
+      'application/pdf', 'text/xml', 'application/xml',
+      'text/html', 'application/zip', 'application/x-zip-compressed'
+    ];
+    const ext = file.name.split('.').pop()?.toLowerCase();
+    const validExtensions = ['jpg', 'jpeg', 'png', 'gif', 'webp', 'pdf', 'xml', 'html', 'htm', 'zip'];
+    return validTypes.includes(file.type) || (ext ? validExtensions.includes(ext) : false);
+  };
+
+  // Process dropped or selected files
+  const processFiles = useCallback(async (files: File[]) => {
+    const validFiles = files.filter(isValidFile);
+
+    if (validFiles.length === 0) {
+      toast({
+        title: 'Geçersiz dosya formatı',
+        description: 'JPG, PNG, PDF, XML, ZIP veya HTML dosyaları yükleyebilirsiniz.',
+        variant: 'destructive'
+      });
+      return;
+    }
+
+    if (validFiles.length < files.length) {
+      toast({
+        title: 'Bazı dosyalar atlandı',
+        description: `${files.length - validFiles.length} dosya desteklenmeyen formatta.`,
+      });
+    }
+
+    setIsUploading(true);
+    setUploadProgress(0);
+    setUploadTotal(validFiles.length);
+
+    const documentType = getDocumentType();
+    const receiptSubtype = getReceiptSubtype();
+
+    try {
+      // Separate ZIP and non-ZIP files
+      const zipFiles = validFiles.filter(f => f.name.toLowerCase().endsWith('.zip'));
+      const nonZipFiles = validFiles.filter(f => !f.name.toLowerCase().endsWith('.zip'));
+
+      let successCount = 0;
+      let errorCount = 0;
+
+      // Upload ZIP files one by one
+      for (const file of zipFiles) {
+        try {
+          await uploadReceipt.mutateAsync({
+            file,
+            documentType,
+            receiptSubtype: documentType === 'received' ? receiptSubtype : undefined
+          });
+          successCount++;
+        } catch {
+          errorCount++;
+        }
+        setUploadProgress(prev => prev + 1);
+      }
+
+      // Upload non-ZIP files
+      if (nonZipFiles.length >= 3) {
+        // Use batch upload for 3+ files
+        const results = await uploadReceiptsBatch.mutateAsync({
+          files: nonZipFiles,
+          documentType,
+          receiptSubtype: documentType === 'received' ? receiptSubtype : undefined,
+          onProgress: (progress) => {
+            if (progress) {
+              setUploadProgress(zipFiles.length + progress.processed);
+            }
+          }
+        });
+        successCount += results.filter(r => r.status === 'success').length;
+        errorCount += results.filter(r => r.status === 'failed').length;
+      } else {
+        // Upload 1-2 files individually
+        for (const file of nonZipFiles) {
+          try {
+            await uploadReceipt.mutateAsync({
+              file,
+              documentType,
+              receiptSubtype: documentType === 'received' ? receiptSubtype : undefined
+            });
+            successCount++;
+          } catch {
+            errorCount++;
+          }
+          setUploadProgress(prev => prev + 1);
+        }
+      }
+
+      // Show result toast
+      if (successCount > 0 && errorCount === 0) {
+        toast({
+          title: 'Yükleme tamamlandı',
+          description: `${successCount} belge başarıyla yüklendi.`
+        });
+      } else if (successCount > 0 && errorCount > 0) {
+        toast({
+          title: 'Yükleme kısmen tamamlandı',
+          description: `${successCount} başarılı, ${errorCount} başarısız.`,
+          variant: 'default'
+        });
+      } else if (errorCount > 0) {
+        toast({
+          title: 'Yükleme başarısız',
+          description: `${errorCount} belge yüklenemedi.`,
+          variant: 'destructive'
+        });
+      }
+    } catch (error) {
+      console.error('Upload error:', error);
+      toast({
+        title: 'Yükleme hatası',
+        description: 'Dosyalar yüklenirken bir hata oluştu.',
+        variant: 'destructive'
+      });
+    } finally {
+      setIsUploading(false);
+      setUploadProgress(0);
+      setUploadTotal(0);
+    }
+  }, [activeTab, toast, uploadReceipt, uploadReceiptsBatch]);
+
+  // Drag and drop handlers
+  const handleDragOver = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+  }, []);
+
+  const handleDragEnter = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(true);
+  }, []);
+
+  const handleDragLeave = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    // Only set to false if we're leaving the drop zone entirely
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return;
+    setIsDragging(false);
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setIsDragging(false);
+
+    if (isUploading) return;
+
+    const droppedFiles = Array.from(e.dataTransfer.files);
+    processFiles(droppedFiles);
+  }, [isUploading, processFiles]);
+
+  const handleFileInputChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length > 0) {
+      processFiles(files);
+    }
+    e.target.value = '';
+  }, [processFiles]);
+
   return (
-    <div className="min-h-screen bg-background pb-20">
+    <div
+      className="min-h-screen bg-background pb-20 relative"
+      onDragOver={handleDragOver}
+      onDragEnter={handleDragEnter}
+      onDragLeave={handleDragLeave}
+      onDrop={handleDrop}
+    >
+      {/* Hidden file input */}
+      <input
+        ref={fileInputRef}
+        type="file"
+        multiple
+        accept=".jpg,.jpeg,.png,.gif,.webp,.pdf,.xml,.html,.htm,.zip"
+        className="hidden"
+        onChange={handleFileInputChange}
+      />
+
+      {/* Drag overlay */}
+      {isDragging && (
+        <div className="fixed inset-0 z-50 bg-background/80 backdrop-blur-sm flex items-center justify-center pointer-events-none">
+          <div className="flex flex-col items-center gap-4 p-8 border-4 border-dashed border-primary rounded-2xl bg-primary/10">
+            <Upload className="h-16 w-16 text-primary animate-bounce" />
+            <div className="text-center">
+              <p className="text-xl font-bold text-primary">Dosyaları buraya bırakın</p>
+              <p className="text-sm text-muted-foreground mt-1">
+                {activeTab === 'issued' ? 'Kesilen fatura olarak yüklenecek' :
+                 activeTab === 'invoice' ? 'Alınan fatura olarak yüklenecek' :
+                 'Alınan fiş olarak yüklenecek'}
+              </p>
+              <p className="text-xs text-muted-foreground mt-2">JPG, PNG, PDF, XML, ZIP</p>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Upload progress overlay */}
+      {isUploading && (
+        <div className="fixed inset-0 z-50 bg-background/90 backdrop-blur-sm flex items-center justify-center">
+          <Card className="w-80">
+            <CardContent className="p-6 flex flex-col items-center gap-4">
+              <Loader2 className="h-10 w-10 text-primary animate-spin" />
+              <div className="text-center">
+                <p className="font-medium">Yükleniyor...</p>
+                <p className="text-sm text-muted-foreground">{uploadProgress}/{uploadTotal} dosya</p>
+              </div>
+              <Progress value={(uploadProgress / uploadTotal) * 100} className="w-full" />
+            </CardContent>
+          </Card>
+        </div>
+      )}
+
       <div className="p-4 space-y-4">
         {/* Official Data Lock Warning */}
         {isAnyLocked && (
