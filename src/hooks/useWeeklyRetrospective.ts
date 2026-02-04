@@ -31,26 +31,27 @@ interface WeeklyRetrospective {
 
 export function useWeeklyRetrospective(weekStart: string) {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const queryClient = useQueryClient();
   const [metrics, setMetrics] = useState<WeeklyMetrics | null>(null);
 
   // Fetch existing retrospective
   const { data: retrospective, isLoading } = useQuery({
-    queryKey: ['weekly-retrospective', weekStart, user?.id],
+    queryKey: ['weekly-retrospective', weekStart, userId] as const,
     queryFn: async () => {
-      if (!user) return null;
+      if (!userId) return null;
       
       const { data, error } = await supabase
         .from('weekly_retrospectives')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('week_start', weekStart)
         .maybeSingle();
       
       if (error) throw error;
       return data as WeeklyRetrospective | null;
     },
-    enabled: !!user,
+    enabled: !!userId,
   });
 
   // Calculate metrics via edge function
@@ -80,10 +81,10 @@ export function useWeeklyRetrospective(weekStart: string) {
       whatWasHard: string[]; 
       nextWeekChanges: string[] 
     }) => {
-      if (!user) throw new Error('Not authenticated');
+      if (!userId) throw new Error('Not authenticated');
 
       const payload = {
-        user_id: user.id,
+        user_id: userId,
         week_start: weekStart,
         what_worked: data.whatWorked,
         what_was_hard: data.whatWasHard,

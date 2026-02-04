@@ -927,22 +927,23 @@ export async function categorizeWithRules(
 
 export function useCategoryRules() {
   const { user } = useAuthContext();
+  const userId = user?.id ?? null;
   const queryClient = useQueryClient();
 
   const { data: rules = [], isLoading, error } = useQuery({
-    queryKey: ['user-category-rules', user?.id],
+    queryKey: ['user-category-rules', userId] as const,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('user_category_rules')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', userId)
         .eq('is_active', true)
         .order('priority', { ascending: true });
       
       if (error) throw error;
       return data as UserCategoryRule[];
     },
-    enabled: !!user?.id
+    enabled: !!userId
   });
 
   const createRule = useMutation({
@@ -950,7 +951,7 @@ export function useCategoryRules() {
       const { error } = await supabase
         .from('user_category_rules')
         .insert({
-          user_id: user?.id,
+          user_id: userId,
           pattern: data.pattern || '',
           category_id: data.category_id || null,
           rule_type: data.rule_type || 'contains',

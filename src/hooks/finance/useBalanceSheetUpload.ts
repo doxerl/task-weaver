@@ -18,6 +18,7 @@ export interface BalanceSheetUploadResult {
 
 export function useBalanceSheetUpload(year: number) {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const queryClient = useQueryClient();
   const [isUploading, setIsUploading] = useState(false);
   const [isApproving, setIsApproving] = useState(false);
@@ -27,18 +28,18 @@ export function useBalanceSheetUpload(year: number) {
 
   // Load existing upload from database
   const { data: existingUpload, isLoading: isLoadingExisting } = useQuery({
-    queryKey: ['balance-sheet-upload', year, user?.id],
+    queryKey: ['balance-sheet-upload', year, userId] as const,
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!userId) return null;
       const { data } = await supabase
         .from('yearly_balance_sheets')
         .select('source, file_name, file_url, raw_accounts, is_locked, total_assets, total_liabilities')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('year', year)
         .maybeSingle();
       return data;
     },
-    enabled: !!user?.id,
+    enabled: !!userId,
   });
 
   // Sync existing data to upload state
@@ -105,7 +106,7 @@ function calculateBalanceSheetTotals(accounts: BalanceSheetParsedAccount[]): { t
 }
 
   const uploadBalanceSheet = async (file: File) => {
-    if (!user?.id) {
+    if (!userId) {
       toast.error('Oturum açmanız gerekiyor');
       return;
     }
@@ -114,7 +115,7 @@ function calculateBalanceSheetTotals(accounts: BalanceSheetParsedAccount[]): { t
     try {
       // 1. Upload to storage with sanitized file name
       const sanitizedName = sanitizeFileName(file.name);
-      const filePath = `${user.id}/balance-sheets/${year}/${Date.now()}-${sanitizedName}`;
+      const filePath = `${userId}/balance-sheets/${year}/${Date.now()}-${sanitizedName}`;
       const { error: uploadError } = await supabase.storage
         .from('finance-files')
         .upload(filePath, file, { upsert: true });
@@ -175,7 +176,7 @@ function calculateBalanceSheetTotals(accounts: BalanceSheetParsedAccount[]): { t
   };
 
   const approveAndSave = async () => {
-    if (!user?.id || !uploadResult) {
+    if (!userId || !uploadResult) {
       toast.error('Onaylanacak veri yok');
       return;
     }
@@ -233,7 +234,7 @@ function calculateBalanceSheetTotals(accounts: BalanceSheetParsedAccount[]): { t
       const { data: existing } = await supabase
         .from('yearly_balance_sheets')
         .select('id')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('year', year)
         .maybeSingle();
 
@@ -241,7 +242,7 @@ function calculateBalanceSheetTotals(accounts: BalanceSheetParsedAccount[]): { t
       const rawAccountsJson = JSON.parse(JSON.stringify(uploadResult.accounts));
 
       const payload = {
-        user_id: user.id,
+        user_id: userId,
         year,
         ...balanceData,
         total_assets: Math.round(totalAssets),
@@ -268,8 +269,8 @@ function calculateBalanceSheetTotals(accounts: BalanceSheetParsedAccount[]): { t
         if (error) throw error;
       }
 
-      queryClient.invalidateQueries({ queryKey: ['yearly-balance-sheet', user.id, year] });
-      queryClient.invalidateQueries({ queryKey: ['balance-sheet-upload', year, user.id] });
+      queryClient.invalidateQueries({ queryKey: ['yearly-balance-sheet', userId, year] });
+      queryClient.invalidateQueries({ queryKey: ['balance-sheet-upload', year, userId] });
       queryClient.invalidateQueries({ queryKey: ['balance-sheet'] });
       toast.success('Bilanço kaydedildi ve kilitlendi');
 

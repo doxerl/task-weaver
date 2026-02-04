@@ -6,16 +6,17 @@ import { useToast } from '@/hooks/use-toast';
 
 export function useBankTransactions(year?: number) {
   const { user } = useAuthContext();
+  const userId = user?.id ?? null;
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
   const { data: transactions = [], isLoading, error } = useQuery({
-    queryKey: ['bank-transactions', user?.id, year],
+    queryKey: ['bank-transactions', userId, year] as const,
     queryFn: async () => {
       let query = supabase
         .from('bank_transactions')
         .select('*, category:transaction_categories!category_id(*)')
-        .eq('user_id', user?.id)
+        .eq('user_id', userId)
         .order('transaction_date', { ascending: false });
       
       if (year) {
@@ -28,7 +29,7 @@ export function useBankTransactions(year?: number) {
       if (error) throw error;
       return data as BankTransaction[];
     },
-    enabled: !!user?.id
+    enabled: !!userId
   });
 
   const updateCategory = useMutation({
@@ -114,14 +115,14 @@ export function useBankTransactions(year?: number) {
       const { error: txError } = await supabase
         .from('bank_transactions')
         .delete()
-        .eq('user_id', user?.id);
+        .eq('user_id', userId);
       if (txError) throw txError;
       
       // Delete all uploaded files
       const { error: fileError } = await supabase
         .from('uploaded_bank_files')
         .delete()
-        .eq('user_id', user?.id);
+        .eq('user_id', userId);
       if (fileError) throw fileError;
     },
     onSuccess: () => {

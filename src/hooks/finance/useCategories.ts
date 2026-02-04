@@ -6,22 +6,23 @@ import { useMemo } from 'react';
 
 export function useCategories() {
   const { user } = useAuthContext();
+  const userId = user?.id ?? null;
   const queryClient = useQueryClient();
 
   const { data: categories = [], isLoading, error } = useQuery({
-    queryKey: ['transaction-categories', user?.id],
+    queryKey: ['transaction-categories', userId] as const,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('transaction_categories')
         .select('*')
-        .or(`user_id.eq.${user?.id},is_system.eq.true`)
+        .or(`user_id.eq.${userId},is_system.eq.true`)
         .eq('is_active', true)
         .order('sort_order');
       
       if (error) throw error;
       return data as TransactionCategory[];
     },
-    enabled: !!user?.id
+    enabled: !!userId
   });
 
   // Hierarchical structure builder
@@ -64,7 +65,7 @@ export function useCategories() {
         icon: data.icon || '💰',
         keywords: data.keywords || [],
         vendor_patterns: data.vendor_patterns || [],
-        user_id: user?.id,
+        user_id: userId,
         is_system: data.is_system ?? false,
         account_code: data.account_code || null,
         account_subcode: data.account_subcode || null,
