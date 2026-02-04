@@ -37,24 +37,25 @@ export interface FixedExpenseSummary {
 
 export function useFixedExpenses() {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const queryClient = useQueryClient();
 
   const { data: definitions = [], isLoading } = useQuery({
-    queryKey: ['fixed-expense-definitions', user?.id],
+    queryKey: ['fixed-expense-definitions', userId] as const,
     queryFn: async () => {
-      if (!user?.id) return [];
+      if (!userId) return [];
       
       const { data, error } = await supabase
         .from('fixed_expense_definitions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('is_active', true)
         .order('expense_name');
       
       if (error) throw error;
       return (data || []) as FixedExpenseDefinition[];
     },
-    enabled: !!user?.id
+    enabled: !!userId
   });
 
   // Calculate summary
@@ -96,7 +97,7 @@ export function useFixedExpenses() {
   // Mutations
   const createDefinition = useMutation({
     mutationFn: async (data: Omit<Partial<FixedExpenseDefinition>, 'id' | 'user_id' | 'created_at' | 'updated_at'>) => {
-      if (!user?.id) throw new Error('User not authenticated');
+      if (!userId) throw new Error('User not authenticated');
       
       const insertData = {
         expense_name: data.expense_name || '',
@@ -110,7 +111,7 @@ export function useFixedExpenses() {
         end_date: data.end_date,
         is_active: data.is_active ?? true,
         notes: data.notes,
-        user_id: user.id
+        user_id: userId
       };
       
       const { error } = await supabase

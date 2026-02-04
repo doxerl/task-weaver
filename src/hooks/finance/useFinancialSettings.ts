@@ -7,21 +7,22 @@ import { FinancialSettings } from '@/types/finance';
 
 export function useFinancialSettings() {
   const { user } = useAuthContext();
+  const userId = user?.id ?? null;
   const queryClient = useQueryClient();
 
   const { data: settings, isLoading } = useQuery({
-    queryKey: ['financial-settings', user?.id],
+    queryKey: ['financial-settings', userId] as const,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('financial_settings')
         .select('*')
-        .eq('user_id', user!.id)
+        .eq('user_id', userId!)
         .maybeSingle();
 
       if (error) throw error;
       return data as FinancialSettings | null;
     },
-    enabled: !!user?.id,
+    enabled: !!userId,
   });
 
   const upsertSettings = useMutation({
@@ -38,7 +39,7 @@ export function useFinancialSettings() {
         const { error } = await supabase
           .from('financial_settings')
           .insert({
-            user_id: user!.id,
+            user_id: userId!,
             ...updates,
           });
         if (error) throw error;
@@ -59,7 +60,7 @@ export function useFinancialSettings() {
     
     return {
       id: '',
-      user_id: user?.id || '',
+      user_id: userId || '',
       paid_capital: 0,
       retained_earnings: 0,
       fiscal_year_start: 1,
@@ -99,7 +100,7 @@ export function useFinancialSettings() {
       equipment_useful_life_years: 5,
       partner_receivables_capital: 0,
     };
-  }, [settings, user?.id]);
+  }, [settings, userId]);
 
   return {
     settings: stableSettings,

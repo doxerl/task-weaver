@@ -9,18 +9,19 @@ import { sanitizeFileName } from '@/lib/fileUtils';
 
 export function useTrialBalance(year: number, month: number | null = null) {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const queryClient = useQueryClient();
 
   // Fetch trial balance for the year/month
   const { data: trialBalance, isLoading } = useQuery({
-    queryKey: ['official-trial-balance', year, month, user?.id],
+    queryKey: ['official-trial-balance', year, month, userId] as const,
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!userId) return null;
 
       let query = supabase
         .from('official_trial_balances')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('year', year);
 
       if (month !== null) {
@@ -42,17 +43,17 @@ export function useTrialBalance(year: number, month: number | null = null) {
       }
       return null;
     },
-    enabled: !!user?.id,
+    enabled: !!userId,
   });
 
   // Upload and parse trial balance file
   const uploadMutation = useMutation({
     mutationFn: async (file: File) => {
-      if (!user?.id) throw new Error('User not authenticated');
+      if (!userId) throw new Error('User not authenticated');
 
       // Upload file to storage with sanitized file name
       const sanitizedName = sanitizeFileName(file.name);
-      const storagePath = `${user.id}/mizan/${year}${month ? `-${month}` : ''}-${Date.now()}-${sanitizedName}`;
+      const storagePath = `${userId}/mizan/${year}${month ? `-${month}` : ''}-${Date.now()}-${sanitizedName}`;
       const { data: uploadData, error: uploadError } = await supabase.storage
         .from('finance-files')
         .upload(storagePath, file);
@@ -77,7 +78,7 @@ export function useTrialBalance(year: number, month: number | null = null) {
 
       // Save to database
       const payload = {
-        user_id: user.id,
+        user_id: userId,
         year,
         month,
         accounts: parseResult.accounts || {},
@@ -120,7 +121,7 @@ export function useTrialBalance(year: number, month: number | null = null) {
   // Approve and convert to income statement
   const approveMutation = useMutation({
     mutationFn: async () => {
-      if (!user?.id || !trialBalance) throw new Error('No trial balance to approve');
+      if (!userId || !trialBalance) throw new Error('No trial balance to approve');
 
       // Convert mizan accounts to income statement format
       const incomeStatementData: Partial<YearlyIncomeStatementFormData> = {
@@ -148,7 +149,7 @@ export function useTrialBalance(year: number, month: number | null = null) {
       const { error: stmtError } = await supabase
         .from('yearly_income_statements')
         .upsert({
-          user_id: user.id,
+          user_id: userId,
           year,
           is_locked: false,
           source: 'mizan_upload',
@@ -224,7 +225,7 @@ export function useTrialBalance(year: number, month: number | null = null) {
   // Delete trial balance
   const deleteMutation = useMutation({
     mutationFn: async () => {
-      if (!user?.id || !trialBalance) throw new Error('No trial balance to delete');
+      if (!userId || !trialBalance) throw new Error('No trial balance to delete');
 
       // Delete file from storage if exists
       if (trialBalance.file_url) {
@@ -232,7 +233,7 @@ export function useTrialBalance(year: number, month: number | null = null) {
         if (fileName) {
           await supabase.storage
             .from('finance-files')
-            .remove([`${user.id}/mizan/${fileName}`]);
+            .remove([`${userId}/mizan/${fileName}`]);
         }
       }
 

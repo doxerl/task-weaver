@@ -106,6 +106,7 @@ const LOCAL_STORAGE_KEY = 'currentBankImportSession';
 
 export function useBankImportSession() {
   const { user } = useAuthContext();
+  const userId = user?.id ?? null;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { categories } = useCategories();
@@ -147,7 +148,7 @@ export function useBankImportSession() {
       }
       return data as BankImportSession;
     },
-    enabled: !!currentSessionId && !!user?.id
+    enabled: !!currentSessionId && !!userId
   });
 
   // Fetch session transactions
@@ -173,19 +174,19 @@ export function useBankImportSession() {
       }
       return data as BankImportTransaction[];
     },
-    enabled: !!currentSessionId && !!user?.id
+    enabled: !!currentSessionId && !!userId
   });
 
   // Check for active session on mount
   const { data: activeSession } = useQuery({
-    queryKey: ['activeImportSession', user?.id],
+    queryKey: ['activeImportSession', userId] as const,
     queryFn: async () => {
-      if (!user?.id) return null;
+      if (!userId) return null;
       
       const { data, error } = await supabase
         .from('bank_import_sessions')
         .select('id, status, file_name')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .in('status', ['parsing', 'categorizing', 'review'])
         .order('created_at', { ascending: false })
         .limit(1)
@@ -194,7 +195,7 @@ export function useBankImportSession() {
       if (error || !data) return null;
       return data;
     },
-    enabled: !!user?.id && !currentSessionId
+    enabled: !!userId && !currentSessionId
   });
 
   // Auto-set session from active session
@@ -216,14 +217,14 @@ export function useBankImportSession() {
       fileHash?: string;
       fileId?: string;
     }) => {
-      if (!user?.id) throw new Error('Giriş yapmalısınız');
+      if (!userId) throw new Error('Giriş yapmalısınız');
 
       // Check for existing session with same hash
       if (params.fileHash) {
         const { data: existing } = await supabase
           .from('bank_import_sessions')
           .select('id, status, file_name')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .eq('file_hash', params.fileHash)
           .neq('status', 'cancelled')
           .order('created_at', { ascending: false })
@@ -243,7 +244,7 @@ export function useBankImportSession() {
       const { data, error } = await supabase
         .from('bank_import_sessions')
         .insert({
-          user_id: user.id,
+          user_id: userId,
           file_name: params.fileName,
           file_hash: params.fileHash || null,
           file_id: params.fileId || null,
@@ -267,11 +268,11 @@ export function useBankImportSession() {
   const saveTransactions = useMutation({
     mutationFn: async (txs: SaveTransactionParams[]) => {
       if (!currentSessionId) throw new Error('Session bulunamadı');
-      if (!user?.id) throw new Error('Giriş yapmalısınız');
+      if (!userId) throw new Error('Giriş yapmalısınız');
 
       const toInsert = txs.map(tx => ({
         session_id: currentSessionId,
-        user_id: user.id,
+        user_id: userId,
         row_number: tx.row_number,
         transaction_date: tx.transaction_date,
         original_date: tx.original_date || null,
@@ -394,7 +395,7 @@ export function useBankImportSession() {
   const approveAndTransfer = useMutation({
     mutationFn: async () => {
       if (!currentSessionId) throw new Error('Session bulunamadı');
-      if (!user?.id) throw new Error('Giriş yapmalısınız');
+      if (!userId) throw new Error('Giriş yapmalısınız');
 
       // Get all transactions from session
       const { data: txs, error: fetchError } = await supabase
@@ -429,7 +430,7 @@ export function useBankImportSession() {
 
         return {
           file_id: session?.file_id || null,
-          user_id: user.id,
+          user_id: userId,
           row_number: tx.row_number,
           raw_date: tx.original_date,
           raw_description: tx.description,

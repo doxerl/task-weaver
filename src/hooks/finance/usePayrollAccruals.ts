@@ -6,21 +6,22 @@ import { useMemo } from 'react';
 
 export function usePayrollAccruals(year: number) {
   const { user } = useAuthContext();
+  const userId = user?.id ?? null;
   
   const queryResult = useQuery({
-    queryKey: ['payroll-accruals', user?.id, year],
+    queryKey: ['payroll-accruals', userId, year] as const,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('payroll_accruals')
         .select('*')
-        .eq('user_id', user?.id)
+        .eq('user_id', userId)
         .eq('year', year)
         .order('month', { ascending: true });
 
       if (error) throw error;
       return data || [];
     },
-    enabled: !!user?.id && !!year,
+    enabled: !!userId && !!year,
     staleTime: 5 * 60 * 1000, // 5 minutes
   });
 

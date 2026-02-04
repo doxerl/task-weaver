@@ -49,6 +49,7 @@ function chunkArray<T>(arr: T[], size: number): T[][] {
 
 export function useReceipts(year?: number, month?: number) {
   const { user } = useAuthContext();
+  const userId = user?.id ?? null;
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [uploadProgress, setUploadProgress] = useState(0);
@@ -65,12 +66,12 @@ export function useReceipts(year?: number, month?: number) {
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
 
   const { data: receipts = [], isLoading, error } = useQuery({
-    queryKey: ['receipts', user?.id, year, month],
+    queryKey: ['receipts', userId, year, month] as const,
     queryFn: async () => {
       let query = supabase
         .from('receipts')
         .select('*, category:transaction_categories!category_id(*)')
-        .eq('user_id', user?.id)
+        .eq('user_id', userId)
         .order('receipt_date', { ascending: false });
       
       if (year) query = query.eq('year', year);
@@ -86,7 +87,7 @@ export function useReceipts(year?: number, month?: number) {
         match_confidence: r.match_confidence || 0,
       })) as Receipt[];
     },
-    enabled: !!user?.id
+    enabled: !!userId
   });
 
   // Helper to check for duplicate receipts by receipt_no + seller_tax_no (VKN/TCKN) + document_type

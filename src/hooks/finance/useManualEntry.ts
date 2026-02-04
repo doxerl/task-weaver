@@ -36,18 +36,19 @@ interface AddPartnerTransactionInput {
 
 export function useManualEntry(year: number) {
   const { user } = useAuthContext();
+  const userId = user?.id ?? null;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { categories } = useCategories();
 
   // Fetch recent manually entered transactions (no file_id)
   const { data: recentTransactions = [], isLoading } = useQuery({
-    queryKey: ['manual-transactions', user?.id, year],
+    queryKey: ['manual-transactions', userId, year] as const,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('bank_transactions')
         .select('*, category:transaction_categories!category_id(*)')
-        .eq('user_id', user?.id)
+        .eq('user_id', userId)
         .is('file_id', null)
         .gte('transaction_date', `${year}-01-01`)
         .lte('transaction_date', `${year}-12-31`)
@@ -57,7 +58,7 @@ export function useManualEntry(year: number) {
       if (error) throw error;
       return data as BankTransaction[];
     },
-    enabled: !!user?.id
+    enabled: !!userId
   });
 
   // Add regular transaction (income or expense)
