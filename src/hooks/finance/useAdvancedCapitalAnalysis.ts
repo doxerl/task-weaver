@@ -167,8 +167,14 @@ export function useAdvancedCapitalAnalysis({
       const openingBalance = runningBalance;
       const revenue = monthlyRevenue;
       const expense = monthlyFixed + monthlyVariable;
-      const investment = investmentsByMonth[month] || 0;
-      const netCashFlow = revenue - expense - investment;
+      // Note: 'investment' here refers to Capital Expenditure (CapEx) - cash outflow
+      // NOT funding inflow from investors. Funding inflow should be added separately if modeled.
+      const capex = investmentsByMonth[month] || 0;
+      
+      // CORRECTED FORMULA: Net Cash Flow = Operating Cash Flow - CapEx
+      // Operating Cash Flow = Revenue - Expenses
+      // If modeling funding inflow, add it here: + fundingInflow
+      const netCashFlow = revenue - expense - capex;
       const closingBalance = openingBalance + netCashFlow;
 
       monthlyProjections.push({
@@ -177,7 +183,7 @@ export function useAdvancedCapitalAnalysis({
         openingBalance,
         revenue,
         expense,
-        investment,
+        investment: capex, // Kept as 'investment' for backward compatibility with interface
         netCashFlow,
         closingBalance,
         cumulativeBalance: closingBalance,

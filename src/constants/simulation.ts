@@ -47,6 +47,28 @@ export const FINANCIAL_ASSUMPTIONS = {
   SHORT_TERM_DEBT_RATIO: 0.3,
   /** Default organic growth rate */
   DEFAULT_GROWTH_RATE: 0.10,
+  /** Net Working Capital as percentage of revenue (for DCF ΔNWC calculation) */
+  NWC_PERCENTAGE: 0.10,
+  /** CapEx as percentage of revenue */
+  CAPEX_RATIO: 0.10,
+  /** Corporate tax rate */
+  TAX_RATE: 0.22,
+} as const;
+
+// =====================================================
+// GROSS MARGIN BY SECTOR (for COGS calculation)
+// =====================================================
+export const DEFAULT_GROSS_MARGIN = {
+  /** SaaS - High gross margin */
+  SAAS: 0.75,
+  /** Services/Consulting - Medium gross margin */
+  SERVICES: 0.55,
+  /** E-commerce - Lower gross margin */
+  ECOMMERCE: 0.30,
+  /** Product/License - Medium-high gross margin */
+  PRODUCT: 0.60,
+  /** Default for unknown sectors */
+  DEFAULT: 0.50,
 } as const;
 
 // =====================================================

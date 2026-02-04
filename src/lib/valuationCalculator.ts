@@ -257,22 +257,27 @@ export const calculateEBITDAMargin = (ebitda: number, revenue: number): number =
 /**
  * Calculate Free Cash Flow (FCF)
  *
- * CORRECTED FORMULA: FCF = EBITDA × (1 - effectiveTaxRate) - CapEx
+ * CORRECTED FORMULA: FCF = EBITDA × (1 - effectiveTaxRate) - CapEx - ΔNWC
  *
- * CRITICAL FIX: Tax rate should be 0 when EBITDA is negative.
- * Startups with losses don't pay taxes and accumulate NOLs.
+ * CRITICAL FIXES:
+ * 1. Tax rate should be 0 when EBITDA is negative (startups with losses don't pay taxes)
+ * 2. ΔNWC (change in Net Working Capital) is now included for more accurate cash flow
  *
  * @param ebitda - EBITDA value (can be negative)
- * @param revenue - Total revenue for CapEx calculation
+ * @param revenue - Current year revenue for CapEx and NWC calculation
  * @param capexRatio - CapEx as percentage of revenue (default: 10%)
  * @param taxRate - Statutory tax rate (default: 22%)
+ * @param previousRevenue - Previous year revenue for ΔNWC calculation (optional)
+ * @param nwcPercentage - Net Working Capital as percentage of revenue (default: 10%)
  * @returns Free Cash Flow value
  */
 export const calculateFCF = (
   ebitda: number,
   revenue: number,
   capexRatio: number = 0.10,
-  taxRate: number = 0.22
+  taxRate: number = 0.22,
+  previousRevenue?: number,
+  nwcPercentage: number = 0.10
 ): number => {
   const capex = revenue * capexRatio;
 
@@ -280,7 +285,15 @@ export const calculateFCF = (
   // Startups with losses don't pay taxes
   const effectiveTaxRate = ebitda > 0 ? taxRate : 0;
 
-  return (ebitda * (1 - effectiveTaxRate)) - capex;
+  // Calculate Net Working Capital Change (ΔNWC)
+  // ΔNWC = (Current NWC) - (Previous NWC)
+  // Positive ΔNWC = cash outflow (more working capital needed)
+  // Negative ΔNWC = cash inflow (working capital released)
+  const currentNWC = revenue * nwcPercentage;
+  const previousNWC = (previousRevenue ?? revenue) * nwcPercentage;
+  const deltaNWC = currentNWC - previousNWC;
+
+  return (ebitda * (1 - effectiveTaxRate)) - capex - deltaNWC;
 };
 
 /**
