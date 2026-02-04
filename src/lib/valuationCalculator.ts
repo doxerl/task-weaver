@@ -130,6 +130,85 @@ export const DEFAULT_VALUATION_CONFIG: ValuationConfiguration = {
   }
 };
 
+// =====================================================
+// STAGE-BASED VALUATION WEIGHTS
+// =====================================================
+
+/**
+ * Company stage for valuation weight selection
+ */
+export type CompanyStage = 'pre-seed' | 'seed' | 'series-a' | 'series-b' | 'growth';
+
+/**
+ * Stage-based valuation weight presets
+ *
+ * Rationale:
+ * - Early stage (Pre-seed/Seed): Revenue multiple + VC method more relevant
+ *   because EBITDA is usually negative and DCF has high uncertainty
+ * - Growth stage (Series B+): EBITDA and DCF become more meaningful
+ *   as company reaches profitability
+ */
+export const STAGE_BASED_WEIGHTS: Record<CompanyStage, ValuationWeights> = {
+  'pre-seed': {
+    revenueMultiple: 0.40,  // Revenue-based is most reliable at this stage
+    ebitdaMultiple: 0.05,   // Usually negative, minimal weight
+    dcf: 0.15,              // High uncertainty, lower weight
+    vcMethod: 0.40,         // Comparable deals + target ROI approach
+  },
+  'seed': {
+    revenueMultiple: 0.35,
+    ebitdaMultiple: 0.10,
+    dcf: 0.20,
+    vcMethod: 0.35,
+  },
+  'series-a': {
+    revenueMultiple: 0.30,
+    ebitdaMultiple: 0.20,
+    dcf: 0.30,
+    vcMethod: 0.20,
+  },
+  'series-b': {
+    revenueMultiple: 0.25,
+    ebitdaMultiple: 0.30,   // EBITDA becoming meaningful
+    dcf: 0.35,              // Cash flow projections more reliable
+    vcMethod: 0.10,
+  },
+  'growth': {
+    revenueMultiple: 0.20,
+    ebitdaMultiple: 0.35,   // Profitability is key
+    dcf: 0.40,              // Strong cash flow visibility
+    vcMethod: 0.05,         // Less VC-focused at this stage
+  },
+};
+
+/**
+ * Get valuation weights based on company stage
+ *
+ * @param stage - Company funding stage
+ * @returns Appropriate valuation weights for the stage
+ */
+export const getWeightsByStage = (stage: CompanyStage): ValuationWeights => {
+  return STAGE_BASED_WEIGHTS[stage] || DEFAULT_VALUATION_CONFIG.weights;
+};
+
+/**
+ * Get valuation configuration with stage-appropriate weights
+ *
+ * @param stage - Company funding stage (optional, defaults to 'seed')
+ * @param overrides - Additional configuration overrides
+ * @returns Complete valuation configuration
+ */
+export const getValuationConfigByStage = (
+  stage: CompanyStage = 'seed',
+  overrides?: Partial<ValuationConfiguration>
+): ValuationConfiguration => {
+  return {
+    ...DEFAULT_VALUATION_CONFIG,
+    weights: getWeightsByStage(stage),
+    ...overrides,
+  };
+};
+
 // Sector-specific EBITDA multiples
 export const SECTOR_EBITDA_MULTIPLES: Record<string, number> = {
   'SaaS': 15,
@@ -147,15 +226,24 @@ export const SECTOR_EBITDA_MULTIPLES: Record<string, number> = {
 
 /**
  * Calculate EBITDA (Earnings Before Interest, Taxes, Depreciation, and Amortization)
- * Uses a simplified approach: Operating Profit * 1.15 (assuming ~15% depreciation add-back)
+ *
+ * CORRECTED FORMULA: EBITDA = Revenue - COGS - Opex
+ * The previous approach of multiplying by 1.15 was conceptually incorrect.
+ *
+ * For startups, EBITDA is simply the operating profit before non-cash charges.
+ * Since most startups don't have significant D&A, we use: EBITDA ≈ Operating Profit
+ *
+ * @param revenue - Total revenue
+ * @param expenses - Total operating expenses (COGS + Opex)
+ * @returns EBITDA value (can be negative for loss-making companies)
  */
 export const calculateEBITDA = (
-  revenue: number, 
+  revenue: number,
   expenses: number
 ): number => {
-  const operatingProfit = revenue - expenses;
-  // EBITDA ≈ Operating Profit + ~15% depreciation/amortization assumption
-  return operatingProfit * 1.15;
+  // EBITDA = Revenue - Operating Expenses
+  // This is the correct definition for startup valuation
+  return revenue - expenses;
 };
 
 /**
@@ -168,7 +256,17 @@ export const calculateEBITDAMargin = (ebitda: number, revenue: number): number =
 
 /**
  * Calculate Free Cash Flow (FCF)
- * FCF = EBITDA * (1 - Tax Rate) - CapEx
+ *
+ * CORRECTED FORMULA: FCF = EBITDA × (1 - effectiveTaxRate) - CapEx
+ *
+ * CRITICAL FIX: Tax rate should be 0 when EBITDA is negative.
+ * Startups with losses don't pay taxes and accumulate NOLs.
+ *
+ * @param ebitda - EBITDA value (can be negative)
+ * @param revenue - Total revenue for CapEx calculation
+ * @param capexRatio - CapEx as percentage of revenue (default: 10%)
+ * @param taxRate - Statutory tax rate (default: 22%)
+ * @returns Free Cash Flow value
  */
 export const calculateFCF = (
   ebitda: number,
@@ -177,7 +275,12 @@ export const calculateFCF = (
   taxRate: number = 0.22
 ): number => {
   const capex = revenue * capexRatio;
-  return (ebitda * (1 - taxRate)) - capex;
+
+  // CRITICAL: If EBITDA is negative, effective tax rate is 0
+  // Startups with losses don't pay taxes
+  const effectiveTaxRate = ebitda > 0 ? taxRate : 0;
+
+  return (ebitda * (1 - effectiveTaxRate)) - capex;
 };
 
 /**
@@ -229,30 +332,99 @@ export const calculateVCValuation = (
 
 /**
  * Calculate Weighted Valuation from all methods
+ *
+ * ENHANCED: Automatically handles negative EBITDA by redistributing weights.
+ * When EBITDA multiple valuation is negative or zero, its weight is
+ * distributed proportionally to other methods.
+ *
+ * @param valuations - Individual valuation results from each method
+ * @param weights - Weights for each valuation method
+ * @returns Weighted average valuation
  */
 export const calculateWeightedValuation = (
   valuations: Omit<ValuationBreakdown, 'weighted'>,
   weights: ValuationWeights
 ): number => {
+  // Create mutable copy of weights
+  const adjustedWeights = { ...weights };
+
+  // CRITICAL FIX: If EBITDA multiple is negative or zero, disable it
+  // and redistribute weight to other methods
+  if (valuations.ebitdaMultiple <= 0) {
+    const redistributeWeight = adjustedWeights.ebitdaMultiple;
+    adjustedWeights.ebitdaMultiple = 0;
+
+    // Redistribute to other positive methods proportionally
+    const otherMethodsWeight =
+      adjustedWeights.revenueMultiple +
+      adjustedWeights.dcf +
+      adjustedWeights.vcMethod;
+
+    if (otherMethodsWeight > 0) {
+      const redistributionRatio = redistributeWeight / otherMethodsWeight;
+      adjustedWeights.revenueMultiple *= 1 + redistributionRatio;
+      adjustedWeights.dcf *= 1 + redistributionRatio;
+      adjustedWeights.vcMethod *= 1 + redistributionRatio;
+    }
+  }
+
+  // Similarly handle negative DCF (rare but possible)
+  if (valuations.dcf <= 0) {
+    const redistributeWeight = adjustedWeights.dcf;
+    adjustedWeights.dcf = 0;
+
+    const otherMethodsWeight =
+      adjustedWeights.revenueMultiple +
+      adjustedWeights.ebitdaMultiple +
+      adjustedWeights.vcMethod;
+
+    if (otherMethodsWeight > 0) {
+      const redistributionRatio = redistributeWeight / otherMethodsWeight;
+      adjustedWeights.revenueMultiple *= 1 + redistributionRatio;
+      adjustedWeights.ebitdaMultiple *= 1 + redistributionRatio;
+      adjustedWeights.vcMethod *= 1 + redistributionRatio;
+    }
+  }
+
   // Ensure weights sum to 1
-  const totalWeight = weights.revenueMultiple + weights.ebitdaMultiple + 
-                      weights.dcf + weights.vcMethod;
-  
+  const totalWeight =
+    adjustedWeights.revenueMultiple +
+    adjustedWeights.ebitdaMultiple +
+    adjustedWeights.dcf +
+    adjustedWeights.vcMethod;
+
   if (totalWeight === 0) return 0;
-  
+
   const normalizedWeights = {
-    revenueMultiple: weights.revenueMultiple / totalWeight,
-    ebitdaMultiple: weights.ebitdaMultiple / totalWeight,
-    dcf: weights.dcf / totalWeight,
-    vcMethod: weights.vcMethod / totalWeight
+    revenueMultiple: adjustedWeights.revenueMultiple / totalWeight,
+    ebitdaMultiple: adjustedWeights.ebitdaMultiple / totalWeight,
+    dcf: adjustedWeights.dcf / totalWeight,
+    vcMethod: adjustedWeights.vcMethod / totalWeight,
   };
-  
-  return (
-    valuations.revenueMultiple * normalizedWeights.revenueMultiple +
-    valuations.ebitdaMultiple * normalizedWeights.ebitdaMultiple +
-    valuations.dcf * normalizedWeights.dcf +
-    valuations.vcMethod * normalizedWeights.vcMethod
-  );
+
+  // Only include positive valuations in the calculation
+  let weightedSum = 0;
+  let usedWeight = 0;
+
+  if (valuations.revenueMultiple > 0) {
+    weightedSum += valuations.revenueMultiple * normalizedWeights.revenueMultiple;
+    usedWeight += normalizedWeights.revenueMultiple;
+  }
+  if (valuations.ebitdaMultiple > 0) {
+    weightedSum += valuations.ebitdaMultiple * normalizedWeights.ebitdaMultiple;
+    usedWeight += normalizedWeights.ebitdaMultiple;
+  }
+  if (valuations.dcf > 0) {
+    weightedSum += valuations.dcf * normalizedWeights.dcf;
+    usedWeight += normalizedWeights.dcf;
+  }
+  if (valuations.vcMethod > 0) {
+    weightedSum += valuations.vcMethod * normalizedWeights.vcMethod;
+    usedWeight += normalizedWeights.vcMethod;
+  }
+
+  // Normalize to account for excluded methods
+  return usedWeight > 0 ? weightedSum / usedWeight : 0;
 };
 
 /**

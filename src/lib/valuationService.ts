@@ -27,6 +27,10 @@ import {
   ValuationBreakdown,
   ValuationConfiguration,
   SECTOR_MULTIPLES,
+  DilutionConfiguration,
+  DEFAULT_DILUTION_CONFIG,
+  calculateOwnershipAtExit,
+  calculateExitProceeds,
 } from '@/types/simulation';
 
 // =====================================================
@@ -263,21 +267,121 @@ export const calculateSimpleValuation = (
 };
 
 /**
+ * MOIC calculation result with dilution breakdown
+ */
+export interface MOICCalculationResult {
+  /** MOIC without dilution (naive calculation) */
+  moicNoDilution: number;
+  /** MOIC with dilution (realistic) */
+  moicWithDilution: number;
+  /** Ownership at entry (as percentage) */
+  ownershipAtEntry: number;
+  /** Ownership at exit after dilution (as percentage) */
+  ownershipAtExit: number;
+  /** Total dilution factor */
+  dilutionFactor: number;
+  /** Investor proceeds at exit */
+  investorProceeds: number;
+  /** IRR estimate (simplified) for the holding period */
+  irrEstimate: number;
+}
+
+/**
+ * Calculate MOIC (Multiple on Invested Capital) with dilution modeling
+ *
+ * CRITICAL FIX: Previous calculation ignored dilution, systematically overstating returns.
+ *
+ * New formula:
+ * 1. ownership_exit = ownership_entry × (1 - total_dilution)
+ * 2. investor_proceeds = exit_value × ownership_exit (or waterfall if preference exists)
+ * 3. MOIC = investor_proceeds / investment
+ *
+ * @param investment - Total investment amount
+ * @param equityPercentage - Equity percentage at entry (e.g., 10 for 10%)
+ * @param exitValue - Company valuation at exit
+ * @param dilutionConfig - Dilution configuration (optional, uses defaults)
+ * @param holdingYears - Number of years to exit (for IRR calculation)
+ * @returns MOIC calculation result with full breakdown
+ */
+export const calculateMOICWithDilution = (
+  investment: number,
+  equityPercentage: number,
+  exitValue: number,
+  dilutionConfig: DilutionConfiguration = DEFAULT_DILUTION_CONFIG,
+  holdingYears: number = 5
+): MOICCalculationResult => {
+  if (investment <= 0 || exitValue <= 0) {
+    return {
+      moicNoDilution: 0,
+      moicWithDilution: 0,
+      ownershipAtEntry: equityPercentage,
+      ownershipAtExit: 0,
+      dilutionFactor: 1,
+      investorProceeds: 0,
+      irrEstimate: 0,
+    };
+  }
+
+  // Convert percentage to decimal
+  const ownershipAtEntry = equityPercentage / 100;
+
+  // Calculate ownership at exit accounting for dilution
+  const ownershipAtExit = calculateOwnershipAtExit(ownershipAtEntry, dilutionConfig);
+
+  // Calculate dilution factor
+  const dilutionFactor = ownershipAtEntry > 0 ? ownershipAtExit / ownershipAtEntry : 0;
+
+  // Calculate investor proceeds (with waterfall if applicable)
+  const investorProceeds = calculateExitProceeds(
+    exitValue,
+    ownershipAtExit,
+    investment,
+    dilutionConfig
+  );
+
+  // Calculate MOIC values
+  const moicNoDilution = (exitValue * ownershipAtEntry) / investment;
+  const moicWithDilution = investorProceeds / investment;
+
+  // Calculate IRR estimate (simplified formula)
+  // IRR ≈ (MOIC)^(1/years) - 1
+  const irrEstimate = holdingYears > 0
+    ? Math.pow(moicWithDilution, 1 / holdingYears) - 1
+    : 0;
+
+  return {
+    moicNoDilution,
+    moicWithDilution,
+    ownershipAtEntry: ownershipAtEntry * 100,
+    ownershipAtExit: ownershipAtExit * 100,
+    dilutionFactor,
+    investorProceeds,
+    irrEstimate: irrEstimate * 100, // Convert to percentage
+  };
+};
+
+/**
  * Calculate MOIC (Multiple on Invested Capital) using unified valuation
+ *
+ * ENHANCED: Now includes dilution in the calculation for realistic returns.
  *
  * @param investment - Total investment amount
  * @param revenue - Company revenue at exit
  * @param expenses - Company expenses at exit
  * @param sector - Company sector
  * @param growthRate - Revenue growth rate
- * @returns MOIC value
+ * @param equityPercentage - Equity percentage at entry (optional, for dilution calc)
+ * @param dilutionConfig - Dilution configuration (optional)
+ * @returns MOIC value (with dilution if equity percentage provided)
  */
 export const calculateMOIC = (
   investment: number,
   revenue: number,
   expenses: number,
   sector: string,
-  growthRate: number
+  growthRate: number,
+  equityPercentage?: number,
+  dilutionConfig?: DilutionConfiguration
 ): number => {
   if (investment <= 0) return 0;
 
@@ -288,6 +392,18 @@ export const calculateMOIC = (
     sector,
   });
 
+  // If equity percentage is provided, calculate with dilution
+  if (equityPercentage !== undefined && equityPercentage > 0) {
+    const moicResult = calculateMOICWithDilution(
+      investment,
+      equityPercentage,
+      result.weightedValuation,
+      dilutionConfig || DEFAULT_DILUTION_CONFIG
+    );
+    return moicResult.moicWithDilution;
+  }
+
+  // Fallback to simple calculation (for backward compatibility)
   return result.weightedValuation / investment;
 };
 
