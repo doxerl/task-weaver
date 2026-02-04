@@ -60,7 +60,7 @@ export default function VatReport() {
         {/* Header */}
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <Link to="/finance/reports">
+            <Link to="/reports">
               <Button variant="ghost" size="icon">
                 <ArrowLeft className="h-5 w-5" />
               </Button>
@@ -234,7 +234,7 @@ export default function VatReport() {
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <Link to="/finance/receipts" className="underline">
+              <Link to="/receipts" className="underline">
                 {vat.missingVatCount} belgede KDV bilgisi eksik
               </Link>
             </AlertDescription>

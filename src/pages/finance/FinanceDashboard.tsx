@@ -52,7 +52,7 @@ export default function FinanceDashboard() {
 
         {/* Quick Actions */}
         <div className="grid grid-cols-6 gap-2">
-          <Link to="/finance/bank-import">
+          <Link to="/bank-import">
             <Card className="hover:bg-accent transition-colors cursor-pointer">
               <CardContent className="p-3 flex flex-col items-center gap-1">
                 <FileSpreadsheet className="h-5 w-5 text-primary" />
@@ -60,7 +60,7 @@ export default function FinanceDashboard() {
               </CardContent>
             </Card>
           </Link>
-          <Link to="/finance/receipts/upload">
+          <Link to="/receipts/upload">
             <Card className="hover:bg-accent transition-colors cursor-pointer">
               <CardContent className="p-3 flex flex-col items-center gap-1">
                 <Camera className="h-5 w-5 text-primary" />
@@ -68,7 +68,7 @@ export default function FinanceDashboard() {
               </CardContent>
             </Card>
           </Link>
-          <Link to="/finance/manual-entry">
+          <Link to="/manual-entry">
             <Card className="hover:bg-accent transition-colors cursor-pointer border-primary/50">
               <CardContent className="p-3 flex flex-col items-center gap-1">
                 <PenLine className="h-5 w-5 text-primary" />
@@ -76,7 +76,7 @@ export default function FinanceDashboard() {
               </CardContent>
             </Card>
           </Link>
-          <Link to="/finance/official-data">
+          <Link to="/official-data">
             <Card className="hover:bg-accent transition-colors cursor-pointer border-green-500/50">
               <CardContent className="p-3 flex flex-col items-center gap-1">
                 <Shield className="h-5 w-5 text-green-600" />
@@ -84,7 +84,7 @@ export default function FinanceDashboard() {
               </CardContent>
             </Card>
           </Link>
-          <Link to="/finance/vat-report">
+          <Link to="/vat-report">
             <Card className="hover:bg-accent transition-colors cursor-pointer">
               <CardContent className="p-3 flex flex-col items-center gap-1">
                 <Receipt className="h-5 w-5 text-purple-500" />
@@ -92,7 +92,7 @@ export default function FinanceDashboard() {
               </CardContent>
             </Card>
           </Link>
-          <Link to="/finance/reports">
+          <Link to="/reports">
             <Card className="hover:bg-accent transition-colors cursor-pointer">
               <CardContent className="p-3 flex flex-col items-center gap-1">
                 <FileText className="h-5 w-5 text-primary" />
@@ -165,7 +165,7 @@ export default function FinanceDashboard() {
 
         {/* VAT Summary Card - Enhanced */}
         {!vat.isLoading && (
-          <Link to="/finance/vat-report">
+          <Link to="/vat-report">
             <Card className="border-purple-200 dark:border-purple-800 bg-purple-50/50 dark:bg-purple-950/20 hover:bg-purple-100/50 dark:hover:bg-purple-950/30 transition-colors">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 text-muted-foreground mb-3">
@@ -198,7 +198,7 @@ export default function FinanceDashboard() {
 
         {/* KKEG Summary Card */}
         {costCenter.kkeg.totalKkeg > 0 && (
-          <Link to="/finance/cost-center">
+          <Link to="/cost-center">
             <Card className="border-destructive/50 bg-destructive/5 hover:bg-destructive/10 transition-colors">
               <CardContent className="p-4">
                 <div className="flex items-center gap-2 text-destructive mb-2">
@@ -222,7 +222,7 @@ export default function FinanceDashboard() {
         )}
 
         {/* Cost Center Summary Card */}
-        <Link to="/finance/cost-center">
+        <Link to="/cost-center">
           <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/30 dark:bg-blue-950/10 hover:bg-blue-100/50 dark:hover:bg-blue-950/20 transition-colors">
             <CardContent className="p-4">
               <div className="flex items-center gap-2 text-muted-foreground mb-3">
@@ -277,7 +277,7 @@ export default function FinanceDashboard() {
 
         {/* Balance Sheet Summary */}
         {!balanceLoading && balanceSheet && (
-          <Link to="/finance/balance-sheet">
+          <Link to="/balance-sheet">
             <Card className="border-blue-200 dark:border-blue-800 bg-blue-50/50 dark:bg-blue-950/20 hover:bg-blue-100/50 dark:hover:bg-blue-950/30 transition-colors">
               <CardContent className="p-4">
                 <div className="flex items-center justify-between">
@@ -315,7 +315,7 @@ export default function FinanceDashboard() {
           <Alert variant="destructive">
             <AlertTriangle className="h-4 w-4" />
             <AlertDescription>
-              <Link to="/finance/bank-transactions" className="underline">
+              <Link to="/bank-transactions" className="underline">
                 {t('transactions.uncategorizedCount', { count: calc.uncategorizedCount })}
               </Link>
             </AlertDescription>
@@ -324,7 +324,7 @@ export default function FinanceDashboard() {
 
         {/* Quick Links */}
         <div className="space-y-2">
-          <Link to="/finance/simulation">
+          <Link to="/simulation">
             <Card className="hover:bg-accent transition-colors border-primary/30 bg-primary/5">
               <CardContent className="p-4 flex items-center justify-between">
                 <div className="flex items-center gap-2">
@@ -335,7 +335,7 @@ export default function FinanceDashboard() {
               </CardContent>
             </Card>
           </Link>
-          <Link to="/finance/bank-transactions">
+          <Link to="/bank-transactions">
             <Card className="hover:bg-accent transition-colors">
               <CardContent className="p-4 flex items-center justify-between">
                 <span>{t('transactions.title')}</span>
@@ -343,7 +343,7 @@ export default function FinanceDashboard() {
               </CardContent>
             </Card>
           </Link>
-          <Link to="/finance/receipts">
+          <Link to="/receipts">
             <Card className="hover:bg-accent transition-colors">
               <CardContent className="p-4 flex items-center justify-between">
                 <span>{t('receipts.title')}</span>

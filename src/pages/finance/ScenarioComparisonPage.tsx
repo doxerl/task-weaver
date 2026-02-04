@@ -1365,7 +1365,7 @@ function ScenarioComparisonContent() {
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
-              <Link to="/finance/simulation">
+              <Link to="/simulation">
                 <Button variant="ghost" size="sm" className="gap-2">
                   <ArrowLeft className="h-4 w-4" />
                   {t('common:buttons.back')}

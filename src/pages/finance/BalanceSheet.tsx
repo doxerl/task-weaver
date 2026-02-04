@@ -276,7 +276,7 @@ export default function BalanceSheet() {
       <div className="p-4 space-y-4">
         {/* Header */}
         <div className="flex items-center gap-3">
-          <Link to="/finance" className="p-2 hover:bg-accent rounded-lg">
+          <Link to="/" className="p-2 hover:bg-accent rounded-lg">
             <ArrowLeft className="h-5 w-5" />
           </Link>
           <h1 className="text-xl font-bold flex-1">Bilanço</h1>
@@ -618,7 +618,7 @@ export default function BalanceSheet() {
             <AlertTitle>Kategorisiz İşlem Var</AlertTitle>
             <AlertDescription>
               {uncategorizedCount} adet işlem ({formatValue(uncategorizedTotal)}) kategorilendirilememiş.{' '}
-              <Link to="/finance/bank-transactions" className="underline font-medium">
+              <Link to="/bank-transactions" className="underline font-medium">
                 Kategorilendirmeye Git
               </Link>
             </AlertDescription>
