@@ -66,6 +66,7 @@ interface CachedAnalysisInfo {
 
 export function useUnifiedAnalysis() {
   const { user } = useAuth();
+  const userId = user?.id ?? null;
   const [analysis, setAnalysis] = useState<UnifiedAnalysisResult | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [isCacheLoading, setIsCacheLoading] = useState(false);
@@ -79,7 +80,7 @@ export function useUnifiedAnalysis() {
 
   // Load cached analysis from database
   const loadCachedAnalysis = useCallback(async (scenarioAId: string, scenarioBId: string): Promise<boolean> => {
-    if (!user?.id) return false;
+    if (!userId) return false;
     setIsCacheLoading(true);
 
     try {
@@ -87,7 +88,7 @@ export function useUnifiedAnalysis() {
       const { data, error: fetchError } = await supabase
         .from('scenario_ai_analyses')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('scenario_a_id', scenarioAId)
         .eq('scenario_b_id', scenarioBId)
         .in('analysis_type', ['unified', 'scenario_comparison', 'investor_pitch'])
@@ -184,7 +185,7 @@ export function useUnifiedAnalysis() {
     } finally {
       setIsCacheLoading(false);
     }
-  }, [user?.id]);
+  }, [userId]);
 
   // Check if data has changed since last analysis
   const checkDataChanges = useCallback((scenarioA: SimulationScenario, scenarioB: SimulationScenario): boolean => {
@@ -206,7 +207,7 @@ export function useUnifiedAnalysis() {
 
   // Load analysis history
   const loadAnalysisHistory = useCallback(async (scenarioAId: string, scenarioBId: string): Promise<void> => {
-    if (!user?.id) return;
+    if (!userId) return;
     setIsHistoryLoading(true);
 
     try {
@@ -214,7 +215,7 @@ export function useUnifiedAnalysis() {
       const { data, error: fetchError } = await supabase
         .from('scenario_analysis_history')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('scenario_a_id', scenarioAId)
         .eq('scenario_b_id', scenarioBId)
         .in('analysis_type', ['unified', 'scenario_comparison', 'investor_pitch'])
@@ -266,7 +267,7 @@ export function useUnifiedAnalysis() {
     } finally {
       setIsHistoryLoading(false);
     }
-  }, [user?.id]);
+  }, [userId]);
 
   // Save to history
   const saveToHistory = useCallback(async (
@@ -275,13 +276,13 @@ export function useUnifiedAnalysis() {
     scenarioB: SimulationScenario,
     dealConfig: DealConfiguration
   ): Promise<void> => {
-    if (!user?.id || !scenarioA.id || !scenarioB.id) return;
+    if (!userId || !scenarioA.id || !scenarioB.id) return;
 
     try {
       // Tabloda olmayan sütunları kaldırdık (deal_score, valuation_verdict, pitch_deck, next_year_projection)
       // Tüm deal verilerini investor_analysis JSON içine koyuyoruz
       const historyInsertData = {
-        user_id: user.id,
+        user_id: userId,
         scenario_a_id: scenarioA.id,
         scenario_b_id: scenarioB.id,
         analysis_type: 'unified' as const,
@@ -311,7 +312,7 @@ export function useUnifiedAnalysis() {
     } catch (err) {
       console.error('Error saving to unified analysis history:', err);
     }
-  }, [user?.id]);
+  }, [userId]);
 
   // Save analysis to database
   const saveAnalysis = useCallback(async (
@@ -321,7 +322,7 @@ export function useUnifiedAnalysis() {
     dealConfig: DealConfiguration,
     focusProjectInfo?: FocusProjectInfo
   ): Promise<void> => {
-    if (!user?.id || !scenarioA.id || !scenarioB.id) return;
+    if (!userId || !scenarioA.id || !scenarioB.id) return;
 
     try {
       // Construct upsert data with proper typing
@@ -333,7 +334,7 @@ export function useUnifiedAnalysis() {
       };
 
       const upsertData = {
-        user_id: user.id,
+        user_id: userId,
         scenario_a_id: scenarioA.id,
         scenario_b_id: scenarioB.id,
         analysis_type: 'unified' as const,
@@ -380,18 +381,18 @@ export function useUnifiedAnalysis() {
     } catch (err) {
       console.error('Error saving unified analysis:', err);
     }
-  }, [user?.id, saveToHistory]);
+  }, [userId, saveToHistory]);
 
   // Fetch historical balance sheet from database and convert TL to USD
   const fetchHistoricalBalance = useCallback(async (targetYear: number, averageExchangeRate: number): Promise<YearlyBalanceSheet | null> => {
-    if (!user?.id) return null;
+    if (!userId) return null;
     
     const previousYear = targetYear - 1;
     
     const { data, error } = await supabase
       .from('yearly_balance_sheets')
       .select('*')
-      .eq('user_id', user.id)
+      .eq('user_id', userId)
       .eq('year', previousYear)
       .maybeSingle();
     
@@ -428,7 +429,7 @@ export function useUnifiedAnalysis() {
     }
     
     return null;
-  }, [user?.id]);
+  }, [userId]);
 
   // Main analysis function
   const runUnifiedAnalysis = useCallback(async (
@@ -618,7 +619,7 @@ export function useUnifiedAnalysis() {
     editedRevenueProjection: EditableProjectionItem[],
     editedExpenseProjection: EditableProjectionItem[]
   ): Promise<void> => {
-    if (!user?.id) return;
+    if (!userId) return;
 
     const hasEdits = editedRevenueProjection.some(i => i.userEdited) ||
                      editedExpenseProjection.some(i => i.userEdited);
@@ -634,7 +635,7 @@ export function useUnifiedAnalysis() {
       const { error: updateError } = await supabase
         .from('scenario_ai_analyses')
         .update(updateData as Record<string, unknown>)
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('scenario_a_id', scenarioAId)
         .eq('scenario_b_id', scenarioBId)
         .eq('analysis_type', 'unified');
@@ -645,7 +646,7 @@ export function useUnifiedAnalysis() {
     } catch (err) {
       console.error('Error saving edited projections:', err);
     }
-  }, [user?.id]);
+  }, [userId]);
 
   return {
     analysis,

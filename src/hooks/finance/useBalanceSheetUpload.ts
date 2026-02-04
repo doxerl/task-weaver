@@ -294,10 +294,10 @@ function calculateBalanceSheetTotals(accounts: BalanceSheetParsedAccount[]): { t
           raw_accounts: null,
           is_locked: false 
         })
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .eq('year', year);
       
-      queryClient.invalidateQueries({ queryKey: ['balance-sheet-upload', year, user.id] });
+      queryClient.invalidateQueries({ queryKey: ['balance-sheet-upload', year, userId] });
     }
     
     setUploadResult(null);

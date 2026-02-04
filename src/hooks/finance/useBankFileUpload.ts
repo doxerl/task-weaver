@@ -58,6 +58,7 @@ async function computeFileHash(file: File): Promise<string> {
 
 export function useBankFileUpload() {
   const { user } = useAuthContext();
+  const userId = user?.id ?? null;
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const { categories } = useCategories();
@@ -444,7 +445,7 @@ export function useBankFileUpload() {
 
   // Categorize transactions using hybrid approach: Rules -> Keywords -> AI
   const categorizeTransactions = async (parsed: ParsedTransaction[]): Promise<ParsedTransaction[]> => {
-    if (!user?.id) {
+    if (!userId) {
       console.warn('No user ID, skipping categorization');
       return parsed;
     }
@@ -461,7 +462,7 @@ export function useBankFileUpload() {
 
     // STAGE 1 & 2: Rule and Keyword matching (client-side, instant)
     console.log('🔍 Starting rule/keyword matching...');
-    const { matched, needsAI } = await categorizeWithRules(parsed, user.id, categoryList);
+    const { matched, needsAI } = await categorizeWithRules(parsed, userId, categoryList);
     
     console.log(`✅ Rule/Keyword matched: ${matched.length}/${parsed.length}`);
     console.log(`🤖 Sending to AI: ${needsAI.length}/${parsed.length}`);
@@ -706,7 +707,7 @@ export function useBankFileUpload() {
   // Step 1: Upload file and parse with AI (returns transactions for preview)
   const uploadAndParse = useMutation({
     mutationFn: async (file: File): Promise<ParsedTransaction[]> => {
-      if (!user?.id) throw new Error('Giriş yapmalısınız');
+      if (!userId) throw new Error('Giriş yapmalısınız');
       
       // Validate file type - only Excel allowed
       const ext = file.name.split('.').pop()?.toLowerCase();
@@ -758,7 +759,7 @@ export function useBankFileUpload() {
         const { data: existingFile } = await supabase
           .from('uploaded_bank_files')
           .select('id, file_name, processing_status')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .eq('file_name', file.name)
           .eq('processing_status', 'completed')
           .maybeSingle();
@@ -779,7 +780,7 @@ export function useBankFileUpload() {
 
         // 1. Upload to Storage
         const fileExt = file.name.split('.').pop()?.toLowerCase() || 'xlsx';
-        const path = `${user.id}/bank/${Date.now()}.${fileExt}`;
+        const path = `${userId}/bank/${Date.now()}.${fileExt}`;
 
         const { error: uploadError } = await supabase.storage
           .from('finance-files')
@@ -797,7 +798,7 @@ export function useBankFileUpload() {
         const { data: bankFile, error: dbError } = await supabase
           .from('uploaded_bank_files')
           .insert({
-            user_id: user.id,
+            user_id: userId,
             file_name: file.name,
             file_type: fileExt,
             file_size: file.size,
@@ -950,7 +951,7 @@ export function useBankFileUpload() {
   // Step 2: Save categorized transactions
   const saveTransactions = useMutation({
     mutationFn: async (transactions: EditableTransaction[]) => {
-      if (!user?.id) throw new Error('Giriş yapmalısınız');
+      if (!userId) throw new Error('Giriş yapmalısınız');
       if (!currentFileId) throw new Error('Dosya ID bulunamadı');
 
       setStatus('saving');
@@ -988,7 +989,7 @@ export function useBankFileUpload() {
         const { data: existingTxs } = await supabase
           .from('bank_transactions')
           .select('transaction_date, description, amount')
-          .eq('user_id', user.id)
+          .eq('user_id', userId)
           .gte('transaction_date', minDate)
           .lte('transaction_date', maxDate);
 

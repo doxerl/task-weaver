@@ -35,6 +35,7 @@ export interface MatchCandidate {
 
 export function useReceiptMatching(receiptId: string | undefined) {
   const { user } = useAuthContext();
+  const userId = user?.id ?? null;
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -70,9 +71,9 @@ export function useReceiptMatching(receiptId: string | undefined) {
 
   // Fetch potential match candidates (bank transactions around the receipt date/amount)
   const { data: candidates = [], isLoading: candidatesLoading } = useQuery({
-    queryKey: ['match-candidates', receiptId],
+    queryKey: ['match-candidates', receiptId, userId] as const,
     queryFn: async () => {
-      if (!receiptId || !user?.id) return [];
+      if (!receiptId || !userId) return [];
       
       // Get receipt info first
       const { data: receipt } = await supabase
@@ -94,7 +95,7 @@ export function useReceiptMatching(receiptId: string | undefined) {
       let query = supabase
         .from('bank_transactions')
         .select('id, transaction_date, description, amount, counterparty, category_id')
-        .eq('user_id', user.id)
+        .eq('user_id', userId)
         .is('is_excluded', false)
         .gte('transaction_date', startDate.toISOString().split('T')[0])
         .lte('transaction_date', endDate.toISOString().split('T')[0])
@@ -125,7 +126,7 @@ export function useReceiptMatching(receiptId: string | undefined) {
         is_matched: matchedTxIds.has(t.id)
       })) as MatchCandidate[];
     },
-    enabled: !!receiptId && !!user?.id
+    enabled: !!receiptId && !!userId
   });
 
   // Confirm a suggested match
@@ -202,7 +203,7 @@ export function useReceiptMatching(receiptId: string | undefined) {
       matchType?: 'full' | 'partial' | 'vat_only';
       amounts?: Record<string, number>;
     }) => {
-      if (!receiptId || !user?.id) throw new Error('Geçersiz istek');
+      if (!receiptId || !userId) throw new Error('Geçersiz istek');
       
       const { transactionIds, matchType = 'full', amounts = {} } = params;
       
@@ -223,7 +224,7 @@ export function useReceiptMatching(receiptId: string | undefined) {
           matched_amount: matchedAmount,
           is_auto_suggested: false,
           is_confirmed: true,
-          user_id: user.id
+          user_id: userId
         };
       });
       

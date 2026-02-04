@@ -50,7 +50,7 @@ interface UploadState {
 export function useIncomeStatementUpload(year: number) {
   const { user } = useAuth();
   const queryClient = useQueryClient();
-  const userId = user?.id;
+  const userId = user?.id ?? null;
 
   const [uploadState, setUploadState] = useState<UploadState | null>(null);
   const [isUploading, setIsUploading] = useState(false);
@@ -58,7 +58,7 @@ export function useIncomeStatementUpload(year: number) {
 
   // Load existing upload from database (including summary fields and raw accounts)
   const { data: existingData, isLoading: isLoadingExisting } = useQuery({
-    queryKey: ['income-statement-upload', year, userId],
+    queryKey: ['income-statement-upload', year, userId] as const,
     queryFn: async () => {
       if (!userId) return null;
       const { data } = await supabase
