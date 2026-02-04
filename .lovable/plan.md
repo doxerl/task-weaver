@@ -1,117 +1,69 @@
 
-# PowerPoint (PPTX) İndirme Özelliği Planı
 
-## Mevcut Durum
-- **PDF İndirme**: ✅ Mevcut (`handleDownloadPdf` fonksiyonu ile)
-- **PPTX İndirme**: ❌ Mevcut değil
-- **Speaker Notes**: PDF'de slayt içinde gösteriliyor (alt kısımda)
+# Finance Dashboard Hata Düzeltme Planı
 
-## İstenen Özellikler
-1. **PowerPoint (PPTX) formatında indirme** - PDF'ye ek olarak
-2. **Speaker Notes PowerPoint'in Notes bölümünde** - Slayt içinde değil, sunum modunda görünecek şekilde
+## Sorun Analizi
 
-## Çözüm Yaklaşımı
+**Hata:** `TypeError: Cannot read properties of undefined (reading 'length')`
 
-### 1. Kütüphane Kurulumu
-```bash
-pptxgenjs  # PowerPoint dosyaları oluşturmak için en popüler JS kütüphanesi
-```
+**Konum:** `FinanceDashboard.tsx` satır 39 → `useBalanceSheet` → `useYearlyBalanceSheet`
 
-### 2. Özellik Detayları
+**Kök Neden:** Hook'larda `useAuth` ve `useAuthContext` karışık kullanımı
 
-| Özellik | PDF (Mevcut) | PPTX (Yeni) |
-|---------|--------------|-------------|
-| Format | A4 Yatay | 16:9 Widescreen |
-| Speaker Notes | Slayt içinde (alt kısım) | Notes panelinde (Sunum modunda görünür) |
-| Düzenlenebilirlik | Hayır | Evet |
-| Tasarım | Google-style minimal | Aynı renk paleti |
+### Tutarsız Hook Kullanımı
 
-### 3. Teknik Uygulama
+| Dosya | Mevcut | Olması Gereken |
+|-------|--------|----------------|
+| `useFixedExpenses.ts` | `useAuth` | `useAuthContext` |
+| `useTrialBalance.ts` | `useAuth` | `useAuthContext` |
+| `useIncomeStatementUpload.ts` | `useAuth` | `useAuthContext` |
+| `useUnifiedAnalysis.ts` | `useAuth` | `useAuthContext` |
+| `useScenarios.ts` | `useAuth` | `useAuthContext` |
+| `useBalanceSheetUpload.ts` | `useAuth` | `useAuthContext` |
+
+**Neden önemli:**
+- `useAuth` doğrudan Supabase auth state'ini okur
+- `useAuthContext` ise tek bir Provider üzerinden paylaşılan state kullanır
+- Karışık kullanım, React hook sırasını bozarak TanStack Query'de hatalara yol açar
+
+## Çözüm
+
+6 dosyada `useAuth` import'unu `useAuthContext` ile değiştir.
+
+### Değişiklik Detayları
+
+**Her dosyada:**
 
 ```typescript
-// pptxgenjs kullanımı
-import pptxgen from 'pptxgenjs';
+// ÖNCESİ
+import { useAuth } from '@/hooks/useAuth';
+// ...
+const { user } = useAuth();
 
-const handleDownloadPptx = async () => {
-  const pptx = new pptxgen();
-  
-  for (const slideData of slides) {
-    const slide = pptx.addSlide();
-    
-    // Slide içeriği
-    slide.addText(slideData.title, { ... });
-    slide.addText(slideData.content_bullets, { ... });
-    
-    // Speaker Notes - Notes paneline eklenir (slayt içinde değil!)
-    slide.addNotes(slideData.speaker_notes);
-  }
-  
-  pptx.writeFile('Investor_Pitch_Deck.pptx');
-};
+// SONRASI
+import { useAuthContext } from '@/contexts/AuthContext';
+// ...
+const { user } = useAuthContext();
 ```
 
-**Önemli**: `slide.addNotes()` metodu, notları PowerPoint'in Notes bölümüne ekler. Sunum modunda (Presenter View) konuşmacı notları olarak görünür.
+### Dosya Listesi
 
-## Değişiklik Planı
-
-### Dosya Değişiklikleri
-
-| Dosya | Değişiklik |
-|-------|------------|
-| `package.json` | `pptxgenjs` bağımlılığı ekle |
-| `src/components/simulation/PitchDeckView.tsx` | PPTX indirme fonksiyonu ve butonu ekle |
-| `src/i18n/locales/tr/simulation.json` | Türkçe çeviriler |
-| `src/i18n/locales/en/simulation.json` | İngilizce çeviriler |
-
-### UI Değişikliği
-Mevcut butonların yanına "PowerPoint İndir" butonu eklenecek:
-
-```
-[Konuşmacı Notları] [PDF İndir] [PowerPoint İndir]
-```
-
-### PPTX Slayt Tasarımı
-- **Layout**: 16:9 widescreen (standart sunum formatı)
-- **Renk Paleti**: Mevcut PDF renkleri kullanılacak (10 slayt için farklı accent renkler)
-- **Yapı**:
-  - Sol üst: Slayt numarası
-  - Üst: Başlık (bold, accent rengi)
-  - Alt başlık: Key Message
-  - Gövde: Bullet points
-  - Notes Panel: Speaker Notes (slayt dışında, Presenter View'da görünür)
-
-## i18n Çevirileri
-
-### Türkçe (tr)
-```json
-{
-  "downloadPptx": "PowerPoint İndir",
-  "pptxDownloaded": "Pitch Deck PowerPoint olarak indirildi!",
-  "pptxError": "PowerPoint oluşturulurken hata oluştu",
-  "pptxFilename": "Yatirimci_Pitch_Deck"
-}
-```
-
-### İngilizce (en)
-```json
-{
-  "downloadPptx": "Download PPTX",
-  "pptxDownloaded": "Pitch Deck downloaded as PowerPoint!",
-  "pptxError": "Error creating PowerPoint",
-  "pptxFilename": "Investor_Pitch_Deck"
-}
-```
+| Dosya | Satır |
+|-------|-------|
+| `src/hooks/finance/useFixedExpenses.ts` | 3, 39 |
+| `src/hooks/finance/useTrialBalance.ts` | 3, ~15 |
+| `src/hooks/finance/useIncomeStatementUpload.ts` | 3, ~15 |
+| `src/hooks/finance/useUnifiedAnalysis.ts` | 45, ~60 |
+| `src/hooks/finance/useScenarios.ts` | 3, ~15 |
+| `src/hooks/finance/useBalanceSheetUpload.ts` | 4, ~20 |
 
 ## Tahmini Süre
-- Kütüphane kurulumu: ~1 dakika
-- PPTX fonksiyonu: ~10 dakika
-- UI butonu: ~2 dakika
-- Çeviriler: ~2 dakika
-- **Toplam**: ~15 dakika
+
+- 6 dosya x 2 satır = ~5 dakika
 
 ## Başarı Kriterleri
-1. ✅ "PowerPoint İndir" butonu görünür
-2. ✅ Tıklandığında .pptx dosyası indirilir
-3. ✅ PowerPoint'te açıldığında 10 slayt + Executive Summary sayfası var
-4. ✅ Presenter View'da Speaker Notes görünür (slayt içinde değil)
-5. ✅ Slaytlar düzenlenebilir
+
+1. `/finance` sayfası hatasız açılır
+2. Tüm hook'lar `useAuthContext` kullanır
+3. Authentication geçişlerinde hook state bozulması olmaz
+
