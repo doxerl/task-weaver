@@ -38,7 +38,7 @@ export function useExpenseAnalysis(year: number, options?: ExpenseAnalysisOption
       isOfficial: false,
     };
 
-    if (isLoading || !categories.length) {
+    if (isLoading || !categories?.length) {
       return emptyResult;
     }
 
@@ -121,27 +121,32 @@ export function useExpenseAnalysis(year: number, options?: ExpenseAnalysisOption
 
     // PRIORITY 2: Dynamic calculation from bank transactions
 
+    // Safe arrays for null safety
+    const safeTransactions = transactions || [];
+    const safeReceipts = receipts || [];
+    const safeCategories = categories || [];
+
     // Exclude partner, financing, investment, and excluded categories from expenses
     const excludedTypes = ['PARTNER', 'FINANCING', 'INVESTMENT', 'EXCLUDED', 'INCOME'];
-    
+
     // Get IDs of categories that should be excluded from operating expenses
     const excludedCategoryIds = new Set(
-      categories
+      safeCategories
         .filter(c => excludedTypes.includes(c.type) || c.is_financing || c.affects_partner_account)
         .map(c => c.id)
     );
-    
+
     // Payroll category codes to exclude (we'll add from payroll_accruals instead)
     const payrollCategoryCodes = ['PERSONEL', 'PERSONEL_UCRET', 'PERSONEL_SGK', 'PERSONEL_ISVEREN', 'PERSONEL_PRIM'];
 
     // Filter expense transactions (negative amounts, excluding special categories and payroll)
-    const expenseTransactions = transactions.filter(tx => {
+    const expenseTransactions = safeTransactions.filter(tx => {
       if (!tx.amount || tx.amount >= 0 || tx.is_excluded) return false;
       // Exclude financing, investment, partner, and excluded categories
       if (tx.category_id && excludedCategoryIds.has(tx.category_id)) return false;
       
       // Exclude payroll categories (will add from payroll_accruals)
-      const category = categories.find(c => c.id === tx.category_id);
+      const category = safeCategories.find(c => c.id === tx.category_id);
       if (category && payrollCategoryCodes.some(code => (category.code || '').toUpperCase().includes(code))) {
         return false;
       }
@@ -153,7 +158,7 @@ export function useExpenseAnalysis(year: number, options?: ExpenseAnalysisOption
     const categoryMap = new Map<string, { amount: number; byMonth: Record<number, number> }>();
     
     expenseTransactions.forEach(tx => {
-      const category = categories.find(c => c.id === tx.category_id);
+      const category = safeCategories.find(c => c.id === tx.category_id);
       const code = category?.code || 'DIGER_GIDER';
       const date = new Date(tx.transaction_date || '');
       const month = date.getMonth() + 1;
@@ -175,14 +180,14 @@ export function useExpenseAnalysis(year: number, options?: ExpenseAnalysisOption
 
     // Add receipt expenses (all received receipts, not linked to bank transactions)
     // Use NET amounts (KDV hariç)
-    const unlinkedReceipts = receipts.filter(
-      r => !r.linked_bank_transaction_id && 
+    const unlinkedReceipts = safeReceipts.filter(
+      r => !r.linked_bank_transaction_id &&
       r.document_type !== 'issued' &&
       r.total_amount
     );
 
     unlinkedReceipts.forEach(receipt => {
-      const category = categories.find(c => c.id === receipt.category_id);
+      const category = safeCategories.find(c => c.id === receipt.category_id);
       const code = category?.code || 'DIGER_GIDER';
       const month = receipt.month || new Date(receipt.receipt_date || '').getMonth() + 1;
       
@@ -220,7 +225,7 @@ export function useExpenseAnalysis(year: number, options?: ExpenseAnalysisOption
 
     const expenseCategoryList: ExpenseCategory[] = Array.from(categoryMap.entries())
       .map(([code, data], index) => {
-        const category = categories.find(c => c.code === code);
+        const category = safeCategories.find(c => c.code === code);
         const isPersonnel = code === 'PERSONEL';
         return {
           categoryId: category?.id || (isPersonnel ? 'payroll' : ''),

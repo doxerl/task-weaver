@@ -32,7 +32,7 @@ export function useIncomeAnalysis(year: number, options?: IncomeAnalysisOptions)
       isOfficial: false,
     };
 
-    if (isLoading || !categories.length) {
+    if (isLoading || !categories?.length) {
       return emptyResult;
     }
 
@@ -96,18 +96,23 @@ export function useIncomeAnalysis(year: number, options?: IncomeAnalysisOptions)
 
     // PRIORITY 2: Dynamic calculation from bank transactions
 
+    // Safe arrays for null safety
+    const safeTransactions = transactions || [];
+    const safeReceipts = receipts || [];
+    const safeCategories = categories || [];
+
     // Exclude partner, financing, investment, and excluded categories from income
     const excludedTypes = ['PARTNER', 'FINANCING', 'INVESTMENT', 'EXCLUDED'];
-    
+
     // Get IDs of categories that should be excluded from operating income
     const excludedCategoryIds = new Set(
-      categories
+      safeCategories
         .filter(c => excludedTypes.includes(c.type) || c.is_financing || c.affects_partner_account)
         .map(c => c.id)
     );
 
     // Filter income transactions (positive amounts, excluding special categories)
-    const incomeTransactions = transactions.filter(tx => {
+    const incomeTransactions = safeTransactions.filter(tx => {
       if (!tx.amount || tx.amount <= 0 || tx.is_excluded) return false;
       // Exclude financing, investment, partner, and excluded categories
       if (tx.category_id && excludedCategoryIds.has(tx.category_id)) return false;
@@ -115,14 +120,14 @@ export function useIncomeAnalysis(year: number, options?: IncomeAnalysisOptions)
     });
 
     // Filter issued receipts (sales invoices) - using TRY values
-    const issuedReceipts = receipts.filter(r => r.document_type === 'issued');
+    const issuedReceipts = safeReceipts.filter(r => r.document_type === 'issued');
 
     // Service Revenue by Category - Use NET amounts (KDV hariç)
     const serviceMap = new Map<string, { amount: number; byMonth: Record<number, number> }>();
     
     // Process bank transactions
     incomeTransactions.forEach(tx => {
-      const category = categories.find(c => c.id === tx.category_id);
+      const category = safeCategories.find(c => c.id === tx.category_id);
       const code = category?.code || 'DIGER';
       const date = new Date(tx.transaction_date || '');
       const month = date.getMonth() + 1;
@@ -143,7 +148,7 @@ export function useIncomeAnalysis(year: number, options?: IncomeAnalysisOptions)
 
     // Process issued receipts - use TRY values for foreign invoices
     issuedReceipts.forEach(r => {
-      const category = categories.find(c => c.id === r.category_id);
+      const category = safeCategories.find(c => c.id === r.category_id);
       const code = category?.code || '600_SATIS';
       const month = r.receipt_date ? new Date(r.receipt_date).getMonth() + 1 : 1;
       
@@ -168,7 +173,7 @@ export function useIncomeAnalysis(year: number, options?: IncomeAnalysisOptions)
 
     const serviceRevenue: ServiceRevenue[] = Array.from(serviceMap.entries())
       .map(([code, data], index) => {
-        const category = categories.find(c => c.code === code);
+        const category = safeCategories.find(c => c.code === code);
         return {
           categoryId: category?.id || '',
           code,
