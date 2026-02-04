@@ -1,9 +1,9 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo, useState, useCallback } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
 import { Receipt, DocumentType, ReceiptSubtype } from '@/types/finance';
-import { useState, useCallback } from 'react';
 import { useExchangeRates } from './useExchangeRates';
 
 // Batch upload types
@@ -65,8 +65,14 @@ export function useReceipts(year?: number, month?: number) {
   // Batch upload state
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
 
+  // Stable queryKey reference to prevent hook dependency issues
+  const queryKey = useMemo(
+    () => ['receipts', userId, year, month] as const,
+    [userId, year, month]
+  );
+
   const { data: receipts = [], isLoading, error } = useQuery({
-    queryKey: ['receipts', userId, year, month] as const,
+    queryKey,
     queryFn: async () => {
       let query = supabase
         .from('receipts')

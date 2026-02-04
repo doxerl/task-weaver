@@ -10,8 +10,14 @@ export function useFinancialSettings() {
   const userId = user?.id ?? null;
   const queryClient = useQueryClient();
 
+  // Stable queryKey reference to prevent hook dependency issues
+  const queryKey = useMemo(
+    () => ['financial-settings', userId] as const,
+    [userId]
+  );
+
   const { data: settings, isLoading } = useQuery({
-    queryKey: ['financial-settings', userId] as const,
+    queryKey,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('financial_settings')

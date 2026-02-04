@@ -1,4 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { BankTransaction } from '@/types/finance';
@@ -10,8 +11,14 @@ export function useBankTransactions(year?: number) {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
+  // Stable queryKey reference to prevent hook dependency issues
+  const queryKey = useMemo(
+    () => ['bank-transactions', userId, year] as const,
+    [userId, year]
+  );
+
   const { data: transactions = [], isLoading, error } = useQuery({
-    queryKey: ['bank-transactions', userId, year] as const,
+    queryKey,
     queryFn: async () => {
       let query = supabase
         .from('bank_transactions')

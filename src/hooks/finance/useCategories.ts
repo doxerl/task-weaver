@@ -1,16 +1,22 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { TransactionCategory, CategoryType } from '@/types/finance';
-import { useMemo } from 'react';
 
 export function useCategories() {
   const { user } = useAuthContext();
   const userId = user?.id ?? null;
   const queryClient = useQueryClient();
 
+  // Stable queryKey reference to prevent hook dependency issues
+  const queryKey = useMemo(
+    () => ['transaction-categories', userId] as const,
+    [userId]
+  );
+
   const { data: categories = [], isLoading, error } = useQuery({
-    queryKey: ['transaction-categories', userId] as const,
+    queryKey,
     queryFn: async () => {
       const { data, error } = await supabase
         .from('transaction_categories')
