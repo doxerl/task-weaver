@@ -20,7 +20,7 @@ export function useFinancialCalculations(year: number): ExtendedFinancialCalcula
 
   return useMemo(() => {
     // Empty state during loading
-    if (isLoading || !categories.length) {
+    if (isLoading || !categories?.length) {
       return {
         totalIncome: 0,
         totalExpenses: 0,
@@ -48,24 +48,25 @@ export function useFinancialCalculations(year: number): ExtendedFinancialCalcula
     }
 
     // Filter active transactions (not excluded)
-    const activeTx = transactions.filter(t => !t.is_excluded);
+    const activeTx = (transactions || []).filter(t => !t.is_excluded);
     // Include ALL receipts for expense calculation (not just is_included_in_report)
-    const activeReceipts = receipts;
+    const activeReceipts = receipts || [];
 
-    // Get category IDs by type
-    const financingIds = categories
+    // Get category IDs by type (categories safety already checked above)
+    const safeCategories = categories || [];
+    const financingIds = safeCategories
       .filter(c => c.type === 'FINANCING' || c.is_financing)
       .map(c => c.id);
     
-    const investmentIds = categories
+    const investmentIds = safeCategories
       .filter(c => c.type === 'INVESTMENT')
       .map(c => c.id);
-    
-    const partnerIds = categories
+
+    const partnerIds = safeCategories
       .filter(c => c.type === 'PARTNER' || c.affects_partner_account)
       .map(c => c.id);
-    
-    const excludedIds = categories
+
+    const excludedIds = safeCategories
       .filter(c => c.type === 'EXCLUDED' || c.is_excluded)
       .map(c => c.id);
     
@@ -254,7 +255,7 @@ export function useFinancialCalculations(year: number): ExtendedFinancialCalcula
     activeTx
       .filter(t => t.amount < 0 && investmentIds.includes(t.category_id || ''))
       .forEach(t => {
-        const category = categories.find(c => c.id === t.category_id);
+        const category = safeCategories.find(c => c.id === t.category_id);
         if (!category) return;
         
         if (!byInvestmentType[t.category_id!]) {
@@ -272,8 +273,8 @@ export function useFinancialCalculations(year: number): ExtendedFinancialCalcula
     
     activeTx.forEach(t => {
       if (!t.category_id || excludedIds.includes(t.category_id)) return;
-      
-      const category = categories.find(c => c.id === t.category_id);
+
+      const category = safeCategories.find(c => c.id === t.category_id);
       if (!category) return;
       
       if (!byCategory[t.category_id]) {
