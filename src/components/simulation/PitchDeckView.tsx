@@ -24,11 +24,13 @@ import {
   Users,
   Target,
   Download,
-  Loader2
+  Loader2,
+  FileDown
 } from 'lucide-react';
 import { PitchDeck, PitchSlide, getExecutiveSummaryText, EnhancedExecutiveSummary } from '@/types/simulation';
 import { toast } from 'sonner';
 import jsPDF from 'jspdf';
+import pptxgen from 'pptxgenjs';
 import { turkishToAscii } from '@/lib/pdf/fonts/roboto-base64';
 
 // Helper to check if executive summary is enhanced
@@ -103,6 +105,7 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
   const [showSpeakerNotes, setShowSpeakerNotes] = useState(false);
   const [copied, setCopied] = useState(false);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [isGeneratingPptx, setIsGeneratingPptx] = useState(false);
 
   const slides = pitchDeck.slides || [];
   const slide = slides[currentSlide];
@@ -340,6 +343,212 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
     }
   };
 
+  const handleDownloadPptx = async () => {
+    if (!slides.length) return;
+
+    setIsGeneratingPptx(true);
+    try {
+      const pptx = new pptxgen();
+
+      // Presentation settings
+      pptx.author = 'PlannerDeck';
+      pptx.title = t('simulation:pitchDeck.investorPresentation');
+      pptx.subject = 'Investor Pitch Deck';
+      pptx.company = 'PlannerDeck';
+      pptx.layout = 'LAYOUT_16x9';
+
+      // PPTX color palette (same as PDF)
+      const pptxColors: Record<number, string> = {
+        1: '4285F4',  // Blue - Problem
+        2: '9334E6',  // Purple - Solution
+        3: '00ACC1',  // Cyan - Market
+        4: '34A853',  // Green - Business Model
+        5: 'FB8C00',  // Orange - Traction
+        6: 'E91E63',  // Pink - Growth
+        7: 'FBBC04',  // Yellow - Funds
+        8: '3949AB',  // Indigo - Financial
+        9: '00897B',  // Teal - Team
+        10: 'EA4335'  // Red - The Ask
+      };
+
+      // Render each slide
+      for (const slideData of slides) {
+        const slide = pptx.addSlide();
+        const slideNumber = slideData.slide_number;
+        const accentColor = pptxColors[slideNumber] || pptxColors[1];
+
+        // Left accent bar
+        slide.addShape('rect', {
+          x: 0,
+          y: 0,
+          w: 0.15,
+          h: '100%',
+          fill: { color: accentColor }
+        });
+
+        // Slide number
+        slide.addText(`${slideNumber} / ${slides.length}`, {
+          x: 8.5,
+          y: 0.3,
+          w: 1.3,
+          h: 0.3,
+          fontSize: 10,
+          color: '9E9E9E',
+          align: 'right'
+        });
+
+        // Icon circle
+        slide.addShape('ellipse', {
+          x: 0.4,
+          y: 0.4,
+          w: 0.5,
+          h: 0.5,
+          fill: { color: accentColor, transparency: 80 }
+        });
+
+        // Slide number inside circle
+        slide.addText(String(slideNumber), {
+          x: 0.4,
+          y: 0.4,
+          w: 0.5,
+          h: 0.5,
+          fontSize: 14,
+          color: accentColor,
+          align: 'center',
+          valign: 'middle',
+          bold: true
+        });
+
+        // Title
+        slide.addText(slideData.title, {
+          x: 1.1,
+          y: 0.4,
+          w: 8.5,
+          h: 0.6,
+          fontSize: 28,
+          bold: true,
+          color: '212121'
+        });
+
+        // Key Message box
+        slide.addShape('roundRect', {
+          x: 0.4,
+          y: 1.2,
+          w: 9.2,
+          h: 0.7,
+          fill: { color: accentColor, transparency: 90 }
+        });
+
+        slide.addText(slideData.key_message, {
+          x: 0.5,
+          y: 1.25,
+          w: 9,
+          h: 0.6,
+          fontSize: 14,
+          bold: true,
+          color: '424242'
+        });
+
+        // Content bullets
+        const bulletPoints = slideData.content_bullets.map((bullet, idx) => ({
+          text: `${idx + 1}. ${bullet}`,
+          options: { bullet: false, fontSize: 13, color: '424242', paraSpaceAfter: 8 }
+        }));
+
+        slide.addText(bulletPoints, {
+          x: 0.4,
+          y: 2.1,
+          w: 9.2,
+          h: 2.8,
+          valign: 'top'
+        });
+
+        // Speaker Notes - Goes to PowerPoint Notes Panel!
+        if (slideData.speaker_notes) {
+          slide.addNotes(slideData.speaker_notes);
+        }
+      }
+
+      // Executive Summary slide
+      if (pitchDeck.executive_summary) {
+        const summarySlide = pptx.addSlide();
+
+        // Left accent bar
+        summarySlide.addShape('rect', {
+          x: 0,
+          y: 0,
+          w: 0.15,
+          h: '100%',
+          fill: { color: '4285F4' }
+        });
+
+        // Title
+        summarySlide.addText(t('simulation:pitchDeck.executiveSummary'), {
+          x: 0.4,
+          y: 0.4,
+          w: 9,
+          h: 0.7,
+          fontSize: 28,
+          bold: true,
+          color: '212121'
+        });
+
+        // Subtitle
+        summarySlide.addText(t('simulation:pitchDeck.emailSummaryDescription'), {
+          x: 0.4,
+          y: 1,
+          w: 9,
+          h: 0.4,
+          fontSize: 12,
+          color: '757575'
+        });
+
+        // Divider line
+        summarySlide.addShape('line', {
+          x: 0.4,
+          y: 1.5,
+          w: 9.2,
+          h: 0,
+          line: { color: 'E0E0E0', width: 1 }
+        });
+
+        // Summary text
+        const summaryText = getExecutiveSummaryText(pitchDeck.executive_summary);
+        summarySlide.addText(summaryText, {
+          x: 0.4,
+          y: 1.7,
+          w: 9.2,
+          h: 3.3,
+          fontSize: 11,
+          color: '424242',
+          valign: 'top'
+        });
+
+        // Footer with date
+        const dateLocale = i18n.language === 'tr' ? 'tr-TR' : 'en-US';
+        const dateText = `${t('simulation:pitchDeck.createdDate')}: ${new Date().toLocaleDateString(dateLocale, { day: 'numeric', month: 'long', year: 'numeric' })}`;
+        summarySlide.addText(dateText, {
+          x: 0,
+          y: 4.9,
+          w: 10,
+          h: 0.3,
+          fontSize: 9,
+          color: '9E9E9E',
+          align: 'center'
+        });
+      }
+
+      await pptx.writeFile({ fileName: t('simulation:pitchDeck.pptxFilename') + '.pptx' });
+      toast.success(t('simulation:pitchDeck.pptxDownloaded'));
+
+    } catch (error) {
+      console.error('PPTX creation error:', error);
+      toast.error(t('simulation:pitchDeck.pptxError'));
+    } finally {
+      setIsGeneratingPptx(false);
+    }
+  };
+
   if (!slides.length) {
     return (
       <Card className="p-8 text-center">
@@ -383,6 +592,20 @@ export function PitchDeckView({ pitchDeck, onClose }: PitchDeckViewProps) {
               <Download className="h-4 w-4" />
             )}
             {t('simulation:pitchDeck.downloadPdf')}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleDownloadPptx}
+            disabled={isGeneratingPptx}
+            className="gap-2"
+          >
+            {isGeneratingPptx ? (
+              <Loader2 className="h-4 w-4 animate-spin" />
+            ) : (
+              <FileDown className="h-4 w-4" />
+            )}
+            {t('simulation:pitchDeck.downloadPptx')}
           </Button>
         </div>
       </div>
