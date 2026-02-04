@@ -1,405 +1,224 @@
 
+# Kapsamlı SWOT Analizi: Hook Stabilizasyon Sorunu
 
-## /finance/simulation/compare Sayfası Tam i18n Entegrasyonu
+## Yönetici Özeti
 
-### Problem Özeti
-
-`ScenarioComparisonPage.tsx` sayfasının kendisi çoğunlukla çeviriye bağlı ancak alt bileşenlerinin büyük çoğunluğunda hardcoded Türkçe stringler var. Toplam **~350+ hardcoded string** tespit edildi.
-
-### Tespit Edilen Hardcoded Bileşenler
-
-| Bileşen | Hardcoded String Sayısı | Durum |
-|---------|------------------------|-------|
-| `InvestmentTab.tsx` | ~120 | ❌ Hiç i18n yok |
-| `FocusProjectSelector.tsx` | ~25 | ❌ Hiç i18n yok |
-| `FinancialRatiosPanel.tsx` | ~35 | ❌ Hiç i18n yok |
-| `SensitivityTable.tsx` | ~15 | ❌ Hiç i18n yok |
-| `ItemTrendCards.tsx` | ~20 | ❌ Hiç i18n yok |
-| `ScenarioComparisonCards.tsx` | ~25 | ❌ Hiç i18n yok |
-| `QuarterlyCapitalTable.tsx` | ~30 | ❌ Hiç i18n yok |
-| `AIInvestmentTimingCard.tsx` | ~40 | ❌ Hiç i18n yok |
-| `EditableProjectionTable.tsx` | ~15 | ❌ Hiç i18n yok |
+Domain üzerinden erişim sırasında oluşan `TypeError: Cannot read properties of undefined (reading 'length')` hatası, React TanStack Query'nin hook bağımlılıkları karşılaştırması sırasında (`areHookInputsEqual`) gerçekleşmektedir. Temel sebep: **`user?.id` değerinin auth durumu değişimleri sırasında `undefined` ile `string` arasında salınması** ve bu durumun query key dizilerini kararsız hale getirmesidir.
 
 ---
 
-### Çözüm: Çeviri Dosyası Genişletme
+## 1. STRENGTHS (Güçlü Yönler)
 
-#### Yeni Key'ler (`simulation.json`)
+### 1.1 Mimari Temeller
+- **AuthContext Pattern**: Merkezi auth yönetimi mevcut (`useAuthContext`)
+- **ProtectedRoute**: Kimlik doğrulama kontrolü route seviyesinde uygulanıyor
+- **TanStack Query v5**: Modern cache yönetimi ve otomatik yeniden deneme mekanizması
 
-```json
-{
-  "investment": {
-    "dealSimulator": "Investment Deal Simulator",
-    "dealSimulatorDesc": "Adjust investment amount and equity ratio to see exit plan",
-    "investmentAmount": "Investment Amount",
-    "suggested": "Suggested",
-    "basis": {
-      "deathValley": "Death Valley based",
-      "yearEndDeficit": "Year-end deficit based"
-    },
-    "additionalCapital": "additional capital",
-    "selfFinancing": "Self-financing from {{year}} onwards",
-    "equityRatio": "Equity Ratio",
-    "valuation": "Valuation",
-    "sectorMultiple": "Sector Multiple",
-    "tiers": {
-      "title": "Investment Options",
-      "selectBased": "Select appropriate investment amount based on your business needs",
-      "minimum": "Minimum (Survival)",
-      "recommended": "Recommended (Growth)",
-      "aggressive": "Aggressive (Scale)",
-      "runway": "{{months}} months runway"
-    },
-    "capitalNeeds": {
-      "title": "Capital Needs Comparison",
-      "selfSustaining": "Self-Sustaining",
-      "required": "Required",
-      "criticalQuarter": "Critical Quarter",
-      "monthlyBurn": "Monthly Burn",
-      "yearEnd": "Year End",
-      "breakEven": "Break-even",
-      "runway": "Runway",
-      "months": "{{count}} months",
-      "twoYearDeathValley": "2Y Death Valley"
-    },
-    "opportunityCost": {
-      "title": "Opportunity Cost",
-      "description": "Potential revenue left on table if not investing"
-    },
-    "runwayChart": {
-      "title": "Cash Flow Runway Chart",
-      "description": "Invested vs uninvested scenario comparison",
-      "withInvestment": "With Investment (Positive Scenario)",
-      "withoutInvestment": "Without Investment (Negative Scenario)"
-    },
-    "growthModel": {
-      "title": "Two-Phase Growth Model",
-      "aggressivePhase": "Year 1-2 (Aggressive)",
-      "normalizedPhase": "Year 3-5 (Normalized)",
-      "target": "Target",
-      "cap": "cap",
-      "sectorAverage": "Sector average",
-      "capped": "Aggressive phase capped at 100% (original target: {{percent}}%)"
-    },
-    "exitPlan": {
-      "title": "Exit Plan - Investor Return Projection",
-      "entry": "ENTRY",
-      "investment": "Investment",
-      "equity": "Equity",
-      "valuation": "Valuation",
-      "year3": "YEAR 3",
-      "year5": "YEAR 5",
-      "companyValue": "Company Value",
-      "investorShare": "Investor Share",
-      "moic": "MOIC"
-    },
-    "metrics": {
-      "capitalEfficiency": "Capital Efficiency",
-      "perDollarRevenue": "Revenue per $1",
-      "targetGrowth": "Target Growth",
-      "scenarioTarget": "Scenario target",
-      "breakEven": "Break-even",
-      "breakEvenPoint": "Break-even point",
-      "yearN": "Year {{n}}"
-    },
-    "projectionTable": {
-      "title": "5-Year Projection Details",
-      "yearDependent": "Year-dependent capital calculation: Carry-over profit → Quarterly death valley → Additional investment need",
-      "year": "Year",
-      "opening": "Opening",
-      "revenue": "Revenue",
-      "expense": "Expense",
-      "netProfit": "Net Profit",
-      "deathValley": "Death Valley",
-      "capitalNeed": "Capital Need",
-      "yearEnd": "Year End",
-      "valuation": "Valuation",
-      "moic": "MOIC"
-    }
-  },
-  "focusProject": {
-    "title": "Investment Focus Projects",
-    "projectsSelected": "{{count}} projects selected",
-    "description": "Specify which projects will use the investment (max 2 projects). AI analysis will focus on selected projects.",
-    "investmentProjects": "Investment Projects (max 2 selection)",
-    "selectedSummary": "Selected Projects Summary",
-    "totalCurrent": "Total Current",
-    "totalTarget": "Total Target",
-    "selectAtLeast": "Select at least 1 project",
-    "growthPlan": "Growth Plan",
-    "growthPlanPlaceholder": "Explain your growth plan for selected projects. E.g.: Expand SBT Tracker beyond textile sector, add ISO 14064 module, focus on enterprise customers...",
-    "aiUsageNote": "This description will be used in AI analysis and reflected in projections.",
-    "allocationTitle": "Investment Usage Allocation",
-    "total": "Total",
-    "productDev": "Product Development",
-    "marketing": "Marketing",
-    "personnel": "Personnel",
-    "operational": "Operational",
-    "allocationWarning": "Total allocation should be 100%. Current: {{percent}}%"
-  },
-  "financialRatios": {
-    "title": "Financial Ratios (B2B Services Benchmark)",
-    "liquidity": "Liquidity Ratios",
-    "leverage": "Leverage Ratios",
-    "profitability": "Profitability Ratios",
-    "currentRatio": "Current Ratio",
-    "quickRatio": "Quick Ratio",
-    "cashRatio": "Cash Ratio",
-    "debtToEquity": "Debt/Equity",
-    "debtToAssets": "Debt/Assets",
-    "receivablesRatio": "Receivables/Assets",
-    "roa": "ROA",
-    "roe": "ROE",
-    "netMargin": "Net Margin",
-    "status": {
-      "good": "Good",
-      "average": "Average",
-      "poor": "Attention"
-    },
-    "tooltips": {
-      "currentRatio": "Current Assets / Short-term Debt",
-      "quickRatio": "(Current Assets - Inventory) / Short-term Debt",
-      "cashRatio": "Cash / Short-term Debt",
-      "debtToEquity": "Total Debt / Equity",
-      "debtToAssets": "Total Debt / Total Assets",
-      "receivablesRatio": "Trade Receivables / Total Assets",
-      "roa": "Net Profit / Total Assets",
-      "roe": "Net Profit / Equity",
-      "netMargin": "Net Profit / Revenue"
-    },
-    "benchmarkNote": "Benchmark: B2B Services sector averages used as reference"
-  },
-  "sensitivity": {
-    "title": "Sensitivity Analysis",
-    "description": "Impact of revenue change on main metrics",
-    "revenueChange": "Revenue Change",
-    "netProfit": "Net Profit",
-    "margin": "Margin",
-    "valuation": "Valuation",
-    "moic": "MOIC",
-    "runway": "Runway",
-    "months": "{{count}} months",
-    "loss": "loss",
-    "criticalVariable": "Critical Variable",
-    "ifRevenueDrops": "If revenue drops 20%, profit becomes {{amount}}"
-  },
-  "itemTrend": {
-    "revenueItems": "Revenue Items Trend Analysis",
-    "expenseItems": "Expense Items Trend Analysis",
-    "share": "Share",
-    "concentrated": "Concentrated",
-    "trend": {
-      "increasing": "Growing",
-      "decreasing": "Declining",
-      "stable": "Stable"
-    },
-    "volatility": {
-      "high": "High Volatility",
-      "medium": "Medium Volatility",
-      "low": "Low Volatility"
-    },
-    "concentrationRisk": "Concentration Risk",
-    "concentrationWarning": "A single item accounts for more than 50% of total {{type}}"
-  },
-  "scenarioCards": {
-    "revenueComparison": "Revenue Items Scenario Comparison",
-    "expenseComparison": "Expense Items Scenario Comparison",
-    "vsComparison": "{{labelA}} vs {{labelB}} scenario comparison",
-    "riskLevel": {
-      "high": "High Difference",
-      "medium": "Medium Difference",
-      "low": "Low Difference"
-    },
-    "divergence": {
-      "increasingGood": "↗️ Increasing Difference",
-      "increasingBad": "↗️ Increasing Risk",
-      "decreasingGood": "↘️ Decreasing Risk",
-      "decreasingBad": "↘️ Decreasing Difference"
-    },
-    "totalDifference": "Total Difference",
-    "highDiffWarning": "High Difference Warning",
-    "itemsOver40": "{{items}} items have over 40% difference between scenarios"
-  },
-  "quarterlyTable": {
-    "title": "Quarterly Cash Flow Comparison",
-    "description": "Invested (positive) and uninvested (negative) scenario quarterly details",
-    "invested": "Invested ({{name}})",
-    "uninvested": "Uninvested ({{name}})",
-    "startingBalance": "+{{amount}} starting",
-    "quarter": "Quarter",
-    "revenue": "Revenue",
-    "expense": "Expense",
-    "netFlow": "Net Flow",
-    "cumulative": "Cumulative",
-    "need": "Need",
-    "yearEnd": "Year End",
-    "maxNeed": "Max Need",
-    "opportunityCost": "Opportunity Cost",
-    "betterPosition": "Invested scenario is in better position by {{amount}} at year end."
-  },
-  "aiTiming": {
-    "title": "AI Optimal Investment Timing",
-    "description": "{{year}} Optimal investment time based on negative scenario cash deficits",
-    "recommended": "Recommended",
-    "urgency": "Urgency",
-    "requiredCapital": "Required Capital",
-    "safetyIncluded": "20% safety included",
-    "optional": "Optional",
-    "yearStart": "Year Start",
-    "before": "Before {{date}}",
-    "byEnd": "By end of {{date}}",
-    "urgencyLevels": {
-      "critical": "Critical",
-      "high": "High",
-      "medium": "Medium",
-      "low": "Low"
-    },
-    "urgencyDescriptions": {
-      "critical": "Deficit starts in Q1 - Investment needed now",
-      "high": "Deficit will start within 3 months",
-      "medium": "Deficit will start within 6 months",
-      "low": "Cash position is strong"
-    },
-    "quarterlyCumulativeNeed": "Quarterly Cumulative Capital Need (Negative Scenario)",
-    "firstDeficit": "First Deficit",
-    "delayRisk": "Delay risk",
-    "analysisConfidence": "Analysis Confidence",
-    "firstDeficitLabel": "First deficit",
-    "maxDeficitLabel": "Max deficit",
-    "none": "None",
-    "reasons": {
-      "selfSustaining": "Company can sustain operations with equity. Investment can be used to accelerate growth.",
-      "q1Deficit": "Cash deficit of {{amount}} starts in Q1. Growth expenses (trade shows, personnel, marketing) cannot be made without closing this gap.",
-      "futureDeficit": "Cash deficit of {{amount}} will start in {{quarter}}. Capital must be secured before this date."
-    },
-    "risks": {
-      "selfSustaining": "Growth opportunities may be missed but operations continue.",
-      "q1Deficit": "Transition to positive scenario is not possible without investment. Growth strategy is delayed, market share is lost.",
-      "futureDeficit": "Planned growth expenses after {{quarter}} become impossible. Positive scenario does not materialize."
-    }
-  },
-  "editableTable": {
-    "edited": "Edited",
-    "resetToAI": "Reset to AI Values",
-    "item": "Item",
-    "total": "Total",
-    "totalRevenue": "Total Revenue",
-    "totalExpense": "Total Expense"
-  }
+### 1.2 Kısmi Düzeltmeler Uygulanmış
+Bazı hook'larda stabilizasyon pattern'i zaten mevcut:
+```typescript
+// ✅ DOĞRU - useYearlyBalanceSheet.ts
+const userId = user?.id ?? null;
+queryKey: ['yearly-balance-sheet', userId, year] as const
+
+// ✅ DOĞRU - usePreviousYearBalance.ts  
+const userId = user?.id ?? null;
+queryKey: ['previous-year-balance', userId, year] as const
+
+// ✅ DOĞRU - useOfficialIncomeStatement.ts
+const userId = user?.id ?? null;
+queryKey: ['official-income-statement', year, userId] as const
+
+// ✅ DOĞRU - useOfficialDataStatus.ts
+const userId = user?.id ?? null;
+queryKey: ['official-income-statement-lock', userId, year] as const
+```
+
+### 1.3 Default Value Pattern
+`useBalanceSheet.ts` dosyasında `EMPTY_BALANCE_DATA` ve `EMPTY_CASH_FLOW_SUMMARY` modül seviyesinde tanımlanmış - bu doğru yaklaşım.
+
+---
+
+## 2. WEAKNESSES (Zayıf Yönler)
+
+### 2.1 Kritik: Tutarsız userId Stabilizasyonu
+**13 finansal hook'tan yalnızca 4 tanesi stabilize edilmiş!** Geri kalan 9 hook hala `user?.id` kullanıyor:
+
+| Hook Dosyası | Durum | Risk |
+|-------------|-------|------|
+| `useBankTransactions.ts` | ❌ `user?.id` | Yüksek |
+| `useReceipts.ts` | ❌ `user?.id` | Yüksek |
+| `useCategories.ts` | ❌ `user?.id` | Yüksek |
+| `usePayrollAccruals.ts` | ❌ `user?.id` | Yüksek |
+| `useFinancialSettings.ts` | ❌ `user?.id` | Yüksek |
+| `useFixedExpenses.ts` | ❌ `user?.id` | Yüksek |
+| `useCategoryRules.ts` | ❌ `user?.id` | Yüksek |
+| `useManualEntry.ts` | ❌ `user?.id` | Yüksek |
+| `useTrialBalance.ts` | ❌ `user?.id` | Orta |
+| `useBankImportSession.ts` | ❌ `user?.id` | Orta |
+| `useBalanceSheetUpload.ts` | ❌ `user?.id` | Orta |
+| `useWeeklyRetrospective.ts` | ❌ `user?.id` | Orta |
+
+### 2.2 Hook Çağırım Zinciri Sorunu
+`useFinancialDataHub` 7 alt hook'u çağırıyor:
+```
+useFinancialDataHub(year)
+  ├── useBankTransactions(year)     ❌ user?.id
+  ├── useReceipts(year)             ❌ user?.id  
+  ├── useCategories()               ❌ user?.id
+  ├── useFinancialSettings()        ❌ user?.id
+  ├── useFixedExpenses()            ❌ user?.id
+  ├── usePayrollAccruals(year)      ❌ user?.id
+  └── usePreviousYearBalance(year-1) ✅ userId stabilized
+```
+
+Bu zincirde TEK BİR kararsız hook, tüm zinciri çökertebilir.
+
+### 2.3 `as const` Eksikliği
+Stabilize edilmemiş hook'larda `queryKey` array'leri `as const` ile işaretlenmemiş:
+```typescript
+// ❌ YANLIŞ
+queryKey: ['bank-transactions', user?.id, year]
+
+// ✅ DOĞRU  
+queryKey: ['bank-transactions', userId, year] as const
+```
+
+### 2.4 Loading State Race Condition
+`useAuth` hook'unda session kontrolü asenkron:
+```typescript
+useEffect(() => {
+  supabase.auth.getSession().then(({ data: { session } }) => {
+    setUser(session?.user ?? null);
+    setLoading(false);  // Bu satır ÖNCE çalışabilir
+  });
+}, []);
+```
+Bu durum, `loading=false` iken `user=null` olduğu kısa bir pencere yaratabilir.
+
+---
+
+## 3. OPPORTUNITIES (Fırsatlar)
+
+### 3.1 Merkezi Pattern Oluşturma
+Tek bir `useStableUserId` hook'u oluşturulabilir:
+```typescript
+// src/hooks/useStableUserId.ts
+export function useStableUserId() {
+  const { user } = useAuthContext();
+  return user?.id ?? null;
+}
+```
+
+### 3.2 ESLint Rule
+Proje için özel bir ESLint kuralı ile `queryKey` içinde `user?.id` kullanımı engellenebilir.
+
+### 3.3 Factory Pattern
+Query hook'ları için factory fonksiyonu:
+```typescript
+function createUserQuery<T>(options: {
+  queryKey: (userId: string | null) => QueryKey;
+  queryFn: (userId: string) => Promise<T>;
+}) {
+  return function useQuery() {
+    const userId = useStableUserId();
+    return useTanStackQuery({
+      queryKey: options.queryKey(userId),
+      queryFn: () => options.queryFn(userId!),
+      enabled: !!userId,
+    });
+  };
 }
 ```
 
 ---
 
-### Uygulama Adımları
+## 4. THREATS (Tehditler)
 
-#### Faz 1: Çeviri Dosyalarını Güncelle
-- `src/i18n/locales/en/simulation.json` - ~150 yeni key
-- `src/i18n/locales/tr/simulation.json` - ~150 yeni key (Türkçe çeviriler)
+### 4.1 Cascade Failure Riski
+Bir hook çökerse, onu kullanan tüm component'ler de çöker:
+```
+useBalanceSheet (crash)
+  └── FinanceDashboard (blank screen)
+  └── BalanceSheet (blank screen)  
+  └── GrowthSimulation (blank screen)
+  └── ScenarioComparisonPage (blank screen)
+```
 
-#### Faz 2: Bileşenleri Güncelle (Büyükten Küçüğe)
+### 4.2 Domain vs Preview Ortam Farkı
+Domain erişiminde session restore daha yavaş olabilir (CDN, cookie gecikmesi), bu da race condition penceresini genişletir.
 
-**1. InvestmentTab.tsx (~120 string)**
-- `useTranslation(['simulation'])` ekle
-- Chart config label'larını `t()` ile değiştir
-- Card title/description'ları `t()` ile değiştir
-- Metric label'larını `t()` ile değiştir
-- Table header'larını `t()` ile değiştir
-
-**2. AIInvestmentTimingCard.tsx (~40 string)**
-- `useTranslation` hook'u ekle
-- `urgencyLabels`, `urgencyDescriptions` objelerini `t()` fonksiyonlarına dönüştür
-- Reason/risk açıklamalarını `t()` ile değiştir
-
-**3. QuarterlyCapitalTable.tsx (~30 string)**
-- `useTranslation` hook'u ekle
-- Table header'larını `t()` ile değiştir
-- Summary banner textlerini `t()` ile değiştir
-
-**4. FocusProjectSelector.tsx (~25 string)**
-- `useTranslation` hook'u ekle
-- `allocationItems` label'larını `t()` ile değiştir
-- Card title/description'ları `t()` ile değiştir
-
-**5. ScenarioComparisonCards.tsx (~25 string)**
-- `useTranslation` hook'u ekle
-- `getRiskLabel`, `getDivergenceIcon` fonksiyonlarını `t()` ile değiştir
-- Title ve description'ları `t()` ile değiştir
-
-**6. FinancialRatiosPanel.tsx (~35 string)**
-- `useTranslation` hook'u ekle
-- `getRatioStatus` label'larını `t()` ile değiştir
-- `ratioGroups` title ve label'larını `t()` ile değiştir
-- Tooltip açıklamalarını `t()` ile değiştir
-
-**7. ItemTrendCards.tsx (~20 string)**
-- `useTranslation` hook'u ekle
-- `getTrendLabel`, `getVolatilityLabel` fonksiyonlarını `t()` ile değiştir
-- Title ve warning mesajlarını `t()` ile değiştir
-
-**8. SensitivityTable.tsx (~15 string)**
-- `useTranslation` hook'u ekle
-- Table header'larını `t()` ile değiştir
-- Critical variable açıklamasını `t()` ile değiştir
-
-**9. EditableProjectionTable.tsx (~15 string)**
-- `useTranslation` hook'u ekle
-- Badge label'larını `t()` ile değiştir
-- Table header'larını `t()` ile değiştir
-- Button text'lerini `t()` ile değiştir
+### 4.3 Gelecek Hook Ekleme Riski
+Yeni hook'lar eklenirken aynı pattern'in unutulması muhtemel.
 
 ---
 
-### Teknik Notlar
+## 5. Önerilen Çözüm Planı
 
-1. **Hook Kullanımı**
-```tsx
-import { useTranslation } from 'react-i18next';
+### Aşama 1: Acil Düzeltme (9 hook)
+Aşağıdaki dosyalarda `userId` stabilizasyonu uygulanmalı:
 
-const { t } = useTranslation(['simulation', 'common']);
+1. `src/hooks/finance/useBankTransactions.ts`
+2. `src/hooks/finance/useReceipts.ts`
+3. `src/hooks/finance/useCategories.ts`
+4. `src/hooks/finance/usePayrollAccruals.ts`
+5. `src/hooks/finance/useFinancialSettings.ts`
+6. `src/hooks/finance/useFixedExpenses.ts`
+7. `src/hooks/finance/useCategoryRules.ts`
+8. `src/hooks/finance/useManualEntry.ts`
+9. `src/hooks/finance/useTrialBalance.ts`
+10. `src/hooks/finance/useBankImportSession.ts`
+11. `src/hooks/finance/useBalanceSheetUpload.ts`
+12. `src/hooks/useWeeklyRetrospective.ts`
+
+Her dosyada:
+```typescript
+// ÖNCE
+const { user } = useAuthContext();
+// ...
+queryKey: ['xxx', user?.id, ...],
+
+// SONRA
+const { user } = useAuthContext();
+const userId = user?.id ?? null;
+// ...
+queryKey: ['xxx', userId, ...] as const,
 ```
 
-2. **Parametre Geçirme**
-```tsx
-// Önceki:
-<span>{capitalEfficiency.toFixed(1)}x</span>
-
-// Sonraki:
-<span>{t('investment.metrics.perDollarRevenue')}: {capitalEfficiency.toFixed(1)}x</span>
+### Aşama 2: Mutation'larda Stabilizasyon
+`onSuccess` callback'lerinde `user?.id` yerine stabilize edilmiş `userId` kullanılmalı:
+```typescript
+// useYearlyBalanceSheet.ts satır 105 ve 129
+onSuccess: () => {
+  queryClient.invalidateQueries({ 
+    queryKey: ['yearly-balance-sheet', userId, year]  // ✅ user?.id değil
+  });
+}
 ```
 
-3. **Dinamik String'ler**
-```tsx
-// Önceki:
-`${multiYearCapitalPlan.selfSustainingFromYear}'dan itibaren kendi kendini finanse ediyor`
-
-// Sonraki:
-t('investment.selfFinancing', { year: multiYearCapitalPlan.selfSustainingFromYear })
-```
+### Aşama 3: useExchangeRates Kontrolü
+`useReceipts.ts` içinde kullanılan `useExchangeRates` hook'u da kontrol edilmeli.
 
 ---
 
-### Dosya Listesi
+## 6. Tahmini İş Yükü
 
-| Dosya | İşlem |
-|-------|-------|
-| `src/i18n/locales/en/simulation.json` | +150 key ekle |
-| `src/i18n/locales/tr/simulation.json` | +150 key ekle |
-| `src/components/simulation/InvestmentTab.tsx` | i18n entegre et |
-| `src/components/simulation/FocusProjectSelector.tsx` | i18n entegre et |
-| `src/components/simulation/FinancialRatiosPanel.tsx` | i18n entegre et |
-| `src/components/simulation/SensitivityTable.tsx` | i18n entegre et |
-| `src/components/simulation/ItemTrendCards.tsx` | i18n entegre et |
-| `src/components/simulation/ScenarioComparisonCards.tsx` | i18n entegre et |
-| `src/components/simulation/QuarterlyCapitalTable.tsx` | i18n entegre et |
-| `src/components/simulation/AIInvestmentTimingCard.tsx` | i18n entegre et |
-| `src/components/simulation/EditableProjectionTable.tsx` | i18n entegre et |
+| Görev | Dosya Sayısı | Tahmini Süre |
+|-------|-------------|--------------|
+| userId stabilizasyonu | 12 | ~30 dakika |
+| Mutation callback düzeltmeleri | 4 | ~10 dakika |
+| Test ve doğrulama | - | ~15 dakika |
+| **Toplam** | | **~55 dakika** |
 
 ---
 
-### Beklenen Sonuç
+## 7. Başarı Kriterleri
 
-- Tüm UI elementleri dil toggle'ına göre değişecek
-- Türkçe → İngilizce geçişte tüm metinler güncellenecek
-- Chart label'ları, table header'ları, badge'ler, button'lar dahil
-- Toast mesajları ve açıklamalar dahil
+1. ✅ Domain üzerinden giriş yapıldığında blank screen olmamalı
+2. ✅ Console'da `Cannot read properties of undefined (reading 'length')` hatası görülmemeli
+3. ✅ Auth state değişimlerinde (login/logout) crash olmamalı
+4. ✅ Tüm finansal sayfalar (/finance/*) normal yüklenmeli
+
+---
+
+**Onay sonrası tüm hook'larda userId stabilizasyonu uygulanacaktır.**
