@@ -944,6 +944,142 @@ function ScenarioComparisonContent() {
     );
   }, [scenarioA, summaryA, dealConfig]);
 
+  // =====================================================
+  // PDF CAPITAL NEEDS - Her iki senaryo için sermaye ihtiyacı
+  // =====================================================
+  const capitalNeedA = useMemo(() => {
+    if (!quarterlyComparison || quarterlyComparison.length < 4) return null;
+    return calculateCapitalNeeds({
+      q1: quarterlyComparison[0]?.scenarioANet || 0,
+      q2: quarterlyComparison[1]?.scenarioANet || 0,
+      q3: quarterlyComparison[2]?.scenarioANet || 0,
+      q4: quarterlyComparison[3]?.scenarioANet || 0
+    });
+  }, [quarterlyComparison]);
+
+  const capitalNeedB = useMemo(() => {
+    if (!quarterlyComparison || quarterlyComparison.length < 4) return null;
+    return calculateCapitalNeeds({
+      q1: quarterlyComparison[0]?.scenarioBNet || 0,
+      q2: quarterlyComparison[1]?.scenarioBNet || 0,
+      q3: quarterlyComparison[2]?.scenarioBNet || 0,
+      q4: quarterlyComparison[3]?.scenarioBNet || 0
+    });
+  }, [quarterlyComparison]);
+
+  // =====================================================
+  // PDF INVESTMENT TIERS - Minimum/Recommended/Aggressive
+  // =====================================================
+  const investmentTiers = useMemo((): import('@/types/simulation').InvestmentTier[] => {
+    if (!capitalNeedB) return [];
+    const base = capitalNeedB.requiredInvestment;
+    if (base <= 0) return [];
+    
+    return [
+      { 
+        tier: 'minimum' as const, 
+        label: 'Minimum Yatırım',
+        amount: base, 
+        runwayMonths: capitalNeedB.runwayMonths,
+        description: 'Minimal capital to survive',
+        safetyMargin: 15
+      },
+      { 
+        tier: 'recommended' as const, 
+        label: 'Önerilen Yatırım',
+        amount: Math.round(base * 1.5), 
+        runwayMonths: Math.round(capitalNeedB.runwayMonths * 1.5),
+        description: 'Recommended for 18-month runway',
+        safetyMargin: 25
+      },
+      { 
+        tier: 'aggressive' as const, 
+        label: 'Agresif Büyüme',
+        amount: Math.round(base * 2), 
+        runwayMonths: Math.round(capitalNeedB.runwayMonths * 2),
+        description: 'Aggressive growth capital',
+        safetyMargin: 50
+      }
+    ];
+  }, [capitalNeedB]);
+
+  // =====================================================
+  // PDF SCENARIO COMPARISON - Yatırım vs Organik Büyüme
+  // =====================================================
+  const scenarioComparisonData = useMemo((): import('@/types/simulation').InvestmentScenarioComparison | null => {
+    if (!summaryA || !summaryB || !pdfExitPlan) return null;
+    
+    const revenueGap = summaryA.totalRevenue - summaryB.totalRevenue;
+    const profitGap = summaryA.netProfit - summaryB.netProfit;
+    const growthRateDiff = summaryB.totalRevenue > 0 
+      ? ((summaryA.totalRevenue - summaryB.totalRevenue) / summaryB.totalRevenue) * 100 
+      : 0;
+    const percentageLoss = summaryA.totalRevenue > 0 
+      ? (revenueGap / summaryA.totalRevenue) * 100 
+      : 0;
+    
+    // Calculate risk level based on revenue gap
+    let riskLevel: 'low' | 'medium' | 'high' | 'critical' = 'low';
+    if (percentageLoss > 40) riskLevel = 'critical';
+    else if (percentageLoss > 25) riskLevel = 'high';
+    else if (percentageLoss > 10) riskLevel = 'medium';
+    
+    // 5-year projection calculations
+    const growthA = 0.20; // Assumed growth with investment
+    const growthB = 0.08; // Organic growth without investment
+    const targetYear = scenarioA?.targetYear || new Date().getFullYear() + 1;
+    
+    const yearlyProjections = Array.from({ length: 5 }, (_, i) => {
+      const year = targetYear + i;
+      const withInv = summaryA.totalRevenue * Math.pow(1 + growthA, i);
+      const withoutInv = summaryB.totalRevenue * Math.pow(1 + growthB, i);
+      return {
+        year,
+        yearLabel: `${year}`,
+        withInvestment: Math.round(withInv),
+        withoutInvestment: Math.round(withoutInv),
+        difference: Math.round(withInv - withoutInv)
+      };
+    });
+    
+    return {
+      withInvestment: {
+        totalRevenue: summaryA.totalRevenue,
+        totalExpenses: summaryA.totalExpense,
+        netProfit: summaryA.netProfit,
+        profitMargin: summaryA.profitMargin,
+        exitValuation: pdfExitPlan.year5Projection?.companyValuation || summaryA.totalRevenue * 5,
+        moic5Year: pdfExitPlan.moic5Year || 0,
+        growthRate: growthA * 100
+      },
+      withoutInvestment: {
+        totalRevenue: summaryB.totalRevenue,
+        totalExpenses: summaryB.totalExpense,
+        netProfit: summaryB.netProfit,
+        profitMargin: summaryB.profitMargin,
+        organicGrowthRate: growthB * 100
+      },
+      opportunityCost: {
+        revenueLoss: revenueGap,
+        profitLoss: profitGap,
+        valuationLoss: (pdfExitPlan.year5Projection?.companyValuation || 0) - (summaryB.totalRevenue * 3),
+        growthRateDiff,
+        percentageLoss,
+        riskLevel
+      },
+      futureImpact: {
+        year1WithInvestment: yearlyProjections[0]?.withInvestment || 0,
+        year1WithoutInvestment: yearlyProjections[0]?.withoutInvestment || 0,
+        year3WithInvestment: yearlyProjections[2]?.withInvestment || 0,
+        year3WithoutInvestment: yearlyProjections[2]?.withoutInvestment || 0,
+        year5WithInvestment: yearlyProjections[4]?.withInvestment || 0,
+        year5WithoutInvestment: yearlyProjections[4]?.withoutInvestment || 0,
+        cumulativeDifference: yearlyProjections.reduce((sum, y) => sum + y.difference, 0),
+        yearlyProjections
+      }
+    };
+  }, [summaryA, summaryB, pdfExitPlan, scenarioA?.targetYear]);
+
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
   // Load cached unified analysis when scenarios change
@@ -1896,6 +2032,10 @@ function ScenarioComparisonContent() {
         focusProjects={focusProjects}
         investmentAllocation={investmentAllocation}
         focusProjectPlan={focusProjectPlan}
+        capitalNeedA={capitalNeedA}
+        capitalNeedB={capitalNeedB}
+        investmentTiers={investmentTiers}
+        scenarioComparison={scenarioComparisonData}
       />
     </div>
   );
