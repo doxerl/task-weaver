@@ -1474,5 +1474,55 @@
     "endingCash": "Ending Cash",
     "noReconciliationData": "No reconciliation data available",
     "closingBalance": "Closing Balance"
+  },
+  "pdfInsights": {
+    "calculatedMetrics": "Calculated Metrics",
+    "aiSuggestionsHighConfidence": "AI Suggestions (High Confidence)",
+    "revenueGapAnalysis": "Revenue Gap Analysis",
+    "revenueGapDesc": "With investment scenario, {{amount}} {{direction}} revenue is projected.",
+    "more": "more",
+    "less": "less",
+    "runwayComparison": "Runway Comparison",
+    "runwayComparisonDesc": "Positive scenario: {{positiveMonths}} months, Negative scenario: {{negativeMonths}} months runway. {{extraMonths}}",
+    "extraMonthsSustainability": "{{months}} months longer sustainability.",
+    "deathValleyWarning": "Death Valley Warning",
+    "deathValleyDesc": "In organic scenario, {{amount}} cash deficit will occur in {{quarter}}. Minimum {{required}} investment required.",
+    "profitMarginDifference": "Profit Margin Difference",
+    "profitMarginDesc": "Positive scenario: {{marginA}}%, Negative scenario: {{marginB}}% profit margin. {{improvement}}",
+    "marginImprovement": "{{points}} point improvement with investment.",
+    "investmentImpact": "Investment Return Impact",
+    "investmentImpactDesc": "{{amount}} investment achieves {{multiplier}}x revenue multiplier.",
+    "opportunityCost": "Opportunity Cost",
+    "opportunityCostDesc": "Without investment, {{amount}} potential revenue will be lost. Risk level: {{riskLevel}}.",
+    "calculation": "Calculation"
+  },
+  "pdfTiming": {
+    "investmentTiers": {
+      "minimum": "Minimum Investment",
+      "minimumDesc": "Minimal capital to survive",
+      "recommended": "Recommended Investment",
+      "recommendedDesc": "Recommended for 18-month runway",
+      "aggressive": "Aggressive Growth",
+      "aggressiveDesc": "Aggressive growth capital"
+    },
+    "optimalTiming": {
+      "optional": "Optional",
+      "anytime": "Anytime",
+      "yearStart": "Year Start",
+      "beforeMonth": "Before {{month}} {{year}}",
+      "byEndOf": "By end of {{month}} {{year}}",
+      "months": {
+        "january": "January",
+        "march": "March",
+        "june": "June",
+        "september": "September",
+        "december": "December"
+      },
+      "deficitStarting": "{{quarter}} deficit of {{amount}} starting - Investment needed now",
+      "deficitWillOccur": "{{quarter}} cash deficit of {{amount}} will occur",
+      "cashFlowPositive": "Cash flow positive, investment optional",
+      "riskIfDelayed": "Without investment, transition to positive scenario is not possible. Growth strategy will be delayed, market share will be lost.",
+      "lowRisk": "Low risk - organic growth possible"
+    }
   }
 }

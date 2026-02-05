@@ -30,6 +30,9 @@ export function PdfAIInsightsPage({
 }: PdfAIInsightsPageProps) {
   const { t } = useTranslation(['simulation']);
 
+  // Helper for currency formatting
+  const formatUSD = (val: number) => val.toLocaleString('en-US', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 });
+
   // Generate insights from CALCULATED data (not AI)
   const calculatedInsights = useMemo<CalculatedInsight[]>(() => {
     const insights: CalculatedInsight[] = [];
@@ -39,10 +42,13 @@ export function PdfAIInsightsPage({
       const revenueGap = summaryA.totalRevenue - summaryB.totalRevenue;
       if (Math.abs(revenueGap) > 0) {
         insights.push({
-          title: 'Gelir Farkı Analizi',
-          description: `Yatırım senaryosu ile ${Math.abs(revenueGap).toLocaleString('tr-TR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })} ${revenueGap >= 0 ? 'daha fazla' : 'daha az'} gelir öngörülüyor.`,
+          title: t('pdfInsights.revenueGapAnalysis'),
+          description: t('pdfInsights.revenueGapDesc', {
+            amount: formatUSD(Math.abs(revenueGap)),
+            direction: revenueGap >= 0 ? t('pdfInsights.more') : t('pdfInsights.less')
+          }),
           severity: Math.abs(revenueGap) > 100000 ? 'high' : 'medium',
-          source: `Hesaplama: summaryA.totalRevenue - summaryB.totalRevenue`,
+          source: `${t('pdfInsights.calculation')}: summaryA.totalRevenue - summaryB.totalRevenue`,
         });
       }
     }
@@ -50,20 +56,31 @@ export function PdfAIInsightsPage({
     // 2. Runway Comparison
     if (capitalNeedA && capitalNeedB) {
       const runwayDiff = capitalNeedA.runwayMonths - capitalNeedB.runwayMonths;
+      const extraMonths = runwayDiff > 0 
+        ? t('pdfInsights.extraMonthsSustainability', { months: runwayDiff }) 
+        : '';
       insights.push({
-        title: 'Runway Karşılaştırması',
-        description: `Pozitif senaryo: ${capitalNeedA.runwayMonths} ay, Negatif senaryo: ${capitalNeedB.runwayMonths} ay runway. ${runwayDiff > 0 ? `${runwayDiff} ay daha uzun sürdürülebilirlik.` : ''}`,
+        title: t('pdfInsights.runwayComparison'),
+        description: t('pdfInsights.runwayComparisonDesc', {
+          positiveMonths: capitalNeedA.runwayMonths,
+          negativeMonths: capitalNeedB.runwayMonths,
+          extraMonths
+        }),
         severity: capitalNeedB.runwayMonths < 12 ? 'critical' : capitalNeedB.runwayMonths < 18 ? 'high' : 'medium',
-        source: `Hesaplama: capitalNeed.runwayMonths`,
+        source: `${t('pdfInsights.calculation')}: capitalNeed.runwayMonths`,
       });
 
       // Death Valley Alert - use minCumulativeCash and criticalQuarter
       if (capitalNeedB.minCumulativeCash < 0) {
         insights.push({
-          title: 'Death Valley Uyarısı',
-          description: `Organik senaryoda ${capitalNeedB.criticalQuarter}'de ${Math.abs(capitalNeedB.minCumulativeCash).toLocaleString('tr-TR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })} nakit açığı oluşacak. Minimum ${capitalNeedB.requiredInvestment.toLocaleString('tr-TR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })} yatırım gerekli.`,
+          title: t('pdfInsights.deathValleyWarning'),
+          description: t('pdfInsights.deathValleyDesc', {
+            quarter: capitalNeedB.criticalQuarter,
+            amount: formatUSD(Math.abs(capitalNeedB.minCumulativeCash)),
+            required: formatUSD(capitalNeedB.requiredInvestment)
+          }),
           severity: 'critical',
-          source: `Hesaplama: capitalNeed.minCumulativeCash, capitalNeed.requiredInvestment`,
+          source: `${t('pdfInsights.calculation')}: capitalNeed.minCumulativeCash, capitalNeed.requiredInvestment`,
         });
       }
     }
@@ -72,11 +89,18 @@ export function PdfAIInsightsPage({
     if (summaryA && summaryB) {
       const marginA = summaryA.profitMargin * 100;
       const marginB = summaryB.profitMargin * 100;
+      const improvement = marginA > marginB 
+        ? t('pdfInsights.marginImprovement', { points: (marginA - marginB).toFixed(1) }) 
+        : '';
       insights.push({
-        title: 'Kâr Marjı Farkı',
-        description: `Pozitif senaryo: %${marginA.toFixed(1)}, Negatif senaryo: %${marginB.toFixed(1)} kâr marjı. ${marginA > marginB ? `Yatırım ile %${(marginA - marginB).toFixed(1)} puan iyileşme.` : ''}`,
+        title: t('pdfInsights.profitMarginDifference'),
+        description: t('pdfInsights.profitMarginDesc', {
+          marginA: marginA.toFixed(1),
+          marginB: marginB.toFixed(1),
+          improvement
+        }),
         severity: marginA > marginB ? 'high' : 'medium',
-        source: `Hesaplama: summary.netProfit / summary.totalRevenue`,
+        source: `${t('pdfInsights.calculation')}: summary.netProfit / summary.totalRevenue`,
       });
     }
 
@@ -88,10 +112,13 @@ export function PdfAIInsightsPage({
       const multiplier = withoutRevenue > 0 ? withRevenue / withoutRevenue : 0;
       
       insights.push({
-        title: 'Yatırım Getiri Etkisi',
-        description: `${dealConfig.investmentAmount.toLocaleString('tr-TR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })} yatırım ile ${multiplier.toFixed(2)}x gelir çarpanı elde ediliyor.`,
+        title: t('pdfInsights.investmentImpact'),
+        description: t('pdfInsights.investmentImpactDesc', {
+          amount: formatUSD(dealConfig.investmentAmount),
+          multiplier: multiplier.toFixed(2)
+        }),
         severity: multiplier > 2 ? 'high' : multiplier > 1.5 ? 'medium' : 'low',
-        source: `Hesaplama: withInvestment.totalRevenue / withoutInvestment.totalRevenue`,
+        source: `${t('pdfInsights.calculation')}: withInvestment.totalRevenue / withoutInvestment.totalRevenue`,
       });
 
       // Opportunity Cost from opportunityCost object
@@ -99,17 +126,20 @@ export function PdfAIInsightsPage({
         const revenueLoss = scenarioComparison.opportunityCost.revenueLoss;
         if (revenueLoss > 0) {
           insights.push({
-            title: 'Fırsat Maliyeti',
-            description: `Yatırım alınmazsa ${revenueLoss.toLocaleString('tr-TR', { style: 'currency', currency: 'USD', maximumFractionDigits: 0 })} potansiyel gelir kaybedilecek. Risk seviyesi: ${scenarioComparison.opportunityCost.riskLevel}.`,
+            title: t('pdfInsights.opportunityCost'),
+            description: t('pdfInsights.opportunityCostDesc', {
+              amount: formatUSD(revenueLoss),
+              riskLevel: scenarioComparison.opportunityCost.riskLevel
+            }),
             severity: scenarioComparison.opportunityCost.riskLevel === 'critical' ? 'critical' : scenarioComparison.opportunityCost.riskLevel === 'high' ? 'high' : 'medium',
-            source: `Hesaplama: scenarioComparison.opportunityCost.revenueLoss`,
+            source: `${t('pdfInsights.calculation')}: scenarioComparison.opportunityCost.revenueLoss`,
           });
         }
       }
     }
 
     return insights;
-  }, [summaryA, summaryB, capitalNeedA, capitalNeedB, scenarioComparison, dealConfig]);
+  }, [summaryA, summaryB, capitalNeedA, capitalNeedB, scenarioComparison, dealConfig, t]);
 
   // Filter AI insights - only show high confidence (>=75%)
   const filteredAIInsights = useMemo(() => {
@@ -157,7 +187,7 @@ export function PdfAIInsightsPage({
       {calculatedInsights.length > 0 && (
         <>
           <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#1e40af' }}>
-            📊 Hesaplanmış Metrikler
+            📊 {t('pdfInsights.calculatedMetrics')}
           </h3>
           <div
             style={{
@@ -207,7 +237,7 @@ export function PdfAIInsightsPage({
       {filteredAIInsights.length > 0 && (
         <>
           <h3 style={{ fontSize: '16px', fontWeight: '600', marginBottom: '12px', color: '#7c3aed' }}>
-            🤖 AI Önerileri (Yüksek Güven)
+            🤖 {t('pdfInsights.aiSuggestionsHighConfidence')}
           </h3>
           <div
             style={{

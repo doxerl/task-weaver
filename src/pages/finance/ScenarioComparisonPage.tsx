@@ -891,30 +891,30 @@ function ScenarioComparisonContent() {
     return [
       { 
         tier: 'minimum' as const, 
-        label: 'Minimum Yatırım',
+        label: t('pdfTiming.investmentTiers.minimum'),
         amount: base, 
         runwayMonths: capitalNeedB.runwayMonths,
-        description: 'Minimal capital to survive',
+        description: t('pdfTiming.investmentTiers.minimumDesc'),
         safetyMargin: 15
       },
       { 
         tier: 'recommended' as const, 
-        label: 'Önerilen Yatırım',
+        label: t('pdfTiming.investmentTiers.recommended'),
         amount: Math.round(base * 1.5), 
         runwayMonths: Math.round(capitalNeedB.runwayMonths * 1.5),
-        description: 'Recommended for 18-month runway',
+        description: t('pdfTiming.investmentTiers.recommendedDesc'),
         safetyMargin: 25
       },
       { 
         tier: 'aggressive' as const, 
-        label: 'Agresif Büyüme',
+        label: t('pdfTiming.investmentTiers.aggressive'),
         amount: Math.round(base * 2), 
         runwayMonths: Math.round(capitalNeedB.runwayMonths * 2),
-        description: 'Aggressive growth capital',
+        description: t('pdfTiming.investmentTiers.aggressiveDesc'),
         safetyMargin: 50
       }
     ];
-  }, [capitalNeedB]);
+  }, [capitalNeedB, t]);
 
   // =====================================================
   // PDF OPTIMAL TIMING - AI Investment Timing için
@@ -948,20 +948,33 @@ function ScenarioComparisonContent() {
     
     const targetYear = scenarioB?.targetYear || new Date().getFullYear() + 1;
     
+    // i18n month map
+    const monthMap: Record<string, string> = { 
+      'Q1': t('pdfTiming.optimalTiming.months.march'), 
+      'Q2': t('pdfTiming.optimalTiming.months.june'), 
+      'Q3': t('pdfTiming.optimalTiming.months.september'), 
+      'Q4': t('pdfTiming.optimalTiming.months.december') 
+    };
+    
     let recommendedQuarter: string;
     let recommendedTiming: string;
     
     if (!firstDeficitQuarter) {
-      recommendedQuarter = 'Opsiyonel';
-      recommendedTiming = 'Herhangi bir zamanda';
+      recommendedQuarter = t('pdfTiming.optimalTiming.optional');
+      recommendedTiming = t('pdfTiming.optimalTiming.anytime');
     } else if (firstDeficitQuarter === 'Q1') {
-      recommendedQuarter = 'Yıl Başı';
-      recommendedTiming = `Ocak ${targetYear}'den önce`;
+      recommendedQuarter = t('pdfTiming.optimalTiming.yearStart');
+      recommendedTiming = t('pdfTiming.optimalTiming.beforeMonth', { 
+        month: t('pdfTiming.optimalTiming.months.january'), 
+        year: targetYear 
+      });
     } else {
       const idx = quarters.indexOf(firstDeficitQuarter);
       recommendedQuarter = quarters[idx - 1] || 'Q1';
-      const monthMap: Record<string, string> = { 'Q1': 'Mart', 'Q2': 'Haziran', 'Q3': 'Eylül', 'Q4': 'Aralık' };
-      recommendedTiming = `${monthMap[recommendedQuarter]} ${targetYear} sonuna kadar`;
+      recommendedTiming = t('pdfTiming.optimalTiming.byEndOf', { 
+        month: monthMap[recommendedQuarter], 
+        year: targetYear 
+      });
     }
     
     let urgencyLevel: 'critical' | 'high' | 'medium' | 'low' = 'low';
@@ -973,14 +986,14 @@ function ScenarioComparisonContent() {
     const formatK = (v: number) => `$${Math.round(v / 1000)}K`;
     
     const reason = firstDeficitQuarter === 'Q1'
-      ? `${firstDeficitQuarter}'de ${formatK(firstDeficitAmount)} açık başlıyor - Yatırım şimdi gerekli`
+      ? t('pdfTiming.optimalTiming.deficitStarting', { quarter: firstDeficitQuarter, amount: formatK(firstDeficitAmount) })
       : firstDeficitQuarter
-        ? `${firstDeficitQuarter}'de ${formatK(firstDeficitAmount)} nakit açığı oluşacak`
-        : 'Nakit akışı pozitif, yatırım opsiyonel';
+        ? t('pdfTiming.optimalTiming.deficitWillOccur', { quarter: firstDeficitQuarter, amount: formatK(firstDeficitAmount) })
+        : t('pdfTiming.optimalTiming.cashFlowPositive');
         
     const riskIfDelayed = firstDeficitQuarter
-      ? `Yatırım alınmazsa pozitif senaryoya geçiş mümkün değil. Büyüme stratejisi gecikir, pazar payı kaybedilir.`
-      : 'Düşük risk - organik büyüme mümkün';
+      ? t('pdfTiming.optimalTiming.riskIfDelayed')
+      : t('pdfTiming.optimalTiming.lowRisk');
     
     return {
       recommendedQuarter,
@@ -991,7 +1004,7 @@ function ScenarioComparisonContent() {
       urgencyLevel,
       quarterlyNeeds
     };
-  }, [quarterlyComparison, capitalNeedB, scenarioB]);
+  }, [quarterlyComparison, capitalNeedB, scenarioB, t]);
 
   // =====================================================
   // PDF SCENARIO COMPARISON - Yatırım vs Organik Büyüme
