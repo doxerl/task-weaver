@@ -62,7 +62,6 @@ import {
   RotateCcw,
   Presentation,
   Edit2,
-  Activity,
   Calculator,
 } from 'lucide-react';
 import {
@@ -93,10 +92,7 @@ import { useScenarios } from '@/hooks/finance/useScenarios';
 import { InvestmentTab } from '@/components/simulation/InvestmentTab';
 import { PitchDeckView } from '@/components/simulation/PitchDeckView';
 import { PitchDeckEditor } from '@/components/simulation/PitchDeckEditor';
-import { SensitivityTable } from '@/components/simulation/SensitivityTable';
 import { FinancialRatiosPanel } from '@/components/simulation/FinancialRatiosPanel';
-import { ItemTrendCards } from '@/components/simulation/ItemTrendCards';
-import { ScenarioComparisonCards } from '@/components/simulation/ScenarioComparisonCards';
 import { AIAnalysisSummaryCard } from '@/components/simulation/AIAnalysisSummaryCard';
 import { AIAnalysisDetails } from '@/components/simulation/AIAnalysisDetails';
 import { PdfExportContainer } from '@/components/simulation/pdf';
@@ -797,89 +793,6 @@ function ScenarioComparisonContent() {
     };
   }, [historicalBalance, summaryB]);
 
-  // Item Trend Analysis
-  const itemTrendAnalysis = useMemo((): TrendAnalysisResult | null => {
-    if (!quarterlyItemized || !summaryB) return null;
-    
-    const analyzeItem = (item: { q1: number; q2: number; q3: number; q4: number; total: number }) => {
-      const quarters = [item.q1, item.q2, item.q3, item.q4];
-      const avg = item.total / 4;
-      const variance = quarters.reduce((sum, q) => sum + Math.pow(q - avg, 2), 0) / 4;
-      const stdDev = Math.sqrt(variance);
-      const volatility = avg > 0 ? (stdDev / avg) * 100 : 0;
-      const overallGrowth = item.q1 > 0 ? ((item.q4 - item.q1) / item.q1) * 100 : 0;
-      const seasonalityIndex = item.q1 > 0 ? item.q4 / item.q1 : 1;
-      const concentrationRisk = item.total > 0 ? (Math.max(...quarters) / item.total) * 100 : 0;
-      
-      return {
-        trend: (overallGrowth > 10 ? 'increasing' : overallGrowth < -10 ? 'decreasing' : 'stable') as 'increasing' | 'decreasing' | 'stable',
-        volatility,
-        volatilityLevel: (volatility > 50 ? 'high' : volatility > 20 ? 'medium' : 'low') as 'high' | 'medium' | 'low',
-        seasonalityIndex,
-        overallGrowth,
-        concentrationRisk
-      };
-    };
-    
-    return {
-      revenues: quarterlyItemized.scenarioB.revenues.map(r => ({
-        category: r.category,
-        ...analyzeItem(r),
-        shareOfTotal: summaryB.totalRevenue > 0 ? (r.total / summaryB.totalRevenue) * 100 : 0
-      })),
-      expenses: quarterlyItemized.scenarioB.expenses.map(e => ({
-        category: e.category,
-        ...analyzeItem(e),
-        shareOfTotal: summaryB.totalExpense > 0 ? (e.total / summaryB.totalExpense) * 100 : 0
-      }))
-    };
-  }, [quarterlyItemized, summaryB]);
-
-  // Sensitivity Analysis
-  const sensitivityAnalysis = useMemo((): EnhancedSensitivityAnalysis | null => {
-    if (!summaryB || !dealConfig) return null;
-
-    const scenarios = [-20, -10, 0, 10, 20];
-    const defaultQuarter = { scenarioBNet: 0 };
-    const capitalNeeds = calculateCapitalNeeds({
-      q1: safeArrayAccess(quarterlyComparison, 0, defaultQuarter).scenarioBNet,
-      q2: safeArrayAccess(quarterlyComparison, 1, defaultQuarter).scenarioBNet,
-      q3: safeArrayAccess(quarterlyComparison, 2, defaultQuarter).scenarioBNet,
-      q4: safeArrayAccess(quarterlyComparison, 3, defaultQuarter).scenarioBNet
-    });
-    
-    return {
-      revenueImpact: scenarios.map(change => {
-        const newRevenue = summaryB.totalRevenue * (1 + change/100);
-        const newProfit = newRevenue - summaryB.totalExpense;
-        const newMargin = newRevenue > 0 ? (newProfit / newRevenue) * 100 : 0;
-        const newValuation = newRevenue * dealConfig.sectorMultiple;
-        const newMOIC = dealConfig.investmentAmount > 0 
-          ? (newValuation * (dealConfig.equityPercentage/100)) / dealConfig.investmentAmount 
-          : 0;
-        const newRunway = newProfit > 0 
-          ? 999 
-          : Math.abs(capitalNeeds.minCumulativeCash + dealConfig.investmentAmount) / Math.max(Math.abs(newProfit/12), 1);
-        
-        return { 
-          change, 
-          revenue: newRevenue, 
-          profit: newProfit, 
-          margin: newMargin, 
-          valuation: newValuation, 
-          moic: newMOIC, 
-          runway: Math.round(Math.min(newRunway, 999))
-        };
-      }),
-      expenseImpact: scenarios.map(change => {
-        const newExpense = summaryB.totalExpense * (1 + change/100);
-        const newProfit = summaryB.totalRevenue - newExpense;
-        const newMargin = summaryB.totalRevenue > 0 ? (newProfit / summaryB.totalRevenue) * 100 : 0;
-        
-        return { change, expense: newExpense, profit: newProfit, margin: newMargin };
-      })
-    };
-  }, [summaryB, dealConfig, quarterlyComparison]);
 
   // Break-Even Analysis
   const breakEvenAnalysis = useMemo((): BreakEvenResult | null => {
@@ -916,10 +829,10 @@ function ScenarioComparisonContent() {
   // Bundle professional analysis data
   const professionalAnalysisData = useMemo((): ProfessionalAnalysisData => ({
     financialRatios,
-    itemTrendAnalysis,
-    sensitivityAnalysis,
+    itemTrendAnalysis: null,
+    sensitivityAnalysis: null,
     breakEvenAnalysis
-  }), [financialRatios, itemTrendAnalysis, sensitivityAnalysis, breakEvenAnalysis]);
+  }), [financialRatios, breakEvenAnalysis]);
 
   // =====================================================
   // PDF EXIT PLAN - UI ile aynı hesaplama (Merkezi)
@@ -1793,7 +1706,7 @@ function ScenarioComparisonContent() {
             </div>
 
             {/* SECTION 2.5: PROFESSIONAL ANALYSIS PANELS - ACCORDION */}
-            {(financialRatios || sensitivityAnalysis || itemTrendAnalysis || quarterlyItemized) && (
+            {financialRatios && (
               <div className="space-y-4">
                 <h3 className="text-sm font-medium text-muted-foreground flex items-center gap-2">
                   <Brain className="h-4 w-4" />
@@ -1801,88 +1714,18 @@ function ScenarioComparisonContent() {
                 </h3>
 
                 <Accordion type="multiple" defaultValue={['financial-ratios']} className="space-y-2">
-                  {/* Senaryo Karşılaştırması */}
-                  {quarterlyItemized && (
-                    <AccordionItem value="scenario-comparison" className="border rounded-lg bg-card">
-                      <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                        <div className="flex items-center gap-2">
-                          <ArrowLeftRight className="h-4 w-4 text-blue-400" />
-                          <span>{t('simulation:professionalAnalysis.scenarioComparison')}</span>
-                          <Badge variant="secondary" className="ml-2">
-                            {(quarterlyItemized.scenarioA?.revenues?.length || 0) + (quarterlyItemized.scenarioA?.expenses?.length || 0)} {t('simulation:projection.item')}
-                          </Badge>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="px-4 pb-4">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                          <ScenarioComparisonCards 
-                            quarterlyItemized={quarterlyItemized} 
-                            type="revenues" 
-                            scenarioAYear={scenarioA?.targetYear}
-                            scenarioBYear={scenarioB?.targetYear}
-                            scenarioAName={scenarioA?.name}
-                            scenarioBName={scenarioB?.name}
-                          />
-                          <ScenarioComparisonCards 
-                            quarterlyItemized={quarterlyItemized} 
-                            type="expenses" 
-                            scenarioAYear={scenarioA?.targetYear}
-                            scenarioBYear={scenarioB?.targetYear}
-                            scenarioAName={scenarioA?.name}
-                            scenarioBName={scenarioB?.name}
-                          />
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  )}
-                  
-                  {/* Trend Analizi */}
-                  {itemTrendAnalysis && (
-                    <AccordionItem value="trend-analysis" className="border rounded-lg bg-card">
-                      <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                        <div className="flex items-center gap-2">
-                          <Activity className="h-4 w-4 text-purple-400" />
-                          <span>{t('simulation:professionalAnalysis.trendAnalysis.title')}</span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="px-4 pb-4">
-                        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                          <ItemTrendCards analysis={itemTrendAnalysis} type="revenues" />
-                          <ItemTrendCards analysis={itemTrendAnalysis} type="expenses" />
-                        </div>
-                      </AccordionContent>
-                    </AccordionItem>
-                  )}
-                  
                   {/* Finansal Oranlar - Varsayılan açık */}
-                  {financialRatios && (
-                    <AccordionItem value="financial-ratios" className="border rounded-lg bg-card">
-                      <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                        <div className="flex items-center gap-2">
-                          <Calculator className="h-4 w-4 text-emerald-400" />
-                          <span>{t('simulation:professionalAnalysis.financialRatios.title')}</span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="px-4 pb-4">
-                        <FinancialRatiosPanel ratios={financialRatios} />
-                      </AccordionContent>
-                    </AccordionItem>
-                  )}
-                  
-                  {/* Sensitivity Analysis */}
-                  {sensitivityAnalysis && (
-                    <AccordionItem value="sensitivity" className="border rounded-lg bg-card">
-                      <AccordionTrigger className="px-4 py-3 hover:no-underline">
-                        <div className="flex items-center gap-2">
-                          <AlertTriangle className="h-4 w-4 text-amber-400" />
-                          <span>{t('simulation:professionalAnalysis.sensitivityAnalysis.title')}</span>
-                        </div>
-                      </AccordionTrigger>
-                      <AccordionContent className="px-4 pb-4">
-                        <SensitivityTable analysis={sensitivityAnalysis} baseProfit={summaryB?.netProfit || 0} />
-                      </AccordionContent>
-                    </AccordionItem>
-                  )}
+                  <AccordionItem value="financial-ratios" className="border rounded-lg bg-card">
+                    <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                      <div className="flex items-center gap-2">
+                        <Calculator className="h-4 w-4 text-emerald-400" />
+                        <span>{t('simulation:professionalAnalysis.financialRatios.title')}</span>
+                      </div>
+                    </AccordionTrigger>
+                    <AccordionContent className="px-4 pb-4">
+                      <FinancialRatiosPanel ratios={financialRatios} />
+                    </AccordionContent>
+                  </AccordionItem>
                 </Accordion>
               </div>
             )}
@@ -2023,7 +1866,7 @@ function ScenarioComparisonContent() {
         chartConfig={chartConfig}
         cumulativeChartConfig={cumulativeChartConfig}
         financialRatios={financialRatios}
-        sensitivityAnalysis={sensitivityAnalysis}
+        sensitivityAnalysis={null}
         unifiedAnalysis={unifiedAnalysis}
         dealConfig={dealConfig}
         pdfExitPlan={pdfExitPlan}
