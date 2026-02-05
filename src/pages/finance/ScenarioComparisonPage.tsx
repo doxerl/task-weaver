@@ -917,6 +917,83 @@ function ScenarioComparisonContent() {
   }, [capitalNeedB]);
 
   // =====================================================
+  // PDF OPTIMAL TIMING - AI Investment Timing için
+  // =====================================================
+  const optimalTiming = useMemo((): import('@/components/simulation/pdf/types').OptimalInvestmentTiming | null => {
+    if (!quarterlyComparison || quarterlyComparison.length === 0 || !capitalNeedB) return null;
+    
+    const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+    // Use quarterly comparison data for scenario B net flow
+    const flowsB = quarterlyComparison.map(q => q.scenarioBRevenue - q.scenarioBExpense);
+    
+    let cumulative = 0;
+    let firstDeficitQuarter = '';
+    let firstDeficitAmount = 0;
+    let maxDeficit = 0;
+    const quarterlyNeeds: number[] = [];
+    
+    for (let i = 0; i < 4; i++) {
+      cumulative += flowsB[i] || 0;
+      quarterlyNeeds.push(cumulative < 0 ? Math.abs(cumulative) : 0);
+      
+      if (cumulative < 0 && !firstDeficitQuarter) {
+        firstDeficitQuarter = quarters[i];
+        firstDeficitAmount = Math.abs(cumulative);
+      }
+      
+      if (cumulative < maxDeficit) {
+        maxDeficit = cumulative;
+      }
+    }
+    
+    const targetYear = scenarioB?.targetYear || new Date().getFullYear() + 1;
+    
+    let recommendedQuarter: string;
+    let recommendedTiming: string;
+    
+    if (!firstDeficitQuarter) {
+      recommendedQuarter = 'Opsiyonel';
+      recommendedTiming = 'Herhangi bir zamanda';
+    } else if (firstDeficitQuarter === 'Q1') {
+      recommendedQuarter = 'Yıl Başı';
+      recommendedTiming = `Ocak ${targetYear}'den önce`;
+    } else {
+      const idx = quarters.indexOf(firstDeficitQuarter);
+      recommendedQuarter = quarters[idx - 1] || 'Q1';
+      const monthMap: Record<string, string> = { 'Q1': 'Mart', 'Q2': 'Haziran', 'Q3': 'Eylül', 'Q4': 'Aralık' };
+      recommendedTiming = `${monthMap[recommendedQuarter]} ${targetYear} sonuna kadar`;
+    }
+    
+    let urgencyLevel: 'critical' | 'high' | 'medium' | 'low' = 'low';
+    if (!firstDeficitQuarter) urgencyLevel = 'low';
+    else if (firstDeficitQuarter === 'Q1') urgencyLevel = 'critical';
+    else if (firstDeficitQuarter === 'Q2') urgencyLevel = 'high';
+    else if (firstDeficitQuarter === 'Q3') urgencyLevel = 'medium';
+    
+    const formatK = (v: number) => `$${Math.round(v / 1000)}K`;
+    
+    const reason = firstDeficitQuarter === 'Q1'
+      ? `${firstDeficitQuarter}'de ${formatK(firstDeficitAmount)} açık başlıyor - Yatırım şimdi gerekli`
+      : firstDeficitQuarter
+        ? `${firstDeficitQuarter}'de ${formatK(firstDeficitAmount)} nakit açığı oluşacak`
+        : 'Nakit akışı pozitif, yatırım opsiyonel';
+        
+    const riskIfDelayed = firstDeficitQuarter
+      ? `Yatırım alınmazsa pozitif senaryoya geçiş mümkün değil. Büyüme stratejisi gecikir, pazar payı kaybedilir.`
+      : 'Düşük risk - organik büyüme mümkün';
+    
+    return {
+      recommendedQuarter,
+      recommendedTiming,
+      reason,
+      riskIfDelayed,
+      requiredInvestment: Math.abs(maxDeficit) * 1.20,
+      urgencyLevel,
+      quarterlyNeeds
+    };
+  }, [quarterlyComparison, capitalNeedB, scenarioB]);
+
+  // =====================================================
   // PDF SCENARIO COMPARISON - Yatırım vs Organik Büyüme
   // =====================================================
   const scenarioComparisonData = useMemo((): import('@/types/simulation').InvestmentScenarioComparison | null => {
@@ -1878,6 +1955,7 @@ function ScenarioComparisonContent() {
         capitalNeedA={capitalNeedA}
         capitalNeedB={capitalNeedB}
         investmentTiers={investmentTiers}
+        optimalTiming={optimalTiming}
         scenarioComparison={scenarioComparisonData}
       />
     </div>
