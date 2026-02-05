@@ -1,214 +1,105 @@
 
-# Eksik i18n Çevirilerinin Eklenmesi
+# Düzeltme Planı: Veri Kaynaklarının Doğru Entegrasyonu
 
-## Sorun
-Ekran görüntüsünde görüldüğü gibi, sekme başlıkları ve içeriklerdeki çeviri anahtarları ham key olarak görünüyor:
-- `capTable.title` 
-- `Sensitivity Analysis` (kısmen var)
-- `cashFlow.title`
-- `cashFlow.currentCash`, `cashFlow.runway`, `cashFlow.deathValley`, `CCC`, `cashFlow.days`
-- `cashFlow.forecast13Week`, `cashFlow.workingCapital`, `cashFlow.reconciliation`
+## Sorunun Özeti
+Cap Table, Working Capital, Sensitivity ve Cash Flow verileri yanlış entegre edilmiş:
+- **Hardcoded değerler** kullanılıyor (veritabanı yerine)
+- **AI analizi sonucu** olarak hesaplanmıyor
+- Compare sayfasında **senaryo karşılaştırması** yapılmıyor
 
-Bu anahtarlar `simulation.json` dosyalarında tanımlı olmadığı için çeviri yapılmıyor.
+## Düzeltme Adımları
 
-## Çözüm
-Her iki dil dosyasına (`tr/simulation.json` ve `en/simulation.json`) eksik çeviri bloklarını ekleyeceğiz.
+### 1. Database Schema Genişletmesi
+`simulation_scenarios` tablosuna eksik kolonlar eklenecek:
 
-## Eklenecek Çeviriler
+```sql
+ALTER TABLE simulation_scenarios
+ADD COLUMN cap_table_entries jsonb DEFAULT '[]',
+ADD COLUMN future_rounds jsonb DEFAULT '[]',
+ADD COLUMN working_capital_config jsonb DEFAULT NULL,
+ADD COLUMN sensitivity_results jsonb DEFAULT NULL,
+ADD COLUMN cash_flow_analysis jsonb DEFAULT NULL;
+```
 
-### Türkçe (tr/simulation.json)
-```json
-{
-  "capTable": {
-    "title": "Pay Tablosu",
-    "description": "Ortaklık yapısı ve sermaye dağılımı",
-    "holder": "Ortak",
-    "shares": "Pay Sayısı",
-    "percentage": "Oran",
-    "type": "Tür",
-    "typeOptions": {
-      "common": "Adi Pay",
-      "preferred": "İmtiyazlı",
-      "options": "Opsiyon",
-      "safe": "SAFE",
-      "convertible": "Convertible"
-    },
-    "addHolder": "Ortak Ekle",
-    "futureRounds": "Gelecek Turlar",
-    "addRound": "Tur Ekle",
-    "roundName": "Tur Adı",
-    "preMoneyValuation": "Pre-money Değerleme",
-    "postMoneyValuation": "Post-money Değerleme",
-    "dilution": "Sulanma"
-  },
-  "sensitivity": {
-    "title": "Duyarlılık Analizi",
-    "tornado": "Tornado",
-    "scenarios": "Senaryolar",
-    "tornadoTitle": "Tornado Analizi",
-    "tornadoDesc": "Her değişkenin ±%10 değişiminin değerlemeye etkisi",
-    "topDrivers": "En Etkili Değişkenler",
-    "downside": "Düşüş",
-    "upside": "Yükseliş",
-    "bearCase": "Kötümser Senaryo",
-    "baseCase": "Baz Senaryo",
-    "bullCase": "İyimser Senaryo",
-    "probability": "Olasılık",
-    "revenue": "Gelir",
-    "valuation": "Değerleme",
-    "runway": "Runway",
-    "months": "ay",
-    "expectedValue": "Beklenen Değer"
-  },
-  "cashFlow": {
-    "title": "Nakit Akışı",
-    "currentCash": "Mevcut Nakit",
-    "runway": "Runway",
-    "deathValley": "Death Valley",
-    "days": "gün",
-    "forecast13Week": "13 Haftalık Tahmin",
-    "workingCapital": "İşletme Sermayesi",
-    "reconciliation": "Uzlaştırma",
-    "cashPosition": "Nakit Pozisyonu",
-    "forecastDesc": "Haftalık nakit giriş ve çıkışları",
-    "week": "Hafta",
-    "openingBalance": "Açılış Bakiyesi",
-    "arCollections": "Alacak Tahsilatı",
-    "apPayments": "Borç Ödemeleri",
-    "payroll": "Maaşlar",
-    "operatingCash": "Operasyonel Nakit",
-    "debtService": "Borç Servisi",
-    "closingBalance": "Kapanış Bakiyesi",
-    "ccc": "Nakit Dönüşüm Döngüsü",
-    "cccDesc": "AR Günleri + Stok Günleri - AP Günleri",
-    "arDays": "Alacak Günleri",
-    "apDays": "Borç Günleri",
-    "inventoryDays": "Stok Günleri",
-    "nwc": "Net İşletme Sermayesi",
-    "nwcDesc": "Dönen Varlıklar - Kısa Vadeli Borçlar",
-    "currentAssets": "Dönen Varlıklar",
-    "currentLiabilities": "Kısa Vadeli Borçlar",
-    "reconciliationTitle": "P&L → Nakit Uzlaştırması",
-    "reconciliationDesc": "Net Kâr'dan Nakit Akışına geçiş",
-    "netIncome": "Net Kâr",
-    "addDepreciation": "+ Amortisman",
-    "ebitda": "EBITDA",
-    "wcChanges": "İşletme Sermayesi Değişimleri",
-    "operatingCashFlow": "Operasyonel Nakit Akışı",
-    "capex": "Yatırım Harcamaları",
-    "freeCashFlow": "Serbest Nakit Akışı",
-    "debtChanges": "Borç Değişimleri",
-    "endingCash": "Dönem Sonu Nakit",
-    "noData": "Veri bulunamadı",
-    "cashPositive": "Nakit Pozitif",
-    "monthsRunway": "{{count}} ay runway"
-  }
+### 2. Type Güncellemesi
+`src/types/simulation.ts` dosyasına eklenecek:
+
+```typescript
+interface SimulationScenario {
+  // ... mevcut alanlar
+  capTableEntries?: CapTableEntry[];
+  futureRounds?: FutureRoundAssumption[];
+  workingCapitalConfig?: WorkingCapitalConfigV2;
+  sensitivityResults?: TornadoResult[];
+  cashFlowAnalysis?: CashFlowAnalysisResult;
 }
 ```
 
-### İngilizce (en/simulation.json)
-```json
-{
-  "capTable": {
-    "title": "Cap Table",
-    "description": "Ownership structure and equity distribution",
-    "holder": "Holder",
-    "shares": "Shares",
-    "percentage": "Percentage",
-    "type": "Type",
-    "typeOptions": {
-      "common": "Common",
-      "preferred": "Preferred",
-      "options": "Options",
-      "safe": "SAFE",
-      "convertible": "Convertible"
-    },
-    "addHolder": "Add Holder",
-    "futureRounds": "Future Rounds",
-    "addRound": "Add Round",
-    "roundName": "Round Name",
-    "preMoneyValuation": "Pre-money Valuation",
-    "postMoneyValuation": "Post-money Valuation",
-    "dilution": "Dilution"
-  },
-  "sensitivity": {
-    "title": "Sensitivity Analysis",
-    "tornado": "Tornado",
-    "scenarios": "Scenarios",
-    "tornadoTitle": "Tornado Analysis",
-    "tornadoDesc": "Impact of ±10% change in each variable on valuation",
-    "topDrivers": "Top Drivers",
-    "downside": "Downside",
-    "upside": "Upside",
-    "bearCase": "Bear Case",
-    "baseCase": "Base Case",
-    "bullCase": "Bull Case",
-    "probability": "Probability",
-    "revenue": "Revenue",
-    "valuation": "Valuation",
-    "runway": "Runway",
-    "months": "months",
-    "expectedValue": "Expected Value"
-  },
-  "cashFlow": {
-    "title": "Cash Flow",
-    "currentCash": "Current Cash",
-    "runway": "Runway",
-    "deathValley": "Death Valley",
-    "days": "days",
-    "forecast13Week": "13-Week Forecast",
-    "workingCapital": "Working Capital",
-    "reconciliation": "Reconciliation",
-    "cashPosition": "Cash Position",
-    "forecastDesc": "Weekly cash inflows and outflows",
-    "week": "Week",
-    "openingBalance": "Opening Balance",
-    "arCollections": "AR Collections",
-    "apPayments": "AP Payments",
-    "payroll": "Payroll",
-    "operatingCash": "Operating Cash",
-    "debtService": "Debt Service",
-    "closingBalance": "Closing Balance",
-    "ccc": "Cash Conversion Cycle",
-    "cccDesc": "AR Days + Inventory Days - AP Days",
-    "arDays": "AR Days",
-    "apDays": "AP Days",
-    "inventoryDays": "Inventory Days",
-    "nwc": "Net Working Capital",
-    "nwcDesc": "Current Assets - Current Liabilities",
-    "currentAssets": "Current Assets",
-    "currentLiabilities": "Current Liabilities",
-    "reconciliationTitle": "P&L → Cash Reconciliation",
-    "reconciliationDesc": "Bridge from Net Income to Cash Flow",
-    "netIncome": "Net Income",
-    "addDepreciation": "+ Depreciation",
-    "ebitda": "EBITDA",
-    "wcChanges": "Working Capital Changes",
-    "operatingCashFlow": "Operating Cash Flow",
-    "capex": "Capital Expenditures",
-    "freeCashFlow": "Free Cash Flow",
-    "debtChanges": "Debt Changes",
-    "endingCash": "Ending Cash",
-    "noData": "No data available",
-    "cashPositive": "Cash Positive",
-    "monthsRunway": "{{count}} months runway"
-  }
-}
+### 3. useScenarios Hook Güncellemesi
+Yeni alanların kaydedilmesi ve okunması:
+- `saveScenario()` - cap_table_entries, future_rounds, working_capital_config dahil
+- `fetchScenarios()` - bu alanları okuyup mapped objeye ekle
+
+### 4. GrowthSimulation.tsx Güncellemesi
+Hardcoded state yerine:
+- Senaryo yüklendiğinde `capTableEntries` ve `futureRounds`'u senaryodan yükle
+- Kaydet butonuna basıldığında bu verileri senaryoya dahil et
+
+### 5. Working Capital'ın Balance Sheet'ten Hesaplanması
+`useBalanceSheet` hook'undan alacak/borç bakiyelerini okuyup gün hesaplaması:
+
+```typescript
+// AR Days = (Ticari Alacaklar / Yıllık Gelir) * 365
+// AP Days = (Ticari Borçlar / Yıllık COGS) * 365
+const arDays = (tradeReceivables / annualRevenue) * 365;
+const apDays = (tradePayables / annualCOGS) * 365;
 ```
+
+### 6. AI Analizi Entegrasyonu
+Compare sayfasında AI analizi çağrıldığında:
+- Senaryo A ve B'nin cap table, working capital verilerini prompt'a dahil et
+- AI'dan sensitivity ve cash flow analizi iste
+- Sonuçları `scenario_ai_analyses` tablosuna kaydet
+
+### 7. ScenarioComparisonPage Read-Only Görünümü
+AI analizi sonuçlarını göster:
+- `sensitivityResults` → SensitivityPanel'e aktar (read-only)
+- `cashFlowAnalysis` → CashFlowDashboard'a aktar (read-only)
+- `capTableEntries` → Karşılaştırmalı Cap Table göster
 
 ## Dosya Değişiklikleri
 
 | Dosya | Değişiklik |
 |-------|-----------|
-| `src/i18n/locales/tr/simulation.json` | `capTable`, `sensitivity`, `cashFlow` bloklarını ekle |
-| `src/i18n/locales/en/simulation.json` | `capTable`, `sensitivity`, `cashFlow` bloklarını ekle |
+| `supabase/migrations/` | Yeni kolonlar ekle |
+| `src/types/simulation.ts` | CapTable, WorkingCapital, Sensitivity result tipleri |
+| `src/hooks/finance/useScenarios.ts` | Yeni alanları kaydet/yükle |
+| `src/pages/finance/GrowthSimulation.tsx` | State yerine senaryodan veri yükle |
+| `src/hooks/finance/useBalanceSheet.ts` | AR/AP Days hesaplama fonksiyonu ekle |
+| `supabase/functions/unified-scenario-analysis/` | Cap Table, Working Capital prompt'a dahil et |
+| `src/pages/finance/ScenarioComparisonPage.tsx` | AI sonuçlarını read-only göster |
 
-## Uygulama Adımları
-1. Her iki JSON dosyasının en üst seviyesine yeni blokları ekle
-2. Bileşenlerde kullanılan tüm anahtarların karşılıklarını doğrula
-3. Uygulamayı test et
+## Veri Akışı (Düzeltilmiş)
 
-## Teknik Notlar
-- Yeni bloklar mevcut JSON yapısını bozmadan root seviyesine eklenecek
-- Bileşenlerdeki `t('simulation:cashFlow.xxx')` çağrıları otomatik olarak çalışmaya başlayacak
-- Eksik anahtarlar varsa fallback olarak İngilizce gösterilecek
+```text
+/finance/simulation (GrowthSimulation.tsx)
+├── Kullanıcı Cap Table girer → capTableEntries state
+├── Kullanıcı Working Capital ayarlar → workingCapitalConfig state  
+├── [Kaydet] → simulation_scenarios tablosuna tüm veriler
+└── [Risk Analizi] → /finance/simulation/compare'e yönlendir
+
+/finance/simulation/compare (ScenarioComparisonPage.tsx)
+├── Senaryo A seç → cap_table_entries, working_capital_config yükle
+├── Senaryo B seç → cap_table_entries, working_capital_config yükle
+├── [AI Analizi] → Edge Function çağır
+│   ├── Input: revenues, expenses, cap_table, working_capital
+│   └── Output: sensitivity_results, cash_flow_analysis
+├── Sonuçları scenario_ai_analyses'e kaydet
+└── Read-only göster: Sensitivity, Cash Flow, Cap Table karşılaştırması
+```
+
+## Öncelik Sırası
+1. **P1 (Kritik)**: MOIC bölme hatası düzelt (investmentAmount = 0 kontrolü)
+2. **P1 (Kritik)**: Cap Table verilerini DB'ye kaydet
+3. **P2 (Önemli)**: Working Capital'ı Balance Sheet'ten hesapla
+4. **P3 (İyileştirme)**: AI analizine entegre et
