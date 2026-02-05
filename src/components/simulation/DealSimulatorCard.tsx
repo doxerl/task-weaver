@@ -15,6 +15,7 @@ import {
   Percent,
   ChevronDown,
   ChevronUp,
+  Loader2,
 } from 'lucide-react';
 import {
   SECTOR_MULTIPLES,
@@ -70,6 +71,9 @@ export interface DealSimulatorCardProps {
   // NEW: Business model for fallback decay calculation
   businessModel?: BusinessModel;
 
+  // Auto-save indicator
+  isAutoSaving?: boolean;
+
   // Optional: className for styling
   className?: string;
 }
@@ -90,6 +94,7 @@ export const DealSimulatorCard: React.FC<DealSimulatorCardProps> = ({
   onOpenChange,
   exitPlanYear5,
   businessModel = 'SAAS',
+  isAutoSaving = false,
   className,
 }) => {
   const { t } = useTranslation(['simulation', 'common']);
@@ -205,6 +210,12 @@ export const DealSimulatorCard: React.FC<DealSimulatorCardProps> = ({
                 </div>
               </div>
               <div className="flex items-center gap-2">
+                {isAutoSaving && (
+                  <Badge variant="outline" className="text-xs text-primary border-primary/30">
+                    <Loader2 className="h-3 w-3 animate-spin mr-1" />
+                    {t('simulation:investment.dealSimulator.saving', { defaultValue: 'Kaydediliyor...' })}
+                  </Badge>
+                )}
                 {cashAnalysis.needsInvestment && (
                   <Badge variant="destructive" className="text-xs">
                     {t('simulation:capital.notSelfSustaining')}
