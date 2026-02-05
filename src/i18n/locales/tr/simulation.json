@@ -1474,5 +1474,55 @@
     "endingCash": "Dönem Sonu Nakit",
     "noReconciliationData": "Uzlaştırma verisi bulunamadı",
     "closingBalance": "Kapanış Bakiyesi"
+  },
+  "pdfInsights": {
+    "calculatedMetrics": "Hesaplanmış Metrikler",
+    "aiSuggestionsHighConfidence": "AI Önerileri (Yüksek Güven)",
+    "revenueGapAnalysis": "Gelir Farkı Analizi",
+    "revenueGapDesc": "Yatırım senaryosu ile {{amount}} {{direction}} gelir öngörülüyor.",
+    "more": "daha fazla",
+    "less": "daha az",
+    "runwayComparison": "Runway Karşılaştırması",
+    "runwayComparisonDesc": "Pozitif senaryo: {{positiveMonths}} ay, Negatif senaryo: {{negativeMonths}} ay runway. {{extraMonths}}",
+    "extraMonthsSustainability": "{{months}} ay daha uzun sürdürülebilirlik.",
+    "deathValleyWarning": "Death Valley Uyarısı",
+    "deathValleyDesc": "Organik senaryoda {{quarter}}'de {{amount}} nakit açığı oluşacak. Minimum {{required}} yatırım gerekli.",
+    "profitMarginDifference": "Kâr Marjı Farkı",
+    "profitMarginDesc": "Pozitif senaryo: %{{marginA}}, Negatif senaryo: %{{marginB}} kâr marjı. {{improvement}}",
+    "marginImprovement": "Yatırım ile %{{points}} puan iyileşme.",
+    "investmentImpact": "Yatırım Getiri Etkisi",
+    "investmentImpactDesc": "{{amount}} yatırım ile {{multiplier}}x gelir çarpanı elde ediliyor.",
+    "opportunityCost": "Fırsat Maliyeti",
+    "opportunityCostDesc": "Yatırım alınmazsa {{amount}} potansiyel gelir kaybedilecek. Risk seviyesi: {{riskLevel}}.",
+    "calculation": "Hesaplama"
+  },
+  "pdfTiming": {
+    "investmentTiers": {
+      "minimum": "Minimum Yatırım",
+      "minimumDesc": "Hayatta kalma için minimum sermaye",
+      "recommended": "Önerilen Yatırım",
+      "recommendedDesc": "18 aylık runway için önerilen",
+      "aggressive": "Agresif Büyüme",
+      "aggressiveDesc": "Agresif büyüme sermayesi"
+    },
+    "optimalTiming": {
+      "optional": "Opsiyonel",
+      "anytime": "Herhangi bir zamanda",
+      "yearStart": "Yıl Başı",
+      "beforeMonth": "{{month}} {{year}}'den önce",
+      "byEndOf": "{{month}} {{year}} sonuna kadar",
+      "months": {
+        "january": "Ocak",
+        "march": "Mart",
+        "june": "Haziran",
+        "september": "Eylül",
+        "december": "Aralık"
+      },
+      "deficitStarting": "{{quarter}}'de {{amount}} açık başlıyor - Yatırım şimdi gerekli",
+      "deficitWillOccur": "{{quarter}}'de {{amount}} nakit açığı oluşacak",
+      "cashFlowPositive": "Nakit akışı pozitif, yatırım opsiyonel",
+      "riskIfDelayed": "Yatırım alınmazsa pozitif senaryoya geçiş mümkün değil. Büyüme stratejisi gecikir, pazar payı kaybedilir.",
+      "lowRisk": "Düşük risk - organik büyüme mümkün"
+    }
   }
 }
