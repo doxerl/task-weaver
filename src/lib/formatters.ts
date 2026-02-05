@@ -56,3 +56,23 @@ export function formatFullTRY(value: number): string {
     maximumFractionDigits: 0,
   }).format(value);
 }
+
+/**
+ * Generic currency formatter with compact option
+ * formatCurrency(1234567, 'USD') → "$1,234,567"
+ * formatCurrency(1234567, 'USD', true) → "$1.2M"
+ */
+export function formatCurrency(
+  value: number,
+  currencyCode: 'TRY' | 'USD' = 'TRY',
+  compact: boolean = false
+): string {
+  if (compact) {
+    return formatCompact(value, currencyCode);
+  }
+  
+  if (currencyCode === 'USD') {
+    return formatFullUSD(value);
+  }
+  return formatFullTRY(value);
+}
