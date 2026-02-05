@@ -757,7 +757,8 @@
     "ok": "OK",
     "createSimulation": "Create {{year}} Simulation",
     "pdfSuccess": "PDF created successfully",
-    "pdfError": "Error creating PDF"
+    "pdfError": "Error creating PDF",
+    "projections": "Projections"
   },
   "financialRatios": {
     "title": "Financial Ratios (B2B Services Benchmark)",
