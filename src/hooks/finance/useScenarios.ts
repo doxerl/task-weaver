@@ -8,7 +8,12 @@ import {
   SimulationScenario,
   InvestmentAllocation,
   DealConfig,
-  NextYearProjection
+  NextYearProjection,
+  CapTableEntry,
+  FutureRoundAssumption,
+  WorkingCapitalConfig,
+  TornadoResult,
+  CashFlowAnalysisResult,
 } from '@/types/simulation';
 
 interface DatabaseScenario {
@@ -33,6 +38,12 @@ interface DatabaseScenario {
   focus_project_plan: string | null;
   investment_allocation: InvestmentAllocation | null;
   deal_config: DealConfig | null;
+  // NEW: Cap Table, Working Capital, Sensitivity and Cash Flow data
+  cap_table_entries: unknown[] | null;
+  future_rounds: unknown[] | null;
+  working_capital_config: unknown | null;
+  sensitivity_results: unknown[] | null;
+  cash_flow_analysis: unknown | null;
 }
 
 export function useScenarios() {
@@ -76,6 +87,12 @@ export function useScenarios() {
         focusProjectPlan: d.focus_project_plan || '',
         investmentAllocation: d.investment_allocation || { product: 40, marketing: 30, hiring: 20, operations: 10 },
         dealConfig: d.deal_config || undefined,
+        // NEW: Cap Table, Working Capital, Sensitivity and Cash Flow data
+        capTableEntries: (d.cap_table_entries as CapTableEntry[] | null) || undefined,
+        futureRounds: (d.future_rounds as FutureRoundAssumption[] | null) || undefined,
+        workingCapitalConfig: (d.working_capital_config as WorkingCapitalConfig | null) || undefined,
+        sensitivityResults: (d.sensitivity_results as TornadoResult[] | null) || undefined,
+        cashFlowAnalysis: (d.cash_flow_analysis as CashFlowAnalysisResult | null) || undefined,
       }));
 
       setScenarios(mapped);
@@ -121,6 +138,12 @@ export function useScenarios() {
             focus_project_plan: scenario.focusProjectPlan || '',
             investment_allocation: JSON.parse(JSON.stringify(scenario.investmentAllocation || { product: 40, marketing: 30, hiring: 20, operations: 10 })),
             deal_config: scenario.dealConfig ? JSON.parse(JSON.stringify(scenario.dealConfig)) : null,
+            // NEW: Cap Table, Working Capital, Sensitivity and Cash Flow data
+            cap_table_entries: scenario.capTableEntries ? JSON.parse(JSON.stringify(scenario.capTableEntries)) : null,
+            future_rounds: scenario.futureRounds ? JSON.parse(JSON.stringify(scenario.futureRounds)) : null,
+            working_capital_config: scenario.workingCapitalConfig ? JSON.parse(JSON.stringify(scenario.workingCapitalConfig)) : null,
+            sensitivity_results: scenario.sensitivityResults ? JSON.parse(JSON.stringify(scenario.sensitivityResults)) : null,
+            cash_flow_analysis: scenario.cashFlowAnalysis ? JSON.parse(JSON.stringify(scenario.cashFlowAnalysis)) : null,
           })
           .eq('id', existingId);
 
@@ -150,6 +173,12 @@ export function useScenarios() {
             focus_project_plan: scenario.focusProjectPlan || '',
             investment_allocation: JSON.parse(JSON.stringify(scenario.investmentAllocation || { product: 40, marketing: 30, hiring: 20, operations: 10 })),
             deal_config: scenario.dealConfig ? JSON.parse(JSON.stringify(scenario.dealConfig)) : null,
+            // NEW: Cap Table, Working Capital, Sensitivity and Cash Flow data
+            cap_table_entries: scenario.capTableEntries ? JSON.parse(JSON.stringify(scenario.capTableEntries)) : null,
+            future_rounds: scenario.futureRounds ? JSON.parse(JSON.stringify(scenario.futureRounds)) : null,
+            working_capital_config: scenario.workingCapitalConfig ? JSON.parse(JSON.stringify(scenario.workingCapitalConfig)) : null,
+            sensitivity_results: scenario.sensitivityResults ? JSON.parse(JSON.stringify(scenario.sensitivityResults)) : null,
+            cash_flow_analysis: scenario.cashFlowAnalysis ? JSON.parse(JSON.stringify(scenario.cashFlowAnalysis)) : null,
           })
           .select('id')
           .single();

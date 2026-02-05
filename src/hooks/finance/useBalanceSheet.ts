@@ -23,6 +23,13 @@ const EMPTY_CASH_FLOW_SUMMARY: CashFlowSummary = {
   outflowsByType: { expenses: 0, partnerPayments: 0, investments: 0, financing: 0, other: 0 }
 };
 
+export interface WorkingCapitalDays {
+  arDays: number;           // Accounts Receivable Days
+  apDays: number;           // Accounts Payable Days
+  inventoryDays: number;    // Inventory Days
+  ccc: number;              // Cash Conversion Cycle
+}
+
 export function useBalanceSheet(year: number): { 
   balanceSheet: BalanceSheet; 
   isLoading: boolean; 
@@ -37,6 +44,8 @@ export function useBalanceSheet(year: number): {
   incomeSummaryNet: number;
   expenseSummaryNet: number;
   cashFlowSummary: CashFlowSummary;
+  // NEW: Working Capital Days calculation
+  workingCapitalDays: WorkingCapitalDays;
 } {
   const { 
     yearlyBalance, 
@@ -86,6 +95,12 @@ export function useBalanceSheet(year: number): {
         net: 0,
         outflowsByType: { expenses: 0, partnerPayments: 0, investments: 0, financing: 0, other: 0 }
       };
+      const emptyWorkingCapitalDays: WorkingCapitalDays = {
+        arDays: 0,
+        apDays: 0,
+        inventoryDays: 0,
+        ccc: 0,
+      };
       return { 
         balanceSheet: emptyBalanceSheet, 
         isLoading: true, 
@@ -99,6 +114,7 @@ export function useBalanceSheet(year: number): {
         incomeSummaryNet: 0,
         expenseSummaryNet: 0,
         cashFlowSummary: emptyCashFlowSummary,
+        workingCapitalDays: emptyWorkingCapitalDays,
       };
     }
 
@@ -168,6 +184,27 @@ export function useBalanceSheet(year: number): {
         difference: 0,
       };
 
+      // Calculate Working Capital Days from locked balance sheet data
+      const annualRevenue = hubIncomeSummaryNet > 0 ? hubIncomeSummaryNet * 12 : 1; // Avoid division by zero
+      const annualCOGS = hubExpenseSummaryNet > 0 ? hubExpenseSummaryNet * 12 : 1;
+      const lockedArDays = yearlyBalance.trade_receivables > 0 
+        ? Math.round((yearlyBalance.trade_receivables / annualRevenue) * 365) 
+        : 45; // Default AR days
+      const lockedApDays = yearlyBalance.trade_payables > 0 
+        ? Math.round((yearlyBalance.trade_payables / annualCOGS) * 365) 
+        : 30; // Default AP days
+      const lockedInventoryDays = yearlyBalance.inventory > 0 
+        ? Math.round((yearlyBalance.inventory / annualCOGS) * 365) 
+        : 0;
+      const lockedCcc = lockedArDays + lockedInventoryDays - lockedApDays;
+      
+      const lockedWorkingCapitalDays: WorkingCapitalDays = {
+        arDays: lockedArDays,
+        apDays: lockedApDays,
+        inventoryDays: lockedInventoryDays,
+        ccc: lockedCcc,
+      };
+
       return { 
         balanceSheet: lockedBalanceSheet, 
         isLoading: false, 
@@ -182,6 +219,7 @@ export function useBalanceSheet(year: number): {
         incomeSummaryNet: hubIncomeSummaryNet,
         expenseSummaryNet: hubExpenseSummaryNet,
         cashFlowSummary: hubCashFlowSummary,
+        workingCapitalDays: lockedWorkingCapitalDays,
       };
     }
 
@@ -256,6 +294,27 @@ export function useBalanceSheet(year: number): {
       difference: newDifference,
     };
 
+    // Calculate Working Capital Days from dynamic balance sheet data
+    const dynamicAnnualRevenue = hubIncomeSummaryNet > 0 ? hubIncomeSummaryNet * 12 : 1;
+    const dynamicAnnualCOGS = hubExpenseSummaryNet > 0 ? hubExpenseSummaryNet * 12 : 1;
+    const dynamicArDays = balanceData.tradeReceivables > 0 
+      ? Math.round((balanceData.tradeReceivables / dynamicAnnualRevenue) * 365) 
+      : 45;
+    const dynamicApDays = balanceData.tradePayables > 0 
+      ? Math.round((balanceData.tradePayables / dynamicAnnualCOGS) * 365) 
+      : 30;
+    const dynamicInventoryDays = balanceData.inventory > 0 
+      ? Math.round((balanceData.inventory / dynamicAnnualCOGS) * 365) 
+      : 0;
+    const dynamicCcc = dynamicArDays + dynamicInventoryDays - dynamicApDays;
+    
+    const dynamicWorkingCapitalDays: WorkingCapitalDays = {
+      arDays: dynamicArDays,
+      apDays: dynamicApDays,
+      inventoryDays: dynamicInventoryDays,
+      ccc: dynamicCcc,
+    };
+
     return { 
       balanceSheet, 
       isLoading: false, 
@@ -269,6 +328,7 @@ export function useBalanceSheet(year: number): {
       incomeSummaryNet: hubIncomeSummaryNet,
       expenseSummaryNet: hubExpenseSummaryNet,
       cashFlowSummary: hubCashFlowSummary,
+      workingCapitalDays: dynamicWorkingCapitalDays,
     };
   }, [hubIsLoading, hubBalanceData, hubUncategorizedCount, hubUncategorizedTotal, hubOperatingProfit, hubIncomeSummaryNet, hubExpenseSummaryNet, hubCashFlowSummary, year, isYearlyLoading, isLocked, yearlyBalance, lockBalance, upsertBalance, isUpdating, incomeStatementNetProfit]);
 }

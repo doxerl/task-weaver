@@ -271,10 +271,14 @@ const calculateScenarioOutcome = (
     : 999;
   
   // MOIC calculation (5-year exit assumption)
+  // CRITICAL FIX: Prevent astronomical MOIC values when investmentAmount is 0 or very small
+  const MIN_INVESTMENT_THRESHOLD = 1000; // Minimum $1,000 for valid MOIC calculation
   const year5Revenue = revenue * Math.pow(1.25, 4); // 25% growth for 4 more years
   const year5Valuation = year5Revenue * sectorMultiple;
   const investorShare = year5Valuation * (equityPercentage / 100);
-  const moic = investmentAmount > 0 ? investorShare / investmentAmount : 0;
+  const moic = investmentAmount >= MIN_INVESTMENT_THRESHOLD 
+    ? investorShare / investmentAmount 
+    : 0; // Return 0 if investment is too small to calculate meaningful MOIC
   
   // IRR calculation (simplified)
   const irr = investmentAmount > 0 
