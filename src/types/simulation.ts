@@ -1593,3 +1593,295 @@ export const createDefaultUnitEconomics = (): UnitEconomics => ({
   monthlyChurnRate: 0.02,
   acv: 0,
 });
+
+// =====================================================
+// INVESTOR-GRADE CAP TABLE TYPES (P1.1)
+// =====================================================
+
+/** Cap Table Entry - Individual shareholder */
+export interface CapTableEntry {
+  holder: string;
+  shares: number;
+  percentage: number;
+  type: 'common' | 'preferred' | 'options' | 'safe';
+}
+
+/** Deal Terms V2 - Enhanced with full term sheet parameters */
+export interface DealTermsV2 {
+  instrument: 'Equity' | 'SAFE' | 'Convertible';
+  pre_money?: number;
+  post_money?: number;
+  option_pool_existing: number;
+  option_pool_new: number;
+  liq_pref: '1x_non_participating' | '1x_participating' | '2x_non_participating';
+  pro_rata: boolean;
+  founder_vesting: { years: number; cliff_years: number };
+  anti_dilution: 'none' | 'weighted_avg' | 'full_ratchet';
+}
+
+/** Cap Table Configuration */
+export interface CapTableConfig {
+  current: CapTableEntry[];
+  future_rounds_assumptions: FutureRoundAssumption[];
+}
+
+/** Future Round Assumption for dilution modeling */
+export interface FutureRoundAssumption {
+  round: string;               // 'Seed', 'Series A', 'Series B'
+  dilution_pct: number;        // 0.15 = 15%
+  investment_amount?: number;  // Expected investment
+  expected_valuation?: number; // Expected valuation at round
+}
+
+/** Exit Waterfall Result */
+export interface ExitWaterfallResult {
+  exit_value: number;
+  liquidation_preference_payout: number;
+  remaining_for_common: number;
+  proceeds_by_holder: { holder: string; proceeds: number; moic: number }[];
+}
+
+/** Dilution Path Entry - tracks ownership through funding rounds */
+export interface DilutionPathEntry {
+  round: string;
+  ownership: number;
+  valuation: number;
+  cumulativeDilution: number;
+  investmentAmount?: number;
+}
+
+// =====================================================
+// EVIDENCE TRACE TYPES (P1.5)
+// =====================================================
+
+/** Evidence Trace - Required for every AI insight/recommendation with numbers */
+export interface EvidenceTrace {
+  evidence_paths: string[];    // JSON paths: ["dealConfig.investmentAmount", "summaryA.totalRevenue"]
+  calc_trace: string;          // "MOIC = $3.2M × 8% / $250K = 1.02x"
+  data_needed?: string[];      // ["customer_count", "churn_rate"] - missing data
+  confidence_score: number;    // 0-100
+  assumptions?: string[];      // Assumptions made
+}
+
+/** AI Scenario Insight V2 - With evidence trace */
+export interface AIScenarioInsightV2 extends AIScenarioInsight {
+  evidence?: EvidenceTrace;
+}
+
+/** AI Recommendation V2 - With evidence trace */
+export interface AIRecommendationV2 extends AIRecommendation {
+  evidence?: EvidenceTrace;
+}
+
+// =====================================================
+// WORKING CAPITAL & CASH FLOW TYPES (P1.2)
+// =====================================================
+
+/** Working Capital Configuration */
+export interface WorkingCapitalConfigV2 {
+  ar_days: number;                    // Accounts Receivable collection days
+  ap_days: number;                    // Accounts Payable payment days
+  inventory_days?: number;            // Inventory holding days (optional)
+  deferred_revenue_days?: number;     // Deferred revenue recognition days
+}
+
+/** Tax & Financing Configuration */
+export interface TaxFinancingConfig {
+  corporate_tax_rate: number;
+  tax_payment_lag_days: number;
+  vat_withholding_mode?: 'monthly' | 'quarterly';
+  debt_schedule?: DebtItem[];
+}
+
+/** Debt Schedule Item */
+export interface DebtItem {
+  name: string;
+  principal: number;
+  interest_rate: number;
+  maturity_date: string;
+  payment_frequency: 'monthly' | 'quarterly' | 'annually';
+  remaining_balance: number;
+}
+
+/** CapEx & Depreciation Configuration */
+export interface CapexDepreciationConfig {
+  capex_by_category: Record<string, number>;
+  depreciation_years: number;
+  method: 'straight_line' | 'declining_balance';
+}
+
+/** 13-Week Cash Forecast */
+export interface ThirteenWeekCashForecast {
+  week: number;
+  week_label: string;
+  opening_balance: number;
+  ar_collections: number;
+  ap_payments: number;
+  payroll: number;
+  other_operating: number;
+  debt_service: number;
+  net_cash_flow: number;
+  closing_balance: number;
+}
+
+/** Cash Reconciliation Bridge */
+export interface CashReconciliationBridge {
+  net_income: number;
+  add_depreciation: number;
+  add_amortization: number;
+  ebitda: number;
+  change_in_ar: number;
+  change_in_ap: number;
+  change_in_inventory: number;
+  operating_cash_flow: number;
+  capex: number;
+  investing_cash_flow: number;
+  debt_proceeds: number;
+  debt_repayments: number;
+  financing_cash_flow: number;
+  net_change_in_cash: number;
+  ending_cash: number;
+}
+
+// =====================================================
+// SENSITIVITY ANALYSIS TYPES (P1.4)
+// =====================================================
+
+/** Sensitivity Configuration */
+export interface SensitivityConfigV2 {
+  mode: 'tornado' | 'scenario_matrix' | 'monte_carlo';
+  shock_range: number;     // ±% (e.g., 0.10 = ±10%)
+  drivers: string[];       // ['growth_rate', 'gross_margin', 'churn', 'cac']
+}
+
+/** Tornado Analysis Result */
+export interface TornadoResult {
+  driver: string;
+  base_value: number;
+  low_value: number;
+  high_value: number;
+  valuation_at_low: number;
+  valuation_at_high: number;
+  valuation_swing: number;
+  runway_at_low: number;
+  runway_at_high: number;
+}
+
+/** Scenario Matrix (Base/Bull/Bear) */
+export interface ScenarioMatrixV2 {
+  base: ScenarioOutcomeV2;
+  bull: ScenarioOutcomeV2;
+  bear: ScenarioOutcomeV2;
+}
+
+/** Scenario Outcome for matrix */
+export interface ScenarioOutcomeV2 {
+  name: string;
+  revenue: number;
+  expenses: number;
+  net_profit: number;
+  valuation: number;
+  runway_months: number;
+  moic: number;
+  irr?: number;
+  probability?: number;
+}
+
+// =====================================================
+// UNIT ECONOMICS DRIVER TYPES (P1.3)
+// =====================================================
+
+/** Business Model Type */
+export type BusinessModelType = 'B2B_SaaS' | 'B2C_SaaS' | 'ECOM' | 'CONSULTING' | 'MARKETPLACE' | 'OTHER';
+
+/** Unit Economics Input - model-specific drivers */
+export interface UnitEconomicsInputV2 {
+  // SaaS metrics
+  mrr?: number;
+  arr?: number;
+  arpa?: number;
+  gross_margin?: number;
+  logo_churn?: number;
+  nrr?: number;
+  cac?: number;
+  ltv?: number;
+  payback_months?: number;
+  
+  // E-commerce metrics
+  traffic?: number;
+  conversion?: number;
+  aov?: number;
+  repeat_rate?: number;
+  return_rate?: number;
+  fulfillment_cost?: number;
+  
+  // Consulting metrics
+  billable_hc?: number;
+  utilization?: number;
+  blended_rate?: number;
+  project_margin?: number;
+}
+
+// =====================================================
+// BENCHMARKS & COMPARABLES TYPES (P2.3)
+// =====================================================
+
+/** Benchmarks Configuration - curated dataset */
+export interface BenchmarksConfig {
+  dataset_id: string;
+  last_updated: string;
+  sources_provenance: string[];
+  records: ComparableRecord[];
+}
+
+/** Comparable Company Record */
+export interface ComparableRecord {
+  company_name: string;
+  sector: string;
+  stage: string;
+  revenue_multiple: number;
+  ebitda_multiple: number;
+  source: string;
+  exit_year?: number;
+}
+
+// =====================================================
+// DEAL SCORE BREAKDOWN TYPES (P2.2)
+// =====================================================
+
+/** Deal Score Breakdown - transparent scoring */
+export interface DealScoreBreakdown {
+  traction: { score: number; weight: number; evidence: string };
+  unit_economics: { score: number; weight: number; evidence: string };
+  cash_risk: { score: number; weight: number; evidence: string };
+  terms: { score: number; weight: number; evidence: string };
+  exit_clarity: { score: number; weight: number; evidence: string };
+  data_quality: { score: number; weight: number; evidence: string };
+  total: number;
+  formula: string;
+}
+
+// =====================================================
+// ENHANCED ANALYSIS OUTPUT TYPES
+// =====================================================
+
+/** Enhanced Sensitivity Results */
+export interface SensitivityResults {
+  tornado: TornadoResult[];
+  scenario_matrix: ScenarioMatrixV2;
+  survival_probability?: number;
+}
+
+/** Enhanced Deal Analysis with cap table */
+export interface EnhancedDealAnalysis {
+  deal_score: number;
+  deal_score_breakdown?: DealScoreBreakdown;
+  valuation_verdict: 'premium' | 'fair' | 'cheap';
+  cap_table_current?: CapTableEntry[];
+  cap_table_post_money?: CapTableEntry[];
+  dilution_path?: DilutionPathEntry[];
+  exit_waterfall?: ExitWaterfallResult;
+  irr?: number;
+  moic: number;
+  payback_year?: number;
+}
