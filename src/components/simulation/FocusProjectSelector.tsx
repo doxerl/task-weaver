@@ -5,7 +5,7 @@ import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Badge } from '@/components/ui/badge';
-import { Target, TrendingUp, DollarSign, Users, Megaphone, Settings, AlertCircle } from 'lucide-react';
+import { Target, TrendingUp, DollarSign, Users, Megaphone, Settings, AlertCircle, Loader2, CheckCircle2 } from 'lucide-react';
 import { ProjectionItem, InvestmentAllocation } from '@/types/simulation';
 import { formatCompactUSD } from '@/lib/formatters';
 import { useTranslation } from 'react-i18next';
@@ -18,6 +18,7 @@ interface FocusProjectSelectorProps {
   onFocusProjectsChange: (projects: string[]) => void;
   onFocusProjectPlanChange: (plan: string) => void;
   onInvestmentAllocationChange: (allocation: InvestmentAllocation) => void;
+  isAutoSaving?: boolean;
 }
 
 export const FocusProjectSelector = ({
@@ -27,7 +28,8 @@ export const FocusProjectSelector = ({
   investmentAllocation,
   onFocusProjectsChange,
   onFocusProjectPlanChange,
-  onInvestmentAllocationChange
+  onInvestmentAllocationChange,
+  isAutoSaving = false,
 }: FocusProjectSelectorProps) => {
   const { t } = useTranslation(['simulation']);
   
@@ -81,6 +83,12 @@ export const FocusProjectSelector = ({
           {safeProjects.length > 0 && (
             <Badge variant="secondary" className="ml-2">
               {t('focusProject.projectsSelected', { count: safeProjects.length })}
+            </Badge>
+          )}
+          {isAutoSaving && (
+            <Badge variant="outline" className="ml-auto text-primary border-primary/30">
+              <Loader2 className="h-3 w-3 animate-spin mr-1" />
+              {t('focusProject.saving', { defaultValue: 'Kaydediliyor...' })}
             </Badge>
           )}
         </CardTitle>

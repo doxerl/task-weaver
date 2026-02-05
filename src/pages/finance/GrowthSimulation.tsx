@@ -54,6 +54,12 @@ function GrowthSimulationContent() {
   const [scenarioType, setScenarioType] = useState<'positive' | 'negative'>('positive');
   const [urlScenarioLoaded, setUrlScenarioLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState('projections');
+  
+  // =====================================================
+  // AUTO-SAVE STATE
+  // =====================================================
+  const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+  const [isAutoSaving, setIsAutoSaving] = useState(false);
 
   // =====================================================
   // INLINE DEAL SIMULATOR STATE
@@ -217,6 +223,120 @@ function GrowthSimulationContent() {
       setInvestmentAmount(Math.round(cashAnalysis.suggestedInvestment));
     }
   }, [cashAnalysis.needsInvestment, scenarioType, cashAnalysis.suggestedInvestment, dealSimulatorOpen]);
+
+  // =====================================================
+  // AUTO-SAVE: Debounced save for investment config changes
+  // =====================================================
+  useEffect(() => {
+    if (!hasUnsavedChanges || !scenariosHook.currentScenarioId) return;
+    
+    setIsAutoSaving(true);
+    const timer = setTimeout(async () => {
+      try {
+        // Build deal config from current state
+        const dealConfig: DealConfig = {
+          investmentAmount,
+          equityPercentage,
+          sectorMultiple,
+          valuationType,
+        };
+
+        await scenariosHook.saveScenario(
+          {
+            name: scenarioName,
+            baseYear,
+            targetYear,
+            revenues,
+            expenses,
+            investments,
+            assumedExchangeRate,
+            notes,
+            scenarioType,
+            focusProjects,
+            focusProjectPlan,
+            investmentAllocation,
+            dealConfig,
+            capTableEntries,
+            futureRounds,
+            workingCapitalConfig,
+          },
+          scenariosHook.currentScenarioId
+        );
+        
+        toast.success(t('growthSimulation.autoSaved', { defaultValue: 'Değişiklikler kaydedildi' }));
+      } catch (error) {
+        console.error('Auto-save failed:', error);
+        toast.error(t('growthSimulation.autoSaveFailed', { defaultValue: 'Otomatik kaydetme başarısız' }));
+      } finally {
+        setHasUnsavedChanges(false);
+        setIsAutoSaving(false);
+      }
+    }, 1500); // 1.5 saniye debounce
+    
+    return () => clearTimeout(timer);
+  }, [
+    hasUnsavedChanges,
+    scenariosHook.currentScenarioId,
+    investmentAmount,
+    equityPercentage,
+    sectorMultiple,
+    valuationType,
+    focusProjects,
+    focusProjectPlan,
+    investmentAllocation,
+    capTableEntries,
+    futureRounds,
+    workingCapitalConfig,
+    scenarioName,
+    baseYear,
+    targetYear,
+    revenues,
+    expenses,
+    investments,
+    assumedExchangeRate,
+    notes,
+    scenarioType,
+    scenariosHook,
+    t,
+  ]);
+
+  // =====================================================
+  // CHANGE HANDLERS WITH UNSAVED CHANGES FLAG
+  // =====================================================
+  const handleInvestmentAmountChange = (value: number) => {
+    setInvestmentAmount(value);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleEquityPercentageChange = (value: number) => {
+    setEquityPercentage(value);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleSectorMultipleChange = (value: number) => {
+    setSectorMultiple(value);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleValuationTypeChange = (value: 'pre-money' | 'post-money') => {
+    setValuationType(value);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleFocusProjectsChange = (projects: string[]) => {
+    setFocusProjects(projects);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleFocusProjectPlanChange = (plan: string) => {
+    setFocusProjectPlan(plan);
+    setHasUnsavedChanges(true);
+  };
+
+  const handleInvestmentAllocationChange = (allocation: InvestmentAllocation) => {
+    setInvestmentAllocation(allocation);
+    setHasUnsavedChanges(true);
+  };
 
   // URL'den senaryo yükleme - sayfa ilk açıldığında
   useEffect(() => {
@@ -628,13 +748,14 @@ function GrowthSimulationContent() {
             sectorMultiple={sectorMultiple}
             valuationType={valuationType}
             isOpen={dealSimulatorOpen}
-            onInvestmentAmountChange={setInvestmentAmount}
-            onEquityPercentageChange={setEquityPercentage}
-            onSectorMultipleChange={setSectorMultiple}
-            onValuationTypeChange={setValuationType}
+            onInvestmentAmountChange={handleInvestmentAmountChange}
+            onEquityPercentageChange={handleEquityPercentageChange}
+            onSectorMultipleChange={handleSectorMultipleChange}
+            onValuationTypeChange={handleValuationTypeChange}
             onOpenChange={setDealSimulatorOpen}
             exitPlanYear5={exitPlanYear5}
             businessModel="SAAS"
+            isAutoSaving={isAutoSaving}
           />
           
           <FocusProjectSelector
@@ -642,9 +763,10 @@ function GrowthSimulationContent() {
             focusProjects={focusProjects}
             focusProjectPlan={focusProjectPlan}
             investmentAllocation={investmentAllocation}
-            onFocusProjectsChange={setFocusProjects}
-            onFocusProjectPlanChange={setFocusProjectPlan}
-            onInvestmentAllocationChange={setInvestmentAllocation}
+            onFocusProjectsChange={handleFocusProjectsChange}
+            onFocusProjectPlanChange={handleFocusProjectPlanChange}
+            onInvestmentAllocationChange={handleInvestmentAllocationChange}
+            isAutoSaving={isAutoSaving}
           />
         </div>
 
