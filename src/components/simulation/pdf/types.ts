@@ -246,10 +246,17 @@ export interface PdfFocusProjectPageProps {
 }
 
 /**
- * AI Insights Page Props
+ * AI Insights Page Props - Extended with calculated data
  */
 export interface PdfAIInsightsPageProps {
   unifiedAnalysis: UnifiedAnalysisResult | null;
+  // Calculated data for evidence-based insights
+  summaryA?: ScenarioSummary | null;
+  summaryB?: ScenarioSummary | null;
+  capitalNeedA?: CapitalRequirement | null;
+  capitalNeedB?: CapitalRequirement | null;
+  scenarioComparison?: InvestmentScenarioComparison | null;
+  dealConfig?: DealConfig;
 }
 
 /**

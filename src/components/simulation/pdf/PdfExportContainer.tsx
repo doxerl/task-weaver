@@ -206,6 +206,12 @@ export function PdfExportContainer({
         {/* PAGE 13: AI INSIGHTS (Last page - no page break) */}
         <PdfAIInsightsPage
           unifiedAnalysis={unifiedAnalysis}
+          summaryA={summaryA}
+          summaryB={summaryB}
+          capitalNeedA={capitalNeedA}
+          capitalNeedB={capitalNeedB}
+          scenarioComparison={scenarioComparison}
+          dealConfig={dealConfig}
         />
         {/* Pitch Deck intentionally excluded from PDF export */}
       </div>
