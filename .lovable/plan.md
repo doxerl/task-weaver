@@ -1,178 +1,214 @@
 
-# Investment Input Consolidation Plan
+# Eksik i18n Çevirilerinin Eklenmesi
 
-## Current State Analysis
+## Sorun
+Ekran görüntüsünde görüldüğü gibi, sekme başlıkları ve içeriklerdeki çeviri anahtarları ham key olarak görünüyor:
+- `capTable.title` 
+- `Sensitivity Analysis` (kısmen var)
+- `cashFlow.title`
+- `cashFlow.currentCash`, `cashFlow.runway`, `cashFlow.deathValley`, `CCC`, `cashFlow.days`
+- `cashFlow.forecast13Week`, `cashFlow.workingCapital`, `cashFlow.reconciliation`
 
-### `/finance/simulation/compare` Page (ScenarioComparisonPage)
-Currently contains the following user inputs:
-1. **FocusProjectSelector** - Investment Focus Projects (max 2), Growth Plan textarea, Investment Allocation Distribution (Product/Marketing/Personnel/Operational %)
-2. **DealConfiguration** via `InvestmentTab` - Investment Amount, Equity Percentage, Sector Multiple (from `useInvestorAnalysis`)
-3. **EditableProjectionTable** - AI tarafından üretilen projeksiyon tabloları
+Bu anahtarlar `simulation.json` dosyalarında tanımlı olmadığı için çeviri yapılmıyor.
 
-### `/finance/simulation` Page (GrowthSimulation)
-Currently contains:
-1. **DealSimulatorCard** - Investment Amount, Equity Percentage, Sector Multiple, Valuation Type
-2. **Projection Tables** - Revenue/Expense projections
-3. Cap Table, Sensitivity, Cash Flow tabs
+## Çözüm
+Her iki dil dosyasına (`tr/simulation.json` ve `en/simulation.json`) eksik çeviri bloklarını ekleyeceğiz.
 
-## Proposed Architecture
+## Eklenecek Çeviriler
 
-```text
-┌─────────────────────────────────────────────────────────────────────┐
-│                     /finance/simulation                             │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │ Investment Configuration Panel (NEW)                         │  │
-│  │ ┌─────────────────┐ ┌──────────────────────────────────────┐ │  │
-│  │ │ DealSimulator   │ │ FocusProjectSelector                 │ │  │
-│  │ │ - Investment $  │ │ - Focus Projects (max 2 checkboxes)  │ │  │
-│  │ │ - Equity %      │ │ - Growth Plan (textarea)             │ │  │
-│  │ │ - Sector x      │ │ - Investment Allocation              │ │  │
-│  │ │ - Valuation     │ │   (Product/Marketing/Personnel/Ops)  │ │  │
-│  │ └─────────────────┘ └──────────────────────────────────────┘ │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                                                                     │
-│  ┌─────────────── Tabs ─────────────────────────────────────────┐  │
-│  │ Projections | Cap Table | Sensitivity | Cash Flow            │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                                                                     │
-│  [Save] → Saves scenario + investment config to DB                 │
-│  [Risk Analysis] → Navigate to /finance/simulation/compare         │
-└─────────────────────────────────────────────────────────────────────┘
-
-                              ↓
-                              
-┌─────────────────────────────────────────────────────────────────────┐
-│                /finance/simulation/compare                          │
-│  ┌──────────────────────────────────────────────────────────────┐  │
-│  │ Scenario A/B Selection (read-only display of config)         │  │
-│  │                                                               │  │
-│  │ ⚠️ NO USER INPUTS - Read-only comparison view                │  │
-│  │                                                               │  │
-│  │ Displays:                                                     │  │
-│  │ - Focus Projects selected                                     │  │
-│  │ - Investment Allocation                                       │  │
-│  │ - Deal Configuration                                          │  │
-│  │ - Growth Plan                                                 │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                                                                     │
-│  ┌─────────────── AI Analysis ──────────────────────────────────┐  │
-│  │ Uses saved configuration from GrowthSimulation                │  │
-│  │ [Run AI Analysis] → Uses focusProjects, allocation, dealConfig│  │
-│  └──────────────────────────────────────────────────────────────┘  │
-│                                                                     │
-│  ┌─────────────── Read-Only Displays ───────────────────────────┐  │
-│  │ - Investment Tab (read-only deal terms)                       │  │
-│  │ - Editable Projections (AI output - can still edit)          │  │
-│  │ - Charts, Analysis Results                                    │  │
-│  └──────────────────────────────────────────────────────────────┘  │
-└─────────────────────────────────────────────────────────────────────┘
+### Türkçe (tr/simulation.json)
+```json
+{
+  "capTable": {
+    "title": "Pay Tablosu",
+    "description": "Ortaklık yapısı ve sermaye dağılımı",
+    "holder": "Ortak",
+    "shares": "Pay Sayısı",
+    "percentage": "Oran",
+    "type": "Tür",
+    "typeOptions": {
+      "common": "Adi Pay",
+      "preferred": "İmtiyazlı",
+      "options": "Opsiyon",
+      "safe": "SAFE",
+      "convertible": "Convertible"
+    },
+    "addHolder": "Ortak Ekle",
+    "futureRounds": "Gelecek Turlar",
+    "addRound": "Tur Ekle",
+    "roundName": "Tur Adı",
+    "preMoneyValuation": "Pre-money Değerleme",
+    "postMoneyValuation": "Post-money Değerleme",
+    "dilution": "Sulanma"
+  },
+  "sensitivity": {
+    "title": "Duyarlılık Analizi",
+    "tornado": "Tornado",
+    "scenarios": "Senaryolar",
+    "tornadoTitle": "Tornado Analizi",
+    "tornadoDesc": "Her değişkenin ±%10 değişiminin değerlemeye etkisi",
+    "topDrivers": "En Etkili Değişkenler",
+    "downside": "Düşüş",
+    "upside": "Yükseliş",
+    "bearCase": "Kötümser Senaryo",
+    "baseCase": "Baz Senaryo",
+    "bullCase": "İyimser Senaryo",
+    "probability": "Olasılık",
+    "revenue": "Gelir",
+    "valuation": "Değerleme",
+    "runway": "Runway",
+    "months": "ay",
+    "expectedValue": "Beklenen Değer"
+  },
+  "cashFlow": {
+    "title": "Nakit Akışı",
+    "currentCash": "Mevcut Nakit",
+    "runway": "Runway",
+    "deathValley": "Death Valley",
+    "days": "gün",
+    "forecast13Week": "13 Haftalık Tahmin",
+    "workingCapital": "İşletme Sermayesi",
+    "reconciliation": "Uzlaştırma",
+    "cashPosition": "Nakit Pozisyonu",
+    "forecastDesc": "Haftalık nakit giriş ve çıkışları",
+    "week": "Hafta",
+    "openingBalance": "Açılış Bakiyesi",
+    "arCollections": "Alacak Tahsilatı",
+    "apPayments": "Borç Ödemeleri",
+    "payroll": "Maaşlar",
+    "operatingCash": "Operasyonel Nakit",
+    "debtService": "Borç Servisi",
+    "closingBalance": "Kapanış Bakiyesi",
+    "ccc": "Nakit Dönüşüm Döngüsü",
+    "cccDesc": "AR Günleri + Stok Günleri - AP Günleri",
+    "arDays": "Alacak Günleri",
+    "apDays": "Borç Günleri",
+    "inventoryDays": "Stok Günleri",
+    "nwc": "Net İşletme Sermayesi",
+    "nwcDesc": "Dönen Varlıklar - Kısa Vadeli Borçlar",
+    "currentAssets": "Dönen Varlıklar",
+    "currentLiabilities": "Kısa Vadeli Borçlar",
+    "reconciliationTitle": "P&L → Nakit Uzlaştırması",
+    "reconciliationDesc": "Net Kâr'dan Nakit Akışına geçiş",
+    "netIncome": "Net Kâr",
+    "addDepreciation": "+ Amortisman",
+    "ebitda": "EBITDA",
+    "wcChanges": "İşletme Sermayesi Değişimleri",
+    "operatingCashFlow": "Operasyonel Nakit Akışı",
+    "capex": "Yatırım Harcamaları",
+    "freeCashFlow": "Serbest Nakit Akışı",
+    "debtChanges": "Borç Değişimleri",
+    "endingCash": "Dönem Sonu Nakit",
+    "noData": "Veri bulunamadı",
+    "cashPositive": "Nakit Pozitif",
+    "monthsRunway": "{{count}} ay runway"
+  }
+}
 ```
 
-## Implementation Details
-
-### 1. Extend Scenario Type for Investment Config
-**File:** `src/types/simulation.ts`
-
-Add to `SimulationScenario`:
-```typescript
-focusProjects?: string[];
-focusProjectPlan?: string;
-investmentAllocation?: InvestmentAllocation;
-dealConfig?: {
-  investmentAmount: number;
-  equityPercentage: number;
-  sectorMultiple: number;
-  valuationType: 'pre-money' | 'post-money';
-};
+### İngilizce (en/simulation.json)
+```json
+{
+  "capTable": {
+    "title": "Cap Table",
+    "description": "Ownership structure and equity distribution",
+    "holder": "Holder",
+    "shares": "Shares",
+    "percentage": "Percentage",
+    "type": "Type",
+    "typeOptions": {
+      "common": "Common",
+      "preferred": "Preferred",
+      "options": "Options",
+      "safe": "SAFE",
+      "convertible": "Convertible"
+    },
+    "addHolder": "Add Holder",
+    "futureRounds": "Future Rounds",
+    "addRound": "Add Round",
+    "roundName": "Round Name",
+    "preMoneyValuation": "Pre-money Valuation",
+    "postMoneyValuation": "Post-money Valuation",
+    "dilution": "Dilution"
+  },
+  "sensitivity": {
+    "title": "Sensitivity Analysis",
+    "tornado": "Tornado",
+    "scenarios": "Scenarios",
+    "tornadoTitle": "Tornado Analysis",
+    "tornadoDesc": "Impact of ±10% change in each variable on valuation",
+    "topDrivers": "Top Drivers",
+    "downside": "Downside",
+    "upside": "Upside",
+    "bearCase": "Bear Case",
+    "baseCase": "Base Case",
+    "bullCase": "Bull Case",
+    "probability": "Probability",
+    "revenue": "Revenue",
+    "valuation": "Valuation",
+    "runway": "Runway",
+    "months": "months",
+    "expectedValue": "Expected Value"
+  },
+  "cashFlow": {
+    "title": "Cash Flow",
+    "currentCash": "Current Cash",
+    "runway": "Runway",
+    "deathValley": "Death Valley",
+    "days": "days",
+    "forecast13Week": "13-Week Forecast",
+    "workingCapital": "Working Capital",
+    "reconciliation": "Reconciliation",
+    "cashPosition": "Cash Position",
+    "forecastDesc": "Weekly cash inflows and outflows",
+    "week": "Week",
+    "openingBalance": "Opening Balance",
+    "arCollections": "AR Collections",
+    "apPayments": "AP Payments",
+    "payroll": "Payroll",
+    "operatingCash": "Operating Cash",
+    "debtService": "Debt Service",
+    "closingBalance": "Closing Balance",
+    "ccc": "Cash Conversion Cycle",
+    "cccDesc": "AR Days + Inventory Days - AP Days",
+    "arDays": "AR Days",
+    "apDays": "AP Days",
+    "inventoryDays": "Inventory Days",
+    "nwc": "Net Working Capital",
+    "nwcDesc": "Current Assets - Current Liabilities",
+    "currentAssets": "Current Assets",
+    "currentLiabilities": "Current Liabilities",
+    "reconciliationTitle": "P&L → Cash Reconciliation",
+    "reconciliationDesc": "Bridge from Net Income to Cash Flow",
+    "netIncome": "Net Income",
+    "addDepreciation": "+ Depreciation",
+    "ebitda": "EBITDA",
+    "wcChanges": "Working Capital Changes",
+    "operatingCashFlow": "Operating Cash Flow",
+    "capex": "Capital Expenditures",
+    "freeCashFlow": "Free Cash Flow",
+    "debtChanges": "Debt Changes",
+    "endingCash": "Ending Cash",
+    "noData": "No data available",
+    "cashPositive": "Cash Positive",
+    "monthsRunway": "{{count}} months runway"
+  }
+}
 ```
 
-### 2. Update Database Schema
-Add columns to `growth_scenarios` table:
-- `focus_projects` (text[])
-- `focus_project_plan` (text)
-- `investment_allocation` (jsonb)
-- `deal_config` (jsonb)
+## Dosya Değişiklikleri
 
-### 3. Integrate FocusProjectSelector into GrowthSimulation.tsx
-**File:** `src/pages/finance/GrowthSimulation.tsx`
+| Dosya | Değişiklik |
+|-------|-----------|
+| `src/i18n/locales/tr/simulation.json` | `capTable`, `sensitivity`, `cashFlow` bloklarını ekle |
+| `src/i18n/locales/en/simulation.json` | `capTable`, `sensitivity`, `cashFlow` bloklarını ekle |
 
-- Add state for focus projects, growth plan, investment allocation
-- Import and render `FocusProjectSelector` component next to `DealSimulatorCard`
-- Update `handleSave()` to include new fields
-- Update `handleSelectScenario()` to load saved config
+## Uygulama Adımları
+1. Her iki JSON dosyasının en üst seviyesine yeni blokları ekle
+2. Bileşenlerde kullanılan tüm anahtarların karşılıklarını doğrula
+3. Uygulamayı test et
 
-### 4. Update useScenarios Hook
-**File:** `src/hooks/finance/useScenarios.ts`
-
-- Extend `saveScenario()` to persist new fields
-- Extend scenario loading to include new fields
-
-### 5. Create InvestmentConfigPanel Component (NEW)
-**File:** `src/components/simulation/InvestmentConfigPanel.tsx`
-
-Consolidates:
-- DealSimulatorCard
-- FocusProjectSelector
-
-Into a single, collapsible panel for the simulation page.
-
-### 6. Make ScenarioComparisonPage Read-Only
-**File:** `src/pages/finance/ScenarioComparisonPage.tsx`
-
-- Remove `FocusProjectSelector` interactive component
-- Replace with read-only summary cards showing:
-  - Selected focus projects
-  - Investment allocation percentages
-  - Deal terms
-- Load config from selected scenarios
-- Pass saved config to AI analysis
-
-### 7. Update AI Analysis Flow
-**File:** `src/pages/finance/ScenarioComparisonPage.tsx`
-
-- Read `focusProjects`, `investmentAllocation`, `dealConfig` from `scenarioA`
-- Display warning if scenarios have different configs
-- Use scenario's saved config for AI analysis
-
-### 8. Add i18n Keys
-**Files:** `src/i18n/locales/*/simulation.json`
-
-Add translations for:
-- "investmentConfig.title" - "Investment Configuration"
-- "investmentConfig.description" - "Configure investment parameters..."
-- "comparison.savedConfig" - "Using saved configuration"
-- "comparison.configMismatch" - "Warning: Scenario configs differ"
-
-## Technical Considerations
-
-1. **Backward Compatibility:** Scenarios without new fields will use defaults
-2. **Config Sync:** When navigating from simulation to compare, scenarios must be saved first
-3. **Memory:** Config from `memory/features/focus-project-selection` confirms multi-select is already supported
-4. **Memory:** `memory/ai-analysis/deal-simulator-data-injection` confirms deal terms are already passed to AI
-
-## Files to Modify
-
-| File | Change Type |
-|------|-------------|
-| `src/types/simulation.ts` | Add new fields to SimulationScenario |
-| `src/hooks/finance/useScenarios.ts` | Extend save/load logic |
-| `src/hooks/finance/useGrowthSimulation.ts` | Add state for new inputs |
-| `src/pages/finance/GrowthSimulation.tsx` | Add FocusProjectSelector, save config |
-| `src/pages/finance/ScenarioComparisonPage.tsx` | Make read-only, load from scenario |
-| `src/components/simulation/InvestmentConfigPanel.tsx` | NEW - consolidated panel |
-| `src/components/simulation/FocusProjectSelector.tsx` | Minor props adjustment |
-| `src/i18n/locales/tr/simulation.json` | Add new keys |
-| `src/i18n/locales/en/simulation.json` | Add new keys |
-| Database migration | Add new columns |
-
-## Migration Order
-
-1. Database migration (add columns)
-2. Update types
-3. Update useScenarios hook
-4. Create InvestmentConfigPanel
-5. Update GrowthSimulation page
-6. Update ScenarioComparisonPage (remove inputs, make read-only)
-7. Add translations
-8. Test end-to-end
-
+## Teknik Notlar
+- Yeni bloklar mevcut JSON yapısını bozmadan root seviyesine eklenecek
+- Bileşenlerdeki `t('simulation:cashFlow.xxx')` çağrıları otomatik olarak çalışmaya başlayacak
+- Eksik anahtarlar varsa fallback olarak İngilizce gösterilecek
