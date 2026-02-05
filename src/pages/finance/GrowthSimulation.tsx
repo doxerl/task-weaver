@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   RotateCcw,
   TrendingUp,
@@ -18,6 +19,9 @@ import {
   Loader2,
   FileText,
   GitCompare,
+  PieChart,
+  Activity,
+  Wallet,
 } from 'lucide-react';
 import { DealSimulatorCard, CashAnalysis, ExitPlanYear5 } from '@/components/simulation/DealSimulatorCard';
 import { calculateDecayYear5Revenue, STARTUP_GROWTH_PROFILES, type BusinessModel } from '@/constants/simulation';
@@ -30,11 +34,17 @@ import { ProjectionTable } from '@/components/simulation/ProjectionTable';
 import { AddItemDialog } from '@/components/simulation/AddItemDialog';
 import { ScenarioSelector } from '@/components/simulation/ScenarioSelector';
 import { NewScenarioDialog } from '@/components/simulation/NewScenarioDialog';
+import { CapTableEditor } from '@/components/simulation/CapTableEditor';
+import { SensitivityPanel } from '@/components/simulation/SensitivityPanel';
+import { CashFlowDashboard } from '@/components/simulation/CashFlowDashboard';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { Skeleton } from '@/components/ui/skeleton';
 import { SimulationScenario } from '@/types/simulation';
 import { AppHeader } from '@/components/AppHeader';
 import { toast } from 'sonner';
+import { generateTornadoAnalysis, generateScenarioMatrix } from '@/lib/sensitivityEngine';
+import { generate13WeekCashForecast, reconcilePnLToCash } from '@/lib/cashFlowEngine';
+import type { CapTableEntry, FutureRoundAssumption, WorkingCapitalConfigV2, SensitivityConfigV2 } from '@/types/simulation';
 
 function GrowthSimulationContent() {
   const { t } = useTranslation(['simulation', 'common']);
@@ -50,6 +60,7 @@ function GrowthSimulationContent() {
   const [showNewScenarioDialog, setShowNewScenarioDialog] = useState(false);
   const [scenarioType, setScenarioType] = useState<'positive' | 'negative'>('positive');
   const [urlScenarioLoaded, setUrlScenarioLoaded] = useState(false);
+  const [activeTab, setActiveTab] = useState('projections');
 
   // =====================================================
   // INLINE DEAL SIMULATOR STATE
@@ -59,6 +70,32 @@ function GrowthSimulationContent() {
   const [equityPercentage, setEquityPercentage] = useState(10);
   const [sectorMultiple, setSectorMultiple] = useState(5);
   const [valuationType, setValuationType] = useState<'pre-money' | 'post-money'>('post-money');
+
+  // =====================================================
+  // CAP TABLE STATE
+  // =====================================================
+  const [capTableEntries, setCapTableEntries] = useState<CapTableEntry[]>([
+    { holder: 'Kurucu 1', shares: 50000, percentage: 50, type: 'common' },
+    { holder: 'Kurucu 2', shares: 30000, percentage: 30, type: 'common' },
+    { holder: 'Option Pool', shares: 20000, percentage: 20, type: 'options' },
+  ]);
+  const [futureRounds, setFutureRounds] = useState<FutureRoundAssumption[]>([]);
+
+  // =====================================================
+  // WORKING CAPITAL CONFIG
+  // =====================================================
+  const [workingCapitalConfig] = useState<WorkingCapitalConfigV2>({
+    ar_days: 45,
+    ap_days: 30,
+    inventory_days: 0,
+    deferred_revenue_days: 0,
+  });
+
+  const [sensitivityConfig] = useState<SensitivityConfigV2>({
+    mode: 'tornado',
+    shock_range: 0.10,
+    drivers: ['revenue_growth', 'cogs_margin', 'opex_change', 'churn_rate'],
+  });
   
   const {
     scenarioName,
@@ -169,6 +206,61 @@ function GrowthSimulationContent() {
       appliedGrowthRate: undefined, // Using decay model, not fixed rate
     };
   }, [summary.projected.totalRevenue, sectorMultiple]);
+
+  // =====================================================
+  // TORNADO & SENSITIVITY ANALYSIS
+  // =====================================================
+  const tornadoResults = useMemo(() => {
+    const currentScenario = getCurrentScenario();
+    const currentCash = cashAnalysis.yearEndCash > 0 ? cashAnalysis.yearEndCash : 100000;
+    return generateTornadoAnalysis(currentScenario, sensitivityConfig, currentCash, sectorMultiple);
+  }, [getCurrentScenario, sensitivityConfig, cashAnalysis.yearEndCash, sectorMultiple]);
+
+  const scenarioMatrix = useMemo(() => {
+    const currentScenario = getCurrentScenario();
+    const currentCash = cashAnalysis.yearEndCash > 0 ? cashAnalysis.yearEndCash : 100000;
+    return generateScenarioMatrix(currentScenario, currentCash, sectorMultiple, investmentAmount);
+  }, [getCurrentScenario, cashAnalysis.yearEndCash, sectorMultiple, investmentAmount]);
+
+  // =====================================================
+  // 13-WEEK CASH FORECAST
+  // =====================================================
+  const cashForecast = useMemo(() => {
+    const openingCash = cashAnalysis.yearEndCash > 0 ? cashAnalysis.yearEndCash : 50000;
+    const weeklyRevenue = summary.projected.totalRevenue / 52;
+    const weeklyExpense = summary.projected.totalExpense / 52;
+    
+    return generate13WeekCashForecast(
+      openingCash,
+      {
+        weeklyRevenue,
+        weeklyPayroll: weeklyExpense * 0.4,
+        weeklyOtherExpenses: weeklyExpense * 0.5,
+        weeklyDebtService: weeklyExpense * 0.1,
+      },
+      workingCapitalConfig
+    );
+  }, [cashAnalysis.yearEndCash, summary.projected, workingCapitalConfig]);
+
+  // P&L to Cash Reconciliation
+  const cashReconciliation = useMemo(() => {
+    const netIncome = summary.projected.netProfit;
+    const depreciation = summary.projected.totalExpense * 0.05;
+    const openingCash = cashAnalysis.yearEndCash > 0 ? cashAnalysis.yearEndCash : 50000;
+    
+    return reconcilePnLToCash(
+      netIncome,
+      depreciation,
+      0, // amortization
+      summary.projected.totalRevenue * 0.1, // changeInAR
+      summary.projected.totalExpense * 0.08, // changeInAP
+      0, // changeInInventory
+      summary.projected.totalExpense * 0.03, // capex
+      0, // debtProceeds
+      0, // debtRepayments
+      openingCash
+    );
+  }, [summary.projected, cashAnalysis.yearEndCash]);
 
   // Auto-open deal simulator if investment needed (for negative scenarios)
   useEffect(() => {
@@ -334,9 +426,9 @@ function GrowthSimulationContent() {
         backPath="/finance/reports"
         backLabel={t('common:back')}
         icon={scenarioType === 'positive' ? (
-          <TrendingUp className="h-6 w-6 text-green-500" />
+          <TrendingUp className="h-6 w-6 text-primary" />
         ) : (
-          <TrendingDown className="h-6 w-6 text-red-500" />
+          <TrendingDown className="h-6 w-6 text-destructive" />
         )}
         badge={
           <Badge 
@@ -510,42 +602,98 @@ function GrowthSimulationContent() {
           businessModel="SAAS"
         />
 
-        {/* Projections Content */}
-        <div className="space-y-6">
-          {/* Revenue Projections */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-green-600">{t('growthSimulation.revenueProjections')}</h2>
-              <AddItemDialog type="revenue" onAdd={addRevenue} />
-            </div>
-            <ProjectionTable
-              title=""
-              items={revenues}
-              onUpdate={updateRevenue}
-              onRemove={removeRevenue}
-              type="revenue"
-              baseYear={targetYear - 1}
-              targetYear={targetYear}
-            />
-          </div>
+        {/* Main Tabs Navigation */}
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">
+          <TabsList className="grid w-full max-w-2xl grid-cols-4">
+            <TabsTrigger value="projections" className="gap-2">
+              <TrendingUp className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('growthSimulation.projections')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="cap-table" className="gap-2">
+              <PieChart className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('simulation:capTable.title')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="sensitivity" className="gap-2">
+              <Activity className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('simulation:sensitivity.title')}</span>
+            </TabsTrigger>
+            <TabsTrigger value="cash-flow" className="gap-2">
+              <Wallet className="h-4 w-4" />
+              <span className="hidden sm:inline">{t('simulation:cashFlow.title')}</span>
+            </TabsTrigger>
+          </TabsList>
 
-          {/* Expense Projections */}
-          <div className="space-y-2">
-            <div className="flex items-center justify-between">
-              <h2 className="text-lg font-semibold text-red-600">{t('growthSimulation.expenseProjections')}</h2>
-              <AddItemDialog type="expense" onAdd={addExpense} />
+          {/* Projections Tab */}
+          <TabsContent value="projections" className="space-y-6">
+            {/* Revenue Projections */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-primary">{t('growthSimulation.revenueProjections')}</h2>
+                <AddItemDialog type="revenue" onAdd={addRevenue} />
+              </div>
+              <ProjectionTable
+                title=""
+                items={revenues}
+                onUpdate={updateRevenue}
+                onRemove={removeRevenue}
+                type="revenue"
+                baseYear={targetYear - 1}
+                targetYear={targetYear}
+              />
             </div>
-            <ProjectionTable
-              title=""
-              items={expenses}
-              onUpdate={updateExpense}
-              onRemove={removeExpense}
-              type="expense"
-              baseYear={targetYear - 1}
-              targetYear={targetYear}
+
+            {/* Expense Projections */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <h2 className="text-lg font-semibold text-destructive">{t('growthSimulation.expenseProjections')}</h2>
+                <AddItemDialog type="expense" onAdd={addExpense} />
+              </div>
+              <ProjectionTable
+                title=""
+                items={expenses}
+                onUpdate={updateExpense}
+                onRemove={removeExpense}
+                type="expense"
+                baseYear={targetYear - 1}
+                targetYear={targetYear}
+              />
+            </div>
+          </TabsContent>
+
+          {/* Cap Table Tab */}
+          <TabsContent value="cap-table">
+            <CapTableEditor
+              entries={capTableEntries}
+              rounds={futureRounds}
+              onEntriesChange={setCapTableEntries}
+              onRoundsChange={setFutureRounds}
+              preMoneyValuation={summary.projected.totalRevenue * sectorMultiple}
+              currency="USD"
             />
-          </div>
-        </div>
+          </TabsContent>
+
+          {/* Sensitivity Tab */}
+          <TabsContent value="sensitivity">
+            <SensitivityPanel
+              tornadoResults={tornadoResults}
+              scenarioMatrix={scenarioMatrix}
+              baseValuation={summary.projected.totalRevenue * sectorMultiple}
+              currency="USD"
+            />
+          </TabsContent>
+
+          {/* Cash Flow Tab */}
+          <TabsContent value="cash-flow">
+            <CashFlowDashboard
+              forecast={cashForecast}
+              reconciliation={cashReconciliation}
+              workingCapitalConfig={workingCapitalConfig}
+              annualRevenue={summary.projected.totalRevenue}
+              annualExpenses={summary.projected.totalExpense}
+              currency="USD"
+            />
+          </TabsContent>
+        </Tabs>
       </main>
 
       {/* PDF Progress Dialog */}
@@ -568,7 +716,7 @@ function GrowthSimulationContent() {
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
-              <TrendingUp className="h-5 w-5 text-green-500" />
+              <TrendingUp className="h-5 w-5 text-primary" />
               {t('growthSimulation.scenarioSaved')}
             </DialogTitle>
           </DialogHeader>

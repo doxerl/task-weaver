@@ -757,7 +757,8 @@
     "ok": "Tamam",
     "createSimulation": "{{year}} Simülasyonu Oluştur",
     "pdfSuccess": "PDF başarıyla oluşturuldu",
-    "pdfError": "PDF oluşturulurken hata oluştu"
+    "pdfError": "PDF oluşturulurken hata oluştu",
+    "projections": "Projeksiyonlar"
   },
   "financialRatios": {
     "title": "Finansal Oranlar (B2B Services Benchmark)",
