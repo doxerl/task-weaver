@@ -46,7 +46,7 @@ import { AppHeader } from '@/components/AppHeader';
 import { toast } from 'sonner';
 import { generateTornadoAnalysis, generateScenarioMatrix } from '@/lib/sensitivityEngine';
 import { generate13WeekCashForecast, reconcilePnLToCash } from '@/lib/cashFlowEngine';
-import type { CapTableEntry, FutureRoundAssumption, WorkingCapitalConfigV2, SensitivityConfigV2 } from '@/types/simulation';
+import type { CapTableEntry, FutureRoundAssumption, WorkingCapitalConfig, SensitivityConfigV2 } from '@/types/simulation';
 
 function GrowthSimulationContent() {
   const { t } = useTranslation(['simulation', 'common']);
@@ -89,6 +89,7 @@ function GrowthSimulationContent() {
   // =====================================================
   // CAP TABLE STATE
   // =====================================================
+  // Cap Table - Default values, will be loaded from scenario
   const [capTableEntries, setCapTableEntries] = useState<CapTableEntry[]>([
     { holder: 'Kurucu 1', shares: 50000, percentage: 50, type: 'common' },
     { holder: 'Kurucu 2', shares: 30000, percentage: 30, type: 'common' },
@@ -97,9 +98,9 @@ function GrowthSimulationContent() {
   const [futureRounds, setFutureRounds] = useState<FutureRoundAssumption[]>([]);
 
   // =====================================================
-  // WORKING CAPITAL CONFIG
+  // WORKING CAPITAL CONFIG - from balance sheet or scenario
   // =====================================================
-  const [workingCapitalConfig] = useState<WorkingCapitalConfigV2>({
+  const [workingCapitalConfig, setWorkingCapitalConfig] = useState<WorkingCapitalConfig>({
     ar_days: 45,
     ap_days: 30,
     inventory_days: 0,
@@ -337,6 +338,10 @@ function GrowthSimulationContent() {
         focusProjectPlan,
         investmentAllocation,
         dealConfig,
+        // Cap Table and Working Capital - now persisted
+        capTableEntries,
+        futureRounds,
+        workingCapitalConfig,
       },
       scenariosHook.currentScenarioId
     );
@@ -382,6 +387,37 @@ function GrowthSimulationContent() {
       setValuationType(scenario.dealConfig.valuationType);
     }
     
+    // Load Cap Table entries from scenario
+    if (scenario.capTableEntries && scenario.capTableEntries.length > 0) {
+      setCapTableEntries(scenario.capTableEntries);
+    } else {
+      // Reset to defaults if not present
+      setCapTableEntries([
+        { holder: 'Kurucu 1', shares: 50000, percentage: 50, type: 'common' },
+        { holder: 'Kurucu 2', shares: 30000, percentage: 30, type: 'common' },
+        { holder: 'Option Pool', shares: 20000, percentage: 20, type: 'options' },
+      ]);
+    }
+    
+    // Load future rounds from scenario
+    if (scenario.futureRounds && scenario.futureRounds.length > 0) {
+      setFutureRounds(scenario.futureRounds);
+    } else {
+      setFutureRounds([]);
+    }
+    
+    // Load working capital config from scenario
+    if (scenario.workingCapitalConfig) {
+      setWorkingCapitalConfig(scenario.workingCapitalConfig);
+    } else {
+      setWorkingCapitalConfig({
+        ar_days: 45,
+        ap_days: 30,
+        inventory_days: 0,
+        deferred_revenue_days: 0,
+      });
+    }
+    
     // Baz yıl için önceki yılın pozitif senaryosunu bul ve yükle
     const previousYear = scenario.targetYear - 1;
     const baseScenario = scenariosHook.scenarios.find(
@@ -414,6 +450,22 @@ function GrowthSimulationContent() {
     setEquityPercentage(10);
     setSectorMultiple(5);
     setValuationType('post-money');
+    
+    // Reset Cap Table to defaults
+    setCapTableEntries([
+      { holder: 'Kurucu 1', shares: 50000, percentage: 50, type: 'common' },
+      { holder: 'Kurucu 2', shares: 30000, percentage: 30, type: 'common' },
+      { holder: 'Option Pool', shares: 20000, percentage: 20, type: 'options' },
+    ]);
+    setFutureRounds([]);
+    
+    // Reset Working Capital to defaults
+    setWorkingCapitalConfig({
+      ar_days: 45,
+      ap_days: 30,
+      inventory_days: 0,
+      deferred_revenue_days: 0,
+    });
   };
 
   const handleExportPdf = async () => {
