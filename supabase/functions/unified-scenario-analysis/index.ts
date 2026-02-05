@@ -534,7 +534,20 @@ const PROMPT_LABELS = {
     validateChanges: '1. Validate user\'s changes and assess if they\'re logical',
     ifChangesAffectTotals: '2. If changes affect totals, reflect in insights and pitch deck',
     indicateAggressiveConservative: '3. Indicate if user\'s changes are aggressive/conservative',
-    analyzeAllData: 'Analyze all this data (especially previous year balance sheet, quarterly itemized data, and FOCUS PROJECT information) and generate structured output including all 5 sections above.',
+    // Investment comparison labels
+    investmentComparisonSection: '💰 INVESTMENT SCENARIO COMPARISON (OPPORTUNITY COST ANALYSIS):',
+    scenarioAInvestment: 'SCENARIO A (WITH INVESTMENT):',
+    scenarioBInvestment: 'SCENARIO B (WITHOUT INVESTMENT / ORGANIC):',
+    investmentAmountLabel: 'Investment Amount:',
+    equityOfferedLabel: 'Equity Offered:',
+    noInvestmentLabel: 'NO INVESTMENT (Organic Growth)',
+    opportunityCostInstruction: '🎯 OPPORTUNITY COST ANALYSIS INSTRUCTION:',
+    compareInvestmentImpact: '1. Compare revenue/profit with investment (A) vs without investment (B)',
+    calculateOpportunityCost: '2. Calculate OPPORTUNITY COST = Scenario A Revenue - Scenario B Revenue',
+    highlightGrowthMultiplier: '3. Highlight growth multiplier: "With $X investment → $Y revenue (Zx growth)"',
+    includeInPitchDeck: '4. Include this comparison in pitch deck slides 6-8',
+    emphasizeInExecutive: '5. Emphasize opportunity cost in executive summary',
+    analyzeAllData: 'Analyze all this data (especially previous year balance sheet, quarterly itemized data, FOCUS PROJECT information, and INVESTMENT COMPARISON) and generate structured output including all 5 sections above.',
     languageInstruction: '🌐 LANGUAGE INSTRUCTION:',
     allContentMustBe: 'All insights, recommendations, pitch deck slides, and strategy notes MUST be in',
   },
@@ -1060,7 +1073,20 @@ const PROMPT_LABELS = {
     validateChanges: '1. Kullanıcının yaptığı değişiklikleri doğrula ve mantıklı olup olmadığını değerlendir',
     ifChangesAffectTotals: '2. Değişiklikler toplam rakamları etkileyecekse, bunu insights ve pitch deck\'e yansıt',
     indicateAggressiveConservative: '3. Kullanıcının değişiklikleri agresif/konservatif mi belirt',
-    analyzeAllData: 'Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı verileri ve ODAK PROJE bilgisini) analiz et ve yukarıdaki 5 bölümün hepsini içeren yapılandırılmış çıktı üret.',
+    // Investment comparison labels
+    investmentComparisonSection: '💰 YATIRIM SENARYO KARŞILAŞTIRMASI (FIRSAT MALİYETİ ANALİZİ):',
+    scenarioAInvestment: 'SENARYO A (YATIRIM İLE):',
+    scenarioBInvestment: 'SENARYO B (YATIRIM OLMADAN / ORGANİK):',
+    investmentAmountLabel: 'Yatırım Tutarı:',
+    equityOfferedLabel: 'Teklif Edilen Hisse:',
+    noInvestmentLabel: 'YATIRIM YOK (Organik Büyüme)',
+    opportunityCostInstruction: '🎯 FIRSAT MALİYETİ ANALİZ TALİMATI:',
+    compareInvestmentImpact: '1. Yatırımla (A) vs yatırımsız (B) gelir/kâr karşılaştırması yap',
+    calculateOpportunityCost: '2. FIRSAT MALİYETİ = Senaryo A Geliri - Senaryo B Geliri hesapla',
+    highlightGrowthMultiplier: '3. Büyüme çarpanını vurgula: "$X yatırım ile → $Y gelir (Zx büyüme)"',
+    includeInPitchDeck: '4. Bu karşılaştırmayı pitch deck slaytları 6-8\'e dahil et',
+    emphasizeInExecutive: '5. Executive summary\'de fırsat maliyetini vurgula',
+    analyzeAllData: 'Tüm bu verileri (özellikle geçmiş yıl bilançosunu, çeyreklik kalem bazlı verileri, ODAK PROJE bilgisini ve YATIRIM KARŞILAŞTIRMASINI) analiz et ve yukarıdaki 5 bölümün hepsini içeren yapılandırılmış çıktı üret.',
     languageInstruction: '🌐 DİL TALİMATI:',
     allContentMustBe: 'Tüm insights, recommendations, pitch deck slaytları ve strateji notları',
   }
@@ -1942,6 +1968,8 @@ function buildUserPrompt(
     metrics: any;
     quarterly: any;
     dealConfig: any;
+    dealConfigA?: any;  // Positive scenario deal config
+    dealConfigB?: any;  // Negative scenario deal config (organic if 0)
     exitPlan: any;
     capitalNeeds: any;
     historicalBalance: any;
@@ -1964,7 +1992,7 @@ function buildUserPrompt(
   },
   L: PromptLabels
 ): string {
-  const { scenarioA, scenarioB, metrics, quarterly, dealConfig, exitPlan, capitalNeeds, historicalBalance, quarterlyItemized, exchangeRate, focusProjectInfo, previousEditedProjections, capTableEntries, workingCapitalConfig } = data;
+  const { scenarioA, scenarioB, metrics, quarterly, dealConfig, dealConfigA, dealConfigB, exitPlan, capitalNeeds, historicalBalance, quarterlyItemized, exchangeRate, focusProjectInfo, previousEditedProjections, capTableEntries, workingCapitalConfig } = data;
   const { baseYear, scenarioYear, scenarioBYear, year2, year3, year5 } = yearContext;
 
   // Currency note
@@ -2217,6 +2245,26 @@ ${L.dealConfigSection}
 - ${L.sectorMultiple} ${dealConfig.sectorMultiple}x
 - ${L.safetyMargin} %${dealConfig.safetyMargin}
 
+${dealConfigA && dealConfigB ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+${L.investmentComparisonSection}
+
+${L.scenarioAInvestment}
+- ${L.investmentAmountLabel} $${(dealConfigA.investmentAmount || 0).toLocaleString()}
+- ${L.equityOfferedLabel} %${dealConfigA.equityPercentage || 0}
+
+${L.scenarioBInvestment}
+${dealConfigB.investmentAmount > 0 ? `- ${L.investmentAmountLabel} $${dealConfigB.investmentAmount.toLocaleString()}
+- ${L.equityOfferedLabel} %${dealConfigB.equityPercentage}` : `- ${L.noInvestmentLabel}`}
+
+${L.opportunityCostInstruction}
+${L.compareInvestmentImpact}
+${L.calculateOpportunityCost}
+${L.highlightGrowthMultiplier}
+${L.includeInPitchDeck}
+${L.emphasizeInExecutive}
+` : ''}
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 
 ${L.calculatedExitPlan} (${scenarioYear}, ${L.basedOnPositive}):
@@ -2348,6 +2396,8 @@ serve(async (req) => {
       metrics, 
       quarterly, 
       dealConfig, 
+      dealConfigScenarioA, // Positive scenario investment terms
+      dealConfigScenarioB, // Negative scenario investment terms (organic growth if 0)
       exitPlan, 
       capitalNeeds,
       historicalBalance,
@@ -2360,6 +2410,16 @@ serve(async (req) => {
       capTableEntries,
       workingCapitalConfig,
     } = await req.json();
+    
+    // Use dual deal configs if provided, otherwise fallback to single dealConfig
+    const effectiveDealConfigA = dealConfigScenarioA || dealConfig;
+    const effectiveDealConfigB = dealConfigScenarioB || { 
+      investmentAmount: 0, 
+      equityPercentage: 0, 
+      sectorMultiple: dealConfig?.sectorMultiple || 5,
+      valuationType: dealConfig?.valuationType || 'post-money',
+      safetyMargin: dealConfig?.safetyMargin || 20
+    };
 
     // Select language labels
     const L = PROMPT_LABELS[language as Language] || PROMPT_LABELS.en;
@@ -2403,7 +2463,7 @@ serve(async (req) => {
 
     // Build bilingual user prompt with Cap Table and Working Capital
     const userPrompt = buildUserPrompt(
-      { scenarioA, scenarioB, metrics, quarterly, dealConfig, exitPlan, capitalNeeds, historicalBalance, quarterlyItemized, exchangeRate, focusProjectInfo, previousEditedProjections, capTableEntries, workingCapitalConfig },
+      { scenarioA, scenarioB, metrics, quarterly, dealConfig, dealConfigA: effectiveDealConfigA, dealConfigB: effectiveDealConfigB, exitPlan, capitalNeeds, historicalBalance, quarterlyItemized, exchangeRate, focusProjectInfo, previousEditedProjections, capTableEntries, workingCapitalConfig },
       scenarioRelationship,
       { baseYear, scenarioYear, scenarioBYear, year2, year3, year5, exitPlanBaseYear },
       L

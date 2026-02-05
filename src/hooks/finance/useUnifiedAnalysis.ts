@@ -431,7 +431,7 @@ export function useUnifiedAnalysis() {
     return null;
   }, [userId]);
 
-  // Main analysis function
+  // Main analysis function - now supports separate deal configs for each scenario
   const runUnifiedAnalysis = useCallback(async (
     scenarioA: SimulationScenario,
     scenarioB: SimulationScenario,
@@ -447,7 +447,8 @@ export function useUnifiedAnalysis() {
     exchangeRate: number,
     focusProjectInfo?: FocusProjectInfo,
     capTableEntries?: any[],
-    workingCapitalConfig?: any
+    workingCapitalConfig?: any,
+    dealConfigB?: DealConfiguration  // NEW: Negative scenario deal config for comparison
   ): Promise<UnifiedAnalysisResult | null> => {
     setIsLoading(true);
     setError(null);
@@ -465,7 +466,7 @@ export function useUnifiedAnalysis() {
         ? (i18n.language || localStorage.getItem('language') || 'en').substring(0, 2)
         : 'en';
 
-      // Request body with Cap Table and Working Capital
+      // Request body with Cap Table, Working Capital, and dual deal configs
       const requestBody = {
         scenarioA,
         scenarioB,
@@ -477,7 +478,15 @@ export function useUnifiedAnalysis() {
           a: quarterlyA,
           b: quarterlyB
         },
-        dealConfig,
+        dealConfig,  // Primary deal config (Positive scenario - backward compat)
+        dealConfigScenarioA: dealConfig,  // Positive scenario investment terms
+        dealConfigScenarioB: dealConfigB || {  // Negative scenario investment terms (or organic growth)
+          investmentAmount: 0,
+          equityPercentage: 0,
+          sectorMultiple: dealConfig.sectorMultiple,
+          valuationType: dealConfig.valuationType,
+          safetyMargin: dealConfig.safetyMargin
+        },
         exitPlan: trimmedExitPlan,
         capitalNeeds,
         historicalBalance,

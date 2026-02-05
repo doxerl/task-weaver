@@ -79,6 +79,7 @@ import {
   EditableProjectionItem,
   InvestmentAllocation,
   YearlyBalanceSheet,
+  DealConfiguration,
   safeArray
 } from '@/types/simulation';
 import { InvestmentConfigSummary } from '@/components/simulation/InvestmentConfigSummary';
@@ -581,14 +582,45 @@ function ScenarioComparisonContent() {
     saveEditedProjections
   } = useUnifiedAnalysis();
   
-  // Investor Analysis Hook - sadece dealConfig için
-  const { 
-    dealConfig, 
-    updateDealConfig
-  } = useInvestorAnalysis();
-
   const scenarioA = useMemo(() => scenarios.find(s => s.id === scenarioAId), [scenarios, scenarioAId]);
   const scenarioB = useMemo(() => scenarios.find(s => s.id === scenarioBId), [scenarios, scenarioBId]);
+  
+  // Default deal config for scenarios without investment
+  const DEFAULT_NO_INVESTMENT_DEAL = useMemo(() => ({
+    investmentAmount: 0,
+    equityPercentage: 0,
+    sectorMultiple: 5,
+    valuationType: 'post-money' as const,
+    safetyMargin: 20
+  }), []);
+
+  // Read deal config from each scenario separately - convert DealConfig to DealConfiguration
+  const dealConfigA = useMemo((): DealConfiguration => {
+    const config = scenarioA?.dealConfig;
+    if (!config) return DEFAULT_NO_INVESTMENT_DEAL;
+    return {
+      investmentAmount: config.investmentAmount,
+      equityPercentage: config.equityPercentage,
+      sectorMultiple: config.sectorMultiple,
+      valuationType: config.valuationType,
+      safetyMargin: 20 // Default safetyMargin not in DealConfig type
+    };
+  }, [scenarioA?.dealConfig, DEFAULT_NO_INVESTMENT_DEAL]);
+  
+  const dealConfigB = useMemo((): DealConfiguration => {
+    const config = scenarioB?.dealConfig;
+    if (!config) return DEFAULT_NO_INVESTMENT_DEAL;
+    return {
+      investmentAmount: config.investmentAmount,
+      equityPercentage: config.equityPercentage,
+      sectorMultiple: config.sectorMultiple,
+      valuationType: config.valuationType,
+      safetyMargin: 20 // Default safetyMargin not in DealConfig type
+    };
+  }, [scenarioB?.dealConfig, DEFAULT_NO_INVESTMENT_DEAL]);
+  
+  // Use positive scenario's dealConfig for main calculations
+  const dealConfig = dealConfigA;
   
   // Exchange rates hook for TL to USD conversion (after scenarioB is defined)
   const { yearlyAverageRate } = useExchangeRates(scenarioB?.targetYear || new Date().getFullYear());
@@ -1247,7 +1279,10 @@ function ScenarioComparisonContent() {
       historicalBalance,
       quarterlyItemized,
       averageRate,
-      focusProjectInfo
+      focusProjectInfo,
+      undefined, // capTableEntries
+      undefined, // workingCapitalConfig
+      dealConfigB // Negative scenario deal config for comparison
     );
   };
 
@@ -1730,7 +1765,7 @@ function ScenarioComparisonContent() {
               quarterlyRevenueB={{ q1: quarterlyComparison[0]?.scenarioBRevenue || 0, q2: quarterlyComparison[1]?.scenarioBRevenue || 0, q3: quarterlyComparison[2]?.scenarioBRevenue || 0, q4: quarterlyComparison[3]?.scenarioBRevenue || 0 }}
               quarterlyExpenseB={{ q1: quarterlyComparison[0]?.scenarioBExpense || 0, q2: quarterlyComparison[1]?.scenarioBExpense || 0, q3: quarterlyComparison[2]?.scenarioBExpense || 0, q4: quarterlyComparison[3]?.scenarioBExpense || 0 }}
               dealConfig={dealConfig}
-              onDealConfigChange={updateDealConfig}
+              onDealConfigChange={() => {}} // Read-only on comparison page
               aiNextYearProjection={unifiedAnalysis?.next_year_projection}
               editedProjectionOverride={
                 editableRevenueProjection.length > 0 
