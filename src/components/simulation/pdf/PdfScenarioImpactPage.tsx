@@ -82,13 +82,13 @@ export function PdfScenarioImpactPage({
             <div>
               <p style={{ fontSize: '11px', color: '#166534', marginBottom: '4px' }}>{t('pdf.scenarioImpact.profitMargin')}</p>
               <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#166534' }}>
-                %{(withInvestment.profitMargin * 100).toFixed(1)}
+                %{withInvestment.profitMargin.toFixed(1)}
               </p>
             </div>
             <div>
               <p style={{ fontSize: '11px', color: '#166534', marginBottom: '4px' }}>{t('pdf.scenarioImpact.growthRate')}</p>
               <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#166534' }}>
-                %{(withInvestment.growthRate * 100).toFixed(0)}
+                %{withInvestment.growthRate.toFixed(0)}
               </p>
             </div>
           </div>
@@ -154,13 +154,13 @@ export function PdfScenarioImpactPage({
             <div>
               <p style={{ fontSize: '11px', color: '#991b1b', marginBottom: '4px' }}>{t('pdf.scenarioImpact.profitMargin')}</p>
               <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#991b1b' }}>
-                %{(withoutInvestment.profitMargin * 100).toFixed(1)}
+                %{withoutInvestment.profitMargin.toFixed(1)}
               </p>
             </div>
             <div>
               <p style={{ fontSize: '11px', color: '#991b1b', marginBottom: '4px' }}>{t('pdf.scenarioImpact.organicGrowth')}</p>
               <p style={{ fontSize: '20px', fontWeight: 'bold', color: '#991b1b' }}>
-                %{(withoutInvestment.organicGrowthRate * 100).toFixed(0)}
+                %{withoutInvestment.organicGrowthRate.toFixed(0)}
               </p>
             </div>
           </div>
@@ -263,7 +263,7 @@ export function PdfScenarioImpactPage({
               {t('pdf.scenarioImpact.growthDifference')}
             </p>
             <p style={{ fontSize: '22px', fontWeight: 'bold', color: '#dc2626' }}>
-              %{(opportunityCost.growthRateDiff * 100).toFixed(0)}
+              %{opportunityCost.growthRateDiff.toFixed(0)}
             </p>
             <p style={{ fontSize: '10px', color: '#dc2626' }}>↓ {t('pdf.scenarioImpact.potentialLoss')}</p>
           </div>
@@ -300,7 +300,7 @@ export function PdfScenarioImpactPage({
           }}
           dangerouslySetInnerHTML={{
             __html: t('pdf.scenarioImpact.summaryText', {
-              percent: (opportunityCost.percentageLoss * 100).toFixed(0),
+              percent: opportunityCost.percentageLoss.toFixed(0),
               amount: formatCompactUSD(opportunityCost.valuationLoss),
             }),
           }}
