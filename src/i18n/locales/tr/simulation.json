@@ -1375,5 +1375,21 @@
       "title": "AI Analiz Sonuçları",
       "strategicRecommendations": "Stratejik Öneriler"
     }
+  },
+  "investmentConfig": {
+    "title": "Yatırım Konfigürasyonu",
+    "description": "Deal parametrelerini ve odak projelerini yapılandırın",
+    "projectsSelected": "proje seçili",
+    "savedConfig": "Kayıtlı konfigürasyon kullanılıyor",
+    "configMismatch": "Uyarı: Senaryo konfigürasyonları farklı",
+    "focusProjects": "Odak Projeler",
+    "growthPlan": "Büyüme Planı",
+    "allocation": "Yatırım Dağılımı",
+    "dealTerms": "Deal Koşulları",
+    "noConfig": "Yapılandırma yok"
+  },
+  "comparison": {
+    "savedConfigSummary": "Kayıtlı Konfigürasyon Özeti",
+    "savedConfigDesc": "Bu senaryonun kayıtlı yatırım ayarları"
   }
 }

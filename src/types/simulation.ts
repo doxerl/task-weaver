@@ -55,6 +55,14 @@ export interface InvestmentItem {
   quarterly?: QuarterlyAmounts; // Quarterly distribution of investment
 }
 
+/** Deal configuration for investment simulation */
+export interface DealConfig {
+  investmentAmount: number;
+  equityPercentage: number;
+  sectorMultiple: number;
+  valuationType: 'pre-money' | 'post-money';
+}
+
 export interface SimulationScenario {
   id: string;
   name: string;
@@ -69,6 +77,11 @@ export interface SimulationScenario {
   version?: number;             // Version number for tracking updates
   createdAt?: string;
   updatedAt?: string;
+  // Investment configuration fields (saved with scenario)
+  focusProjects?: string[];
+  focusProjectPlan?: string;
+  investmentAllocation?: InvestmentAllocation;
+  dealConfig?: DealConfig;
 }
 
 export interface SimulationSummary {

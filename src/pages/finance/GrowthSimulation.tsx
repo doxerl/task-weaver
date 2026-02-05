@@ -24,6 +24,7 @@ import {
   Wallet,
 } from 'lucide-react';
 import { DealSimulatorCard, CashAnalysis, ExitPlanYear5 } from '@/components/simulation/DealSimulatorCard';
+import { InvestmentConfigPanel } from '@/components/simulation/InvestmentConfigPanel';
 import { calculateDecayYear5Revenue, STARTUP_GROWTH_PROFILES, type BusinessModel } from '@/constants/simulation';
 import { useGrowthSimulation } from '@/hooks/finance/useGrowthSimulation';
 import { useScenarios } from '@/hooks/finance/useScenarios';
@@ -35,11 +36,12 @@ import { AddItemDialog } from '@/components/simulation/AddItemDialog';
 import { ScenarioSelector } from '@/components/simulation/ScenarioSelector';
 import { NewScenarioDialog } from '@/components/simulation/NewScenarioDialog';
 import { CapTableEditor } from '@/components/simulation/CapTableEditor';
+import { FocusProjectSelector } from '@/components/simulation/FocusProjectSelector';
 import { SensitivityPanel } from '@/components/simulation/SensitivityPanel';
 import { CashFlowDashboard } from '@/components/simulation/CashFlowDashboard';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { Skeleton } from '@/components/ui/skeleton';
-import { SimulationScenario } from '@/types/simulation';
+import { SimulationScenario, InvestmentAllocation, DealConfig } from '@/types/simulation';
 import { AppHeader } from '@/components/AppHeader';
 import { toast } from 'sonner';
 import { generateTornadoAnalysis, generateScenarioMatrix } from '@/lib/sensitivityEngine';
@@ -70,6 +72,19 @@ function GrowthSimulationContent() {
   const [equityPercentage, setEquityPercentage] = useState(10);
   const [sectorMultiple, setSectorMultiple] = useState(5);
   const [valuationType, setValuationType] = useState<'pre-money' | 'post-money'>('post-money');
+
+  // =====================================================
+  // INVESTMENT CONFIG PANEL STATE
+  // =====================================================
+  const [investmentConfigOpen, setInvestmentConfigOpen] = useState(true);
+  const [focusProjects, setFocusProjects] = useState<string[]>([]);
+  const [focusProjectPlan, setFocusProjectPlan] = useState('');
+  const [investmentAllocation, setInvestmentAllocation] = useState<InvestmentAllocation>({
+    product: 40,
+    marketing: 30,
+    hiring: 20,
+    operations: 10,
+  });
 
   // =====================================================
   // CAP TABLE STATE
@@ -298,6 +313,14 @@ function GrowthSimulationContent() {
   }, [searchParams, scenariosHook.scenarios, urlScenarioLoaded, loadScenario, loadBaseScenario, clearBaseScenario, scenariosHook]);
 
   const handleSave = async () => {
+    // Build deal config from current state
+    const dealConfig: DealConfig = {
+      investmentAmount,
+      equityPercentage,
+      sectorMultiple,
+      valuationType,
+    };
+
     const savedId = await scenariosHook.saveScenario(
       {
         name: scenarioName,
@@ -309,6 +332,11 @@ function GrowthSimulationContent() {
         assumedExchangeRate,
         notes,
         scenarioType,
+        // Investment configuration
+        focusProjects,
+        focusProjectPlan,
+        investmentAllocation,
+        dealConfig,
       },
       scenariosHook.currentScenarioId
     );
@@ -341,6 +369,19 @@ function GrowthSimulationContent() {
     scenariosHook.setCurrentScenarioId(scenario.id);
     setScenarioType(scenario.scenarioType || 'positive');
     
+    // Load investment configuration from scenario
+    setFocusProjects(scenario.focusProjects || []);
+    setFocusProjectPlan(scenario.focusProjectPlan || '');
+    setInvestmentAllocation(scenario.investmentAllocation || { product: 40, marketing: 30, hiring: 20, operations: 10 });
+    
+    // Load deal config if available
+    if (scenario.dealConfig) {
+      setInvestmentAmount(scenario.dealConfig.investmentAmount);
+      setEquityPercentage(scenario.dealConfig.equityPercentage);
+      setSectorMultiple(scenario.dealConfig.sectorMultiple);
+      setValuationType(scenario.dealConfig.valuationType);
+    }
+    
     // Baz yıl için önceki yılın pozitif senaryosunu bul ve yükle
     const previousYear = scenario.targetYear - 1;
     const baseScenario = scenariosHook.scenarios.find(
@@ -364,6 +405,15 @@ function GrowthSimulationContent() {
     setScenarioType(type);
     scenariosHook.setCurrentScenarioId(null);
     clearBaseScenario(); // Yeni senaryo için baz senaryoyu temizle
+    
+    // Reset investment configuration
+    setFocusProjects([]);
+    setFocusProjectPlan('');
+    setInvestmentAllocation({ product: 40, marketing: 30, hiring: 20, operations: 10 });
+    setInvestmentAmount(150000);
+    setEquityPercentage(10);
+    setSectorMultiple(5);
+    setValuationType('post-money');
   };
 
   const handleExportPdf = async () => {
@@ -582,25 +632,37 @@ function GrowthSimulationContent() {
         )}
 
         {/* ============================================= */}
-        {/* DEAL SIMULATOR CARD - Nakit Durumuna Gore */}
+        {/* DEAL SIMULATOR & FOCUS PROJECTS */}
         {/* ============================================= */}
-        <DealSimulatorCard
-          cashAnalysis={cashAnalysis as CashAnalysis}
-          scenarioType={scenarioType}
-          currentRevenue={summary.projected.totalRevenue}
-          investmentAmount={investmentAmount}
-          equityPercentage={equityPercentage}
-          sectorMultiple={sectorMultiple}
-          valuationType={valuationType}
-          isOpen={dealSimulatorOpen}
-          onInvestmentAmountChange={setInvestmentAmount}
-          onEquityPercentageChange={setEquityPercentage}
-          onSectorMultipleChange={setSectorMultiple}
-          onValuationTypeChange={setValuationType}
-          onOpenChange={setDealSimulatorOpen}
-          exitPlanYear5={exitPlanYear5}
-          businessModel="SAAS"
-        />
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <DealSimulatorCard
+            cashAnalysis={cashAnalysis as CashAnalysis}
+            scenarioType={scenarioType}
+            currentRevenue={summary.projected.totalRevenue}
+            investmentAmount={investmentAmount}
+            equityPercentage={equityPercentage}
+            sectorMultiple={sectorMultiple}
+            valuationType={valuationType}
+            isOpen={dealSimulatorOpen}
+            onInvestmentAmountChange={setInvestmentAmount}
+            onEquityPercentageChange={setEquityPercentage}
+            onSectorMultipleChange={setSectorMultiple}
+            onValuationTypeChange={setValuationType}
+            onOpenChange={setDealSimulatorOpen}
+            exitPlanYear5={exitPlanYear5}
+            businessModel="SAAS"
+          />
+          
+          <FocusProjectSelector
+            revenues={revenues}
+            focusProjects={focusProjects}
+            focusProjectPlan={focusProjectPlan}
+            investmentAllocation={investmentAllocation}
+            onFocusProjectsChange={setFocusProjects}
+            onFocusProjectPlanChange={setFocusProjectPlan}
+            onInvestmentAllocationChange={setInvestmentAllocation}
+          />
+        </div>
 
         {/* Main Tabs Navigation */}
         <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-4">

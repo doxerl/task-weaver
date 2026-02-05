@@ -6,6 +6,8 @@ import {
   ProjectionItem, 
   InvestmentItem, 
   SimulationScenario,
+  InvestmentAllocation,
+  DealConfig,
   NextYearProjection
 } from '@/types/simulation';
 
@@ -26,6 +28,11 @@ interface DatabaseScenario {
   version: number;
   created_at: string;
   updated_at: string;
+  // Investment configuration fields
+  focus_projects: string[] | null;
+  focus_project_plan: string | null;
+  investment_allocation: InvestmentAllocation | null;
+  deal_config: DealConfig | null;
 }
 
 export function useScenarios() {
@@ -64,6 +71,11 @@ export function useScenarios() {
         version: d.version || 1,
         createdAt: d.created_at,
         updatedAt: d.updated_at,
+        // Investment configuration
+        focusProjects: d.focus_projects || [],
+        focusProjectPlan: d.focus_project_plan || '',
+        investmentAllocation: d.investment_allocation || { product: 40, marketing: 30, hiring: 20, operations: 10 },
+        dealConfig: d.deal_config || undefined,
       }));
 
       setScenarios(mapped);
@@ -94,7 +106,6 @@ export function useScenarios() {
         const { error } = await supabase
           .from('simulation_scenarios')
           .update({
-            user_id: userId,
             name: scenario.name,
             base_year: scenario.baseYear,
             target_year: scenario.targetYear,
@@ -105,6 +116,11 @@ export function useScenarios() {
             notes: scenario.notes,
             scenario_type: scenario.scenarioType || 'positive',
             version: newVersion,
+            // Investment configuration (cast to any to satisfy Supabase's Json type)
+            focus_projects: scenario.focusProjects || [],
+            focus_project_plan: scenario.focusProjectPlan || '',
+            investment_allocation: JSON.parse(JSON.stringify(scenario.investmentAllocation || { product: 40, marketing: 30, hiring: 20, operations: 10 })),
+            deal_config: scenario.dealConfig ? JSON.parse(JSON.stringify(scenario.dealConfig)) : null,
           })
           .eq('id', existingId);
 
@@ -129,6 +145,11 @@ export function useScenarios() {
             notes: scenario.notes,
             scenario_type: scenario.scenarioType || 'positive',
             version: 1,
+            // Investment configuration
+            focus_projects: scenario.focusProjects || [],
+            focus_project_plan: scenario.focusProjectPlan || '',
+            investment_allocation: JSON.parse(JSON.stringify(scenario.investmentAllocation || { product: 40, marketing: 30, hiring: 20, operations: 10 })),
+            deal_config: scenario.dealConfig ? JSON.parse(JSON.stringify(scenario.dealConfig)) : null,
           })
           .select('id')
           .single();
