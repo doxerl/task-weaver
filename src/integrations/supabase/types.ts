@@ -1685,9 +1685,13 @@ export type Database = {
           assumed_exchange_rate: number | null
           base_year: number | null
           created_at: string | null
+          deal_config: Json | null
           description: string | null
           expenses: Json | null
+          focus_project_plan: string | null
+          focus_projects: string[] | null
           id: string
+          investment_allocation: Json | null
           investments: Json | null
           is_default: boolean | null
           name: string
@@ -1703,9 +1707,13 @@ export type Database = {
           assumed_exchange_rate?: number | null
           base_year?: number | null
           created_at?: string | null
+          deal_config?: Json | null
           description?: string | null
           expenses?: Json | null
+          focus_project_plan?: string | null
+          focus_projects?: string[] | null
           id?: string
+          investment_allocation?: Json | null
           investments?: Json | null
           is_default?: boolean | null
           name: string
@@ -1721,9 +1729,13 @@ export type Database = {
           assumed_exchange_rate?: number | null
           base_year?: number | null
           created_at?: string | null
+          deal_config?: Json | null
           description?: string | null
           expenses?: Json | null
+          focus_project_plan?: string | null
+          focus_projects?: string[] | null
           id?: string
+          investment_allocation?: Json | null
           investments?: Json | null
           is_default?: boolean | null
           name?: string

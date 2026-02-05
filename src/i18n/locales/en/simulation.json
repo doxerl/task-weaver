@@ -1375,5 +1375,21 @@
       "title": "AI Analysis Results",
       "strategicRecommendations": "Strategic Recommendations"
     }
+  },
+  "investmentConfig": {
+    "title": "Investment Configuration",
+    "description": "Configure deal parameters and focus projects",
+    "projectsSelected": "projects selected",
+    "savedConfig": "Using saved configuration",
+    "configMismatch": "Warning: Scenario configs differ",
+    "focusProjects": "Focus Projects",
+    "growthPlan": "Growth Plan",
+    "allocation": "Investment Allocation",
+    "dealTerms": "Deal Terms",
+    "noConfig": "No configuration"
+  },
+  "comparison": {
+    "savedConfigSummary": "Saved Configuration Summary",
+    "savedConfigDesc": "This scenario's saved investment settings"
   }
 }
