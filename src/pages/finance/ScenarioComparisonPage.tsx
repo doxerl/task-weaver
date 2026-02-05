@@ -81,7 +81,7 @@ import {
   YearlyBalanceSheet,
   safeArray
 } from '@/types/simulation';
-import { FocusProjectSelector } from '@/components/simulation/FocusProjectSelector';
+import { InvestmentConfigSummary } from '@/components/simulation/InvestmentConfigSummary';
 import { EditableProjectionTable } from '@/components/simulation/EditableProjectionTable';
 import { formatCompactUSD } from '@/lib/formatters';
 import { toast } from 'sonner';
@@ -545,26 +545,8 @@ function ScenarioComparisonContent() {
   const [historySheetType, setHistorySheetType] = useState<'scenario_comparison' | 'investor_pitch'>('scenario_comparison');
   const [showPitchDeck, setShowPitchDeck] = useState(false);
   
-  // Focus Project State - yatırım odak projesi (çoklu seçim destekli)
-  const [focusProjects, setFocusProjects] = useState<string[]>([]);
-  const [focusProjectPlan, setFocusProjectPlan] = useState<string>('');
-  // Organik büyüme oranı (non-focus projeler için)
-  const [organicGrowthRate, setOrganicGrowthRate] = useState<number>(5); // Default %5
-  
-  // Handler for multi-select focus projects (max 2)
-  const handleFocusProjectsChange = useCallback((projects: string[]) => {
-    if (projects.length > 2) {
-      toast.warning(t('simulation:toast.maxProjectsWarning'));
-      return;
-    }
-    setFocusProjects(projects);
-  }, [t]);
-  const [investmentAllocation, setInvestmentAllocation] = useState({
-    product: 40,
-    marketing: 30,
-    hiring: 20,
-    operations: 10
-  });
+  // Organik büyüme oranı (non-focus projeler için) - default değer
+  const organicGrowthRate = 5; // Default %5
   
   // Editable Projection State - AI'ın ürettiği projeksiyonu düzenlenebilir hale getir
   const [editableRevenueProjection, setEditableRevenueProjection] = useState<EditableProjectionItem[]>([]);
@@ -610,6 +592,16 @@ function ScenarioComparisonContent() {
   
   // Exchange rates hook for TL to USD conversion (after scenarioB is defined)
   const { yearlyAverageRate } = useExchangeRates(scenarioB?.targetYear || new Date().getFullYear());
+  
+  // Focus Project State - senaryodan okunan değerler (read-only)
+  const focusProjects = useMemo(() => scenarioA?.focusProjects || [], [scenarioA?.focusProjects]);
+  const focusProjectPlan = useMemo(() => scenarioA?.focusProjectPlan || '', [scenarioA?.focusProjectPlan]);
+  const investmentAllocation = useMemo(() => scenarioA?.investmentAllocation || {
+    product: 40,
+    marketing: 30,
+    hiring: 20,
+    operations: 10
+  }, [scenarioA?.investmentAllocation]);
   
   const summaryA = useMemo(() => scenarioA ? calculateScenarioSummary(scenarioA) : null, [scenarioA]);
   const summaryB = useMemo(() => scenarioB ? calculateScenarioSummary(scenarioB) : null, [scenarioB]);
@@ -1750,16 +1742,14 @@ function ScenarioComparisonContent() {
               }
             />
                 
-                {/* Focus Project Selector - Yatırım Odak Projesi (çoklu seçim) */}
-                {scenarioA && (
-                  <FocusProjectSelector
-                    revenues={scenarioA.revenues}
+                {/* Investment Config Summary - Senaryodan okunan ayarlar (read-only) */}
+                {scenarioA && (focusProjects.length > 0 || scenarioA.dealConfig) && (
+                  <InvestmentConfigSummary
                     focusProjects={focusProjects}
                     focusProjectPlan={focusProjectPlan}
                     investmentAllocation={investmentAllocation}
-                    onFocusProjectsChange={handleFocusProjectsChange}
-                    onFocusProjectPlanChange={setFocusProjectPlan}
-                    onInvestmentAllocationChange={setInvestmentAllocation}
+                    dealConfig={scenarioA.dealConfig}
+                    scenarioName={scenarioA.name}
                   />
                 )}
                 
