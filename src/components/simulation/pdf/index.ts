@@ -20,6 +20,10 @@ export { PdfProjectionPage } from './PdfProjectionPage';
 export { PdfFocusProjectPage } from './PdfFocusProjectPage';
 export { PdfAIInsightsPage } from './PdfAIInsightsPage';
 
+// Growth Comparison PDF Pages
+export { PdfGrowthAnalysisPage } from './PdfGrowthAnalysisPage';
+export { PdfMilestoneTimelinePage } from './PdfMilestoneTimelinePage';
+
 // Types
 export type {
   PdfExportContainerProps,
