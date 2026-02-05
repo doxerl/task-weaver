@@ -1,141 +1,138 @@
 
-# Deal Simulator Senaryo-Bağımlı Yapı Planı
+# PDF Export Halüsinasyon Sorunu Düzeltme Planı
 
-## Problem Özeti
-Şu an her iki senaryo için **tek bir ortak** `dealConfig` kullanılıyor. Bu yüzden:
-1. Pozitif senaryonun "$150K yatırım" değeri, negatif senaryoya da uygulanıyor
-2. AI analizi her iki senaryo için aynı yatırım koşullarını değerlendiriyor
-3. "Yatırım al vs Yatırım alma" karşılaştırması doğru yapılamıyor
+## Problem Analizi
 
-## Çözüm Stratejisi
-Her senaryonun **kendi `dealConfig`** değerini kullanmasını sağlamak ve AI analizine **her iki senaryonun deal config'ini ayrı ayrı** göndermek.
+PDF export bileşenleri dinamik UI'yi doğru yansıtmıyor çünkü:
+
+1. **Eksik Prop'lar**: `PdfExportContainer`'a şu prop'lar geçilMİYOR:
+   - `capitalNeedA` / `capitalNeedB` - Capital Analysis Page için
+   - `investmentTiers` - Investment Options Page için
+   - `scenarioComparison` - Scenario Impact Page için
+
+2. **Dinamik Hesaplamalar Eksik**: ScenarioComparisonPage'de bu değerler hesaplanmıyor veya PDF container'a aktarılmıyor.
+
+3. **AI Çıktısı Bağımsız**: `unifiedAnalysis` AI'dan gelen statik metin içeriyor, dinamik hesaplamalarla senkronize değil.
 
 ---
 
-## Teknik Değişiklikler
+## Çözüm: Eksik Prop'ları Hesapla ve PDF'e Aktar
 
-### 1. ScenarioComparisonPage.tsx - Senaryo-Bazlı DealConfig Okuma
+### Dosya: `src/pages/finance/ScenarioComparisonPage.tsx`
 
-**Mevcut (Satır 584-588):**
-```tsx
-const { dealConfig, updateDealConfig } = useInvestorAnalysis();
-```
+#### Adım 1: Capital Needs Hesaplaması (her iki senaryo için)
 
-**Yeni:**
-```tsx
-// Her senaryonun kendi dealConfig'ini oku
-const dealConfigA = useMemo(() => scenarioA?.dealConfig || {
-  investmentAmount: 0,
-  equityPercentage: 0,
-  sectorMultiple: 5,
-  valuationType: 'post-money'
-}, [scenarioA?.dealConfig]);
-
-const dealConfigB = useMemo(() => scenarioB?.dealConfig || {
-  investmentAmount: 0,
-  equityPercentage: 0,
-  sectorMultiple: 5,
-  valuationType: 'post-money'
-}, [scenarioB?.dealConfig]);
-
-// Pozitif senaryonun dealConfig'ini ana hesaplamalar için kullan
-const dealConfig = dealConfigA;
-```
-
-### 2. useUnifiedAnalysis.ts - Çift DealConfig Desteği
-
-**runUnifiedAnalysis fonksiyonuna ek parametre:**
-```tsx
-runUnifiedAnalysis(
-  scenarioA,
-  scenarioB,
-  summaryA,
-  summaryB,
-  ...
-  dealConfigA,  // Pozitif senaryo yatırım koşulları
-  dealConfigB   // Negatif senaryo yatırım koşulları (veya yatırım almama)
-)
-```
-
-**Request Body güncellemesi:**
-```tsx
-const requestBody = {
-  ...
-  dealConfig: dealConfigA,        // Backward compat için ana config
-  dealConfigScenarioA: dealConfigA,  // Yatırım alan senaryo
-  dealConfigScenarioB: dealConfigB,  // Yatırım almayan senaryo
-  ...
-};
-```
-
-### 3. unified-scenario-analysis Edge Function - Karşılaştırma Mantığı
-
-**AI Prompt güncellemesi:**
-```text
-## YATIRIM KARŞILAŞTIRMASI
-- Senaryo A (Pozitif): ${dealConfigA.investmentAmount} USD yatırım, %${dealConfigA.equityPercentage} equity
-- Senaryo B (Negatif): ${dealConfigB.investmentAmount} USD yatırım, %${dealConfigB.equityPercentage} equity
-  (B'de yatırım 0 ise "organik büyüme / yatırımsız senaryo" olarak değerlendir)
-
-AI bu karşılaştırmada:
-1. Yatırım etkisini (ör: "150K yatırım ile $446K gelir vs yatırımsız $149K gelir")
-2. Fırsat maliyetini (opportunity cost)
-3. Dilüsyon/getiri dengesini hesaplamalı
-```
-
-### 4. Varsayılan Değerler
-
-Negatif senaryo için varsayılan dealConfig (yatırım almama):
 ```typescript
-const DEFAULT_NO_INVESTMENT_DEAL: DealConfig = {
-  investmentAmount: 0,
-  equityPercentage: 0,
-  sectorMultiple: 5,  // Exit multiple hala geçerli
-  valuationType: 'post-money'
-};
+// Satır ~850 civarına ekle
+const capitalNeedA = useMemo(() => {
+  if (!quarterlyComparison || quarterlyComparison.length < 4) return null;
+  return calculateCapitalNeeds({
+    q1: quarterlyComparison[0]?.scenarioANet || 0,
+    q2: quarterlyComparison[1]?.scenarioANet || 0,
+    q3: quarterlyComparison[2]?.scenarioANet || 0,
+    q4: quarterlyComparison[3]?.scenarioANet || 0
+  });
+}, [quarterlyComparison]);
+
+const capitalNeedB = useMemo(() => {
+  if (!quarterlyComparison || quarterlyComparison.length < 4) return null;
+  return calculateCapitalNeeds({
+    q1: quarterlyComparison[0]?.scenarioBNet || 0,
+    q2: quarterlyComparison[1]?.scenarioBNet || 0,
+    q3: quarterlyComparison[2]?.scenarioBNet || 0,
+    q4: quarterlyComparison[3]?.scenarioBNet || 0
+  });
+}, [quarterlyComparison]);
+```
+
+#### Adım 2: Investment Tiers Hesaplaması
+
+```typescript
+const investmentTiers = useMemo(() => {
+  if (!capitalNeedB) return [];
+  const base = capitalNeedB.requiredInvestment;
+  return [
+    { 
+      tier: 'minimum', 
+      amount: base, 
+      runway: capitalNeedB.runwayMonths,
+      description: 'Minimal capital to survive' 
+    },
+    { 
+      tier: 'recommended', 
+      amount: base * 1.5, 
+      runway: Math.round(capitalNeedB.runwayMonths * 1.5),
+      description: 'Recommended for safe runway' 
+    },
+    { 
+      tier: 'aggressive', 
+      amount: base * 2, 
+      runway: Math.round(capitalNeedB.runwayMonths * 2),
+      description: 'Aggressive growth capital' 
+    }
+  ];
+}, [capitalNeedB]);
+```
+
+#### Adım 3: Scenario Comparison Hesaplaması
+
+```typescript
+const scenarioComparison = useMemo(() => {
+  if (!summaryA || !summaryB) return null;
+  return {
+    withInvestment: {
+      revenue: summaryA.totalRevenue,
+      profit: summaryA.netProfit,
+      margin: summaryA.profitMargin
+    },
+    withoutInvestment: {
+      revenue: summaryB.totalRevenue,
+      profit: summaryB.netProfit,
+      margin: summaryB.profitMargin
+    },
+    impact: {
+      revenueGap: summaryA.totalRevenue - summaryB.totalRevenue,
+      profitGap: summaryA.netProfit - summaryB.netProfit,
+      growthMultiplier: summaryB.totalRevenue > 0 
+        ? summaryA.totalRevenue / summaryB.totalRevenue 
+        : 0
+    }
+  };
+}, [summaryA, summaryB]);
+```
+
+#### Adım 4: PDF Container'a Prop'ları Geçir
+
+```tsx
+<PdfExportContainer
+  presentationPdfRef={presentationPdfRef}
+  scenarioA={scenarioA}
+  scenarioB={scenarioB}
+  // ... existing props ...
+  
+  // YENİ PROP'LAR
+  capitalNeedA={capitalNeedA}
+  capitalNeedB={capitalNeedB}
+  investmentTiers={investmentTiers}
+  scenarioComparison={scenarioComparison}
+  optimalTiming={null} // Opsiyonel, AI'dan gelebilir
+/>
 ```
 
 ---
 
-## Dosya Değişiklikleri
+## Dosya Değişiklikleri Özeti
 
 | Dosya | Değişiklik |
 |-------|-----------|
-| `src/pages/finance/ScenarioComparisonPage.tsx` | `dealConfigA`, `dealConfigB` useMemo ekleme, AI çağrısına ikisini de gönderme |
-| `src/hooks/finance/useUnifiedAnalysis.ts` | `runUnifiedAnalysis` signature güncelleme, request body'e `dealConfigScenarioA/B` ekleme |
-| `supabase/functions/unified-scenario-analysis/index.ts` | Her iki dealConfig'i prompt'a dahil etme, karşılaştırma mantığı ekleme |
+| `src/pages/finance/ScenarioComparisonPage.tsx` | `capitalNeedA/B`, `investmentTiers`, `scenarioComparison` hesapla ve PDF container'a geçir |
 
 ---
 
-## Veri Akışı (Düzeltilmiş)
+## Sonuç
 
-```text
-GrowthSimulation (Pozitif Senaryo Düzenleme)
-    ↓ DealSimulator → dealConfig kaydet
-simulation_scenarios.deal_config (A)
-    ↓
-GrowthSimulation (Negatif Senaryo Düzenleme) 
-    ↓ DealSimulator → farklı dealConfig kaydet (veya 0 yatırım)
-simulation_scenarios.deal_config (B)
-    ↓
-ScenarioComparisonPage
-    ↓ scenarioA.dealConfig + scenarioB.dealConfig oku
-    ↓
-useUnifiedAnalysis → Edge Function
-    ↓ Her iki dealConfig ile AI analizi
-    ↓
-Sonuç: "150K yatırım alırsan → $446K gelir (198% büyüme)"
-       "Yatırım almazsan → $149K gelir (organik)"
-```
-
----
-
-## Kullanıcı Deneyimi
-
-1. **Pozitif Senaryoda:** Kullanıcı Deal Simulator'da "$150K, %10 equity" girer
-2. **Negatif Senaryoda:** Kullanıcı "$0, %0 equity" bırakır (veya farklı bir teklif)
-3. **Karşılaştırma Sayfasında:** AI her iki durumu analiz eder:
-   - "Yatırım alırsanız: $446K gelir, 3 yıl runway, 5.2x MOIC"
-   - "Almazsanız: $149K gelir, 8 ay runway, organik büyüme"
-
-Bu yaklaşım "opportunity cost" analizini doğru yapar ve pitch deck'te yatırımcıya ikna edici veri sunar.
+Bu değişikliklerle:
+- PDF Capital Analysis sayfası gerçek verilerle doldurulacak
+- Investment Options sayfası dinamik tier'ları gösterecek
+- Scenario Impact sayfası A vs B karşılaştırmasını doğru gösterecek
+- AI "halüsinasyonları" yerine hesaplanmış veriler kullanılacak
