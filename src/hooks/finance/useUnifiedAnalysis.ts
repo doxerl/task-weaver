@@ -445,7 +445,9 @@ export function useUnifiedAnalysis() {
     historicalBalance: YearlyBalanceSheet | null,
     quarterlyItemized: QuarterlyItemizedData | null,
     exchangeRate: number,
-    focusProjectInfo?: FocusProjectInfo
+    focusProjectInfo?: FocusProjectInfo,
+    capTableEntries?: any[],
+    workingCapitalConfig?: any
   ): Promise<UnifiedAnalysisResult | null> => {
     setIsLoading(true);
     setError(null);
@@ -463,7 +465,7 @@ export function useUnifiedAnalysis() {
         ? (i18n.language || localStorage.getItem('language') || 'en').substring(0, 2)
         : 'en';
 
-      // Request body
+      // Request body with Cap Table and Working Capital
       const requestBody = {
         scenarioA,
         scenarioB,
@@ -482,7 +484,10 @@ export function useUnifiedAnalysis() {
         quarterlyItemized,
         exchangeRate,
         focusProjectInfo,
-        language: currentLanguage // 'en' or 'tr'
+        language: currentLanguage, // 'en' or 'tr'
+        // NEW: Cap Table and Working Capital from scenario
+        capTableEntries: capTableEntries || scenarioA.capTableEntries || [],
+        workingCapitalConfig: workingCapitalConfig || scenarioA.workingCapitalConfig || null
       };
 
       // Retry wrapper for Edge Function call with exponential backoff

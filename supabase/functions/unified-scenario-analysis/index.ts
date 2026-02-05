@@ -1949,6 +1949,8 @@ function buildUserPrompt(
     exchangeRate: number | null;
     focusProjectInfo: any;
     previousEditedProjections: any;
+    capTableEntries?: any[];
+    workingCapitalConfig?: any;
   },
   scenarioRelationship: ScenarioRelationship,
   yearContext: {
@@ -1962,7 +1964,7 @@ function buildUserPrompt(
   },
   L: PromptLabels
 ): string {
-  const { scenarioA, scenarioB, metrics, quarterly, dealConfig, exitPlan, capitalNeeds, historicalBalance, quarterlyItemized, exchangeRate, focusProjectInfo, previousEditedProjections } = data;
+  const { scenarioA, scenarioB, metrics, quarterly, dealConfig, exitPlan, capitalNeeds, historicalBalance, quarterlyItemized, exchangeRate, focusProjectInfo, previousEditedProjections, capTableEntries, workingCapitalConfig } = data;
   const { baseYear, scenarioYear, scenarioBYear, year2, year3, year5 } = yearContext;
 
   // Currency note
@@ -2145,6 +2147,44 @@ ${L.ifChangesAffectTotals}
 ${L.indicateAggressiveConservative}
 ` : '';
 
+  // Cap Table section
+  const capTableSection = capTableEntries && capTableEntries.length > 0 ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+📊 CAP TABLE (Equity Structure):
+
+Shareholders:
+${capTableEntries.map((entry: any) => 
+  `- ${entry.holder}: ${entry.shares.toLocaleString()} shares (${entry.percentage}%) [${entry.type}]`
+).join('\n')}
+
+Total Shares: ${capTableEntries.reduce((sum: number, e: any) => sum + (e.shares || 0), 0).toLocaleString()}
+
+Analysis Instructions:
+- Use this cap table data for dilution calculations
+- Consider ownership percentages when evaluating investor returns
+- Factor in option pool when calculating fully diluted ownership
+` : '';
+
+  // Working Capital section
+  const workingCapitalSection = workingCapitalConfig ? `
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+💰 WORKING CAPITAL CONFIGURATION:
+
+- Accounts Receivable Days: ${workingCapitalConfig.ar_days || 45} days
+- Accounts Payable Days: ${workingCapitalConfig.ap_days || 30} days
+- Inventory Days: ${workingCapitalConfig.inventory_days || 0} days
+- Deferred Revenue Days: ${workingCapitalConfig.deferred_revenue_days || 0} days
+
+Cash Conversion Cycle (CCC): ${(workingCapitalConfig.ar_days || 45) + (workingCapitalConfig.inventory_days || 0) - (workingCapitalConfig.ap_days || 30)} days
+
+Analysis Instructions:
+- Use these metrics to calculate cash flow timing
+- Consider CCC when evaluating runway and death valley
+- Factor working capital changes into cash flow reconciliation
+` : '';
+
   // Build the full prompt
   return `
 ${historicalBalanceSection}
@@ -2285,6 +2325,10 @@ ${focusProjectSection}
 
 ${userEditsSection}
 
+${capTableSection}
+
+${workingCapitalSection}
+
 ${L.analyzeAllData}
 `;
 }
@@ -2311,7 +2355,10 @@ serve(async (req) => {
       exchangeRate,
       focusProjectInfo,
       previousEditedProjections,
-      language = 'en'
+      language = 'en',
+      // NEW: Cap Table and Working Capital data
+      capTableEntries,
+      workingCapitalConfig,
     } = await req.json();
 
     // Select language labels
@@ -2354,9 +2401,9 @@ serve(async (req) => {
     const year3 = exitPlanBaseYear + 3;
     const year5 = exitPlanBaseYear + 5;
 
-    // Build bilingual user prompt
+    // Build bilingual user prompt with Cap Table and Working Capital
     const userPrompt = buildUserPrompt(
-      { scenarioA, scenarioB, metrics, quarterly, dealConfig, exitPlan, capitalNeeds, historicalBalance, quarterlyItemized, exchangeRate, focusProjectInfo, previousEditedProjections },
+      { scenarioA, scenarioB, metrics, quarterly, dealConfig, exitPlan, capitalNeeds, historicalBalance, quarterlyItemized, exchangeRate, focusProjectInfo, previousEditedProjections, capTableEntries, workingCapitalConfig },
       scenarioRelationship,
       { baseYear, scenarioYear, scenarioBYear, year2, year3, year5, exitPlanBaseYear },
       L
