@@ -618,7 +618,7 @@ function GrowthSimulationContent() {
         {/* ============================================= */}
         {/* DEAL SIMULATOR & FOCUS PROJECTS */}
         {/* ============================================= */}
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="space-y-4">
           <DealSimulatorCard
             cashAnalysis={cashAnalysis as CashAnalysis}
             scenarioType={scenarioType}
