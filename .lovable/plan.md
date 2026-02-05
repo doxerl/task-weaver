@@ -1,116 +1,141 @@
 
-# Düzeltme Planı: Investment Deal Simulator ve Focus Projects Veri Kaydetme Sorunu
+# Deal Simulator Senaryo-Bağımlı Yapı Planı
 
 ## Problem Özeti
-
-Kullanıcı, "Investment Deal Simulator" ve "Investment Focus Projects" bölümlerinde yaptığı değişikliklerin senaryolara kaydedilmediğini ve AI analizinin bu bilgileri almadığını bildirdi.
-
-**Tespit Edilen Kök Neden:**
-1. Veritabanında `deal_config: null` ve `focus_projects: []` kalıyor
-2. `GrowthSimulation.tsx`'deki `handleSave` fonksiyonu doğru parametrelerle çalışıyor ANCAK:
-   - Kullanıcı değişiklik yapıp kaydetmeden karşılaştırma sayfasına gidebiliyor
-   - DealSimulator/FocusProjectSelector bileşenlerinde **otomatik kaydetme** yok
-3. Bileşenler state'i güncelliyor ama veritabanına persist etmiyor
+Şu an her iki senaryo için **tek bir ortak** `dealConfig` kullanılıyor. Bu yüzden:
+1. Pozitif senaryonun "$150K yatırım" değeri, negatif senaryoya da uygulanıyor
+2. AI analizi her iki senaryo için aynı yatırım koşullarını değerlendiriyor
+3. "Yatırım al vs Yatırım alma" karşılaştırması doğru yapılamıyor
 
 ## Çözüm Stratejisi
+Her senaryonun **kendi `dealConfig`** değerini kullanmasını sağlamak ve AI analizine **her iki senaryonun deal config'ini ayrı ayrı** göndermek.
 
-### Seçenek 1: Otomatik Kaydetme (Auto-Save) - ÖNERİLEN
-Kullanıcı değişiklik yaptığında debounced auto-save ile veritabanına kaydet.
+---
 
-### Seçenek 2: Uyarı Sistemi
-Kullanıcı kaydedilmemiş değişikliklerle sayfadan ayrılmaya çalıştığında uyarı göster.
+## Teknik Değişiklikler
 
-### Seçenek 3: Inline Save Butonu
-Her bileşene ayrı bir "Kaydet" butonu ekle.
+### 1. ScenarioComparisonPage.tsx - Senaryo-Bazlı DealConfig Okuma
 
-**Tercih:** Seçenek 1 (Otomatik Kaydetme) - En iyi UX
-
-## Teknik Uygulama
-
-### Adım 1: Değişiklik Takip State'i Ekle (GrowthSimulation.tsx)
-```typescript
-const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false);
+**Mevcut (Satır 584-588):**
+```tsx
+const { dealConfig, updateDealConfig } = useInvestorAnalysis();
 ```
 
-### Adım 2: Değişiklik Handler'larına Flag Ekle
-```typescript
-const handleDealConfigChange = (field, value) => {
-  // ... mevcut setter
-  setHasUnsavedChanges(true);
+**Yeni:**
+```tsx
+// Her senaryonun kendi dealConfig'ini oku
+const dealConfigA = useMemo(() => scenarioA?.dealConfig || {
+  investmentAmount: 0,
+  equityPercentage: 0,
+  sectorMultiple: 5,
+  valuationType: 'post-money'
+}, [scenarioA?.dealConfig]);
+
+const dealConfigB = useMemo(() => scenarioB?.dealConfig || {
+  investmentAmount: 0,
+  equityPercentage: 0,
+  sectorMultiple: 5,
+  valuationType: 'post-money'
+}, [scenarioB?.dealConfig]);
+
+// Pozitif senaryonun dealConfig'ini ana hesaplamalar için kullan
+const dealConfig = dealConfigA;
+```
+
+### 2. useUnifiedAnalysis.ts - Çift DealConfig Desteği
+
+**runUnifiedAnalysis fonksiyonuna ek parametre:**
+```tsx
+runUnifiedAnalysis(
+  scenarioA,
+  scenarioB,
+  summaryA,
+  summaryB,
+  ...
+  dealConfigA,  // Pozitif senaryo yatırım koşulları
+  dealConfigB   // Negatif senaryo yatırım koşulları (veya yatırım almama)
+)
+```
+
+**Request Body güncellemesi:**
+```tsx
+const requestBody = {
+  ...
+  dealConfig: dealConfigA,        // Backward compat için ana config
+  dealConfigScenarioA: dealConfigA,  // Yatırım alan senaryo
+  dealConfigScenarioB: dealConfigB,  // Yatırım almayan senaryo
+  ...
 };
+```
 
-const handleFocusProjectsChange = (projects) => {
-  setFocusProjects(projects);
-  setHasUnsavedChanges(true);
+### 3. unified-scenario-analysis Edge Function - Karşılaştırma Mantığı
+
+**AI Prompt güncellemesi:**
+```text
+## YATIRIM KARŞILAŞTIRMASI
+- Senaryo A (Pozitif): ${dealConfigA.investmentAmount} USD yatırım, %${dealConfigA.equityPercentage} equity
+- Senaryo B (Negatif): ${dealConfigB.investmentAmount} USD yatırım, %${dealConfigB.equityPercentage} equity
+  (B'de yatırım 0 ise "organik büyüme / yatırımsız senaryo" olarak değerlendir)
+
+AI bu karşılaştırmada:
+1. Yatırım etkisini (ör: "150K yatırım ile $446K gelir vs yatırımsız $149K gelir")
+2. Fırsat maliyetini (opportunity cost)
+3. Dilüsyon/getiri dengesini hesaplamalı
+```
+
+### 4. Varsayılan Değerler
+
+Negatif senaryo için varsayılan dealConfig (yatırım almama):
+```typescript
+const DEFAULT_NO_INVESTMENT_DEAL: DealConfig = {
+  investmentAmount: 0,
+  equityPercentage: 0,
+  sectorMultiple: 5,  // Exit multiple hala geçerli
+  valuationType: 'post-money'
 };
 ```
 
-### Adım 3: Debounced Auto-Save Ekle
-```typescript
-useEffect(() => {
-  if (!hasUnsavedChanges || !scenariosHook.currentScenarioId) return;
-  
-  const timer = setTimeout(async () => {
-    await handleSave();
-    setHasUnsavedChanges(false);
-  }, 2000); // 2 saniye debounce
-  
-  return () => clearTimeout(timer);
-}, [hasUnsavedChanges, investmentAmount, equityPercentage, focusProjects, ...]);
-```
-
-### Adım 4: UI Göstergesi Ekle
-```typescript
-{hasUnsavedChanges && (
-  <Badge variant="outline" className="text-amber-400">
-    <Loader2 className="h-3 w-3 animate-spin mr-1" />
-    Kaydediliyor...
-  </Badge>
-)}
-```
-
-### Adım 5: Sayfa Çıkış Uyarısı (Fallback)
-```typescript
-useEffect(() => {
-  const handleBeforeUnload = (e: BeforeUnloadEvent) => {
-    if (hasUnsavedChanges) {
-      e.preventDefault();
-      e.returnValue = '';
-    }
-  };
-  window.addEventListener('beforeunload', handleBeforeUnload);
-  return () => window.removeEventListener('beforeunload', handleBeforeUnload);
-}, [hasUnsavedChanges]);
-```
+---
 
 ## Dosya Değişiklikleri
 
 | Dosya | Değişiklik |
 |-------|-----------|
-| `src/pages/finance/GrowthSimulation.tsx` | Auto-save logic, unsaved changes tracking |
-| `src/components/simulation/DealSimulatorCard.tsx` | onChange callback'leri parent'a bildirimi |
-| `src/components/simulation/FocusProjectSelector.tsx` | onChange callback'leri parent'a bildirimi |
+| `src/pages/finance/ScenarioComparisonPage.tsx` | `dealConfigA`, `dealConfigB` useMemo ekleme, AI çağrısına ikisini de gönderme |
+| `src/hooks/finance/useUnifiedAnalysis.ts` | `runUnifiedAnalysis` signature güncelleme, request body'e `dealConfigScenarioA/B` ekleme |
+| `supabase/functions/unified-scenario-analysis/index.ts` | Her iki dealConfig'i prompt'a dahil etme, karşılaştırma mantığı ekleme |
 
-## Ek İyileştirmeler
-
-1. **Toast Bildirimi**: Auto-save sonrası "✓ Değişiklikler kaydedildi" göster
-2. **Kaydetme Göstergesi**: Header'da küçük bir spinner/checkmark
-3. **Hata Durumu**: Kaydetme başarısız olursa uyarı göster
+---
 
 ## Veri Akışı (Düzeltilmiş)
 
 ```text
-DealSimulatorCard / FocusProjectSelector
-    ↓ (onChange)
-GrowthSimulation State Güncelle
-    ↓ (setHasUnsavedChanges(true))
-2 saniye debounce bekle
+GrowthSimulation (Pozitif Senaryo Düzenleme)
+    ↓ DealSimulator → dealConfig kaydet
+simulation_scenarios.deal_config (A)
     ↓
-handleSave() → useScenarios.saveScenario()
+GrowthSimulation (Negatif Senaryo Düzenleme) 
+    ↓ DealSimulator → farklı dealConfig kaydet (veya 0 yatırım)
+simulation_scenarios.deal_config (B)
     ↓
-simulation_scenarios tablosu güncellendi
-    ↓ (refetch)
-ScenarioComparisonPage: scenarioA.focusProjects ✓
+ScenarioComparisonPage
+    ↓ scenarioA.dealConfig + scenarioB.dealConfig oku
     ↓
-AI Analizi tam verilerle çalışır ✓
+useUnifiedAnalysis → Edge Function
+    ↓ Her iki dealConfig ile AI analizi
+    ↓
+Sonuç: "150K yatırım alırsan → $446K gelir (198% büyüme)"
+       "Yatırım almazsan → $149K gelir (organik)"
 ```
+
+---
+
+## Kullanıcı Deneyimi
+
+1. **Pozitif Senaryoda:** Kullanıcı Deal Simulator'da "$150K, %10 equity" girer
+2. **Negatif Senaryoda:** Kullanıcı "$0, %0 equity" bırakır (veya farklı bir teklif)
+3. **Karşılaştırma Sayfasında:** AI her iki durumu analiz eder:
+   - "Yatırım alırsanız: $446K gelir, 3 yıl runway, 5.2x MOIC"
+   - "Almazsanız: $149K gelir, 8 ay runway, organik büyüme"
+
+Bu yaklaşım "opportunity cost" analizini doğru yapar ve pitch deck'te yatırımcıya ikna edici veri sunar.
