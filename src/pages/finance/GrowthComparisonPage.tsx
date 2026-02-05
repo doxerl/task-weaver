@@ -1,4 +1,4 @@
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { format } from 'date-fns';
 import { tr } from 'date-fns/locale';
@@ -15,7 +15,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
-  ArrowLeft,
   TrendingUp,
   Loader2,
   Sparkles,
@@ -24,8 +23,8 @@ import {
   DollarSign,
   BarChart3,
   Milestone,
+  FileDown,
 } from 'lucide-react';
-import { SimulationScenario } from '@/types/simulation';
 import { useScenarios } from '@/hooks/finance/useScenarios';
 import { useGrowthAnalysis } from '@/hooks/finance/useGrowthAnalysis';
 import { YearOverYearGrowthChart } from '@/components/growth/YearOverYearGrowthChart';
@@ -35,11 +34,20 @@ import { MilestoneTimeline } from '@/components/growth/MilestoneTimeline';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { AppHeader } from '@/components/AppHeader';
 import { toast } from 'sonner';
+import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
+import {
+  PDF_CONTAINER_STYLE,
+  PDF_HIDDEN_CONTAINER_STYLE,
+} from '@/styles/pdfExport';
+import { PdfGrowthAnalysisPage } from '@/components/simulation/pdf/PdfGrowthAnalysisPage';
+import { PdfMilestoneTimelinePage } from '@/components/simulation/pdf/PdfMilestoneTimelinePage';
 
 function GrowthComparisonContent() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const { scenarios, isLoading: scenariosLoading } = useScenarios();
+  const { generatePdfFromElement, isGenerating } = usePdfEngine();
+  const growthPdfRef = useRef<HTMLDivElement>(null);
   
   // URL'den base ve growth senaryo ID'lerini al
   const urlBaseId = searchParams.get('base');
@@ -107,6 +115,33 @@ function GrowthComparisonContent() {
     runAnalysis();
   }, [baseScenario, growthScenario, runAnalysis]);
   
+  // PDF Export Handler
+  const handleExportPdf = useCallback(async () => {
+    if (!baseScenario || !growthScenario || !growthPdfRef.current) {
+      toast.error('PDF oluşturmak için senaryo seçin');
+      return;
+    }
+    
+    try {
+      toast.loading('PDF oluşturuluyor...', { id: 'growth-pdf' });
+      
+      const success = await generatePdfFromElement(growthPdfRef, {
+        filename: `Buyume_Raporu_${baseScenario.targetYear}-${growthScenario.targetYear}.pdf`,
+        orientation: 'landscape',
+        fitToPage: true,
+      });
+      
+      if (success) {
+        toast.success('PDF başarıyla oluşturuldu', { id: 'growth-pdf' });
+      } else {
+        toast.error('PDF oluşturulamadı', { id: 'growth-pdf' });
+      }
+    } catch (err) {
+      console.error('PDF export error:', err);
+      toast.error('PDF oluşturulurken hata oluştu', { id: 'growth-pdf' });
+    }
+  }, [baseScenario, growthScenario, generatePdfFromElement]);
+  
   // Loading state
   if (scenariosLoading) {
     return (
@@ -125,9 +160,6 @@ function GrowthComparisonContent() {
     return (
       <div className="container mx-auto p-4 space-y-6">
         <div className="flex items-center gap-4">
-          <Button variant="ghost" size="icon" onClick={() => navigate('/finance/simulation')}>
-            <ArrowLeft className="h-5 w-5" />
-          </Button>
           <h1 className="text-2xl font-bold">Büyüme Analizi</h1>
         </div>
         <Card className="p-8 text-center">
@@ -148,7 +180,7 @@ function GrowthComparisonContent() {
       <AppHeader
         title="Büyüme Projeksiyonu"
         subtitle="Yıllar arası büyüme analizi ve ROI projeksiyonu"
-        icon={<TrendingUp className="h-6 w-6 text-emerald-500" />}
+        icon={<TrendingUp className="h-6 w-6 text-primary" />}
         backPath="/finance/simulation"
         backLabel="Simülasyon"
         badge={cachedInfo && (
@@ -198,7 +230,7 @@ function GrowthComparisonContent() {
             <div className="hidden md:flex items-center justify-center">
               <div className="flex items-center gap-2 text-muted-foreground">
                 <div className="h-px w-8 bg-border" />
-                <TrendingUp className="h-5 w-5 text-emerald-500" />
+                <TrendingUp className="h-5 w-5 text-primary" />
                 <div className="h-px w-8 bg-border" />
               </div>
             </div>
@@ -227,8 +259,21 @@ function GrowthComparisonContent() {
             </div>
           </div>
           
-          {/* Analyze Button */}
-          <div className="mt-4 flex justify-end">
+          {/* Action Buttons */}
+          <div className="mt-4 flex justify-end gap-2">
+            <Button 
+              onClick={handleExportPdf}
+              disabled={!baseScenario || !growthScenario || isGenerating}
+              variant="outline"
+              className="gap-2"
+            >
+              {isGenerating ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <FileDown className="h-4 w-4" />
+              )}
+              PDF İndir
+            </Button>
             <Button 
               onClick={handleAnalyze}
               disabled={!baseScenario || !growthScenario || analysisLoading}
@@ -311,6 +356,28 @@ function GrowthComparisonContent() {
         </Card>
       )}
       </div>
+      
+      {/* Hidden PDF Container */}
+      {baseScenario && growthScenario && (
+        <div
+          ref={growthPdfRef}
+          className="pdf-hidden-container"
+          style={PDF_HIDDEN_CONTAINER_STYLE}
+        >
+          <div style={PDF_CONTAINER_STYLE}>
+            <PdfGrowthAnalysisPage
+              baseScenario={baseScenario}
+              growthScenario={growthScenario}
+              analysis={analysis}
+            />
+            <PdfMilestoneTimelinePage
+              baseScenario={baseScenario}
+              growthScenario={growthScenario}
+              analysis={analysis}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
