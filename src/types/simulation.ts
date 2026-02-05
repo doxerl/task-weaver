@@ -82,6 +82,63 @@ export interface SimulationScenario {
   focusProjectPlan?: string;
   investmentAllocation?: InvestmentAllocation;
   dealConfig?: DealConfig;
+  // NEW: Cap Table, Working Capital, Sensitivity and Cash Flow data
+  capTableEntries?: CapTableEntry[];
+  futureRounds?: FutureRoundAssumption[];
+  workingCapitalConfig?: WorkingCapitalConfig;
+  sensitivityResults?: TornadoResult[];
+  cashFlowAnalysis?: CashFlowAnalysisResult;
+}
+
+// Note: CapTableEntry and FutureRoundAssumption types are defined below
+// in the "INVESTOR-GRADE CAP TABLE TYPES" section (line ~1685)
+
+// =====================================================
+// WORKING CAPITAL TYPES
+// =====================================================
+
+/** Working Capital Configuration - Days-based */
+export interface WorkingCapitalConfig {
+  ar_days: number;              // Accounts Receivable days
+  ap_days: number;              // Accounts Payable days
+  inventory_days: number;       // Inventory days
+  deferred_revenue_days: number; // Deferred revenue days
+}
+
+/** Cash Flow Analysis Result */
+export interface CashFlowAnalysisResult {
+  currentCash: number;
+  runway: number;
+  deathValley: number;
+  deathValleyWeek: number;
+  ccc: number;                  // Cash Conversion Cycle
+  weeklyForecast: WeeklyCashForecast[];
+  reconciliation: CashReconciliation;
+}
+
+/** Weekly Cash Forecast */
+export interface WeeklyCashForecast {
+  week: number;
+  openingBalance: number;
+  arCollections: number;
+  apPayments: number;
+  payroll: number;
+  operatingCash: number;
+  debtService: number;
+  closingBalance: number;
+}
+
+/** P&L to Cash Reconciliation */
+export interface CashReconciliation {
+  netIncome: number;
+  depreciation: number;
+  ebitda: number;
+  wcChanges: number;
+  operatingCashFlow: number;
+  capex: number;
+  freeCashFlow: number;
+  debtChanges: number;
+  endingCash: number;
 }
 
 export interface SimulationSummary {
@@ -1616,7 +1673,7 @@ export interface CapTableEntry {
   holder: string;
   shares: number;
   percentage: number;
-  type: 'common' | 'preferred' | 'options' | 'safe';
+  type: 'common' | 'preferred' | 'options' | 'safe' | 'convertible';
 }
 
 /** Deal Terms V2 - Enhanced with full term sheet parameters */

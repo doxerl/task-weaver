@@ -1684,12 +1684,15 @@ export type Database = {
         Row: {
           assumed_exchange_rate: number | null
           base_year: number | null
+          cap_table_entries: Json | null
+          cash_flow_analysis: Json | null
           created_at: string | null
           deal_config: Json | null
           description: string | null
           expenses: Json | null
           focus_project_plan: string | null
           focus_projects: string[] | null
+          future_rounds: Json | null
           id: string
           investment_allocation: Json | null
           investments: Json | null
@@ -1698,20 +1701,25 @@ export type Database = {
           notes: string | null
           revenues: Json | null
           scenario_type: string | null
+          sensitivity_results: Json | null
           target_year: number | null
           updated_at: string | null
           user_id: string
           version: number | null
+          working_capital_config: Json | null
         }
         Insert: {
           assumed_exchange_rate?: number | null
           base_year?: number | null
+          cap_table_entries?: Json | null
+          cash_flow_analysis?: Json | null
           created_at?: string | null
           deal_config?: Json | null
           description?: string | null
           expenses?: Json | null
           focus_project_plan?: string | null
           focus_projects?: string[] | null
+          future_rounds?: Json | null
           id?: string
           investment_allocation?: Json | null
           investments?: Json | null
@@ -1720,20 +1728,25 @@ export type Database = {
           notes?: string | null
           revenues?: Json | null
           scenario_type?: string | null
+          sensitivity_results?: Json | null
           target_year?: number | null
           updated_at?: string | null
           user_id: string
           version?: number | null
+          working_capital_config?: Json | null
         }
         Update: {
           assumed_exchange_rate?: number | null
           base_year?: number | null
+          cap_table_entries?: Json | null
+          cash_flow_analysis?: Json | null
           created_at?: string | null
           deal_config?: Json | null
           description?: string | null
           expenses?: Json | null
           focus_project_plan?: string | null
           focus_projects?: string[] | null
+          future_rounds?: Json | null
           id?: string
           investment_allocation?: Json | null
           investments?: Json | null
@@ -1742,10 +1755,12 @@ export type Database = {
           notes?: string | null
           revenues?: Json | null
           scenario_type?: string | null
+          sensitivity_results?: Json | null
           target_year?: number | null
           updated_at?: string | null
           user_id?: string
           version?: number | null
+          working_capital_config?: Json | null
         }
         Relationships: []
       }
