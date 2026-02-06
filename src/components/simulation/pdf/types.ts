@@ -78,6 +78,17 @@ export interface CumulativeQuarterlyData {
 }
 
 /**
+ * Valuation breakdown for each year
+ */
+export interface ValuationBreakdown {
+  revenueMultiple: number;
+  ebitdaMultiple: number;
+  dcf: number;
+  vcMethod: number;
+  weighted: number;
+}
+
+/**
  * Exit plan projection year
  */
 export interface ExitPlanYear {
@@ -86,6 +97,10 @@ export interface ExitPlanYear {
   expenses: number;
   netProfit: number;
   companyValuation: number;
+  ebitda?: number;
+  ebitdaMargin?: number;
+  freeCashFlow?: number;
+  valuations?: ValuationBreakdown;
 }
 
 /**
