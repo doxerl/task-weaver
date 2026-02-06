@@ -87,7 +87,7 @@ import { formatCompactUSD } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
 import { useUnifiedAnalysis } from '@/hooks/finance/useUnifiedAnalysis';
-import { useInvestorAnalysis, calculateCapitalNeeds, calculateExitPlan } from '@/hooks/finance/useInvestorAnalysis';
+import { useInvestorAnalysis, calculateCapitalNeeds, calculateExitPlan, calculateMultiYearCapitalNeeds } from '@/hooks/finance/useInvestorAnalysis';
 import { useScenarios } from '@/hooks/finance/useScenarios';
 import { InvestmentTab } from '@/components/simulation/InvestmentTab';
 import { PitchDeckView } from '@/components/simulation/PitchDeckView';
@@ -856,6 +856,100 @@ function ScenarioComparisonContent() {
       growthRate
     );
   }, [scenarioA, summaryA, dealConfig]);
+
+  // =====================================================
+  // PDF RUNWAY DATA - Nakit akış karşılaştırma grafiği için
+  // =====================================================
+  const pdfRunwayData = useMemo(() => {
+    if (!quarterlyComparison || quarterlyComparison.length < 4) return [];
+    
+    const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+    const flowsA = [
+      quarterlyComparison[0]?.scenarioANet || 0,
+      quarterlyComparison[1]?.scenarioANet || 0,
+      quarterlyComparison[2]?.scenarioANet || 0,
+      quarterlyComparison[3]?.scenarioANet || 0
+    ];
+    const flowsB = [
+      quarterlyComparison[0]?.scenarioBNet || 0,
+      quarterlyComparison[1]?.scenarioBNet || 0,
+      quarterlyComparison[2]?.scenarioBNet || 0,
+      quarterlyComparison[3]?.scenarioBNet || 0
+    ];
+    
+    let cumulativeWithInvestment = dealConfig.investmentAmount;
+    let cumulativeWithoutInvestment = 0;
+    
+    return quarters.map((q, i) => {
+      cumulativeWithInvestment += flowsA[i];
+      cumulativeWithoutInvestment += flowsB[i];
+      
+      return {
+        quarter: q,
+        withInvestment: cumulativeWithInvestment,
+        withoutInvestment: cumulativeWithoutInvestment,
+        difference: cumulativeWithInvestment - cumulativeWithoutInvestment
+      };
+    });
+  }, [quarterlyComparison, dealConfig.investmentAmount]);
+
+  // =====================================================
+  // PDF GROWTH CONFIG - 2-stage growth açıklaması için
+  // =====================================================
+  const pdfGrowthConfig = useMemo((): import('@/components/simulation/pdf/types').GrowthConfig | null => {
+    if (!pdfExitPlan?.growthConfig) return null;
+    
+    return {
+      aggressiveGrowthRate: pdfExitPlan.growthConfig.aggressiveGrowthRate,
+      normalizedGrowthRate: pdfExitPlan.growthConfig.normalizedGrowthRate,
+      rawUserGrowthRate: pdfExitPlan.growthConfig.rawUserGrowthRate
+    };
+  }, [pdfExitPlan]);
+
+  // =====================================================
+  // PDF MULTI-YEAR CAPITAL PLAN - 5 yıllık projeksiyon tablosu için
+  // =====================================================
+  const pdfMultiYearCapitalPlan = useMemo((): import('@/types/simulation').MultiYearCapitalPlan | null => {
+    if (!pdfExitPlan || !summaryA) return null;
+    
+    return calculateMultiYearCapitalNeeds(
+      pdfExitPlan,
+      dealConfig.investmentAmount,
+      summaryA.netProfit,
+      dealConfig.safetyMargin / 100
+    );
+  }, [pdfExitPlan, dealConfig.investmentAmount, summaryA, dealConfig.safetyMargin]);
+
+  // =====================================================
+  // PDF QUARTERLY DATA - Çeyreklik gelir/gider tabloları için
+  // =====================================================
+  const pdfQuarterlyRevenueA = useMemo(() => ({
+    q1: quarterlyComparison[0]?.scenarioARevenue || 0,
+    q2: quarterlyComparison[1]?.scenarioARevenue || 0,
+    q3: quarterlyComparison[2]?.scenarioARevenue || 0,
+    q4: quarterlyComparison[3]?.scenarioARevenue || 0
+  }), [quarterlyComparison]);
+
+  const pdfQuarterlyExpenseA = useMemo(() => ({
+    q1: quarterlyComparison[0]?.scenarioAExpense || 0,
+    q2: quarterlyComparison[1]?.scenarioAExpense || 0,
+    q3: quarterlyComparison[2]?.scenarioAExpense || 0,
+    q4: quarterlyComparison[3]?.scenarioAExpense || 0
+  }), [quarterlyComparison]);
+
+  const pdfQuarterlyRevenueB = useMemo(() => ({
+    q1: quarterlyComparison[0]?.scenarioBRevenue || 0,
+    q2: quarterlyComparison[1]?.scenarioBRevenue || 0,
+    q3: quarterlyComparison[2]?.scenarioBRevenue || 0,
+    q4: quarterlyComparison[3]?.scenarioBRevenue || 0
+  }), [quarterlyComparison]);
+
+  const pdfQuarterlyExpenseB = useMemo(() => ({
+    q1: quarterlyComparison[0]?.scenarioBExpense || 0,
+    q2: quarterlyComparison[1]?.scenarioBExpense || 0,
+    q3: quarterlyComparison[2]?.scenarioBExpense || 0,
+    q4: quarterlyComparison[3]?.scenarioBExpense || 0
+  }), [quarterlyComparison]);
 
   // =====================================================
   // PDF CAPITAL NEEDS - Her iki senaryo için sermaye ihtiyacı
@@ -1970,6 +2064,14 @@ function ScenarioComparisonContent() {
         investmentTiers={investmentTiers}
         optimalTiming={optimalTiming}
         scenarioComparison={scenarioComparisonData}
+        // NEW: Phase 2 props for additional PDF pages
+        quarterlyRevenueA={pdfQuarterlyRevenueA}
+        quarterlyExpenseA={pdfQuarterlyExpenseA}
+        quarterlyRevenueB={pdfQuarterlyRevenueB}
+        quarterlyExpenseB={pdfQuarterlyExpenseB}
+        runwayData={pdfRunwayData}
+        growthConfig={pdfGrowthConfig}
+        multiYearCapitalPlan={pdfMultiYearCapitalPlan}
       />
     </div>
   );

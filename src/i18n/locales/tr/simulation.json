@@ -678,6 +678,63 @@
       "delayRisk": "Gecikme Riski",
       "quarterlyCapitalNeed": "Çeyreklik Kümülatif Sermaye İhtiyacı",
       "deathValley": "Death Valley"
+    },
+    "quarterlyCashFlow": {
+      "title": "Çeyreklik Nakit Akışı Analizi",
+      "withInvestment": "Yatırımlı ({{name}})",
+      "withoutInvestment": "Yatırımsız ({{name}})",
+      "quarter": "Çeyrek",
+      "revenue": "Gelir",
+      "expense": "Gider",
+      "net": "Net",
+      "cumulative": "Kümülatif",
+      "capitalNeed": "Sermaye İhtiyacı",
+      "yearEnd": "Yıl Sonu",
+      "startingBalance": "Başlangıç Bakiyesi: {{amount}}"
+    },
+    "futureImpact": {
+      "title": "5 Yıllık Gelir Projeksiyonu",
+      "subtitle": "Zaman İçinde Yatırım Etkisi",
+      "withInvestment": "Yatırımlı",
+      "withoutInvestment": "Yatırımsız",
+      "yearDiff": "Yıl {{year}} Farkı",
+      "totalDifference": "Toplam 5 Yıllık Fark",
+      "projectedRevenue": "Öngörülen Gelir"
+    },
+    "runwayChart": {
+      "title": "Nakit Akışı Runway Karşılaştırması",
+      "description": "Çeyreklere göre kümülatif nakit pozisyonu",
+      "withInvestment": "Yatırımlı",
+      "withoutInvestment": "Yatırımsız",
+      "opportunityCost": "Fırsat Maliyeti",
+      "zeroLine": "Sıfır Çizgisi"
+    },
+    "growthModel": {
+      "title": "İki Aşamalı Büyüme Modeli",
+      "description": "Startup büyümesi, gelir tabanı büyüdükçe zaman içinde normalleşir",
+      "year1to2": "1-2. Yıl: Agresif Büyüme",
+      "year3to5": "3-5. Yıl: Normalize Büyüme",
+      "aggressivePhase": "Agresif Aşama",
+      "normalizedPhase": "Normalize Aşama",
+      "capWarning": "Büyüme oranı %100 ile sınırlandı",
+      "capWarningDetail": "Orijinal hedef %{{original}}, gerçekçi projeksiyonlar için sınırlandı",
+      "sectorAverage": "Sektör ortalaması ~%30"
+    },
+    "fiveYearTable": {
+      "title": "5 Yıllık Finansal Projeksiyon",
+      "description": "Yıl bağımlı sermaye hesaplaması: Devir kar → Çeyreklik death valley → Ek yatırım ihtiyacı",
+      "year": "Yıl",
+      "opening": "Açılış",
+      "revenue": "Gelir",
+      "expense": "Gider",
+      "netProfit": "Net Kar",
+      "deathValley": "Death Valley",
+      "capitalNeed": "Sermaye İhtiyacı",
+      "yearEnd": "Yıl Sonu",
+      "valuation": "Değerleme",
+      "moic": "MOIC",
+      "total": "TOPLAM",
+      "selfSustaining": "Kendi kendini finanse ediyor"
     }
   },
   "toast": {
