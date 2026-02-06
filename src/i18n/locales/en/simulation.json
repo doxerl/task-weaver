@@ -678,6 +678,63 @@
       "delayRisk": "Delay Risk",
       "quarterlyCapitalNeed": "Quarterly Cumulative Capital Need",
       "deathValley": "Death Valley"
+    },
+    "quarterlyCashFlow": {
+      "title": "Quarterly Cash Flow Analysis",
+      "withInvestment": "With Investment ({{name}})",
+      "withoutInvestment": "Without Investment ({{name}})",
+      "quarter": "Quarter",
+      "revenue": "Revenue",
+      "expense": "Expense",
+      "net": "Net",
+      "cumulative": "Cumulative",
+      "capitalNeed": "Capital Need",
+      "yearEnd": "Year End",
+      "startingBalance": "Starting Balance: {{amount}}"
+    },
+    "futureImpact": {
+      "title": "5-Year Revenue Projection",
+      "subtitle": "Investment Impact Over Time",
+      "withInvestment": "With Investment",
+      "withoutInvestment": "Without Investment",
+      "yearDiff": "Year {{year}} Difference",
+      "totalDifference": "Total 5-Year Difference",
+      "projectedRevenue": "Projected Revenue"
+    },
+    "runwayChart": {
+      "title": "Cash Flow Runway Comparison",
+      "description": "Cumulative cash position by quarter",
+      "withInvestment": "With Investment",
+      "withoutInvestment": "Without Investment",
+      "opportunityCost": "Opportunity Cost",
+      "zeroLine": "Zero Line"
+    },
+    "growthModel": {
+      "title": "Two-Stage Growth Model",
+      "description": "Startup growth normalizes over time as revenue base expands",
+      "year1to2": "Years 1-2: Aggressive Growth",
+      "year3to5": "Years 3-5: Normalized Growth",
+      "aggressivePhase": "Aggressive Phase",
+      "normalizedPhase": "Normalized Phase",
+      "capWarning": "Growth rate capped at 100%",
+      "capWarningDetail": "Original target {{original}}% capped for realistic projections",
+      "sectorAverage": "Sector average ~30%"
+    },
+    "fiveYearTable": {
+      "title": "5-Year Financial Projection",
+      "description": "Year-dependent capital calculation: Carried profit → Quarterly death valley → Additional investment need",
+      "year": "Year",
+      "opening": "Opening",
+      "revenue": "Revenue",
+      "expense": "Expense",
+      "netProfit": "Net Profit",
+      "deathValley": "Death Valley",
+      "capitalNeed": "Capital Need",
+      "yearEnd": "Year End",
+      "valuation": "Valuation",
+      "moic": "MOIC",
+      "total": "TOTAL",
+      "selfSustaining": "Self-sustaining"
     }
   },
   "toast": {
