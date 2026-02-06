@@ -173,7 +173,6 @@ export function PdfExportContainer({
           <PdfCapitalAnalysisPage
             capitalNeedA={capitalNeedA}
             capitalNeedB={capitalNeedB}
-            dealConfig={dealConfig}
             scenarioAName={`${scenarioA?.targetYear || ''} ${scenarioA?.name || 'Pozitif'}`}
             scenarioBName={`${scenarioB?.targetYear || ''} ${scenarioB?.name || 'Negatif'}`}
           />

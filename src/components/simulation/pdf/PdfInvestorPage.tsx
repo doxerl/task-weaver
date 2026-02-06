@@ -245,77 +245,7 @@ export function PdfInvestorPage({
             </div>
           </div>
 
-          {/* 5-Year Projection Table */}
-          {pdfExitPlan.allYears && pdfExitPlan.allYears.length > 0 && (
-            <div style={{ marginTop: '20px' }}>
-              <h4 style={{ fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#374151' }}>
-                {t('pdf.investor.fiveYearProjection')}
-              </h4>
-              <table style={{ ...TABLE_STYLE, fontSize: '11px' }}>
-                <thead>
-                  <tr style={{ background: '#f8fafc' }}>
-                    <th style={{ ...TABLE_HEADER_CELL_STYLE, color: '#374151' }}>{t('pdf.investor.year')}</th>
-                    <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>
-                      {t('pdf.investor.revenue')}
-                    </th>
-                    <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>
-                      {t('pdf.investor.expense')}
-                    </th>
-                    <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>
-                      {t('pdf.investor.netProfit')}
-                    </th>
-                    <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>
-                      {t('pdf.investor.companyValue')}
-                    </th>
-                    <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>
-                      {t('pdf.investor.moic')}
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {pdfExitPlan.allYears.slice(0, 5).map((year) => (
-                    <tr key={year.year}>
-                      <td style={{ ...TABLE_CELL_STYLE, fontWeight: '500', color: '#374151' }}>
-                        {year.year}
-                      </td>
-                      <td style={{ ...TABLE_CELL_RIGHT_STYLE, color: '#374151' }}>
-                        {formatCompactUSD(year.revenue)}
-                      </td>
-                      <td style={{ ...TABLE_CELL_RIGHT_STYLE, color: '#374151' }}>
-                        {formatCompactUSD(year.expenses)}
-                      </td>
-                      <td
-                        style={{
-                          ...TABLE_CELL_RIGHT_STYLE,
-                          color: year.netProfit >= 0 ? PDF_COLORS.success : PDF_COLORS.danger,
-                          fontWeight: '500',
-                        }}
-                      >
-                        {formatCompactUSD(year.netProfit)}
-                      </td>
-                      <td style={{ ...TABLE_CELL_RIGHT_STYLE, color: '#374151' }}>
-                        {formatCompactUSD(year.companyValuation)}
-                      </td>
-                      <td
-                        style={{
-                          ...TABLE_CELL_RIGHT_STYLE,
-                          fontWeight: '600',
-                          color: '#166534',
-                        }}
-                      >
-                        {safeDivide(
-                          year.companyValuation * (dealConfig.equityPercentage / 100),
-                          dealConfig.investmentAmount,
-                          0
-                        ).toFixed(1)}
-                        x
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
+          {/* NOTE: Detailed 5-Year Projection Table removed - see PdfFiveYearProjectionPage (Page 18) for comprehensive version */}
 
           {/* Growth Model */}
           {pdfExitPlan.growthConfig && (

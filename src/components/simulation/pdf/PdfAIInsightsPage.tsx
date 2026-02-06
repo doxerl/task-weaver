@@ -86,9 +86,10 @@ export function PdfAIInsightsPage({
     }
 
     // 3. Profit Margin Comparison
+    // Note: profitMargin is already calculated as percentage (0-100) in ScenarioComparisonPage
     if (summaryA && summaryB) {
-      const marginA = summaryA.profitMargin * 100;
-      const marginB = summaryB.profitMargin * 100;
+      const marginA = summaryA.profitMargin;
+      const marginB = summaryB.profitMargin;
       const improvement = marginA > marginB 
         ? t('pdfInsights.marginImprovement', { points: (marginA - marginB).toFixed(1) }) 
         : '';

@@ -40,6 +40,9 @@ export function PdfValuationPage({
   // Get year 5 projection - use pre-calculated values, NO recalculation
   const year5 = pdfExitPlan?.allYears?.[4]; // 5th year (index 4)
 
+  // Guard: If allYears is empty or has fewer than 5 elements, year5 will be undefined
+  // We still need to calculate valuation methods even if year5 is missing (use defaults)
+  
   // Read pre-calculated valuation values from props (Single Source of Truth)
   const valuations = year5?.valuations;
   const revenueMultiple = valuations?.revenueMultiple || 0;
@@ -94,8 +97,8 @@ export function PdfValuationPage({
     },
   ], [t, revenueMultiple, ebitdaMultiple, dcfValue, vcMethodValue, revenue, ebitda, dealConfig?.sectorMultiple, weights, discountRate, expectedROI]);
 
-  // Early return after all hooks
-  if (!pdfExitPlan) {
+  // Early return after all hooks - guard for missing data
+  if (!pdfExitPlan || !pdfExitPlan.allYears || pdfExitPlan.allYears.length === 0) {
     return null;
   }
 
