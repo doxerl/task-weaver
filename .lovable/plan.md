@@ -1,182 +1,181 @@
 
-# PDF Export - Hardcoded Değer ve Çeviri Düzeltmeleri
+# PDF Export Hesaplama Eliminasyonu
 
-## Tespit Edilen Sorunlar
+## Problem Özeti
 
-### 1. Eksik/Yanlış Çeviri Key'leri (i18n)
+PDF export bileşenleri (`PdfValuationPage.tsx`) kendi hesaplamalarını yapıyor, oysa bu değerler zaten `pdfExitPlan.allYears[].valuations` içinde mevcut. Bu durum:
+- UI ve PDF arasında veri uyumsuzluğuna
+- Kod tekrarına (DRY ihlali)
+- Bakım zorluğuna yol açıyor
 
-**Görüntüdeki Problem:** `pdf.investor.expenses` → Ekranda key olarak görünüyor
+## Mevcut Durum Analizi
 
-| Sorun | Dosya | Satır | Mevcut | Olması Gereken |
-|-------|-------|-------|--------|----------------|
-| Eksik çeviri | PdfInvestorPage.tsx | 263 | `t('pdf.investor.expenses')` | Key mevcut değil, `t('pdf.investor.expense')` kullanılmalı |
-| Hardcoded "Pre-Money Valuation" | PdfInvestorPage.tsx | 142 | `"Pre-Money Valuation"` | `t('pdf.investor.preMoneyValuation')` |
-| PDF key çakışması | simulation.json | 572 & 1212 | İki ayrı `"pdf"` objesi | Tek obje olmalı |
+### `pdfExitPlan.allYears[]` Yapısı (MultiYearProjection)
+```text
+allYears[].valuations = {
+  revenueMultiple: number,    // ✅ Zaten hesaplanmış
+  ebitdaMultiple: number,     // ✅ Zaten hesaplanmış
+  dcf: number,                // ✅ Zaten hesaplanmış
+  vcMethod: number,           // ✅ Zaten hesaplanmış
+  weighted: number            // ✅ Zaten hesaplanmış
+}
 
-### 2. Hardcoded Değerler ve Hesaplamalar
+allYears[].ebitda: number       // ✅ EBITDA değeri
+allYears[].ebitdaMargin: number // ✅ EBITDA marjı
+allYears[].freeCashFlow: number // ✅ FCF
+```
 
-**PdfValuationPage.tsx:**
-| Satır | Hardcoded | Açıklama |
-|-------|-----------|----------|
-| 52 | `1.5` | EBITDA multiple faktörü hardcoded |
-| 53 | `0.9` | DCF estimate faktörü hardcoded |
-| 54 | `10` | VC method ROI target hardcoded |
-| 57-61 | `0.30, 0.25, 0.30, 0.15` | Valuation weight'leri hardcoded |
-| 86 | `30` | Discount rate hardcoded |
-| 95 | `10` | Target ROI hardcoded |
+### PdfValuationPage.tsx - Gereksiz Hesaplamalar (Satır 43-61)
+```typescript
+// ❌ GEREKSIZ - Bu değerler zaten allYears içinde var
+const ebitda = revenue - expenses;
+const revenueMultiple = revenue * (dealConfig?.sectorMultiple || 3);
+const ebitdaMultiple = ebitda * ebitdaMultiplier;
+const dcfValue = year5?.companyValuation || revenueMultiple * 0.9;
+const vcMethodValue = safeDivide(revenueMultiple, expectedROI, 0) * expectedROI;
+const weightedValuation = ...;
+```
 
-**PdfInvestorPage.tsx:**
-| Satır | Hardcoded | Açıklama |
-|-------|-----------|----------|
-| 101 | `$` prefix | Para birimi hardcoded |
-| 145-149 | Hesaplama | Pre-money calculation inline, centralize edilmeli |
+## Çözüm: Props'tan Gelen Hazır Verileri Kullan
 
-### 3. UI ve PDF Arasındaki Veri Uyumsuzluğu
+### Değişiklik 1: PdfValuationPage.tsx Refaktörü
 
-Görüntülerdeki karşılaştırma:
+**Kaldırılacak:**
+- Satır 35-61: Tüm valuation hesaplamaları
+- `safeDivide` utility fonksiyonu
 
-**UI (5 Yıllık Projeksiyon Tablosu):**
-- 2027: Opening $33.9K, Revenue $759.2K, Expense $586.0K, Net Kar $173.2K
-- Death Valley: -$7.4K (Q1)
-- Sermaye İhtiyacı: $8.9K
-- Değerleme: $2.4M, MOIC: 0.9x
+**Yeni Yaklaşım:**
+```typescript
+// Year 5 verilerini direkt al
+const year5 = pdfExitPlan?.allYears?.[4]; // 5. yıl (index 4)
 
-**PDF (Çıkış Stratejisi 5 Yıllık Finansal Projeksiyon):**
-- Year 1: Revenue $446.6K, Expense $412.7K, Net Kar $33.9K
-- Değerleme: $1.2M, MOIC: 0.5x
+// Hazır değerleri kullan
+const revenueMultiple = year5?.valuations?.revenueMultiple || 0;
+const ebitdaMultiple = year5?.valuations?.ebitdaMultiple || 0;
+const dcfValue = year5?.valuations?.dcf || 0;
+const vcMethodValue = year5?.valuations?.vcMethod || 0;
+const weightedValuation = year5?.valuations?.weighted || 0;
+const ebitda = year5?.ebitda || 0;
+```
 
-→ **Veri kaynağı farklı!** UI `multiYearCapitalPlan` kullanırken PDF `pdfExitPlan.allYears` kullanıyor.
+### Değişiklik 2: Props Güncellemesi (types.ts)
 
----
-
-## Düzeltme Planı
-
-### Aşama 1: i18n Çeviri Düzeltmeleri
-
-**`src/i18n/locales/tr/simulation.json`:**
-```json
-// Satır 572'deki ilk "pdf" objesi korunacak
-// Satır 1212'deki ikinci "pdf" objesi birleştirilecek
-
-// Eksik key'ler eklenecek:
-"pdf": {
-  // ... mevcut key'ler
-  "investor": {
-    // "expenses" → "expense" düzeltmesi MEVCUT (satır 1311)
-    // Sorun: PdfInvestorPage yanlış key kullanıyor
-  }
+`PdfValuationPageProps` arayüzüne `weights` bilgisini ekle:
+```typescript
+export interface PdfValuationPageProps {
+  pdfExitPlan: PdfExitPlanData | null;
+  dealConfig: DealConfig;
+  // Weights görsel gösterim için eklenebilir (opsiyonel)
+  valuationWeights?: {
+    revenueMultiple: number;
+    ebitdaMultiple: number;
+    dcf: number;
+    vcMethod: number;
+  };
 }
 ```
 
-**`src/i18n/locales/en/simulation.json`:**
-- Aynı düzeltmeler
+### Değişiklik 3: PdfExportContainer.tsx Props Geçişi
 
-### Aşama 2: PdfInvestorPage.tsx Düzeltmeleri
-
-```typescript
-// Satır 142: Hardcoded string → i18n
-- <p>Pre-Money Valuation</p>
-+ <p>{t('pdf.investor.preMoneyValuation')}</p>
-
-// Satır 263: Yanlış key düzeltmesi
-- {t('pdf.investor.expenses')}
-+ {t('pdf.investor.expense')}
-```
-
-### Aşama 3: PdfValuationPage.tsx - Hesaplamaları Props'tan Al
-
-**Mevcut (hardcoded):**
-```typescript
-const ebitdaMultiple = ebitda * (dealConfig.sectorMultiple * 1.5);
-const dcfValue = year5?.companyValuation || revenueMultiple * 0.9;
-const vcMethodValue = safeDivide(revenueMultiple, 10, 0) * 10;
-
-const weightedValuation =
-  revenueMultiple * 0.30 +
-  ebitdaMultiple * 0.25 +
-  dcfValue * 0.30 +
-  vcMethodValue * 0.15;
-```
-
-**Düzeltme yaklaşımı:**
-1. `ValuationMethodsCard` bileşeni zaten bu hesaplamaları yapıyor
-2. Hesaplama mantığını `valuationCalculator.ts` utility'sine taşı
-3. PDF sayfası bu utility'yi kullanarak hesaplasın veya props olarak alsın
-
-### Aşama 4: PDF Veri Kaynağı Senkronizasyonu
-
-**Problem:** `PdfInvestorPage` içindeki "5 Yıllık Projeksiyon" tablosu `pdfExitPlan.allYears` kullanıyor, ama UI'daki "5 Yıllık Projeksiyon Tablosu" `multiYearCapitalPlan` kullanıyor.
-
-**Çözüm:**
-1. `PdfInvestorPage` içindeki mini projeksiyon tablosunu kaldır (çünkü Page 18 zaten detaylı tablo içeriyor)
-2. VEYA `multiYearCapitalPlan` verilerini kullanacak şekilde güncelle
-
----
+Mevcut yapı yeterli - `pdfExitPlan` zaten tüm verileri içeriyor.
 
 ## Dosya Değişiklikleri
 
-| Dosya | Değişiklik Türü | Açıklama |
-|-------|-----------------|----------|
-| `src/components/simulation/pdf/PdfInvestorPage.tsx` | GÜNCELLE | Hardcoded string'leri i18n'e çevir, yanlış key'i düzelt |
-| `src/components/simulation/pdf/PdfValuationPage.tsx` | GÜNCELLE | Valuation hesaplamalarını utility'den al |
-| `src/i18n/locales/tr/simulation.json` | GÜNCELLE | Duplicate pdf objelerini birleştir |
-| `src/i18n/locales/en/simulation.json` | GÜNCELLE | Duplicate pdf objelerini birleştir |
-| `src/lib/valuationCalculator.ts` | GÜNCELLE | Valuation config'i export et |
-
----
+| Dosya | Değişiklik | Satır |
+|-------|-----------|-------|
+| `src/components/simulation/pdf/PdfValuationPage.tsx` | Hesaplamaları kaldır, props'tan oku | 28-105 |
 
 ## Teknik Detaylar
 
-### i18n JSON Yapı Düzeltmesi
-
-Mevcut JSON'da iki `"pdf"` objesi var (satır 572 ve 1212). JSON'da aynı isimde iki key olamaz - ikincisi birinciyi override eder. Bu yüzden bazı key'ler kaybolmuş olabilir.
-
-```json
-// YANLIŞ - iki ayrı "pdf" objesi
-{
-  "pdf": { /* ilk grup */ },    // Satır 572
-  // ... diğer key'ler
-  "pdf": { /* ikinci grup */ }  // Satır 1212 - Bu ilkini override eder!
-}
-
-// DOĞRU - tek "pdf" objesi, tüm child'lar içinde
-{
-  "pdf": {
-    "export": "...",
-    "investor": { /* ... */ },
-    "valuation": { /* ... */ },
-    "scenarioImpact": { /* ... */ },
-    // ... tümü burada
-  }
-}
-```
-
-### Valuation Hesaplama Standartlaştırma
-
-`src/lib/valuationCalculator.ts` içindeki `DEFAULT_VALUATION_CONFIG` kullanılmalı:
+### PdfValuationPage.tsx - Yeni Implementasyon
 
 ```typescript
-export const DEFAULT_VALUATION_CONFIG: ValuationConfig = {
-  sectorMultiple: 3.0,
-  ebitdaMultiple: 8.0,
-  discountRate: 0.30,
-  terminalGrowthRate: 0.03,
-  taxRate: 0.22,
-  weights: {
-    revenue: 0.30,
-    ebitda: 0.25,
-    dcf: 0.30,
-    vc: 0.15,
-  },
-};
+export function PdfValuationPage({
+  pdfExitPlan,
+  dealConfig,
+}: PdfValuationPageProps) {
+  const { t } = useTranslation(['simulation']);
+
+  // Year 5 verilerini direkt al (hesaplama YAPMIYORUZ)
+  const year5 = pdfExitPlan?.allYears?.[4];
+
+  // Hazır valuation değerlerini oku
+  const valuations = year5?.valuations;
+  const revenueMultiple = valuations?.revenueMultiple || 0;
+  const ebitdaMultiple = valuations?.ebitdaMultiple || 0;
+  const dcfValue = valuations?.dcf || 0;
+  const vcMethodValue = valuations?.vcMethod || 0;
+  const weightedValuation = valuations?.weighted || 0;
+
+  // EBITDA değeri de hazır
+  const ebitda = year5?.ebitda || 0;
+  const revenue = year5?.revenue || 0;
+
+  // Weight'ler merkezi config'den alınabilir (görsel amaçlı)
+  const { weights } = DEFAULT_VALUATION_CONFIG;
+
+  // useMemo - valuation kartları için
+  const valuationMethods = useMemo(() => [
+    {
+      name: t('pdf.valuation.revenueMultiple'),
+      value: revenueMultiple,
+      formula: `${formatCompactUSD(revenue)} × ${dealConfig?.sectorMultiple || 3}x`,
+      weight: `${(weights.revenueMultiple * 100).toFixed(0)}%`,
+      // ... styling
+    },
+    // ... diğer 3 method
+  ], [t, revenueMultiple, ebitdaMultiple, dcfValue, vcMethodValue, ...]);
+
+  // ...rest of component
+}
 ```
 
----
+### Veri Akışı (Yeni)
 
-## Sonuç
+```text
+┌─────────────────────────────────────────────────────────────┐
+│                  ScenarioComparisonPage                     │
+│                                                             │
+│  calculateExitPlan() → pdfExitPlan                         │
+│    └── allYears[0-4].valuations = {                        │
+│          revenueMultiple, ebitdaMultiple, dcf, vc, weighted│
+│        }                                                    │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  PdfExportContainer                         │
+│                                                             │
+│  <PdfValuationPage                                          │
+│    pdfExitPlan={pdfExitPlan}  ← Tüm veriler burada         │
+│    dealConfig={dealConfig}                                  │
+│  />                                                         │
+└──────────────────────────┬──────────────────────────────────┘
+                           │
+                           ▼
+┌─────────────────────────────────────────────────────────────┐
+│                  PdfValuationPage                           │
+│                                                             │
+│  ❌ ÖNCE: const ebitda = revenue - expenses;               │
+│  ❌ ÖNCE: const weightedValuation = ... hesapla            │
+│                                                             │
+│  ✅ SONRA: const weightedValuation = year5.valuations.weighted │
+│  ✅ SONRA: const ebitda = year5.ebitda                     │
+│                                                             │
+│  → HESAPLAMA YOK, SADECE RENDER                            │
+└─────────────────────────────────────────────────────────────┘
+```
 
-Bu düzeltmelerle:
-- ✅ Tüm PDF metinleri i18n üzerinden gelecek (hardcoded string yok)
-- ✅ Hesaplamalar merkezi utility'den alınacak (tutarlılık)
-- ✅ UI ve PDF aynı veri kaynağını kullanacak (senkronizasyon)
-- ✅ JSON yapısı düzeltilecek (duplicate key sorunu çözülecek)
+## Beklenen Sonuçlar
+
+- ✅ PDF değerleri UI ile birebir eşleşecek
+- ✅ Tek kaynak ilkesi (Single Source of Truth) sağlanacak
+- ✅ ~30 satır gereksiz hesaplama kodu kaldırılacak
+- ✅ Bakım kolaylığı artacak
+- ✅ Tutarsızlık riski ortadan kalkacak
+
+## Risk ve Dikkat Edilecekler
+
+1. `pdfExitPlan.allYears` boş veya undefined olabilir → null check gerekli
+2. `valuations` objesi eski verilerde eksik olabilir → fallback değerler kullan
+3. Test: PDF export'u hem yeni hem eski senaryolarla test et
