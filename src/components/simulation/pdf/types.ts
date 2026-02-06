@@ -13,6 +13,8 @@ import type {
   CapitalRequirement,
   InvestmentTier,
   InvestmentScenarioComparison,
+  MultiYearCapitalPlan,
+  DealConfiguration,
 } from '@/types/simulation';
 import type { UnifiedAnalysisResult, ExitPlan } from '@/types/simulation';
 import type { ChartConfig } from '@/components/ui/chart';
@@ -151,16 +153,25 @@ export interface PdfExportContainerProps {
   investmentAllocation: InvestmentAllocation | null;
   focusProjectPlan: string;
 
-  // Capital Analysis (NEW) - Optional for backward compatibility
+  // Capital Analysis - Optional for backward compatibility
   capitalNeedA?: CapitalRequirement | null;
   capitalNeedB?: CapitalRequirement | null;
 
-  // Investment Options (NEW) - Optional for backward compatibility
+  // Investment Options - Optional for backward compatibility
   investmentTiers?: InvestmentTier[];
   optimalTiming?: OptimalInvestmentTiming | null;
 
-  // Scenario Comparison (NEW) - Optional for backward compatibility
+  // Scenario Comparison - Optional for backward compatibility
   scenarioComparison?: InvestmentScenarioComparison | null;
+
+  // Phase 2: Additional data for new PDF pages
+  quarterlyRevenueA?: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyExpenseA?: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyRevenueB?: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyExpenseB?: { q1: number; q2: number; q3: number; q4: number };
+  runwayData?: RunwayDataPoint[];
+  growthConfig?: GrowthConfig | null;
+  multiYearCapitalPlan?: MultiYearCapitalPlan | null;
 }
 
 /**
@@ -308,5 +319,75 @@ export interface PdfScenarioImpactPageProps {
   scenarioAName: string;
   scenarioBName: string;
   scenarioYear: number;
+}
+
+// =====================================================
+// NEW: PDF Export Additional Props (Phase 2)
+// =====================================================
+
+/**
+ * Runway data point for chart
+ */
+export interface RunwayDataPoint {
+  quarter: string;
+  withInvestment: number;
+  withoutInvestment: number;
+  difference: number;
+}
+
+/**
+ * Growth configuration for two-stage model
+ */
+export interface GrowthConfig {
+  aggressiveGrowthRate: number;
+  normalizedGrowthRate: number;
+  rawUserGrowthRate?: number;
+}
+
+/**
+ * Quarterly Cash Flow Page Props
+ */
+export interface PdfQuarterlyCashFlowPageProps {
+  quarterlyRevenueA: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyExpenseA: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyRevenueB: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyExpenseB: { q1: number; q2: number; q3: number; q4: number };
+  investmentAmount: number;
+  scenarioAName: string;
+  scenarioBName: string;
+}
+
+/**
+ * Future Impact Page Props
+ */
+export interface PdfFutureImpactPageProps {
+  scenarioComparison: InvestmentScenarioComparison;
+  scenarioYear: number;
+}
+
+/**
+ * Runway Chart Page Props
+ */
+export interface PdfRunwayChartPageProps {
+  runwayData: RunwayDataPoint[];
+  scenarioAName: string;
+  scenarioBName: string;
+}
+
+/**
+ * Growth Model Page Props
+ */
+export interface PdfGrowthModelPageProps {
+  growthConfig: GrowthConfig | null;
+  targetYear: number;
+}
+
+/**
+ * Five Year Projection Page Props
+ */
+export interface PdfFiveYearProjectionPageProps {
+  multiYearPlan: MultiYearCapitalPlan | null;
+  dealConfig: DealConfig;
+  exitPlan: ExitPlan | null;
 }
 

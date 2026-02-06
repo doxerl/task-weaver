@@ -20,6 +20,13 @@ export { PdfProjectionPage } from './PdfProjectionPage';
 export { PdfFocusProjectPage } from './PdfFocusProjectPage';
 export { PdfAIInsightsPage } from './PdfAIInsightsPage';
 
+// Phase 2: New PDF Pages
+export { PdfQuarterlyCashFlowPage } from './PdfQuarterlyCashFlowPage';
+export { PdfFutureImpactPage } from './PdfFutureImpactPage';
+export { PdfRunwayChartPage } from './PdfRunwayChartPage';
+export { PdfGrowthModelPage } from './PdfGrowthModelPage';
+export { PdfFiveYearProjectionPage } from './PdfFiveYearProjectionPage';
+
 // Growth Comparison PDF Pages
 export { PdfGrowthAnalysisPage } from './PdfGrowthAnalysisPage';
 export { PdfMilestoneTimelinePage } from './PdfMilestoneTimelinePage';
@@ -36,6 +43,11 @@ export type {
   PdfProjectionPageProps,
   PdfFocusProjectPageProps,
   PdfAIInsightsPageProps,
+  PdfQuarterlyCashFlowPageProps,
+  PdfFutureImpactPageProps,
+  PdfRunwayChartPageProps,
+  PdfGrowthModelPageProps,
+  PdfFiveYearProjectionPageProps,
   DealConfig,
   ScenarioSummary,
   MetricItem,
@@ -43,4 +55,6 @@ export type {
   CumulativeQuarterlyData,
   PdfExitPlanData,
   ExitPlanYear,
+  RunwayDataPoint,
+  GrowthConfig,
 } from './types';

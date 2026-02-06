@@ -18,6 +18,12 @@ import { PdfScenarioImpactPage } from './PdfScenarioImpactPage';
 import { PdfProjectionPage } from './PdfProjectionPage';
 import { PdfFocusProjectPage } from './PdfFocusProjectPage';
 import { PdfAIInsightsPage } from './PdfAIInsightsPage';
+// NEW: Phase 2 PDF Pages
+import { PdfQuarterlyCashFlowPage } from './PdfQuarterlyCashFlowPage';
+import { PdfFutureImpactPage } from './PdfFutureImpactPage';
+import { PdfRunwayChartPage } from './PdfRunwayChartPage';
+import { PdfGrowthModelPage } from './PdfGrowthModelPage';
+import { PdfFiveYearProjectionPage } from './PdfFiveYearProjectionPage';
 // PdfPitchDeckPage intentionally excluded - Pitch Deck should be a separate export
 
 import type { PdfExportContainerProps } from './types';
@@ -28,20 +34,25 @@ import type { PdfExportContainerProps } from './types';
  * Main container for PDF export functionality that composes all PDF pages.
  * This component extracts ~1,039 lines of PDF-related code from ScenarioComparisonPage.
  *
- * Pages included (13 pages):
+ * Pages included (18 pages):
  * 1. Cover Page - Title and key metrics
  * 2. Metrics Page - Financial summary comparison
  * 3. Charts Page - Visual analysis (quarterly comparison)
  * 4. Financial Ratios Page - Professional analysis metrics
  * 5. Revenue/Expense Page - Itemized comparison
  * 6. Investor Page - Deal analysis and exit strategy
- * 7. Capital Analysis Page - Death Valley, Runway, Capital needs (NEW)
- * 8. Valuation Page - 4 valuation methods, 5Y projection (NEW)
- * 9. Investment Options Page - Min/Recommended/Aggressive, AI timing (NEW)
- * 10. Scenario Impact Page - With vs Without investment comparison (NEW)
+ * 7. Capital Analysis Page - Death Valley, Runway, Capital needs
+ * 8. Valuation Page - 4 valuation methods, 5Y projection
+ * 9. Investment Options Page - Min/Recommended/Aggressive, AI timing
+ * 10. Scenario Impact Page - With vs Without investment comparison
  * 11. Projection Page - Editable projections
  * 12. Focus Project Page - Investment allocation
  * 13. AI Insights Page - AI-generated insights and recommendations
+ * 14. Quarterly Cash Flow Page - Detailed quarterly breakdown
+ * 15. Future Impact Page - 5-year projection chart
+ * 16. Runway Chart Page - Cash flow runway comparison
+ * 17. Growth Model Page - Two-stage growth explanation
+ * 18. Five Year Projection Page - Detailed 5-year table
  *
  * Note: Pitch Deck is intentionally excluded - should be a separate export.
  */
@@ -78,14 +89,22 @@ export function PdfExportContainer({
   focusProjects,
   investmentAllocation,
   focusProjectPlan,
-  // Capital Analysis (NEW)
+  // Capital Analysis
   capitalNeedA,
   capitalNeedB,
-  // Investment Options (NEW)
+  // Investment Options
   investmentTiers,
   optimalTiming,
-  // Scenario Comparison (NEW)
+  // Scenario Comparison
   scenarioComparison,
+  // NEW: Phase 2 props
+  quarterlyRevenueA,
+  quarterlyExpenseA,
+  quarterlyRevenueB,
+  quarterlyExpenseB,
+  runwayData,
+  growthConfig,
+  multiYearCapitalPlan,
 }: PdfExportContainerProps) {
   return (
     <div
@@ -203,7 +222,7 @@ export function PdfExportContainer({
           dealConfig={dealConfig}
         />
 
-        {/* PAGE 13: AI INSIGHTS (Last page - no page break) */}
+        {/* PAGE 13: AI INSIGHTS */}
         <PdfAIInsightsPage
           unifiedAnalysis={unifiedAnalysis}
           summaryA={summaryA}
@@ -213,7 +232,53 @@ export function PdfExportContainer({
           scenarioComparison={scenarioComparison}
           dealConfig={dealConfig}
         />
-        {/* Pitch Deck intentionally excluded from PDF export */}
+
+        {/* PAGE 14: QUARTERLY CASH FLOW */}
+        {quarterlyRevenueA && quarterlyExpenseA && quarterlyRevenueB && quarterlyExpenseB && (
+          <PdfQuarterlyCashFlowPage
+            quarterlyRevenueA={quarterlyRevenueA}
+            quarterlyExpenseA={quarterlyExpenseA}
+            quarterlyRevenueB={quarterlyRevenueB}
+            quarterlyExpenseB={quarterlyExpenseB}
+            investmentAmount={dealConfig.investmentAmount}
+            scenarioAName={`${scenarioA?.targetYear || ''} ${scenarioA?.name || ''}`}
+            scenarioBName={`${scenarioB?.targetYear || ''} ${scenarioB?.name || ''}`}
+          />
+        )}
+
+        {/* PAGE 15: FUTURE IMPACT */}
+        {scenarioComparison && (
+          <PdfFutureImpactPage
+            scenarioComparison={scenarioComparison}
+            scenarioYear={Math.max(scenarioA?.targetYear || 2026, scenarioB?.targetYear || 2026)}
+          />
+        )}
+
+        {/* PAGE 16: RUNWAY CHART */}
+        {runwayData && runwayData.length > 0 && (
+          <PdfRunwayChartPage
+            runwayData={runwayData}
+            scenarioAName={`${scenarioA?.targetYear || ''} ${scenarioA?.name || ''}`}
+            scenarioBName={`${scenarioB?.targetYear || ''} ${scenarioB?.name || ''}`}
+          />
+        )}
+
+        {/* PAGE 17: GROWTH MODEL */}
+        {growthConfig && (
+          <PdfGrowthModelPage
+            growthConfig={growthConfig}
+            targetYear={scenarioA?.targetYear || new Date().getFullYear() + 1}
+          />
+        )}
+
+        {/* PAGE 18: FIVE YEAR PROJECTION */}
+        {multiYearCapitalPlan && (
+          <PdfFiveYearProjectionPage
+            multiYearPlan={multiYearCapitalPlan}
+            dealConfig={dealConfig}
+            exitPlan={pdfExitPlan}
+          />
+        )}
       </div>
     </div>
   );
