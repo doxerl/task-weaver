@@ -11,6 +11,7 @@ import {
   GRID_4_COLS_STYLE,
 } from '@/styles/pdfExport';
 import { formatCompactUSD } from '@/lib/formatters';
+import { DEFAULT_VALUATION_CONFIG, SECTOR_EBITDA_MULTIPLES } from '@/lib/valuationCalculator';
 import type { PdfValuationPageProps } from './types';
 
 /**
@@ -30,43 +31,42 @@ export function PdfValuationPage({
 }: PdfValuationPageProps) {
   const { t } = useTranslation(['simulation']);
 
-  if (!pdfExitPlan) {
-    return null;
-  }
+  // Get config values from centralized config (must be before any conditional returns)
+  const { weights, discountRate, expectedROI } = DEFAULT_VALUATION_CONFIG;
+  
+  // Get EBITDA multiple from sector (fallback to default)
+  const ebitdaMultiplier = SECTOR_EBITDA_MULTIPLES['default'] || 10;
 
   // Get year 5 projection for valuation calculations
-  const year5 = pdfExitPlan.allYears?.find(y => y.year === Math.max(...(pdfExitPlan.allYears?.map(y => y.year) || [0])));
-  const year1 = pdfExitPlan.allYears?.[0];
+  const year5 = pdfExitPlan?.allYears?.find(y => y.year === Math.max(...(pdfExitPlan.allYears?.map(y => y.year) || [0])));
 
   // Calculate valuation methods based on year 5 data
   const revenue = year5?.revenue || 0;
   const expenses = year5?.expenses || 0;
   
   // CORRECTED FORMULA: EBITDA = Revenue - Expenses
-  // Previous approach (netProfit * 1.15) was conceptually incorrect
-  // EBITDA should be calculated as operating profit before non-cash charges
   const ebitda = revenue - expenses;
 
-  // Valuation calculations
-  const revenueMultiple = revenue * dealConfig.sectorMultiple;
-  const ebitdaMultiple = ebitda * (dealConfig.sectorMultiple * 1.5); // EBITDA multiple typically higher
-  const dcfValue = year5?.companyValuation || revenueMultiple * 0.9; // Use exit valuation or estimate
-  const vcMethodValue = safeDivide(revenueMultiple, 10, 0) * 10; // VC expects 10x return
+  // Valuation calculations using centralized config
+  const revenueMultiple = revenue * (dealConfig?.sectorMultiple || 3);
+  const ebitdaMultiple = ebitda * ebitdaMultiplier;
+  const dcfValue = year5?.companyValuation || revenueMultiple * 0.9;
+  const vcMethodValue = safeDivide(revenueMultiple, expectedROI, 0) * expectedROI;
 
-  // Weighted average (30% Revenue, 25% EBITDA, 30% DCF, 15% VC)
+  // Weighted average using centralized weights
   const weightedValuation =
-    revenueMultiple * 0.30 +
-    ebitdaMultiple * 0.25 +
-    dcfValue * 0.30 +
-    vcMethodValue * 0.15;
+    revenueMultiple * weights.revenueMultiple +
+    ebitdaMultiple * weights.ebitdaMultiple +
+    dcfValue * weights.dcf +
+    vcMethodValue * weights.vcMethod;
 
-  // Valuation method cards data
+  // Valuation method cards data (useMemo must be before conditional returns)
   const valuationMethods = useMemo(() => [
     {
       name: t('pdf.valuation.revenueMultiple'),
       value: revenueMultiple,
-      formula: `${formatCompactUSD(revenue)} × ${dealConfig.sectorMultiple}x`,
-      weight: '30%',
+      formula: `${formatCompactUSD(revenue)} × ${dealConfig?.sectorMultiple || 3}x`,
+      weight: `${(weights.revenueMultiple * 100).toFixed(0)}%`,
       color: '#eff6ff',
       borderColor: '#93c5fd',
       iconColor: '#3b82f6',
@@ -74,8 +74,8 @@ export function PdfValuationPage({
     {
       name: t('pdf.valuation.ebitdaMultiple'),
       value: ebitdaMultiple,
-      formula: `${formatCompactUSD(ebitda)} × ${(dealConfig.sectorMultiple * 1.5).toFixed(1)}x`,
-      weight: '25%',
+      formula: `${formatCompactUSD(ebitda)} × ${ebitdaMultiplier}x`,
+      weight: `${(weights.ebitdaMultiple * 100).toFixed(0)}%`,
       color: '#faf5ff',
       borderColor: '#c4b5fd',
       iconColor: '#8b5cf6',
@@ -83,8 +83,8 @@ export function PdfValuationPage({
     {
       name: t('pdf.valuation.dcf'),
       value: dcfValue,
-      formula: t('pdf.valuation.discountRate', { rate: 30 }),
-      weight: '30%',
+      formula: t('pdf.valuation.discountRate', { rate: (discountRate * 100).toFixed(0) }),
+      weight: `${(weights.dcf * 100).toFixed(0)}%`,
       color: '#f0fdf4',
       borderColor: '#86efac',
       iconColor: '#22c55e',
@@ -92,13 +92,18 @@ export function PdfValuationPage({
     {
       name: t('pdf.valuation.vcMethod'),
       value: vcMethodValue,
-      formula: t('pdf.valuation.targetROI', { roi: 10 }),
-      weight: '15%',
+      formula: t('pdf.valuation.targetROI', { roi: expectedROI }),
+      weight: `${(weights.vcMethod * 100).toFixed(0)}%`,
       color: '#fffbeb',
       borderColor: '#fcd34d',
       iconColor: '#f59e0b',
     },
-  ], [t, revenueMultiple, ebitdaMultiple, dcfValue, vcMethodValue, revenue, ebitda, dealConfig.sectorMultiple]);
+  ], [t, revenueMultiple, ebitdaMultiple, dcfValue, vcMethodValue, revenue, ebitda, dealConfig?.sectorMultiple, weights, discountRate, expectedROI, ebitdaMultiplier]);
+
+  // Early return after all hooks
+  if (!pdfExitPlan) {
+    return null;
+  }
 
   return (
     <div className="page-break-after" style={CONTENT_PAGE_STYLE}>
