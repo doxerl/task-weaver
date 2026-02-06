@@ -1,223 +1,374 @@
 
-# PDF Export i18n Düzeltme Planı
+# PDF Export - Eksik Bileşenlerin Eklenmesi
 
-## Problem Analizi
+## Hedef
 
-PDF export'ta UI dil ayarından bağımsız olarak karışık Türkçe/İngilizce çıktı üretiliyor. Hardcoded Türkçe stringler i18n sistemini bypass ediyor.
+InvestmentTab'da görüntülenen ancak PDF export'ta bulunmayan 5 bileşeni eklemek:
 
-### Tespit Edilen Hardcoded Türkçe Stringler
-
-| Dosya | Satır | Hardcoded Metin |
-|-------|-------|-----------------|
-| `ScenarioComparisonPage.tsx` | 894 | `'Minimum Yatırım'` |
-| `ScenarioComparisonPage.tsx` | 902 | `'Önerilen Yatırım'` |
-| `ScenarioComparisonPage.tsx` | 910 | `'Agresif Büyüme'` |
-| `ScenarioComparisonPage.tsx` | 955 | `'Opsiyonel'` |
-| `ScenarioComparisonPage.tsx` | 956 | `'Herhangi bir zamanda'` |
-| `ScenarioComparisonPage.tsx` | 958 | `'Yıl Başı'` |
-| `ScenarioComparisonPage.tsx` | 959 | `'Ocak ${targetYear}'den önce'` |
-| `ScenarioComparisonPage.tsx` | 963 | `'Mart', 'Haziran', 'Eylül', 'Aralık'` |
-| `ScenarioComparisonPage.tsx` | 982-983 | `'Yatırım alınmazsa pozitif senaryoya...'` |
-| `PdfAIInsightsPage.tsx` | 42 | `'Gelir Farkı Analizi'` |
-| `PdfAIInsightsPage.tsx` | 43 | `'Yatırım senaryosu ile...'` |
-| `PdfAIInsightsPage.tsx` | 54-55 | `'Runway Karşılaştırması'` |
-| `PdfAIInsightsPage.tsx` | 63-65 | `'Death Valley Uyarısı'` |
-| `PdfAIInsightsPage.tsx` | 76-77 | `'Kâr Marjı Farkı'` |
-| `PdfAIInsightsPage.tsx` | 91-92 | `'Yatırım Getiri Etkisi'` |
-| `PdfAIInsightsPage.tsx` | 102-103 | `'Fırsat Maliyeti'` |
-| `PdfAIInsightsPage.tsx` | 160 | `'📊 Hesaplanmış Metrikler'` |
-| `PdfAIInsightsPage.tsx` | 210 | `'🤖 AI Önerileri (Yüksek Güven)'` |
+1. **QuarterlyCashFlowTable** - Çeyreklik gelir/gider/net detay tablosu
+2. **FutureImpactChart** - 5 yıllık projeksiyon grafiği
+3. **Runway Chart** - Yatırımlı vs Yatırımsız nakit akış grafiği
+4. **Growth Model Info Card** - İki aşamalı büyüme açıklaması
+5. **5 Year Projection Detail Table** - Multi-year capital plan tablosu
 
 ---
 
-## Çözüm
+## Yeni PDF Sayfaları (5 adet)
 
-Tüm hardcoded stringleri `t()` fonksiyonu ile i18n key'lerine dönüştürmek.
+| Sayfa # | İsim | İçerik |
+|---------|------|--------|
+| 14 | PdfQuarterlyCashFlowPage | İki senaryo için çeyreklik gelir/gider/net tablosu + Death Valley işareti |
+| 15 | PdfFutureImpactPage | 5 yıllık projeksiyon area chart + yıllık fark kartları |
+| 16 | PdfRunwayChartPage | Runway line chart (withInvestment vs withoutInvestment) |
+| 17 | PdfGrowthModelPage | 2-stage growth açıklaması (Years 1-2 agresif, Years 3-5 normalize) |
+| 18 | PdfFiveYearProjectionPage | 5 yıllık detaylı tablo (Opening, Revenue, Expense, Death Valley, Capital Need, Year End, Valuation, MOIC) |
 
 ---
 
-## Teknik Değişiklikler
+## Dosya Değişiklikleri
 
-### 1. Çeviri Dosyalarına Key'ler Ekle
+### 1. Yeni PDF Sayfa Bileşenleri Oluştur
 
-**`src/i18n/locales/en/simulation.json`** - Yeni key'ler eklenecek:
-```json
-"pdf": {
-  "investmentTiers": {
-    "minimum": "Minimum Investment",
-    "recommended": "Recommended Investment",
-    "aggressive": "Aggressive Growth"
-  },
-  "optimalTiming": {
-    "optional": "Optional",
-    "anytime": "Anytime",
-    "yearStart": "Year Start",
-    "beforeMonth": "Before {{month}} {{year}}",
-    "byEndOf": "By end of {{month}} {{year}}",
-    "months": {
-      "january": "January",
-      "march": "March",
-      "june": "June", 
-      "september": "September",
-      "december": "December"
-    },
-    "riskIfDelayed": "Without investment, transition to positive scenario is not possible. Growth strategy will be delayed, market share will be lost.",
-    "lowRisk": "Low risk - organic growth possible"
-  },
-  "aiInsights": {
-    "calculatedMetrics": "Calculated Metrics",
-    "aiSuggestionsHighConfidence": "AI Suggestions (High Confidence)",
-    "revenueGapAnalysis": "Revenue Gap Analysis",
-    "revenueGapDesc": "With investment scenario, {{amount}} {{direction}} revenue is projected.",
-    "more": "more",
-    "less": "less",
-    "runwayComparison": "Runway Comparison",
-    "runwayComparisonDesc": "Positive scenario: {{positiveMonths}} months, Negative scenario: {{negativeMonths}} months runway. {{extraMonths}}",
-    "extraMonthsSustainability": "{{months}} months longer sustainability.",
-    "deathValleyWarning": "Death Valley Warning",
-    "deathValleyDesc": "In organic scenario, {{amount}} cash deficit will occur in {{quarter}}. Minimum {{required}} investment required.",
-    "profitMarginDifference": "Profit Margin Difference",
-    "profitMarginDesc": "Positive scenario: {{marginA}}%, Negative scenario: {{marginB}}% profit margin. {{improvement}}",
-    "marginImprovement": "{{points}} point improvement with investment.",
-    "investmentImpact": "Investment Return Impact",
-    "investmentImpactDesc": "{{amount}} investment achieves {{multiplier}}x revenue multiplier.",
-    "opportunityCost": "Opportunity Cost",
-    "opportunityCostDesc": "Without investment, {{amount}} potential revenue will be lost. Risk level: {{riskLevel}}."
-  }
-}
+**`src/components/simulation/pdf/PdfQuarterlyCashFlowPage.tsx`** (YENİ)
+```text
+- İki senaryo tablosu (Yatırımlı / Yatırımsız)
+- Her çeyrek için: Revenue, Expense, Net, Cumulative, Capital Need
+- Death Valley işaretlemesi
+- Yıl sonu özeti
 ```
 
-**`src/i18n/locales/tr/simulation.json`** - Aynı yapıda Türkçe çeviriler:
-```json
-"pdf": {
-  "investmentTiers": {
-    "minimum": "Minimum Yatırım",
-    "recommended": "Önerilen Yatırım",
-    "aggressive": "Agresif Büyüme"
-  },
-  "optimalTiming": {
-    "optional": "Opsiyonel",
-    "anytime": "Herhangi bir zamanda",
-    "yearStart": "Yıl Başı",
-    "beforeMonth": "{{month}} {{year}}'den önce",
-    "byEndOf": "{{month}} {{year}} sonuna kadar",
-    "months": {
-      "january": "Ocak",
-      "march": "Mart",
-      "june": "Haziran",
-      "september": "Eylül",
-      "december": "Aralık"
-    },
-    "riskIfDelayed": "Yatırım alınmazsa pozitif senaryoya geçiş mümkün değil. Büyüme stratejisi gecikir, pazar payı kaybedilir.",
-    "lowRisk": "Düşük risk - organik büyüme mümkün"
-  },
-  "aiInsights": {
-    "calculatedMetrics": "Hesaplanmış Metrikler",
-    "aiSuggestionsHighConfidence": "AI Önerileri (Yüksek Güven)",
-    "revenueGapAnalysis": "Gelir Farkı Analizi",
-    "revenueGapDesc": "Yatırım senaryosu ile {{amount}} {{direction}} gelir öngörülüyor.",
-    "more": "daha fazla",
-    "less": "daha az",
-    // ... diğer Türkçe çeviriler
-  }
-}
+**`src/components/simulation/pdf/PdfFutureImpactPage.tsx`** (YENİ)
+```text
+- AreaChart: withInvestment vs withoutInvestment 5 yıllık projeksiyon
+- Grid kartlar: Year 1, Year 3, Year 5 farkları
+- Toplam değerleme farkı banner
 ```
 
-### 2. ScenarioComparisonPage.tsx Güncellemesi
+**`src/components/simulation/pdf/PdfRunwayChartPage.tsx`** (YENİ)
+```text
+- LineChart: Çeyreklik nakit akış karşılaştırması
+- Referans çizgisi (y=0)
+- Opportunity cost göstergesi
+```
 
-**investmentTiers useMemo** (satır 886-917):
+**`src/components/simulation/pdf/PdfGrowthModelPage.tsx`** (YENİ)
+```text
+- 2-Stage Growth Model açıklaması
+- Years 1-2: Agresif büyüme oranı
+- Years 3-5: Normalize edilmiş büyüme
+- Cap warning (eğer >100% ise)
+```
+
+**`src/components/simulation/pdf/PdfFiveYearProjectionPage.tsx`** (YENİ)
+```text
+- 5 satırlık tablo (Year 1-5)
+- Sütunlar: Opening, Revenue, Expense, Net Profit, Death Valley, Capital Need, Year End, Valuation, MOIC
+- Total satırı
+- Self-sustaining badge
+```
+
+---
+
+### 2. Types Dosyasını Güncelle
+
+**`src/components/simulation/pdf/types.ts`**
 ```typescript
-const investmentTiers = useMemo((): InvestmentTier[] => {
-  if (!capitalNeedB) return [];
-  const base = capitalNeedB.requiredInvestment;
-  if (base <= 0) return [];
+// YENİ: QuarterlyCashFlowPage Props
+export interface PdfQuarterlyCashFlowPageProps {
+  quarterlyRevenueA: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyExpenseA: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyRevenueB: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyExpenseB: { q1: number; q2: number; q3: number; q4: number };
+  investmentAmount: number;
+  scenarioAName: string;
+  scenarioBName: string;
+}
+
+// YENİ: FutureImpactPage Props
+export interface PdfFutureImpactPageProps {
+  scenarioComparison: InvestmentScenarioComparison;
+  scenarioYear: number;
+}
+
+// YENİ: RunwayChartPage Props
+export interface PdfRunwayChartPageProps {
+  runwayData: Array<{
+    quarter: string;
+    withInvestment: number;
+    withoutInvestment: number;
+    difference: number;
+  }>;
+  scenarioAName: string;
+  scenarioBName: string;
+}
+
+// YENİ: GrowthModelPage Props
+export interface PdfGrowthModelPageProps {
+  growthConfig: {
+    aggressiveGrowthRate: number;
+    normalizedGrowthRate: number;
+    rawUserGrowthRate?: number;
+  } | null;
+  targetYear: number;
+}
+
+// YENİ: FiveYearProjectionPage Props
+export interface PdfFiveYearProjectionPageProps {
+  multiYearPlan: MultiYearCapitalPlan;
+  dealConfig: DealConfig;
+  exitPlan: ExitPlan;
+}
+
+// PdfExportContainerProps'a yeni prop'lar ekle
+export interface PdfExportContainerProps {
+  // ... mevcut prop'lar
   
-  return [
-    { 
-      tier: 'minimum' as const, 
-      label: t('pdf.investmentTiers.minimum'),  // ← i18n key
-      amount: base, 
-      runwayMonths: capitalNeedB.runwayMonths,
-      description: t('pdf.investmentTiers.minDescription'),
-      safetyMargin: 15
+  // YENİ: Quarterly Cash Flow
+  quarterlyRevenueA?: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyExpenseA?: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyRevenueB?: { q1: number; q2: number; q3: number; q4: number };
+  quarterlyExpenseB?: { q1: number; q2: number; q3: number; q4: number };
+  
+  // YENİ: Runway Data
+  runwayData?: Array<{ quarter: string; withInvestment: number; withoutInvestment: number; difference: number }>;
+  
+  // YENİ: Growth Config
+  growthConfig?: { aggressiveGrowthRate: number; normalizedGrowthRate: number; rawUserGrowthRate?: number } | null;
+  
+  // YENİ: Multi-Year Capital Plan
+  multiYearCapitalPlan?: MultiYearCapitalPlan | null;
+}
+```
+
+---
+
+### 3. PdfExportContainer'ı Güncelle
+
+**`src/components/simulation/pdf/PdfExportContainer.tsx`**
+```typescript
+// YENİ import'lar
+import { PdfQuarterlyCashFlowPage } from './PdfQuarterlyCashFlowPage';
+import { PdfFutureImpactPage } from './PdfFutureImpactPage';
+import { PdfRunwayChartPage } from './PdfRunwayChartPage';
+import { PdfGrowthModelPage } from './PdfGrowthModelPage';
+import { PdfFiveYearProjectionPage } from './PdfFiveYearProjectionPage';
+
+// Container içinde yeni sayfa proplarını al ve render et
+// PAGE 14: QUARTERLY CASH FLOW
+{quarterlyRevenueA && quarterlyExpenseA && quarterlyRevenueB && quarterlyExpenseB && (
+  <PdfQuarterlyCashFlowPage
+    quarterlyRevenueA={quarterlyRevenueA}
+    quarterlyExpenseA={quarterlyExpenseA}
+    quarterlyRevenueB={quarterlyRevenueB}
+    quarterlyExpenseB={quarterlyExpenseB}
+    investmentAmount={dealConfig.investmentAmount}
+    scenarioAName={...}
+    scenarioBName={...}
+  />
+)}
+
+// PAGE 15: FUTURE IMPACT
+{scenarioComparison && (
+  <PdfFutureImpactPage
+    scenarioComparison={scenarioComparison}
+    scenarioYear={...}
+  />
+)}
+
+// PAGE 16: RUNWAY CHART
+{runwayData && runwayData.length > 0 && (
+  <PdfRunwayChartPage
+    runwayData={runwayData}
+    scenarioAName={...}
+    scenarioBName={...}
+  />
+)}
+
+// PAGE 17: GROWTH MODEL
+{growthConfig && (
+  <PdfGrowthModelPage
+    growthConfig={growthConfig}
+    targetYear={...}
+  />
+)}
+
+// PAGE 18: FIVE YEAR PROJECTION
+{multiYearCapitalPlan && (
+  <PdfFiveYearProjectionPage
+    multiYearPlan={multiYearCapitalPlan}
+    dealConfig={dealConfig}
+    exitPlan={pdfExitPlan}
+  />
+)}
+```
+
+---
+
+### 4. Index Dosyasını Güncelle
+
+**`src/components/simulation/pdf/index.ts`**
+```typescript
+// YENİ export'lar
+export { PdfQuarterlyCashFlowPage } from './PdfQuarterlyCashFlowPage';
+export { PdfFutureImpactPage } from './PdfFutureImpactPage';
+export { PdfRunwayChartPage } from './PdfRunwayChartPage';
+export { PdfGrowthModelPage } from './PdfGrowthModelPage';
+export { PdfFiveYearProjectionPage } from './PdfFiveYearProjectionPage';
+
+// YENİ type export'ları
+export type {
+  PdfQuarterlyCashFlowPageProps,
+  PdfFutureImpactPageProps,
+  PdfRunwayChartPageProps,
+  PdfGrowthModelPageProps,
+  PdfFiveYearProjectionPageProps,
+} from './types';
+```
+
+---
+
+### 5. ScenarioComparisonPage'den Veri Akışı
+
+**`src/pages/finance/ScenarioComparisonPage.tsx`**
+```typescript
+// Mevcut InvestmentTab'a gönderilen verileri PDF container'a da gönder
+
+// quarterlyRevenueA, quarterlyExpenseA zaten mevcut - useMemo ile hesaplanıyor
+// quarterlyRevenueB, quarterlyExpenseB zaten mevcut
+
+// runwayData - InvestmentTab içinde hesaplanıyor, dışarı çıkar
+const runwayData = useMemo(() => {
+  // InvestmentTab.tsx satır 185-204'deki aynı mantık
+  const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
+  // ... hesaplama
+}, [quarterlyA, quarterlyB, dealConfig.investmentAmount]);
+
+// growthConfig - exitPlan'dan al
+const growthConfig = exitPlan?.growthConfig || null;
+
+// multiYearCapitalPlan - InvestmentTab'da hesaplanan, dışarı çıkar
+const multiYearCapitalPlan = useMemo(() => {
+  return calculateMultiYearCapitalNeeds(...);
+}, [...]);
+
+// PdfExportContainer'a yeni prop'ları ekle
+<PdfExportContainer
+  // ... mevcut prop'lar
+  quarterlyRevenueA={quarterlyRevenueA}
+  quarterlyExpenseA={quarterlyExpenseA}
+  quarterlyRevenueB={quarterlyRevenueB}
+  quarterlyExpenseB={quarterlyExpenseB}
+  runwayData={runwayData}
+  growthConfig={growthConfig}
+  multiYearCapitalPlan={multiYearCapitalPlan}
+/>
+```
+
+---
+
+### 6. i18n Çeviri Key'leri
+
+**`src/i18n/locales/en/simulation.json`** ve **`tr/simulation.json`**
+```json
+{
+  "pdf": {
+    "quarterlyCashFlow": {
+      "title": "Quarterly Cash Flow Analysis",
+      "invested": "With Investment ({{name}})",
+      "uninvested": "Without Investment ({{name}})",
+      "quarter": "Q",
+      "revenue": "Revenue",
+      "expense": "Expense",
+      "net": "Net",
+      "cumulative": "Cumulative",
+      "need": "Need",
+      "yearEnd": "Year End",
+      "startingBalance": "Starting: {{amount}}"
     },
-    // ... diğer tier'lar benzer şekilde
-  ];
-}, [capitalNeedB, t]);
+    "futureImpact": {
+      "title": "5-Year Revenue Projection",
+      "withInvestment": "With Investment",
+      "withoutInvestment": "Without Investment",
+      "yearDiff": "Year {{year}} Difference",
+      "totalDifference": "Total 5-Year Difference"
+    },
+    "runwayChart": {
+      "title": "Cash Flow Runway Comparison",
+      "description": "Cumulative cash position by quarter"
+    },
+    "growthModel": {
+      "title": "Two-Stage Growth Model",
+      "years1to2": "Years 1-2 (Aggressive)",
+      "years3to5": "Years 3-5 (Normalized)",
+      "capWarning": "Growth rate capped at 100%"
+    },
+    "fiveYearProjection": {
+      "title": "5-Year Financial Projection",
+      "year": "Year",
+      "opening": "Opening",
+      "revenue": "Revenue",
+      "expense": "Expense",
+      "netProfit": "Net Profit",
+      "deathValley": "Death Valley",
+      "capitalNeed": "Capital Need",
+      "yearEnd": "Year End",
+      "valuation": "Valuation",
+      "moic": "MOIC",
+      "total": "Total"
+    }
+  }
+}
 ```
 
-**optimalTiming useMemo** (satır 922-990):
-```typescript
-// Month names from i18n
-const monthMap: Record<string, string> = { 
-  'Q1': t('pdf.optimalTiming.months.march'), 
-  'Q2': t('pdf.optimalTiming.months.june'), 
-  'Q3': t('pdf.optimalTiming.months.september'), 
-  'Q4': t('pdf.optimalTiming.months.december') 
-};
+---
 
-// Timing strings
-recommendedQuarter = t('pdf.optimalTiming.yearStart');
-recommendedTiming = t('pdf.optimalTiming.beforeMonth', { 
-  month: t('pdf.optimalTiming.months.january'), 
-  year: targetYear 
-});
+## PDF Sayfa Sıralaması (Güncellenmiş)
 
-// Risk strings
-const riskIfDelayed = firstDeficitQuarter
-  ? t('pdf.optimalTiming.riskIfDelayed')
-  : t('pdf.optimalTiming.lowRisk');
-```
-
-### 3. PdfAIInsightsPage.tsx Güncellemesi
-
-**calculatedInsights useMemo** (satır 34-112):
-```typescript
-// Revenue Gap Analysis
-insights.push({
-  title: t('pdf.aiInsights.revenueGapAnalysis'),
-  description: t('pdf.aiInsights.revenueGapDesc', {
-    amount: formatFullUSD(Math.abs(revenueGap)),
-    direction: revenueGap >= 0 ? t('pdf.aiInsights.more') : t('pdf.aiInsights.less')
-  }),
-  // ...
-});
-
-// Section headers
-<h3>📊 {t('pdf.aiInsights.calculatedMetrics')}</h3>
-<h3>🤖 {t('pdf.aiInsights.aiSuggestionsHighConfidence')}</h3>
-```
-
-### 4. Para Birimi Formatlama
-
-`toLocaleString('tr-TR', ...)` yerine:
-```typescript
-import { formatFullUSD } from '@/lib/formatters';
-
-// VEYA dinamik locale için:
-import { useNumberLocale } from '@/contexts/LanguageContext';
-
-const { numberLocale } = useNumberLocale();
-value.toLocaleString(numberLocale, { style: 'currency', ... });
-```
+| # | Sayfa | İçerik |
+|---|-------|--------|
+| 1 | Cover | Kapak |
+| 2 | Metrics | Finansal özet tablosu |
+| 3 | Charts | Çeyreklik karşılaştırma grafikleri |
+| 4 | Financial Ratios | Profesyonel analiz metrikleri |
+| 5 | Revenue/Expense | Kalem bazlı karşılaştırma |
+| 6 | Investor | Deal analizi |
+| 7 | Capital Analysis | Death Valley, Runway |
+| 8 | Valuation | 4 değerleme yöntemi |
+| 9 | Investment Options | Min/Önerilen/Agresif |
+| 10 | Scenario Impact | Yatırımlı vs Yatırımsız |
+| 11 | Projection | Düzenlenebilir projeksiyon |
+| 12 | Focus Project | Yatırım dağılımı |
+| 13 | AI Insights | AI önerileri |
+| **14** | **Quarterly Cash Flow** | **Çeyreklik gelir/gider tablosu** |
+| **15** | **Future Impact** | **5 yıllık projeksiyon grafiği** |
+| **16** | **Runway Chart** | **Nakit akış karşılaştırma** |
+| **17** | **Growth Model** | **2-stage büyüme modeli** |
+| **18** | **5-Year Projection** | **Detaylı 5 yıllık tablo** |
 
 ---
 
 ## Dosya Değişiklikleri Özeti
 
-| Dosya | Değişiklik |
-|-------|-----------|
-| `src/i18n/locales/en/simulation.json` | ~50 yeni çeviri key'i ekle |
-| `src/i18n/locales/tr/simulation.json` | ~50 yeni çeviri key'i ekle |
-| `src/pages/finance/ScenarioComparisonPage.tsx` | investmentTiers ve optimalTiming useMemo'larında t() kullan |
-| `src/components/simulation/pdf/PdfAIInsightsPage.tsx` | Tüm hardcoded stringleri t() ile değiştir |
+| Dosya | Eylem |
+|-------|-------|
+| `src/components/simulation/pdf/PdfQuarterlyCashFlowPage.tsx` | YENİ |
+| `src/components/simulation/pdf/PdfFutureImpactPage.tsx` | YENİ |
+| `src/components/simulation/pdf/PdfRunwayChartPage.tsx` | YENİ |
+| `src/components/simulation/pdf/PdfGrowthModelPage.tsx` | YENİ |
+| `src/components/simulation/pdf/PdfFiveYearProjectionPage.tsx` | YENİ |
+| `src/components/simulation/pdf/types.ts` | GÜNCELLE - Yeni type'lar |
+| `src/components/simulation/pdf/PdfExportContainer.tsx` | GÜNCELLE - Yeni sayfaları ekle |
+| `src/components/simulation/pdf/index.ts` | GÜNCELLE - Export'lar |
+| `src/pages/finance/ScenarioComparisonPage.tsx` | GÜNCELLE - Yeni prop'lar hesapla ve gönder |
+| `src/i18n/locales/en/simulation.json` | GÜNCELLE - Yeni çeviri key'leri |
+| `src/i18n/locales/tr/simulation.json` | GÜNCELLE - Yeni çeviri key'leri |
 
 ---
 
 ## Sonuç
 
-Bu değişikliklerle:
-- ✅ PDF export UI dil seçimine uygun olacak
-- ✅ Türkçe UI → Türkçe PDF
-- ✅ İngilizce UI → İngilizce PDF
-- ✅ Karışık dil sorunu çözülecek
+Bu implementasyonla:
+- ✅ PDF export, UI'daki tüm InvestmentTab içeriğini kapsayacak
+- ✅ 5 yeni sayfa ile toplam 18 sayfalık kapsamlı rapor
+- ✅ i18n desteği ile EN/TR dil uyumluluğu
+- ✅ "What You See Is What You Export" prensibi tam uygulanacak
