@@ -259,7 +259,7 @@ export function PdfInvestorPage({
                       {t('pdf.investor.revenue')}
                     </th>
                     <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>
-                      {t('pdf.investor.expenses')}
+                      {t('pdf.investor.expense')}
                     </th>
                     <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right', color: '#374151' }}>
                       {t('pdf.investor.netProfit')}
