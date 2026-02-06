@@ -164,6 +164,27 @@ export function PdfQuarterlyCashFlowPage({
             </td>
             <td style={{ ...TABLE_CELL_RIGHT_STYLE, fontWeight: '600' }}>-</td>
           </tr>
+          {/* Capital Need Row - Shows funding required when cumulative is negative */}
+          <tr style={{ backgroundColor: '#fef2f2' }}>
+            <td style={{ ...TABLE_CELL_STYLE, fontWeight: '600', color: PDF_COLORS.danger }}>{t('simulation:investment.quarterlyCapital.need')}</td>
+            <td style={{ ...TABLE_CELL_RIGHT_STYLE, fontWeight: '600', color: PDF_COLORS.danger }}>
+              {cumulative.q1 < 0 ? formatCompactUSD(Math.abs(cumulative.q1)) : '-'}
+            </td>
+            <td style={{ ...TABLE_CELL_RIGHT_STYLE, fontWeight: '600', color: PDF_COLORS.danger }}>
+              {cumulative.q2 < 0 ? formatCompactUSD(Math.abs(cumulative.q2)) : '-'}
+            </td>
+            <td style={{ ...TABLE_CELL_RIGHT_STYLE, fontWeight: '600', color: PDF_COLORS.danger }}>
+              {cumulative.q3 < 0 ? formatCompactUSD(Math.abs(cumulative.q3)) : '-'}
+            </td>
+            <td style={{ ...TABLE_CELL_RIGHT_STYLE, fontWeight: '600', color: PDF_COLORS.danger }}>
+              {cumulative.q4 < 0 ? formatCompactUSD(Math.abs(cumulative.q4)) : '-'}
+            </td>
+            <td style={{ ...TABLE_CELL_RIGHT_STYLE, fontWeight: '600', color: PDF_COLORS.danger }}>
+              {Math.min(cumulative.q1, cumulative.q2, cumulative.q3, cumulative.q4) < 0 
+                ? formatCompactUSD(Math.abs(Math.min(cumulative.q1, cumulative.q2, cumulative.q3, cumulative.q4)))
+                : '-'}
+            </td>
+          </tr>
         </tbody>
       </table>
     </div>

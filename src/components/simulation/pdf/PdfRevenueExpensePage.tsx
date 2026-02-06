@@ -74,7 +74,7 @@ export function PdfRevenueExpensePage({
                     borderBottom: '2px solid #86efac',
                   }}
                 >
-                  {scenarioA?.name || t('pdf.revenueExpense.scenarioA')}
+                  {scenarioA?.targetYear ? `${scenarioA.targetYear} ` : ''}{scenarioA?.name || t('pdf.revenueExpense.scenarioA')}
                 </th>
                 <th
                   style={{
@@ -83,7 +83,7 @@ export function PdfRevenueExpensePage({
                     borderBottom: '2px solid #86efac',
                   }}
                 >
-                  {scenarioB?.name || t('pdf.revenueExpense.scenarioB')}
+                  {scenarioB?.targetYear ? `${scenarioB.targetYear} ` : ''}{scenarioB?.name || t('pdf.revenueExpense.scenarioB')}
                 </th>
                 <th
                   style={{
@@ -174,7 +174,7 @@ export function PdfRevenueExpensePage({
                     borderBottom: '2px solid #fecaca',
                   }}
                 >
-                  {scenarioA?.name || t('pdf.revenueExpense.scenarioA')}
+                  {scenarioA?.targetYear ? `${scenarioA.targetYear} ` : ''}{scenarioA?.name || t('pdf.revenueExpense.scenarioA')}
                 </th>
                 <th
                   style={{
@@ -183,7 +183,7 @@ export function PdfRevenueExpensePage({
                     borderBottom: '2px solid #fecaca',
                   }}
                 >
-                  {scenarioB?.name || t('pdf.revenueExpense.scenarioB')}
+                  {scenarioB?.targetYear ? `${scenarioB.targetYear} ` : ''}{scenarioB?.name || t('pdf.revenueExpense.scenarioB')}
                 </th>
                 <th
                   style={{

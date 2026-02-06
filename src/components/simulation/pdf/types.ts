@@ -304,7 +304,7 @@ export interface OptimalInvestmentTiming {
 export interface PdfCapitalAnalysisPageProps {
   capitalNeedA: CapitalRequirement;
   capitalNeedB: CapitalRequirement;
-  dealConfig: DealConfig;
+  // Note: dealConfig removed - not used in component implementation
   scenarioAName: string;
   scenarioBName: string;
 }
