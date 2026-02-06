@@ -98,7 +98,7 @@ export function PdfInvestorPage({
             {t('pdf.investor.investmentAmount')}
           </p>
           <p style={{ fontSize: '24px', fontWeight: 'bold', color: PDF_COLORS.primary }}>
-            ${dealConfig.investmentAmount.toLocaleString()}
+            {formatCompactUSD(dealConfig.investmentAmount)}
           </p>
         </div>
         <div
@@ -139,14 +139,13 @@ export function PdfInvestorPage({
               textTransform: 'uppercase',
             }}
           >
-            Pre-Money Valuation
+            {t('pdf.investor.preMoneyValuation')}
           </p>
           <p style={{ fontSize: '24px', fontWeight: 'bold', color: PDF_COLORS.primary }}>
-            $
-            {(
+            {formatCompactUSD(
               safeDivide(dealConfig.investmentAmount, dealConfig.equityPercentage, 0) * 100 -
               dealConfig.investmentAmount
-            ).toLocaleString()}
+            )}
           </p>
         </div>
         <div
