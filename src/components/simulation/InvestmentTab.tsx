@@ -181,7 +181,7 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
     return calculateMultiYearCapitalNeeds(
       exitPlan,
       dealConfig.investmentAmount,
-      summaryA.netProfit, // Year 1 net profit
+      (baseYearData?.netProfit || 0) + summaryA.netProfit, // Cumulative: base year + scenario year
       dealConfig.safetyMargin / 100, // Convert percentage to decimal
       aiProjectionForExitPlan?.quarterlyData  // YENİ: AI çeyreklik verileri
     );
