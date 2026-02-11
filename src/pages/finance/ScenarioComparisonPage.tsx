@@ -87,7 +87,7 @@ import { formatCompactUSD } from '@/lib/formatters';
 import { toast } from 'sonner';
 import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
 import { useUnifiedAnalysis } from '@/hooks/finance/useUnifiedAnalysis';
-import { useInvestorAnalysis, calculateCapitalNeeds, calculateExitPlan, calculateMultiYearCapitalNeeds } from '@/hooks/finance/useInvestorAnalysis';
+import { useInvestorAnalysis, calculateCapitalNeeds, calculateExitPlan, calculateMultiYearCapitalNeeds, calculateInvestmentScenarioComparison, AIProjectionForExitPlan } from '@/hooks/finance/useInvestorAnalysis';
 import { useScenarios } from '@/hooks/finance/useScenarios';
 import { InvestmentTab } from '@/components/simulation/InvestmentTab';
 import { PitchDeckView } from '@/components/simulation/PitchDeckView';
@@ -835,6 +835,55 @@ function ScenarioComparisonContent() {
   }), [financialRatios, breakEvenAnalysis]);
 
   // =====================================================
+  // PDF AI PROJECTION FOR EXIT PLAN - InvestmentTab ile aynı mantık
+  // =====================================================
+  const pdfAiProjectionForExitPlan = useMemo<AIProjectionForExitPlan | undefined>(() => {
+    const projection = unifiedAnalysis?.next_year_projection;
+    if (!projection) return undefined;
+    
+    // Kullanıcı düzenlemesi varsa override et
+    const editedOverride = editableRevenueProjection.length > 0 
+      ? {
+          totalRevenue: editableRevenueProjection.reduce((sum, r) => sum + (r.total || 0), 0),
+          totalExpenses: editableExpenseProjection.reduce((sum, e) => sum + (e.total || 0), 0),
+        }
+      : undefined;
+    
+    const effectiveRevenue = editedOverride?.totalRevenue ?? projection.summary.total_revenue;
+    const effectiveExpenses = editedOverride?.totalExpenses ?? projection.summary.total_expenses;
+    
+    // AI'ın önerdiği büyüme oranını parse et
+    let growthRateHint: number | undefined;
+    if (projection.investor_hook?.revenue_growth_yoy) {
+      const match = projection.investor_hook.revenue_growth_yoy.match(/[0-9.]+/);
+      if (match) {
+        growthRateHint = parseFloat(match[0]) / 100;
+      }
+    }
+    
+    return {
+      year1Revenue: effectiveRevenue,
+      year1Expenses: effectiveExpenses,
+      year1NetProfit: effectiveRevenue - effectiveExpenses,
+      quarterlyData: {
+        revenues: {
+          q1: projection.quarterly.q1.revenue,
+          q2: projection.quarterly.q2.revenue,
+          q3: projection.quarterly.q3.revenue,
+          q4: projection.quarterly.q4.revenue,
+        },
+        expenses: {
+          q1: projection.quarterly.q1.expenses,
+          q2: projection.quarterly.q2.expenses,
+          q3: projection.quarterly.q3.expenses,
+          q4: projection.quarterly.q4.expenses,
+        },
+      },
+      growthRateHint,
+    };
+  }, [unifiedAnalysis?.next_year_projection, editableRevenueProjection, editableExpenseProjection]);
+
+  // =====================================================
   // PDF EXIT PLAN - UI ile aynı hesaplama (Merkezi)
   // =====================================================
   const pdfExitPlan = useMemo(() => {
@@ -849,13 +898,21 @@ function ScenarioComparisonContent() {
       0.10
     );
     
+    const scenarioTargetYear = Math.max(
+      scenarioA?.targetYear || 2026,
+      scenarioB?.targetYear || 2026
+    );
+    
     return calculateExitPlan(
       dealConfig, 
       summaryA.totalRevenue, 
       summaryA.totalExpense, 
-      growthRate
+      growthRate,
+      'default',
+      scenarioTargetYear,
+      pdfAiProjectionForExitPlan
     );
-  }, [scenarioA, summaryA, dealConfig]);
+  }, [scenarioA, scenarioB?.targetYear, summaryA, dealConfig, pdfAiProjectionForExitPlan]);
 
   // =====================================================
   // PDF RUNWAY DATA - Nakit akış karşılaştırma grafiği için
@@ -916,9 +973,10 @@ function ScenarioComparisonContent() {
       pdfExitPlan,
       dealConfig.investmentAmount,
       summaryA.netProfit,
-      dealConfig.safetyMargin / 100
+      dealConfig.safetyMargin / 100,
+      pdfAiProjectionForExitPlan?.quarterlyData
     );
-  }, [pdfExitPlan, dealConfig.investmentAmount, summaryA, dealConfig.safetyMargin]);
+  }, [pdfExitPlan, dealConfig.investmentAmount, summaryA, dealConfig.safetyMargin, pdfAiProjectionForExitPlan?.quarterlyData]);
 
   // =====================================================
   // PDF QUARTERLY DATA - Çeyreklik gelir/gider tabloları için
@@ -1104,78 +1162,36 @@ function ScenarioComparisonContent() {
   // PDF SCENARIO COMPARISON - Yatırım vs Organik Büyüme
   // =====================================================
   const scenarioComparisonData = useMemo((): import('@/types/simulation').InvestmentScenarioComparison | null => {
-    if (!summaryA || !summaryB || !pdfExitPlan) return null;
+    if (!summaryA || !summaryB || !pdfExitPlan || !scenarioA || !scenarioB) return null;
     
-    const revenueGap = summaryA.totalRevenue - summaryB.totalRevenue;
-    const profitGap = summaryA.netProfit - summaryB.netProfit;
-    const growthRateDiff = summaryB.totalRevenue > 0 
-      ? ((summaryA.totalRevenue - summaryB.totalRevenue) / summaryB.totalRevenue) * 100 
-      : 0;
-    const percentageLoss = summaryA.totalRevenue > 0 
-      ? (revenueGap / summaryA.totalRevenue) * 100 
-      : 0;
+    const baseRevenueA = scenarioA.revenues?.reduce((sum, r) => sum + (r.baseAmount || 0), 0) || 0;
+    const baseRevenueB = scenarioB.revenues?.reduce((sum, r) => sum + (r.baseAmount || 0), 0) || 0;
     
-    // Calculate risk level based on revenue gap
-    let riskLevel: 'low' | 'medium' | 'high' | 'critical' = 'low';
-    if (percentageLoss > 40) riskLevel = 'critical';
-    else if (percentageLoss > 25) riskLevel = 'high';
-    else if (percentageLoss > 10) riskLevel = 'medium';
+    const scenarioTargetYear = Math.max(
+      scenarioA.targetYear || 2026,
+      scenarioB.targetYear || 2026
+    );
     
-    // 5-year projection calculations
-    const growthA = 0.20; // Assumed growth with investment
-    const growthB = 0.08; // Organic growth without investment
-    const targetYear = scenarioA?.targetYear || new Date().getFullYear() + 1;
-    
-    const yearlyProjections = Array.from({ length: 5 }, (_, i) => {
-      const year = targetYear + i;
-      const withInv = summaryA.totalRevenue * Math.pow(1 + growthA, i);
-      const withoutInv = summaryB.totalRevenue * Math.pow(1 + growthB, i);
-      return {
-        year,
-        yearLabel: `${year}`,
-        withInvestment: Math.round(withInv),
-        withoutInvestment: Math.round(withoutInv),
-        difference: Math.round(withInv - withoutInv)
-      };
-    });
-    
-    return {
-      withInvestment: {
+    return calculateInvestmentScenarioComparison(
+      {
         totalRevenue: summaryA.totalRevenue,
         totalExpenses: summaryA.totalExpense,
         netProfit: summaryA.netProfit,
         profitMargin: summaryA.profitMargin,
-        exitValuation: pdfExitPlan.year5Projection?.companyValuation || summaryA.totalRevenue * 5,
-        moic5Year: pdfExitPlan.moic5Year || 0,
-        growthRate: growthA * 100
+        baseRevenue: baseRevenueA,
       },
-      withoutInvestment: {
+      {
         totalRevenue: summaryB.totalRevenue,
         totalExpenses: summaryB.totalExpense,
         netProfit: summaryB.netProfit,
         profitMargin: summaryB.profitMargin,
-        organicGrowthRate: growthB * 100
+        baseRevenue: baseRevenueB,
       },
-      opportunityCost: {
-        revenueLoss: revenueGap,
-        profitLoss: profitGap,
-        valuationLoss: (pdfExitPlan.year5Projection?.companyValuation || 0) - (summaryB.totalRevenue * 3),
-        growthRateDiff,
-        percentageLoss,
-        riskLevel
-      },
-      futureImpact: {
-        year1WithInvestment: yearlyProjections[0]?.withInvestment || 0,
-        year1WithoutInvestment: yearlyProjections[0]?.withoutInvestment || 0,
-        year3WithInvestment: yearlyProjections[2]?.withInvestment || 0,
-        year3WithoutInvestment: yearlyProjections[2]?.withoutInvestment || 0,
-        year5WithInvestment: yearlyProjections[4]?.withInvestment || 0,
-        year5WithoutInvestment: yearlyProjections[4]?.withoutInvestment || 0,
-        cumulativeDifference: yearlyProjections.reduce((sum, y) => sum + y.difference, 0),
-        yearlyProjections
-      }
-    };
-  }, [summaryA, summaryB, pdfExitPlan, scenarioA?.targetYear]);
+      pdfExitPlan,
+      dealConfig.sectorMultiple,
+      scenarioTargetYear
+    );
+  }, [summaryA, summaryB, pdfExitPlan, scenarioA, scenarioB, dealConfig.sectorMultiple]);
 
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
