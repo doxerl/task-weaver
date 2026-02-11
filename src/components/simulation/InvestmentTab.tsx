@@ -666,7 +666,7 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
                         <Badge variant="outline" className="text-[10px] px-1 py-0">Baz</Badge>
                       </span>
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground font-mono text-sm">-</TableCell>
+                    <TableCell className="text-right text-muted-foreground font-mono text-sm">–</TableCell>
                     <TableCell className="text-right font-mono">{formatCompactUSD(baseYearData.totalRevenue)}</TableCell>
                     <TableCell className="text-right font-mono">{formatCompactUSD(baseYearData.totalExpenses)}</TableCell>
                     <TableCell className={`text-right font-mono ${baseYearData.netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
@@ -688,7 +688,9 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
                         <Badge variant="outline" className="text-[10px] px-1 py-0 border-blue-500/30 text-blue-500">Senaryo</Badge>
                       </span>
                     </TableCell>
-                    <TableCell className="text-right text-muted-foreground font-mono text-sm">-</TableCell>
+                    <TableCell className="text-right text-muted-foreground font-mono text-sm">
+                      {formatCompactUSD(baseYearData.netProfit)}
+                    </TableCell>
                     <TableCell className="text-right font-mono">{formatCompactUSD(summaryA.totalRevenue)}</TableCell>
                     <TableCell className="text-right font-mono">{formatCompactUSD(summaryA.totalExpenses)}</TableCell>
                     <TableCell className={`text-right font-mono ${summaryA.netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
