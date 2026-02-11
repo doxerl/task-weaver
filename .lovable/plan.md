@@ -1,46 +1,50 @@
 
-# Baz Yil Verilerinin TRY -> USD Donusumu
+# Eksik i18n Ceviri Anahtarlarinin Duzeltilmesi
 
-## Sorun
-`useIncomeStatement` hook'u TRY (Turk Lirasi) cinsinden deger donduruyor. Ancak karsilastirma sayfasindaki tum degerler USD cinsinden gosteriliyor (`formatCompactUSD`). Donus yapilmadan gosterildigi icin:
+## Tespit Edilen Sorunlar
 
-- $5.8M olarak gorunen deger aslinda 5.8M TRY (yaklasik $148K USD)
-- $4.8M olarak gorunen deger aslinda 4.8M TRY (yaklasik $123K USD)
+### 1. Eksik Anahtar: `comparison.savedConfigSummary`
+- `InvestmentConfigSummary.tsx` satirda `t('simulation:comparison.savedConfigSummary')` kullaniliyor
+- Bu anahtar ne TR ne EN dosyasinda mevcut
+- Ekranda ham anahtar ismi gorunuyor
 
-Senaryo verileri (`baseAmount`) zaten USD'ye cevrilmis olarak kaydediliyordu, bu yuzden onceki kodda sorun yoktu. Ancak `useIncomeStatement` ham TRY verisi donduruyor.
+### 2. Yanlis Anahtar: `focusProject.personnel`
+- `InvestmentConfigSummary.tsx` satirda `t('simulation:focusProject.personnel')` kullaniliyor
+- JSON dosyasinda bu anahtar yok, dogru anahtar `focusProject.hiring`
+- Sonuc: "focusProject.personnel" metni gorunuyor
+
+### 3. Yanlis Anahtar: `focusProject.operational`
+- `InvestmentConfigSummary.tsx` satirda `t('simulation:focusProject.operational')` kullaniliyor
+- JSON dosyasinda bu anahtar yok, dogru anahtar `focusProject.operations`
+- Sonuc: "focusProject.operational" metni gorunuyor
+
+---
 
 ## Cozum
 
-### Dosya: `src/pages/finance/ScenarioComparisonPage.tsx`
-
-**1) Baz yil icin ayri exchange rate hook'u ekle:**
-
-Mevcut `useExchangeRates` sadece senaryo yili (2026) icin cagiriliyor. Baz yil (2025) icin de ayri bir cagri gerekiyor:
-
-```typescript
-const { yearlyAverageRate: baseYearRate } = useExchangeRates(baseYearNumber);
+### Dosya 1: `src/i18n/locales/tr/simulation.json`
+`comparison` bolumune eksik anahtar eklenmesi:
+```json
+"savedConfigSummary": "Kayitli Yapilandirma Ozeti"
 ```
 
-**2) `baseYearTotals` useMemo icinde TRY -> USD donusumu ekle:**
-
-```typescript
-const stmt = incomeStatement.statement;
-if (stmt && (stmt.netSales > 0 || stmt.costOfSales > 0)) {
-  const rate = baseYearRate || 39; // Fallback kur
-  const totalRevenue = stmt.netSales / rate;
-  const totalExpense = (stmt.costOfSales + stmt.operatingExpenses.total) / rate;
-  const netProfit = stmt.netProfit / rate;
-  // ...
-}
+### Dosya 2: `src/i18n/locales/en/simulation.json`
+`comparison` bolumune eksik anahtar eklenmesi:
+```json
+"savedConfigSummary": "Saved Configuration Summary"
 ```
 
-**3) Dependency array'e `baseYearRate` ekle.**
+### Dosya 3: `src/components/simulation/InvestmentConfigSummary.tsx`
+Yanlis anahtar referanslarinin duzeltilmesi:
+- `focusProject.personnel` -> `focusProject.hiring`
+- `focusProject.operational` -> `focusProject.operations`
+
+---
 
 ## Degisecek Dosyalar
 
 | Dosya | Degisiklik |
 |-------|------------|
-| `src/pages/finance/ScenarioComparisonPage.tsx` | Baz yil icin `useExchangeRates` eklenmesi, TRY degerlerinin USD'ye cevrildigi bolumun guncellenmesi |
-
-## Beklenen Sonuc
-- 2025 Baz satiri: ~$148K gelir, ~$121K gider, ~$24K kar (Reports sayfasiyla eslesecek)
+| `src/i18n/locales/tr/simulation.json` | `comparison.savedConfigSummary` anahtari eklenmesi |
+| `src/i18n/locales/en/simulation.json` | `comparison.savedConfigSummary` anahtari eklenmesi |
+| `src/components/simulation/InvestmentConfigSummary.tsx` | `personnel` -> `hiring`, `operational` -> `operations` duzeltmesi |
