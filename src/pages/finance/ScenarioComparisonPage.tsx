@@ -98,6 +98,7 @@ import { AIAnalysisDetails } from '@/components/simulation/AIAnalysisDetails';
 
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { useExchangeRates } from '@/hooks/finance/useExchangeRates';
+import { useIncomeStatement } from '@/hooks/finance/useIncomeStatement';
 import { getProjectionYears, calculateInternalGrowthRate } from '@/utils/yearCalculations';
 import {
   ChartConfig,
@@ -640,16 +641,31 @@ function ScenarioComparisonContent() {
     return summaryB.netProfit > summaryA.netProfit;
   }, [summaryA, summaryB]);
 
-  // Base year totals from scenario data (baseAmount is shared across both scenarios)
+  // Base year totals - prefer real income statement data over scenario baseAmount
+  const baseYearNumber = (scenarioA?.targetYear || 2026) - 1;
+  const incomeStatement = useIncomeStatement(baseYearNumber, { forceRealtime: true });
+  
   const baseYearTotals = useMemo(() => {
     if (!scenarioA) return null;
-    const baseYear = (scenarioA.targetYear || 2026) - 1;
+    const baseYear = baseYearNumber;
+    
+    // Gerçek gelir tablosu verisi varsa onu kullan
+    const stmt = incomeStatement.statement;
+    if (stmt && (stmt.netSales > 0 || stmt.costOfSales > 0)) {
+      const totalRevenue = stmt.netSales;
+      const totalExpense = stmt.costOfSales + stmt.operatingExpenses.total;
+      const netProfit = stmt.netProfit;
+      const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+      return { baseYear, totalRevenue, totalExpense, netProfit, profitMargin };
+    }
+    
+    // Fallback: senaryo baseAmount verileri
     const totalRevenue = scenarioA.revenues.reduce((sum, r) => sum + (r.baseAmount || 0), 0);
     const totalExpense = scenarioA.expenses.reduce((sum, e) => sum + (e.baseAmount || 0), 0);
     const netProfit = totalRevenue - totalExpense;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
     return { baseYear, totalRevenue, totalExpense, netProfit, profitMargin };
-  }, [scenarioA]);
+  }, [scenarioA, baseYearNumber, incomeStatement.statement]);
 
   const metrics = useMemo(() => {
     if (!summaryA || !summaryB) return [];
