@@ -94,7 +94,7 @@ import { PitchDeckEditor } from '@/components/simulation/PitchDeckEditor';
 import { FinancialRatiosPanel } from '@/components/simulation/FinancialRatiosPanel';
 import { AIAnalysisSummaryCard } from '@/components/simulation/AIAnalysisSummaryCard';
 import { AIAnalysisDetails } from '@/components/simulation/AIAnalysisDetails';
-import { PrintCoverPage } from '@/components/simulation/PrintCoverPage';
+
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { useExchangeRates } from '@/hooks/finance/useExchangeRates';
 import { getProjectionYears, calculateInternalGrowthRate } from '@/utils/yearCalculations';
@@ -1654,19 +1654,6 @@ function ScenarioComparisonContent() {
         </SheetContent>
       </Sheet>
       
-      {/* Print Cover Page - Sadece print'te görünür */}
-      {canCompare && summaryA && scenarioA && scenarioB && (
-        <PrintCoverPage
-          scenarioAName={scenarioA.name}
-          scenarioBName={scenarioB.name}
-          scenarioAYear={scenarioA.targetYear}
-          scenarioBYear={scenarioB.targetYear}
-          totalRevenue={summaryA.totalRevenue}
-          totalExpense={summaryA.totalExpense}
-          netProfit={summaryA.netProfit}
-          profitMargin={summaryA.profitMargin}
-        />
-      )}
     </div>
   );
 }
