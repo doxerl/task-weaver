@@ -1,98 +1,161 @@
 
+# Radikal PDF Degisiklik: Tarayici Tabanli Print Modeli
 
-# i18n Eksik Anahtar Duzeltme Plani
+## Mevcut Sistem (Kaldirilacak)
 
-## Problem
+Suanki yaklasim:
+1. 18 adet ayri `Pdf*Page.tsx` bileseni gizli bir container'da render ediliyor (`left: -9999px`)
+2. `html2canvas` ile her sayfa ayri canvas'a yakalaniyor  
+3. `jsPDF` ile canvas goruntuleri JPEG olarak PDF'e ekleniyor
+4. Veri senkronizasyonu icin ayri useMemo hesaplamalari gerekiyor (kok neden sorunu)
 
-5 PDF bileseninde `t('simulation:pdf.fiveYearProjection.*')` gibi var olmayan cevirilere referans veriliyor. Dogru anahtarlar `investment.*` altinda mevcut.
+**Sorunlari:** Veri tutarsizligi, i18n eksiklikleri, cift hesaplama yolu, buyuk dosya boyutu, yavas islem
 
-## Etkilenen Dosyalar ve Degisiklikler
+## Yeni Sistem: `window.print()` Tabanli
 
-### 1. `PdfFiveYearProjectionPage.tsx`
-Yanlis: `pdf.fiveYearProjection.*` -> Dogru: `investment.fiveYearTable.*`
+Tarayicinin yerlesik `Ctrl+P` / `window.print()` yetenegini kullanarak:
+- UI'daki **gercek DOM**'u dogrudan yakala
+- Ayri PDF bilesenleri yerine, mevcut UI bilesenlerini `@media print` ile duzenle
+- Veri tutarsizligi sorunu tamamen ortadan kalkar (tek kaynak)
 
-| Yanlis Anahtar | Dogru Anahtar |
-|---|---|
-| `pdf.fiveYearProjection.title` | `investment.fiveYearTable.title` |
-| `pdf.fiveYearProjection.year` | `investment.fiveYearTable.year` |
-| `pdf.fiveYearProjection.opening` | `investment.fiveYearTable.opening` |
-| `pdf.fiveYearProjection.revenue` | `investment.fiveYearTable.revenue` |
-| `pdf.fiveYearProjection.expense` | `investment.fiveYearTable.expense` |
-| `pdf.fiveYearProjection.netProfit` | `investment.fiveYearTable.netProfit` |
-| `pdf.fiveYearProjection.deathValley` | `investment.fiveYearTable.deathValley` |
-| `pdf.fiveYearProjection.capitalNeed` | `investment.fiveYearTable.capitalNeed` |
-| `pdf.fiveYearProjection.yearEnd` | `investment.fiveYearTable.yearEnd` |
-| `pdf.fiveYearProjection.valuation` | `investment.fiveYearTable.valuation` |
-| `pdf.fiveYearProjection.moic` | `investment.fiveYearTable.moic` |
-| `pdf.fiveYearProjection.totalCapitalNeed` | `investment.fiveYearTable.total` + yeni anahtar ekle |
-| `pdf.fiveYearProjection.valuation` (ozet kartta) | `investment.fiveYearTable.valuation` |
+## Uygulama Plani
 
-Ek olarak `totalCapitalNeed` anahtari hicbir yerde mevcut degil - TR/EN JSON dosyalarina `investment.fiveYearTable.totalCapitalNeed` olarak eklenmeli.
+### Adim 1: Print CSS Altyapisini Guncelle
 
-### 2. `PdfFutureImpactPage.tsx`
-Yanlis: `pdf.futureImpact.*` -> Dogru: `investment.futureImpact.*`
+**Dosya:** `src/lib/pdf/styles/print.css` ve `src/index.css`
 
-| Yanlis | Dogru |
-|---|---|
-| `pdf.futureImpact.title` | `investment.futureImpact.title` |
-| `pdf.futureImpact.withInvestment` | `investment.futureImpact.withInvestment` |
-| `pdf.futureImpact.withoutInvestment` | `investment.futureImpact.withoutInvestment` |
-| `pdf.futureImpact.yearDiff` | `investment.futureImpact.yearDiff` |
-| `pdf.futureImpact.totalDifference` | `investment.futureImpact.totalDifference` |
+- `@page` kuralini `landscape` olarak ayarla (yatay A4)
+- Sayfa kenar bosluklarini optimize et
+- Gizlenmesi gereken elementleri genislet (header, scenario selector, butonlar, sheet'ler, accordion trigger'lari)
+- Tablo ve grafik bolunme kurallarini guclendir:
+  - `break-inside: avoid` tum Card, Table, Chart container'larina
+  - `page-break-before: always` her ana bolum oncesi
+- Recharts SVG'lerinin print'te dogru boyutlanmasini sagla
+- Renk koruma (`print-color-adjust: exact`) tum elementlere
 
-### 3. `PdfRunwayChartPage.tsx`
-Yanlis: `pdf.runwayChart.*` -> Dogru: `investment.runwayChart.*`
+### Adim 2: Print-Ready Siniflar Ekle
 
-| Yanlis | Dogru |
-|---|---|
-| `pdf.runwayChart.title` | `investment.runwayChart.title` |
-| `pdf.runwayChart.description` | `investment.runwayChart.description` |
-| `pdf.quarterlyCashFlow.difference` | Yeni anahtar ekle: `investment.runwayChart.difference` |
+**Dosya:** `src/pages/finance/ScenarioComparisonPage.tsx`
 
-### 4. `PdfGrowthModelPage.tsx`
-Yanlis: `pdf.growthModel.*` -> Dogru: `investment.growthModel.*`
+Mevcut UI bolumlerine print kontrol siniflarini ekle:
 
-| Yanlis | Dogru |
-|---|---|
-| `pdf.growthModel.title` | `investment.growthModel.title` |
-| `pdf.growthModel.years1to2` | `investment.growthModel.year1to2` |
-| `pdf.growthModel.years3to5` | `investment.growthModel.year3to5` |
-| `pdf.growthModel.capWarning` | `investment.growthModel.capWarning` |
+| Bolum | Sinif | Davranis |
+|-------|-------|----------|
+| `<header>` (sticky nav) | `print-hidden` | Print'te gizle |
+| Scenario selector `<Card>` | `print-hidden` | Print'te gizle |
+| Order warning banner | `print-hidden` | Print'te gizle |
+| AI Summary Card | `print-page-break` | Yeni sayfada basla |
+| Metrics Cards Grid | `avoid-break` | Bolunmesin |
+| Charts Grid | `print-page-break` + `avoid-break` | Yeni sayfada, bolunmesin |
+| Financial Ratios Accordion | `print-page-break` | Accordion'u acik goster |
+| InvestmentTab | `print-page-break` | Her alt bolum ayri sayfa |
+| Editable Projection Tables | `print-page-break` + `avoid-break` | Yeni sayfada |
+| InvestmentConfigSummary | `avoid-break` | Bolunmesin |
 
-### 5. `PdfQuarterlyCashFlowPage.tsx`
-Yanlis: `pdf.quarterlyCashFlow.*` -> Dogru: `investment.quarterlyCashFlow.*`
+### Adim 3: Print-Only Kapak Sayfasi
 
-| Yanlis | Dogru |
-|---|---|
-| `pdf.quarterlyCashFlow.title` | `investment.quarterlyCashFlow.title` |
-| `pdf.quarterlyCashFlow.invested` | `investment.quarterlyCashFlow.withInvestment` |
-| `pdf.quarterlyCashFlow.uninvested` | `investment.quarterlyCashFlow.withoutInvestment` |
-| `pdf.quarterlyCashFlow.startingBalance` | `investment.quarterlyCashFlow.startingBalance` |
-| `pdf.quarterlyCashFlow.net` | `investment.quarterlyCashFlow.net` |
-| `pdf.quarterlyCashFlow.cumulative` | `investment.quarterlyCashFlow.cumulative` |
-| `pdf.quarterlyCashFlow.yearEnd` | `investment.quarterlyCashFlow.yearEnd` |
+**Yeni Dosya:** `src/components/simulation/PrintCoverPage.tsx`
 
-## Yeni Eklenmesi Gereken Ceviri Anahtarlari
+Sadece print'te gorunen (`print-only` sinifi) bir kapak sayfasi bileseni:
+- Senaryo isimleri ve yillari
+- Olusturulma tarihi  
+- Anahtar metrikler (toplam gelir, gider, net kar)
+- Sirket/rapor basligi
 
-Asagidaki anahtarlar mevcut JSON dosyalarinda yok, eklenmeleri gerekiyor:
+Bu bilesen `ScenarioComparisonPage` JSX'ine eklenir ama ekranda gizlidir.
 
-**EN (`src/i18n/locales/en/simulation.json`):**
-- `investment.fiveYearTable.totalCapitalNeed`: "Total Capital Need"
-- `investment.runwayChart.difference`: "Difference"
+### Adim 4: Accordion/Collapsible Print Davranisi
 
-**TR (`src/i18n/locales/tr/simulation.json`):**
-- `investment.fiveYearTable.totalCapitalNeed`: "Toplam Sermaye Ihtiyaci"
-- `investment.runwayChart.difference`: "Fark"
+**Dosya:** `src/index.css` (veya `print.css`)
 
-## Degisecek Dosyalar
+```css
+@media print {
+  /* Accordion icerigini her zaman ac */
+  [data-state="closed"] > [data-radix-collapsible-content],
+  [data-state="closed"] > .AccordionContent {
+    display: block !important;
+    height: auto !important;
+    overflow: visible !important;
+  }
+  
+  /* Accordion trigger okunu gizle */
+  [data-radix-accordion-trigger] svg {
+    display: none !important;
+  }
+}
+```
 
-| Dosya | Degisiklik Turu |
-|---|---|
-| `src/components/simulation/pdf/PdfFiveYearProjectionPage.tsx` | i18n anahtar duzeltme |
-| `src/components/simulation/pdf/PdfFutureImpactPage.tsx` | i18n anahtar duzeltme |
-| `src/components/simulation/pdf/PdfRunwayChartPage.tsx` | i18n anahtar duzeltme |
-| `src/components/simulation/pdf/PdfGrowthModelPage.tsx` | i18n anahtar duzeltme |
-| `src/components/simulation/pdf/PdfQuarterlyCashFlowPage.tsx` | i18n anahtar duzeltme |
-| `src/i18n/locales/en/simulation.json` | 2 yeni anahtar ekle |
-| `src/i18n/locales/tr/simulation.json` | 2 yeni anahtar ekle |
+### Adim 5: Export Butonunu Degistir
 
+**Dosya:** `src/pages/finance/ScenarioComparisonPage.tsx`
+
+`handleExportPresentationPdf` fonksiyonunu basitlestir:
+
+```typescript
+const handlePrint = useCallback(() => {
+  // Gecici olarak body'ye landscape sinifi ekle
+  document.body.classList.add('print-landscape');
+  window.print();
+  // Print dialog kapandiktan sonra temizle
+  document.body.classList.remove('print-landscape');
+}, []);
+```
+
+### Adim 6: Kaldirilacak Dosyalar ve Kodlar
+
+**Tamamen kaldirilacak dosyalar (24 dosya):**
+- `src/components/simulation/pdf/PdfCoverPage.tsx`
+- `src/components/simulation/pdf/PdfMetricsPage.tsx`
+- `src/components/simulation/pdf/PdfChartsPage.tsx`
+- `src/components/simulation/pdf/PdfFinancialRatiosPage.tsx`
+- `src/components/simulation/pdf/PdfRevenueExpensePage.tsx`
+- `src/components/simulation/pdf/PdfInvestorPage.tsx`
+- `src/components/simulation/pdf/PdfCapitalAnalysisPage.tsx`
+- `src/components/simulation/pdf/PdfValuationPage.tsx`
+- `src/components/simulation/pdf/PdfInvestmentOptionsPage.tsx`
+- `src/components/simulation/pdf/PdfScenarioImpactPage.tsx`
+- `src/components/simulation/pdf/PdfProjectionPage.tsx`
+- `src/components/simulation/pdf/PdfFocusProjectPage.tsx`
+- `src/components/simulation/pdf/PdfAIInsightsPage.tsx`
+- `src/components/simulation/pdf/PdfQuarterlyCashFlowPage.tsx`
+- `src/components/simulation/pdf/PdfFutureImpactPage.tsx`
+- `src/components/simulation/pdf/PdfRunwayChartPage.tsx`
+- `src/components/simulation/pdf/PdfGrowthModelPage.tsx`
+- `src/components/simulation/pdf/PdfFiveYearProjectionPage.tsx`
+- `src/components/simulation/pdf/PdfExportContainer.tsx`
+- `src/components/simulation/pdf/PdfPageWrapper.tsx`
+- `src/components/simulation/pdf/types.ts`
+- `src/components/simulation/pdf/index.ts`
+- `src/styles/pdfExport.ts` (inline stiller artik gereksiz)
+- `src/constants/simulation.ts` icindeki `PDF_DIMENSIONS` (artik tarayici yonetiyor)
+
+**Kaldirilacak kodlar:**
+- `ScenarioComparisonPage.tsx` icinden: `PdfExportContainer` ve tum PDF-ozel useMemo hook'lari (`pdfExitPlan`, `pdfMultiYearCapitalPlan`, `pdfRunwayData`, `pdfGrowthConfig`, `pdfQuarterlyRevenue/Expense*`, `scenarioComparisonData`, `pdfAiProjectionForExitPlan`)
+- `presentationPdfRef` ref'i
+- `usePdfEngine` icindeki `generatePdfFromElement` ve `html2canvas` import'lari (bu sayfaya ozel)
+
+**NOT:** `usePdfEngine.ts`'deki diger fonksiyonlar (BalanceSheet PDF, Income Statement PDF vb.) baska sayfalar tarafindan kullaniliyor, bu yuzden hook tamamen kaldirilmaz. Sadece ScenarioComparison'a ozel kisimlar temizlenir.
+
+### Adim 7: InvestmentTab Icerisindeki Print Kurallari
+
+InvestmentTab bileseni icerideki her bolumu (Capital Analysis, Valuation, Scenario Impact, Runway Chart vb.) `avoid-break` sinifi ile isaretleyerek tablo ve grafiklerin sayfa arasinda bolunmesini onle.
+
+## Korunacak Dosyalar (Baska Sayfalarda Kullaniliyor)
+
+| Dosya | Neden |
+|-------|-------|
+| `src/hooks/finance/usePdfEngine.ts` | Balance Sheet, Income Statement, Dashboard PDF'leri icin |
+| `src/lib/pdf/config/pdf.ts` | Genel PDF konfigurasyonu |
+| `src/lib/pdf/core/*` | Diger sayfalarin HTML-to-PDF pipeline'i |
+| `src/lib/pdf/builders/*` | Data-driven PDF builder (tablolar icin) |
+| `src/lib/pdf/renderers/*` | Balance Sheet / Income Statement renderer'lari |
+| `PdfGrowthAnalysisPage.tsx` | GrowthComparisonPage tarafindan kullaniliyor |
+| `PdfMilestoneTimelinePage.tsx` | GrowthComparisonPage tarafindan kullaniliyor |
+
+## Beklenen Sonuclar
+
+1. **%100 veri dogrulugu** - PDF tam olarak ekrandaki veriyi gosteriyor
+2. **~20 dosya azaltma** - Kod karmasikligi buyuk olcude dusecek  
+3. **i18n sorunu tamamen cozulmus** - Ayri ceviri yoluna gerek yok
+4. **Anlik PDF** - html2canvas bekleme suresi ortadan kalkiyor
+5. **Kullanici kontrol** - Print dialog'unda kagit boyutu, kenar boslugu, renk ayarlari yapilabilir
