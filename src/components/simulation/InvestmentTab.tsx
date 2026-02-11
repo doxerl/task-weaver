@@ -65,6 +65,13 @@ interface InvestmentTabProps {
     totalRevenue: number;
     totalExpenses: number;
   };
+  // NEW: Base year data for projection table context
+  baseYearData?: {
+    year: number;
+    totalRevenue: number;
+    totalExpenses: number;
+    netProfit: number;
+  };
 }
 
 const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
@@ -82,6 +89,7 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
   onDealConfigChange,
   aiNextYearProjection,
   editedProjectionOverride,
+  baseYearData,
 }) => {
   const { t } = useTranslation(['simulation', 'common']);
   // Calculate capital needs for both scenarios
@@ -649,6 +657,50 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
                 </TableRow>
               </TableHeader>
               <TableBody>
+                {/* Base Year Row (e.g., 2025) */}
+                {baseYearData && (
+                  <TableRow className="bg-muted/30 border-b border-dashed">
+                    <TableCell className="font-medium">
+                      <span className="flex items-center gap-1">
+                        {baseYearData.year}
+                        <Badge variant="outline" className="text-[10px] px-1 py-0">Baz</Badge>
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground font-mono text-sm">-</TableCell>
+                    <TableCell className="text-right font-mono">{formatCompactUSD(baseYearData.totalRevenue)}</TableCell>
+                    <TableCell className="text-right font-mono">{formatCompactUSD(baseYearData.totalExpenses)}</TableCell>
+                    <TableCell className={`text-right font-mono ${baseYearData.netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {formatCompactUSD(baseYearData.netProfit)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">-</TableCell>
+                    <TableCell className="text-right text-muted-foreground">-</TableCell>
+                    <TableCell className="text-right text-muted-foreground">-</TableCell>
+                    <TableCell className="text-right text-muted-foreground">-</TableCell>
+                    <TableCell className="text-right text-muted-foreground">-</TableCell>
+                  </TableRow>
+                )}
+                {/* Scenario Year Row (e.g., 2026 - Positive scenario) */}
+                {baseYearData && (
+                  <TableRow className="bg-blue-500/5 border-b-2">
+                    <TableCell className="font-medium">
+                      <span className="flex items-center gap-1">
+                        {scenarioTargetYear}
+                        <Badge variant="outline" className="text-[10px] px-1 py-0 border-blue-500/30 text-blue-500">Senaryo</Badge>
+                      </span>
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground font-mono text-sm">-</TableCell>
+                    <TableCell className="text-right font-mono">{formatCompactUSD(summaryA.totalRevenue)}</TableCell>
+                    <TableCell className="text-right font-mono">{formatCompactUSD(summaryA.totalExpenses)}</TableCell>
+                    <TableCell className={`text-right font-mono ${summaryA.netProfit >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
+                      {formatCompactUSD(summaryA.netProfit)}
+                    </TableCell>
+                    <TableCell className="text-right text-muted-foreground">-</TableCell>
+                    <TableCell className="text-right text-muted-foreground">-</TableCell>
+                    <TableCell className="text-right text-muted-foreground">-</TableCell>
+                    <TableCell className="text-right text-muted-foreground">-</TableCell>
+                    <TableCell className="text-right text-muted-foreground">-</TableCell>
+                  </TableRow>
+                )}
                 {multiYearCapitalPlan.years.map((yearCap, i) => {
                   const yearData = exitPlan.allYears?.[i];
                   const moic = yearCap.weightedValuation > 0 
