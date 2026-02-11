@@ -8,7 +8,7 @@ interface PdfPageWrapperProps {
 }
 
 /**
- * Wrapper component for PDF pages
+ * Wrapper component for PDF pages (used by GrowthComparisonPage)
  * Ensures consistent sizing and page breaks
  */
 export function PdfPageWrapper({ children, style, className }: PdfPageWrapperProps) {

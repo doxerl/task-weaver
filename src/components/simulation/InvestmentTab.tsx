@@ -248,10 +248,10 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
   };
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 print-page-break">
       {/* Investment Tier Selector - 3 options */}
       {capitalNeedB.investmentTiers && !capitalNeedB.selfSustaining && (
-        <Card className="border-blue-500/20 bg-blue-500/5">
+        <Card className="border-blue-500/20 bg-blue-500/5 avoid-break">
           <CardHeader className="pb-2">
             <CardTitle className="text-sm flex items-center gap-2">
               <Target className="h-4 w-4 text-blue-400" />
@@ -325,7 +325,7 @@ const InvestmentTabComponent: React.FC<InvestmentTabProps> = ({
       <FutureImpactChart comparison={scenarioComparison} scenarioYear={scenarioTargetYear} />
 
       {/* Capital Needs Comparison */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-3 gap-4 avoid-break">
         <Card className={capitalNeedA.selfSustaining ? 'border-emerald-500/30 bg-emerald-500/5' : 'border-amber-500/30 bg-amber-500/5'}>
           <CardHeader className="pb-2">
             <CardTitle className="text-xs text-muted-foreground">{scenarioA.targetYear} {scenarioA.name}</CardTitle>
