@@ -1,78 +1,67 @@
 
 
-# Baz Yil Verilerinin Karsilastirma Sayfasina Eklenmesi
+# Baz Yil Verilerinin Gercek Kaynaklardan Alinmasi
 
-## Ozet
-Karsilastirma sayfasina iki temel iyilestirme yapilacak:
-1. Pozitif/Negatif senaryo karsilastirmasinin yaninda baz yil (2025) gelir ve gider kalemleri de goruntulenecek
-2. 5 Yillik Projeksiyon Tablosu, baz yil (2025) ve senaryo yili (2026) satirlarini da icerecek sekilde genisletilecek
+## Sorun
+Karsilastirma sayfasindaki "2025 Baz Yil" verileri senaryo icindeki `baseAmount` alanlarindan hesaplaniyor. Bu degerler senaryo olusturulurken kaydedilen anlık goruntudur ve guncel olmayabilir.
 
----
+- Senaryo baseAmount toplami: $147.9K gelir, $121.4K gider, $26.5K kar
+- Reports sayfasi gercek verisi: $147,862 gelir, $121,409 gider, $24,268 kar
 
-## Degisiklik 1: Baz Yil Gelir/Gider Kalemlerinin Gosterilmesi
+Fark ozellikle net kar'da belirgin ($26.5K vs $24.3K).
 
-### Mevcut Durum
-- `ScenarioComparisonPage.tsx` icinde summary kartlari sadece Senaryo A ve Senaryo B'nin `projectedAmount` degerlerini gosteriyor
-- Her senaryonun `revenues[].baseAmount` ve `expenses[].baseAmount` alanlari zaten baz yil (2025) verisini tasiyor
+## Cozum
+`ScenarioComparisonPage.tsx` icinde `useIncomeStatement` hook'unu `forceRealtime: true` ile cagirarak gercek finansal verileri kullanmak.
 
-### Yapilacak Degisiklik: `ScenarioComparisonPage.tsx`
+### Dosya: `src/pages/finance/ScenarioComparisonPage.tsx`
 
-**a) Summary kartlarina baz yil satiri eklenmesi:**
-- `metrics` useMemo'ya baz yil toplam gelir/gider verileri eklenecek
-- Her kart icinde Senaryo A ve B'nin yaninda baz yil degeri de gosterilecek
-- Baz yil verileri `scenarioA.revenues.reduce((sum, r) => sum + r.baseAmount, 0)` seklinde hesaplanacak
-
-**b) Yeni bir "Baz Yil vs Senaryolar" kalem bazli karsilastirma tablosu:**
-- Mevcut `quarterlyItemized` benzeri bir useMemo ile baz yil kalem verileri cikarilacak
-- Gelir kalemleri tablosu: Kalem adi | 2025 (Baz) | Pozitif | Negatif | Degisim %
-- Gider kalemleri tablosu: Ayni format
-- Bu tablo, mevcut summary kartlarindan hemen sonra (SECTION 1 sonrasi) yerlestirilecek
-
-### Teknik Detay
-```
-Baz yil verisi kaynagi:
-- scenarioA.revenues[i].baseAmount -> 2025 gelir kalemi
-- scenarioA.expenses[i].baseAmount -> 2025 gider kalemi
-- scenarioB.revenues[i].baseAmount -> ayni 2025 verisi (her iki senaryoda ortaktir)
+**1) Import ekle:**
+```typescript
+import { useIncomeStatement } from '@/hooks/finance/useIncomeStatement';
 ```
 
----
+**2) Hook cagirisi ekle (mevcut hook'larin yanina):**
+```typescript
+const baseYear = (scenarioA?.targetYear || 2026) - 1;
+const incomeStatement = useIncomeStatement(baseYear, { forceRealtime: true });
+```
 
-## Degisiklik 2: 5 Yillik Projeksiyon Tablosuna Baz ve Senaryo Yili Eklenmesi
+**3) `baseYearTotals` useMemo'yu guncelle:**
+Mevcut `baseAmount` toplama mantigi yerine `incomeStatement.statement` verisini kullan:
 
-### Mevcut Durum
-- `InvestmentTab.tsx` icindeki 5 Yillik Projeksiyon Tablosu sadece `exitPlan.allYears` verisini gosteriyor
-- `allYears` dizisi scenarioTargetYear + 1'den basliyor (ornegin 2027-2031)
-- Baz yil (2025) ve senaryo yili (2026) verileri tabloda yok
+```typescript
+const baseYearTotals = useMemo(() => {
+  if (!scenarioA) return null;
+  const baseYr = (scenarioA.targetYear || 2026) - 1;
+  
+  // Gercek gelir tablosu verisi varsa onu kullan, yoksa senaryo baseAmount'a dusus
+  const stmt = incomeStatement.statement;
+  if (stmt) {
+    const totalRevenue = stmt.netSales;
+    const totalExpense = stmt.costOfSales + stmt.operatingExpenses.total;
+    const netProfit = stmt.netProfit;
+    const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+    return { baseYear: baseYr, totalRevenue, totalExpense, netProfit, profitMargin };
+  }
+  
+  // Fallback: senaryo baseAmount verileri
+  const totalRevenue = scenarioA.revenues.reduce((sum, r) => sum + (r.baseAmount || 0), 0);
+  const totalExpense = scenarioA.expenses.reduce((sum, e) => sum + (e.baseAmount || 0), 0);
+  const netProfit = totalRevenue - totalExpense;
+  const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+  return { baseYear: baseYr, totalRevenue, totalExpense, netProfit, profitMargin };
+}, [scenarioA, incomeStatement.statement]);
+```
 
-### Yapilacak Degisiklik: `InvestmentTab.tsx`
-
-**5 Yillik tablonun basina iki ek satir eklenmesi:**
-
-| Yil | Acilis | Gelir | Gider | Net Kar | Death Valley | Sermaye | Yil Sonu | Degerleme | MOIC |
-|-----|--------|-------|-------|---------|-------------|---------|----------|-----------|------|
-| **2025 (Baz)** | - | baseRevenue | baseExpense | baseProfit | - | - | - | - | - |
-| **2026 (Senaryo)** | - | summaryA.totalRevenue | summaryA.totalExpense | summaryA.netProfit | mevcut | mevcut | mevcut | mevcut | mevcut |
-| 2027 | ... | ... | ... | ... | ... | ... | ... | ... | ... |
-| ... | | | | | | | | | |
-
-- Baz yil (2025) satiri: `scenarioA.revenues.reduce(baseAmount)` ve `scenarioA.expenses.reduce(baseAmount)` kullanilarak
-- Senaryo yili (2026) satiri: Mevcut `summaryA` verileri kullanilarak
-- Bu satirlar projection hesaplamalarina dahil OLMAYACAK (sadece gorsel referans)
-- InvestmentTab props'una yeni alanlar eklenecek: `baseYearRevenue`, `baseYearExpenses`, `baseYear`, `scenarioYear`
-
----
+**4) Kalem bazli karsilastirma (`baseYearItemized`) degismeyecek** - her bir kalemin `baseAmount` degeri Reports sayfasindan topluca alinabilecek bir veri degil (kalem bazli mapping yok), bu nedenle mevcut `baseAmount` mantigi kalacak. Sadece toplam satirlar gercek veriyle uyumlu olacak.
 
 ## Degisecek Dosyalar
 
 | Dosya | Degisiklik |
 |-------|------------|
-| `src/pages/finance/ScenarioComparisonPage.tsx` | Baz yil hesaplamalari (useMemo), kalem bazli karsilastirma tablosu eklenmesi, InvestmentTab'a yeni props gecirilmesi |
-| `src/components/simulation/InvestmentTab.tsx` | Props genisletilmesi, 5 yillik tabloya baz + senaryo yili satirlarinin eklenmesi |
+| `src/pages/finance/ScenarioComparisonPage.tsx` | `useIncomeStatement` import ve hook eklenmesi, `baseYearTotals` hesaplamasinin gercek veriye cekilmesi |
 
-## Goruntulenecek Yeni UI Elemanlari
-
-1. Summary kartlarina kucuk "Baz: $XXX" etiketi
-2. Yeni Accordion veya Card: "Baz Yil Karsilastirmasi" - gelir ve gider kalemleri tablo halinde
-3. 5 Yillik Projeksiyon Tablosu: 2 ek satir (vurgulu arka plan ile ayirt edilecek)
-
+## Sonuc
+- Summary kartlarindaki baz yil rakamlari Reports sayfasiyla birebir ayni olacak
+- InvestmentTab'a gonderilen baz yil verileri de gercek kaynaklardan gelecek
+- Kalem bazli karsilastirma mevcut senaryo `baseAmount` verisini kullanmaya devam edecek (en iyi mevcut kaynak)
