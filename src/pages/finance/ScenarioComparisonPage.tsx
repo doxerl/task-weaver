@@ -621,6 +621,10 @@ function ScenarioComparisonContent() {
   // Exchange rates hook for TL to USD conversion (after scenarioB is defined)
   const { yearlyAverageRate } = useExchangeRates(scenarioB?.targetYear || new Date().getFullYear());
   
+  // Base year exchange rate for TRY -> USD conversion of income statement data
+  const baseYearNumber_forRate = (scenarioA?.targetYear || 2026) - 1;
+  const { yearlyAverageRate: baseYearRate } = useExchangeRates(baseYearNumber_forRate);
+  
   // Focus Project State - senaryodan okunan değerler (read-only)
   const focusProjects = useMemo(() => scenarioA?.focusProjects || [], [scenarioA?.focusProjects]);
   const focusProjectPlan = useMemo(() => scenarioA?.focusProjectPlan || '', [scenarioA?.focusProjectPlan]);
@@ -649,23 +653,24 @@ function ScenarioComparisonContent() {
     if (!scenarioA) return null;
     const baseYear = baseYearNumber;
     
-    // Gerçek gelir tablosu verisi varsa onu kullan
+    // Gerçek gelir tablosu verisi varsa onu kullan (TRY -> USD dönüşümü ile)
     const stmt = incomeStatement.statement;
     if (stmt && (stmt.netSales > 0 || stmt.costOfSales > 0)) {
-      const totalRevenue = stmt.netSales;
-      const totalExpense = stmt.costOfSales + stmt.operatingExpenses.total;
-      const netProfit = stmt.netProfit;
+      const rate = baseYearRate || 39; // Fallback kur
+      const totalRevenue = stmt.netSales / rate;
+      const totalExpense = (stmt.costOfSales + stmt.operatingExpenses.total) / rate;
+      const netProfit = stmt.netProfit / rate;
       const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
       return { baseYear, totalRevenue, totalExpense, netProfit, profitMargin };
     }
     
-    // Fallback: senaryo baseAmount verileri
+    // Fallback: senaryo baseAmount verileri (zaten USD)
     const totalRevenue = scenarioA.revenues.reduce((sum, r) => sum + (r.baseAmount || 0), 0);
     const totalExpense = scenarioA.expenses.reduce((sum, e) => sum + (e.baseAmount || 0), 0);
     const netProfit = totalRevenue - totalExpense;
     const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
     return { baseYear, totalRevenue, totalExpense, netProfit, profitMargin };
-  }, [scenarioA, baseYearNumber, incomeStatement.statement]);
+  }, [scenarioA, baseYearNumber, incomeStatement.statement, baseYearRate]);
 
   const metrics = useMemo(() => {
     if (!summaryA || !summaryB) return [];
