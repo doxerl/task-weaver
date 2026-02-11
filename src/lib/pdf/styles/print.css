@@ -51,11 +51,31 @@ body.print-landscape {
     break-inside: avoid;
   }
   
+  /* Radix UI Card bileşenleri */
+  .rounded-lg.border {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+  
+  /* Küçük card grid grupları bölünmesin */
+  .grid.grid-cols-2,
+  .grid.grid-cols-3,
+  .grid.grid-cols-4 {
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
   /* Recharts container'ları bölünmesin */
   .recharts-responsive-container,
   .recharts-wrapper {
     page-break-inside: avoid;
     break-inside: avoid;
+  }
+  
+  /* Recharts sabit boyut */
+  .recharts-responsive-container {
+    width: 100% !important;
+    height: 300px !important;
   }
   
   /* Başlıkların yalnız kalmasını önle */
@@ -68,6 +88,26 @@ body.print-landscape {
   p {
     orphans: 3;
     widows: 3;
+  }
+  
+  /* Tabs içeriği - tüm panelleri göster */
+  [role="tabpanel"] {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+    position: static !important;
+  }
+  
+  [role="tabpanel"][hidden],
+  [role="tabpanel"][data-state="inactive"] {
+    display: block !important;
+    visibility: visible !important;
+    opacity: 1 !important;
+  }
+  
+  /* Tab listesini gizle */
+  [role="tablist"] {
+    display: none !important;
   }
 }
 
