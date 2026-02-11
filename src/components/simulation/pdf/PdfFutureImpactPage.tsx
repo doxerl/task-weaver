@@ -41,18 +41,18 @@ export function PdfFutureImpactPage({
   return (
     <PdfPageWrapper style={CONTENT_PAGE_STYLE}>
       <div style={PAGE_HEADER_STYLE}>
-        {t('simulation:pdf.futureImpact.title')}
+        {t('simulation:investment.futureImpact.title')}
       </div>
       
       {/* Legend */}
       <div style={{ display: 'flex', gap: '24px', marginBottom: '20px' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ width: '16px', height: '16px', backgroundColor: '#22c55e', borderRadius: '4px' }} />
-          <span style={{ fontSize: '12px' }}>{t('simulation:pdf.futureImpact.withInvestment')}</span>
+          <span style={{ fontSize: '12px' }}>{t('simulation:investment.futureImpact.withInvestment')}</span>
         </div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <div style={{ width: '16px', height: '16px', backgroundColor: '#ef4444', borderRadius: '4px' }} />
-          <span style={{ fontSize: '12px' }}>{t('simulation:pdf.futureImpact.withoutInvestment')}</span>
+          <span style={{ fontSize: '12px' }}>{t('simulation:investment.futureImpact.withoutInvestment')}</span>
         </div>
       </div>
       
@@ -143,7 +143,7 @@ export function PdfFutureImpactPage({
               border: '1px solid #e2e8f0',
             }}>
               <div style={{ fontSize: '10px', color: PDF_COLORS.gray[500], marginBottom: '4px' }}>
-                {t('simulation:pdf.futureImpact.yearDiff', { year: yearData.year })}
+                {t('simulation:investment.futureImpact.yearDiff', { year: yearData.year })}
               </div>
               <div style={{ 
                 fontSize: '16px', 
@@ -170,7 +170,7 @@ export function PdfFutureImpactPage({
         color: 'white',
       }}>
         <div style={{ fontSize: '12px', opacity: 0.9, marginBottom: '8px' }}>
-          {t('simulation:pdf.futureImpact.totalDifference')}
+          {t('simulation:investment.futureImpact.totalDifference')}
         </div>
         <div style={{ fontSize: '28px', fontWeight: 'bold' }}>
           {formatCompactUSD(futureImpact.cumulativeDifference)}

@@ -98,7 +98,7 @@ export function PdfQuarterlyCashFlowPage({
       }}>
         {title}
         <span style={{ fontSize: '11px', color: PDF_COLORS.gray[500], marginLeft: '8px' }}>
-          ({t('simulation:pdf.quarterlyCashFlow.startingBalance', { amount: formatCompactUSD(startingBalance) })})
+          ({t('simulation:investment.quarterlyCashFlow.startingBalance', { amount: formatCompactUSD(startingBalance) })})
         </span>
       </div>
       <table style={TABLE_STYLE}>
@@ -131,7 +131,7 @@ export function PdfQuarterlyCashFlowPage({
             <td style={{ ...TABLE_CELL_RIGHT_STYLE, fontWeight: '600' }}>{formatCompactUSD(totalExp)}</td>
           </tr>
           <tr style={{ backgroundColor: '#f8fafc' }}>
-            <td style={{ ...TABLE_CELL_STYLE, fontWeight: '600' }}>{t('simulation:pdf.quarterlyCashFlow.net')}</td>
+            <td style={{ ...TABLE_CELL_STYLE, fontWeight: '600' }}>{t('simulation:investment.quarterlyCashFlow.net')}</td>
             <td style={{ ...TABLE_CELL_RIGHT_STYLE, fontWeight: '600', color: net.q1 >= 0 ? PDF_COLORS.success : PDF_COLORS.danger }}>
               {formatCompactUSD(net.q1)}
             </td>
@@ -149,7 +149,7 @@ export function PdfQuarterlyCashFlowPage({
             </td>
           </tr>
           <tr style={{ backgroundColor: '#f1f5f9' }}>
-            <td style={{ ...TABLE_CELL_STYLE, fontWeight: '600' }}>{t('simulation:pdf.quarterlyCashFlow.cumulative')}</td>
+            <td style={{ ...TABLE_CELL_STYLE, fontWeight: '600' }}>{t('simulation:investment.quarterlyCashFlow.cumulative')}</td>
             <td style={{ ...TABLE_CELL_RIGHT_STYLE, fontWeight: '600', color: cumulative.q1 >= 0 ? PDF_COLORS.success : PDF_COLORS.danger }}>
               {formatCompactUSD(cumulative.q1)}
             </td>
@@ -193,12 +193,12 @@ export function PdfQuarterlyCashFlowPage({
   return (
     <PdfPageWrapper style={CONTENT_PAGE_STYLE}>
       <div style={PAGE_HEADER_STYLE}>
-        {t('simulation:pdf.quarterlyCashFlow.title')}
+        {t('simulation:investment.quarterlyCashFlow.title')}
       </div>
       
       {/* Scenario A - With Investment */}
       {renderTable(
-        t('simulation:pdf.quarterlyCashFlow.invested', { name: scenarioAName }),
+        t('simulation:investment.quarterlyCashFlow.withInvestment', { name: scenarioAName }),
         quarterlyRevenueA,
         quarterlyExpenseA,
         netA,
@@ -211,7 +211,7 @@ export function PdfQuarterlyCashFlowPage({
       
       {/* Scenario B - Without Investment */}
       {renderTable(
-        t('simulation:pdf.quarterlyCashFlow.uninvested', { name: scenarioBName }),
+        t('simulation:investment.quarterlyCashFlow.withoutInvestment', { name: scenarioBName }),
         quarterlyRevenueB,
         quarterlyExpenseB,
         netB,
@@ -236,7 +236,7 @@ export function PdfQuarterlyCashFlowPage({
           border: '1px solid #86efac',
         }}>
           <div style={{ fontSize: '11px', color: PDF_COLORS.gray[600], marginBottom: '4px' }}>
-            {scenarioAName} {t('simulation:pdf.quarterlyCashFlow.yearEnd')}
+            {scenarioAName} {t('simulation:investment.quarterlyCashFlow.yearEnd')}
           </div>
           <div style={{ fontSize: '20px', fontWeight: 'bold', color: cumulativeA.q4 >= 0 ? PDF_COLORS.success : PDF_COLORS.danger }}>
             {formatCompactUSD(cumulativeA.q4)}
@@ -253,7 +253,7 @@ export function PdfQuarterlyCashFlowPage({
           border: '1px solid #fca5a5',
         }}>
           <div style={{ fontSize: '11px', color: PDF_COLORS.gray[600], marginBottom: '4px' }}>
-            {scenarioBName} {t('simulation:pdf.quarterlyCashFlow.yearEnd')}
+            {scenarioBName} {t('simulation:investment.quarterlyCashFlow.yearEnd')}
           </div>
           <div style={{ fontSize: '20px', fontWeight: 'bold', color: cumulativeB.q4 >= 0 ? PDF_COLORS.success : PDF_COLORS.danger }}>
             {formatCompactUSD(cumulativeB.q4)}
