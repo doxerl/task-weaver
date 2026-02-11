@@ -1,29 +1,46 @@
 
 
-# PrintCoverPage Kaldirma
+# Tablo Hucreleri Bos Gorunme Sorunu
 
-## Sorun
-`PrintCoverPage` bileseni `ScenarioComparisonPage.tsx` icinde render ediliyor. Bu bilesen:
-1. `print-only` sinifi ile sadece print'te gorunur
-2. `page-break-after` sinifi ile kendinden sonra sayfa kiriliyor
-3. Icerik az oldugu icin sayfanin buyuk kismi bos kaliyor
-4. Ardindan bos bir sayfa olusturuyor
+## Sorun Kaynagi
+
+`print.css` dosyasinda ekledigimiz kural:
+```css
+.cursor-pointer {
+  display: none !important;
+}
+```
+
+Bu kural cok genis kapsamli. `EditableProjectionTable` bileseninde Q1-Q4 hucreleri `cursor-pointer` sinifina sahip (tiklanarak duzenleme icin):
+```tsx
+<div className="cursor-pointer hover:bg-muted/50 rounded px-2 py-1 text-xs">
+  {formatCompactUSD(item[quarter])}
+</div>
+```
+
+Bu yuzden tum ceyreklik degerler print'te gizleniyor, sadece Toplam sutunu gorunuyor.
 
 ## Cozum
 
-### Dosya 1: `src/pages/finance/ScenarioComparisonPage.tsx`
-- `PrintCoverPage` import'unu kaldir (satir 97)
-- `PrintCoverPage` JSX kullanimini kaldir (satirlar ~1657-1672)
+### Dosya: `src/lib/pdf/styles/print.css`
 
-### Dosya 2: `src/components/simulation/PrintCoverPage.tsx`
-- Dosyayi tamamen sil (artik kullanilmiyor)
+`.cursor-pointer` kuralini kaldir ve yerine daha spesifik kurallar koy. Asil hedef AIAnalysisSummaryCard icindeki aksyon kartlariydi - onlar zaten `print-hidden` sinifiyla gizlendi. Gereksiz `.cursor-pointer` kuralini kaldirmak yeterli.
+
+```css
+/* KALDIRILACAK: */
+.cursor-pointer {
+  display: none !important;
+}
+```
+
+Bu tek degisiklik sorunu cozer. Aksyon kartlari zaten `print-hidden` ile gizleniyor, `.cursor-pointer` kurali gereksiz ve zarar veriyor.
 
 ## Degisecek Dosyalar
 
 | Dosya | Degisiklik |
 |-------|------------|
-| `src/pages/finance/ScenarioComparisonPage.tsx` | Import ve JSX kullanimi kaldir |
-| `src/components/simulation/PrintCoverPage.tsx` | Dosyayi sil |
+| `src/lib/pdf/styles/print.css` | `.cursor-pointer` gizleme kuralini kaldir |
 
 ## Sonuc
-Print/PDF ciktisinda kapak sayfasi ve ardindaki bos sayfa ortadan kalkacak. Icerik dogrudan ilk sayfadan baslayacak.
+Q1-Q4 tablo hucreleri print/PDF'te tekrar gorunur olacak.
+
