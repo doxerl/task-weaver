@@ -278,7 +278,11 @@
       "fiveYearProjection": "5 Yıllık Projeksiyon",
       "year1": "1. Yıl",
       "year3": "3. Yıl",
-      "year5": "5. Yıl"
+      "year5": "5. Yıl",
+      "withInvestment": "Yatırımlı",
+      "withoutInvestment": "Yatırımsız",
+      "yearDiff": "Yıl {{year}} Farkı",
+      "totalDifference": "Toplam 5 Yıllık Fark"
     },
     "capitalComparison": {
       "title": "Sermaye İhtiyacı Karşılaştırması",
@@ -303,7 +307,17 @@
       "withInvestmentLabel": "Yatırımlı (Pozitif Senaryo)",
       "withoutInvestmentLabel": "Yatırımsız (Negatif Senaryo)",
       "opportunityCost": "Fırsat Maliyeti",
-      "zeroLine": "Sıfır Çizgisi"
+      "zeroLine": "Sıfır Çizgisi",
+      "difference": "Fark"
+    },
+    "quarterlyCashFlow": {
+      "title": "Çeyreklik Nakit Akışı Analizi",
+      "withInvestment": "{{name}} (Yatırımlı)",
+      "withoutInvestment": "{{name}} (Yatırımsız)",
+      "startingBalance": "Başlangıç Bakiyesi: {{amount}}",
+      "net": "Net",
+      "cumulative": "Kümülatif",
+      "yearEnd": "Yıl Sonu"
     },
     "twoStageGrowth": {
       "title": "İki Aşamalı Büyüme Modeli",
@@ -355,7 +369,8 @@
       "capitalNeed": "Sermaye İhtiyacı",
       "yearEnd": "Yıl Sonu",
       "valuation": "Değerleme",
-      "moic": "MOIC"
+      "moic": "MOIC",
+      "totalCapitalNeed": "Toplam Sermaye İhtiyacı"
     }
   },
   "focusProject": {

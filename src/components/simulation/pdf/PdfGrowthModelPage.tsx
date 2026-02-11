@@ -42,7 +42,7 @@ export function PdfGrowthModelPage({
   return (
     <PdfPageWrapper style={CONTENT_PAGE_STYLE}>
       <div style={PAGE_HEADER_STYLE}>
-        {t('simulation:pdf.growthModel.title')}
+        {t('simulation:investment.twoStageGrowth.title')}
       </div>
       
       {/* Two Stage Model Diagram */}
@@ -81,7 +81,7 @@ export function PdfGrowthModelPage({
             </div>
             <div>
               <div style={{ fontSize: '16px', fontWeight: '600', color: PDF_COLORS.gray[800] }}>
-                {t('simulation:pdf.growthModel.years1to2')}
+                {t('simulation:investment.twoStageGrowth.year1to2')}
               </div>
               <div style={{ fontSize: '12px', color: PDF_COLORS.gray[600] }}>
                 {year1} - {year1 + 1}
@@ -111,7 +111,7 @@ export function PdfGrowthModelPage({
               border: '1px solid #fcd34d',
             }}>
               <div style={{ fontSize: '11px', fontWeight: '600', color: '#92400e' }}>
-                ⚠️ {t('simulation:pdf.growthModel.capWarning')}
+                ⚠️ {t('simulation:investment.twoStageGrowth.capWarning')}
               </div>
               <div style={{ fontSize: '10px', color: '#a16207', marginTop: '4px' }}>
                 {t('simulation:investment.twoStageGrowth.capWarningDetail', { 
@@ -151,7 +151,7 @@ export function PdfGrowthModelPage({
             </div>
             <div>
               <div style={{ fontSize: '16px', fontWeight: '600', color: PDF_COLORS.gray[800] }}>
-                {t('simulation:pdf.growthModel.years3to5')}
+                {t('simulation:investment.twoStageGrowth.year3to5')}
               </div>
               <div style={{ fontSize: '12px', color: PDF_COLORS.gray[600] }}>
                 {year1 + 2} - {year5}

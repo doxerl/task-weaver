@@ -278,7 +278,11 @@
       "fiveYearProjection": "5-Year Projection",
       "year1": "Year 1",
       "year3": "Year 3",
-      "year5": "Year 5"
+      "year5": "Year 5",
+      "withInvestment": "With Investment",
+      "withoutInvestment": "Without Investment",
+      "yearDiff": "Year {{year}} Difference",
+      "totalDifference": "Total 5-Year Difference"
     },
     "capitalComparison": {
       "title": "Capital Requirement Comparison",
@@ -303,7 +307,17 @@
       "withInvestmentLabel": "With Investment (Positive Scenario)",
       "withoutInvestmentLabel": "Without Investment (Negative Scenario)",
       "opportunityCost": "Opportunity Cost",
-      "zeroLine": "Zero Line"
+      "zeroLine": "Zero Line",
+      "difference": "Difference"
+    },
+    "quarterlyCashFlow": {
+      "title": "Quarterly Cash Flow Analysis",
+      "withInvestment": "{{name}} (With Investment)",
+      "withoutInvestment": "{{name}} (Without Investment)",
+      "startingBalance": "Starting Balance: {{amount}}",
+      "net": "Net",
+      "cumulative": "Cumulative",
+      "yearEnd": "Year End"
     },
     "twoStageGrowth": {
       "title": "Two-Stage Growth Model",
@@ -355,7 +369,8 @@
       "capitalNeed": "Capital Need",
       "yearEnd": "Year End",
       "valuation": "Valuation",
-      "moic": "MOIC"
+      "moic": "MOIC",
+      "totalCapitalNeed": "Total Capital Need"
     }
   },
   "focusProject": {

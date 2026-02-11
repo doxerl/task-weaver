@@ -78,11 +78,11 @@ export function PdfRunwayChartPage({
   return (
     <PdfPageWrapper style={CONTENT_PAGE_STYLE}>
       <div style={PAGE_HEADER_STYLE}>
-        {t('simulation:pdf.runwayChart.title')}
+        {t('simulation:investment.cashFlowRunway.title')}
       </div>
       
       <div style={{ fontSize: '12px', color: PDF_COLORS.gray[600], marginBottom: '16px' }}>
-        {t('simulation:pdf.runwayChart.description')}
+        {t('simulation:investment.cashFlowRunway.description')}
       </div>
       
       {/* Legend */}
@@ -222,7 +222,7 @@ export function PdfRunwayChartPage({
               color: d.difference >= 0 ? PDF_COLORS.success : PDF_COLORS.danger,
               fontWeight: '600',
             }}>
-              {t('simulation:pdf.quarterlyCashFlow.difference')}: {d.difference >= 0 ? '+' : ''}{formatCompactUSD(d.difference)}
+              {t('simulation:investment.cashFlowRunway.difference')}: {d.difference >= 0 ? '+' : ''}{formatCompactUSD(d.difference)}
             </div>
           </div>
         ))}

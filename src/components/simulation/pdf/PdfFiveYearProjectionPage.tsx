@@ -50,7 +50,7 @@ export function PdfFiveYearProjectionPage({
   return (
     <PdfPageWrapper style={CONTENT_PAGE_STYLE}>
       <div style={PAGE_HEADER_STYLE}>
-        {t('simulation:pdf.fiveYearProjection.title')}
+        {t('simulation:investment.fiveYearProjection.title')}
       </div>
       
       <div style={{ fontSize: '12px', color: PDF_COLORS.gray[600], marginBottom: '16px' }}>
@@ -61,16 +61,16 @@ export function PdfFiveYearProjectionPage({
       <table style={TABLE_STYLE}>
         <thead>
           <tr>
-            <th style={{ ...TABLE_HEADER_CELL_STYLE, width: '60px' }}>{t('simulation:pdf.fiveYearProjection.year')}</th>
-            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:pdf.fiveYearProjection.opening')}</th>
-            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:pdf.fiveYearProjection.revenue')}</th>
-            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:pdf.fiveYearProjection.expense')}</th>
-            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:pdf.fiveYearProjection.netProfit')}</th>
-            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:pdf.fiveYearProjection.deathValley')}</th>
-            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:pdf.fiveYearProjection.capitalNeed')}</th>
-            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:pdf.fiveYearProjection.yearEnd')}</th>
-            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:pdf.fiveYearProjection.valuation')}</th>
-            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:pdf.fiveYearProjection.moic')}</th>
+            <th style={{ ...TABLE_HEADER_CELL_STYLE, width: '60px' }}>{t('simulation:investment.fiveYearProjection.year')}</th>
+            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:investment.fiveYearProjection.opening')}</th>
+            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:investment.fiveYearProjection.revenue')}</th>
+            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:investment.fiveYearProjection.expense')}</th>
+            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:investment.fiveYearProjection.netProfit')}</th>
+            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:investment.fiveYearProjection.deathValley')}</th>
+            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:investment.fiveYearProjection.capitalNeed')}</th>
+            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:investment.fiveYearProjection.yearEnd')}</th>
+            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:investment.fiveYearProjection.valuation')}</th>
+            <th style={{ ...TABLE_HEADER_CELL_STYLE, textAlign: 'right' as const }}>{t('simulation:investment.fiveYearProjection.moic')}</th>
           </tr>
         </thead>
         <tbody>
@@ -161,7 +161,7 @@ export function PdfFiveYearProjectionPage({
           border: '1px solid #e2e8f0',
         }}>
           <div style={{ fontSize: '10px', color: PDF_COLORS.gray[500], marginBottom: '4px' }}>
-            {t('simulation:pdf.fiveYearProjection.totalCapitalNeed')}
+            {t('simulation:investment.fiveYearProjection.totalCapitalNeed')}
           </div>
           <div style={{ fontSize: '20px', fontWeight: 'bold', color: PDF_COLORS.primary }}>
             {formatCompactUSD(totalRequiredInvestment)}
@@ -196,7 +196,7 @@ export function PdfFiveYearProjectionPage({
           border: '1px solid #93c5fd',
         }}>
           <div style={{ fontSize: '10px', color: PDF_COLORS.gray[500], marginBottom: '4px' }}>
-            {t('simulation:investment.exitPlan.year5')} {t('simulation:pdf.fiveYearProjection.valuation')}
+            {t('simulation:investment.exitPlan.year5')} {t('simulation:investment.fiveYearProjection.valuation')}
           </div>
           <div style={{ fontSize: '20px', fontWeight: 'bold', color: PDF_COLORS.primaryLight }}>
             {exitPlan?.year5Projection 
