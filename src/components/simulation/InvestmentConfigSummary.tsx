@@ -41,8 +41,8 @@ export const InvestmentConfigSummary: React.FC<InvestmentConfigSummaryProps> = (
   const allocationItems = [
     { key: 'product', label: t('simulation:focusProject.productDev'), icon: Settings, value: investmentAllocation.product },
     { key: 'marketing', label: t('simulation:focusProject.marketing'), icon: Megaphone, value: investmentAllocation.marketing },
-    { key: 'hiring', label: t('simulation:focusProject.personnel'), icon: Users, value: investmentAllocation.hiring },
-    { key: 'operations', label: t('simulation:focusProject.operational'), icon: DollarSign, value: investmentAllocation.operations },
+    { key: 'hiring', label: t('simulation:focusProject.hiring'), icon: Users, value: investmentAllocation.hiring },
+    { key: 'operations', label: t('simulation:focusProject.operations'), icon: DollarSign, value: investmentAllocation.operations },
   ];
 
   return (
