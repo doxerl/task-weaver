@@ -64,7 +64,7 @@ export const EditableProjectionTable = ({
             )}
           </CardTitle>
           {description && (
-            <CardDescription className="text-xs mt-1">{description}</CardDescription>
+            <CardDescription className="text-xs mt-1 print-hidden">{description}</CardDescription>
           )}
         </div>
         {hasEdits && (
