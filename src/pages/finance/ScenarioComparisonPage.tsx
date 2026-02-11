@@ -41,7 +41,7 @@ import {
   SheetTitle,
 } from '@/components/ui/sheet';
 import { ScrollArea } from '@/components/ui/scroll-area';
-import { 
+import {
   TrendingUp, 
   TrendingDown, 
   Minus, 
@@ -63,6 +63,7 @@ import {
   Presentation,
   Edit2,
   Calculator,
+  BarChart3,
 } from 'lucide-react';
 import {
   SimulationScenario,
@@ -639,15 +640,61 @@ function ScenarioComparisonContent() {
     return summaryB.netProfit > summaryA.netProfit;
   }, [summaryA, summaryB]);
 
+  // Base year totals from scenario data (baseAmount is shared across both scenarios)
+  const baseYearTotals = useMemo(() => {
+    if (!scenarioA) return null;
+    const baseYear = (scenarioA.targetYear || 2026) - 1;
+    const totalRevenue = scenarioA.revenues.reduce((sum, r) => sum + (r.baseAmount || 0), 0);
+    const totalExpense = scenarioA.expenses.reduce((sum, e) => sum + (e.baseAmount || 0), 0);
+    const netProfit = totalRevenue - totalExpense;
+    const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
+    return { baseYear, totalRevenue, totalExpense, netProfit, profitMargin };
+  }, [scenarioA]);
+
   const metrics = useMemo(() => {
     if (!summaryA || !summaryB) return [];
     return [
-      { label: t('simulation:metrics.totalRevenue'), scenarioA: summaryA.totalRevenue, scenarioB: summaryB.totalRevenue, format: 'currency' as const, higherIsBetter: true },
-      { label: t('simulation:metrics.totalExpense'), scenarioA: summaryA.totalExpense, scenarioB: summaryB.totalExpense, format: 'currency' as const, higherIsBetter: false },
-      { label: t('simulation:metrics.netProfit'), scenarioA: summaryA.netProfit, scenarioB: summaryB.netProfit, format: 'currency' as const, higherIsBetter: true },
-      { label: t('simulation:metrics.profitMargin'), scenarioA: summaryA.profitMargin, scenarioB: summaryB.profitMargin, format: 'percent' as const, higherIsBetter: true },
+      { label: t('simulation:metrics.totalRevenue'), scenarioA: summaryA.totalRevenue, scenarioB: summaryB.totalRevenue, baseYear: baseYearTotals?.totalRevenue || 0, format: 'currency' as const, higherIsBetter: true },
+      { label: t('simulation:metrics.totalExpense'), scenarioA: summaryA.totalExpense, scenarioB: summaryB.totalExpense, baseYear: baseYearTotals?.totalExpense || 0, format: 'currency' as const, higherIsBetter: false },
+      { label: t('simulation:metrics.netProfit'), scenarioA: summaryA.netProfit, scenarioB: summaryB.netProfit, baseYear: baseYearTotals?.netProfit || 0, format: 'currency' as const, higherIsBetter: true },
+      { label: t('simulation:metrics.profitMargin'), scenarioA: summaryA.profitMargin, scenarioB: summaryB.profitMargin, baseYear: baseYearTotals?.profitMargin || 0, format: 'percent' as const, higherIsBetter: true },
     ];
-  }, [summaryA, summaryB, t]);
+  }, [summaryA, summaryB, baseYearTotals, t]);
+
+  // Base year itemized comparison data
+  const baseYearItemized = useMemo(() => {
+    if (!scenarioA || !scenarioB) return null;
+    
+    const revenues = scenarioA.revenues.map(r => {
+      const bItem = scenarioB.revenues.find(br => br.category === r.category);
+      const baseAmount = r.baseAmount || 0;
+      const positiveAmount = r.projectedAmount || 0;
+      const negativeAmount = bItem?.projectedAmount || 0;
+      return {
+        category: r.category,
+        baseAmount,
+        positiveAmount,
+        negativeAmount,
+        changePercent: baseAmount > 0 ? ((positiveAmount - baseAmount) / baseAmount * 100) : (positiveAmount > 0 ? 100 : 0),
+      };
+    }).sort((a, b) => b.baseAmount - a.baseAmount);
+    
+    const expenses = scenarioA.expenses.map(e => {
+      const bItem = scenarioB.expenses.find(be => be.category === e.category);
+      const baseAmount = e.baseAmount || 0;
+      const positiveAmount = e.projectedAmount || 0;
+      const negativeAmount = bItem?.projectedAmount || 0;
+      return {
+        category: e.category,
+        baseAmount,
+        positiveAmount,
+        negativeAmount,
+        changePercent: baseAmount > 0 ? ((positiveAmount - baseAmount) / baseAmount * 100) : (positiveAmount > 0 ? 100 : 0),
+      };
+    }).sort((a, b) => b.baseAmount - a.baseAmount);
+    
+    return { revenues, expenses };
+  }, [scenarioA, scenarioB]);
 
   const quarterlyComparison = useMemo(() => {
     if (!scenarioA || !scenarioB) return [];
@@ -1434,6 +1481,13 @@ function ScenarioComparisonContent() {
                   <Card key={m.label}>
                     <CardContent className="pt-4">
                       <div className="text-xs text-muted-foreground mb-3">{m.label}</div>
+                      {/* Base Year Label */}
+                      {baseYearTotals && (
+                        <div className="mb-2 pb-2 border-b border-border/50">
+                          <span className="text-[10px] text-muted-foreground">{baseYearTotals.baseYear} (Baz):</span>
+                          <span className="text-xs font-mono ml-1">{formatValue(m.baseYear, m.format)}</span>
+                        </div>
+                      )}
                       <div className="flex items-center justify-between gap-2">
                         {/* Senaryo A - Sol Taraf */}
                         <div className="flex flex-col items-start min-w-0 flex-1">
@@ -1461,6 +1515,85 @@ function ScenarioComparisonContent() {
                 );
               })}
             </div>
+
+            {/* SECTION 1.5: BASE YEAR ITEMIZED COMPARISON */}
+            {baseYearItemized && baseYearTotals && (
+              <Accordion type="single" collapsible className="space-y-2">
+                <AccordionItem value="base-year-comparison" className="border rounded-lg bg-card">
+                  <AccordionTrigger className="px-4 py-3 hover:no-underline">
+                    <div className="flex items-center gap-2">
+                      <BarChart3 className="h-4 w-4 text-primary" />
+                      <span className="text-sm font-medium">{baseYearTotals.baseYear} Baz Yıl Karşılaştırması</span>
+                    </div>
+                  </AccordionTrigger>
+                  <AccordionContent className="px-4 pb-4">
+                    <div className="space-y-4">
+                      {/* Revenue Items */}
+                      <div>
+                        <h4 className="text-xs font-medium text-muted-foreground mb-2">Gelir Kalemleri</h4>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">Kalem</TableHead>
+                              <TableHead className="text-xs text-right">{baseYearTotals.baseYear} (Baz)</TableHead>
+                              <TableHead className="text-xs text-right">{scenarioA?.name || 'Pozitif'}</TableHead>
+                              <TableHead className="text-xs text-right">{scenarioB?.name || 'Negatif'}</TableHead>
+                              <TableHead className="text-xs text-right">Değişim</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {baseYearItemized.revenues.map((item) => (
+                              <TableRow key={item.category}>
+                                <TableCell className="text-xs">{item.category}</TableCell>
+                                <TableCell className="text-right font-mono text-xs">{formatCompactUSD(item.baseAmount)}</TableCell>
+                                <TableCell className="text-right font-mono text-xs">{formatCompactUSD(item.positiveAmount)}</TableCell>
+                                <TableCell className="text-right font-mono text-xs">{formatCompactUSD(item.negativeAmount)}</TableCell>
+                                <TableCell className="text-right">
+                                  <Badge variant="outline" className={`text-xs ${item.changePercent >= 0 ? 'text-emerald-500 border-emerald-500/30' : 'text-red-500 border-red-500/30'}`}>
+                                    {item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(0)}%
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                      
+                      {/* Expense Items */}
+                      <div>
+                        <h4 className="text-xs font-medium text-muted-foreground mb-2">Gider Kalemleri</h4>
+                        <Table>
+                          <TableHeader>
+                            <TableRow>
+                              <TableHead className="text-xs">Kalem</TableHead>
+                              <TableHead className="text-xs text-right">{baseYearTotals.baseYear} (Baz)</TableHead>
+                              <TableHead className="text-xs text-right">{scenarioA?.name || 'Pozitif'}</TableHead>
+                              <TableHead className="text-xs text-right">{scenarioB?.name || 'Negatif'}</TableHead>
+                              <TableHead className="text-xs text-right">Değişim</TableHead>
+                            </TableRow>
+                          </TableHeader>
+                          <TableBody>
+                            {baseYearItemized.expenses.map((item) => (
+                              <TableRow key={item.category}>
+                                <TableCell className="text-xs">{item.category}</TableCell>
+                                <TableCell className="text-right font-mono text-xs">{formatCompactUSD(item.baseAmount)}</TableCell>
+                                <TableCell className="text-right font-mono text-xs">{formatCompactUSD(item.positiveAmount)}</TableCell>
+                                <TableCell className="text-right font-mono text-xs">{formatCompactUSD(item.negativeAmount)}</TableCell>
+                                <TableCell className="text-right">
+                                  <Badge variant="outline" className={`text-xs ${item.changePercent <= 0 ? 'text-emerald-500 border-emerald-500/30' : 'text-red-500 border-red-500/30'}`}>
+                                    {item.changePercent >= 0 ? '+' : ''}{item.changePercent.toFixed(0)}%
+                                  </Badge>
+                                </TableCell>
+                              </TableRow>
+                            ))}
+                          </TableBody>
+                        </Table>
+                      </div>
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              </Accordion>
+            )}
 
             {/* SECTION 2: CHARTS SIDE BY SIDE */}
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
@@ -1541,6 +1674,12 @@ function ScenarioComparisonContent() {
               scenarioB={scenarioB}
               summaryA={{ totalRevenue: summaryA!.totalRevenue, totalExpenses: summaryA!.totalExpense, netProfit: summaryA!.netProfit, profitMargin: summaryA!.profitMargin }}
               summaryB={{ totalRevenue: summaryB!.totalRevenue, totalExpenses: summaryB!.totalExpense, netProfit: summaryB!.netProfit, profitMargin: summaryB!.profitMargin }}
+              baseYearData={baseYearTotals ? {
+                year: baseYearTotals.baseYear,
+                totalRevenue: baseYearTotals.totalRevenue,
+                totalExpenses: baseYearTotals.totalExpense,
+                netProfit: baseYearTotals.netProfit,
+              } : undefined}
               quarterlyA={{ q1: quarterlyComparison[0]?.scenarioANet || 0, q2: quarterlyComparison[1]?.scenarioANet || 0, q3: quarterlyComparison[2]?.scenarioANet || 0, q4: quarterlyComparison[3]?.scenarioANet || 0 }}
               quarterlyB={{ q1: quarterlyComparison[0]?.scenarioBNet || 0, q2: quarterlyComparison[1]?.scenarioBNet || 0, q3: quarterlyComparison[2]?.scenarioBNet || 0, q4: quarterlyComparison[3]?.scenarioBNet || 0 }}
               quarterlyRevenueA={{ q1: quarterlyComparison[0]?.scenarioARevenue || 0, q2: quarterlyComparison[1]?.scenarioARevenue || 0, q3: quarterlyComparison[2]?.scenarioARevenue || 0, q4: quarterlyComparison[3]?.scenarioARevenue || 0 }}
