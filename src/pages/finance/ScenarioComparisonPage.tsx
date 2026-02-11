@@ -1377,7 +1377,9 @@ function ScenarioComparisonContent() {
               <>
                 {/* Data changed warning */}
                 {unifiedDataChanged && unifiedCachedInfo && (
-                  <DataChangedWarning onReanalyze={handleUnifiedAnalysis} isLoading={unifiedLoading} />
+                  <div className="print-hidden">
+                    <DataChangedWarning onReanalyze={handleUnifiedAnalysis} isLoading={unifiedLoading} />
+                  </div>
                 )}
                 
                 {/* Calculate projection year dynamically: max(A.year, B.year) + 1 */}
@@ -1413,12 +1415,14 @@ function ScenarioComparisonContent() {
                 />
                 
                 {/* Analysis History - Right below AI Summary Card for visibility */}
-                <AnalysisHistoryPanel
-                  history={unifiedAnalysisHistory}
-                  isLoading={unifiedHistoryLoading}
-                  onSelectHistory={handleSelectUnifiedHistory}
-                  analysisType="scenario_comparison"
-                />
+                <div className="print-hidden">
+                  <AnalysisHistoryPanel
+                    history={unifiedAnalysisHistory}
+                    isLoading={unifiedHistoryLoading}
+                    onSelectHistory={handleSelectUnifiedHistory}
+                    analysisType="scenario_comparison"
+                  />
+                </div>
               </>
             )}
 
