@@ -1,67 +1,46 @@
 
-
-# Baz Yil Verilerinin Gercek Kaynaklardan Alinmasi
+# Baz Yil Verilerinin TRY -> USD Donusumu
 
 ## Sorun
-Karsilastirma sayfasindaki "2025 Baz Yil" verileri senaryo icindeki `baseAmount` alanlarindan hesaplaniyor. Bu degerler senaryo olusturulurken kaydedilen anlık goruntudur ve guncel olmayabilir.
+`useIncomeStatement` hook'u TRY (Turk Lirasi) cinsinden deger donduruyor. Ancak karsilastirma sayfasindaki tum degerler USD cinsinden gosteriliyor (`formatCompactUSD`). Donus yapilmadan gosterildigi icin:
 
-- Senaryo baseAmount toplami: $147.9K gelir, $121.4K gider, $26.5K kar
-- Reports sayfasi gercek verisi: $147,862 gelir, $121,409 gider, $24,268 kar
+- $5.8M olarak gorunen deger aslinda 5.8M TRY (yaklasik $148K USD)
+- $4.8M olarak gorunen deger aslinda 4.8M TRY (yaklasik $123K USD)
 
-Fark ozellikle net kar'da belirgin ($26.5K vs $24.3K).
+Senaryo verileri (`baseAmount`) zaten USD'ye cevrilmis olarak kaydediliyordu, bu yuzden onceki kodda sorun yoktu. Ancak `useIncomeStatement` ham TRY verisi donduruyor.
 
 ## Cozum
-`ScenarioComparisonPage.tsx` icinde `useIncomeStatement` hook'unu `forceRealtime: true` ile cagirarak gercek finansal verileri kullanmak.
 
 ### Dosya: `src/pages/finance/ScenarioComparisonPage.tsx`
 
-**1) Import ekle:**
-```typescript
-import { useIncomeStatement } from '@/hooks/finance/useIncomeStatement';
-```
+**1) Baz yil icin ayri exchange rate hook'u ekle:**
 
-**2) Hook cagirisi ekle (mevcut hook'larin yanina):**
-```typescript
-const baseYear = (scenarioA?.targetYear || 2026) - 1;
-const incomeStatement = useIncomeStatement(baseYear, { forceRealtime: true });
-```
-
-**3) `baseYearTotals` useMemo'yu guncelle:**
-Mevcut `baseAmount` toplama mantigi yerine `incomeStatement.statement` verisini kullan:
+Mevcut `useExchangeRates` sadece senaryo yili (2026) icin cagiriliyor. Baz yil (2025) icin de ayri bir cagri gerekiyor:
 
 ```typescript
-const baseYearTotals = useMemo(() => {
-  if (!scenarioA) return null;
-  const baseYr = (scenarioA.targetYear || 2026) - 1;
-  
-  // Gercek gelir tablosu verisi varsa onu kullan, yoksa senaryo baseAmount'a dusus
-  const stmt = incomeStatement.statement;
-  if (stmt) {
-    const totalRevenue = stmt.netSales;
-    const totalExpense = stmt.costOfSales + stmt.operatingExpenses.total;
-    const netProfit = stmt.netProfit;
-    const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
-    return { baseYear: baseYr, totalRevenue, totalExpense, netProfit, profitMargin };
-  }
-  
-  // Fallback: senaryo baseAmount verileri
-  const totalRevenue = scenarioA.revenues.reduce((sum, r) => sum + (r.baseAmount || 0), 0);
-  const totalExpense = scenarioA.expenses.reduce((sum, e) => sum + (e.baseAmount || 0), 0);
-  const netProfit = totalRevenue - totalExpense;
-  const profitMargin = totalRevenue > 0 ? (netProfit / totalRevenue) * 100 : 0;
-  return { baseYear: baseYr, totalRevenue, totalExpense, netProfit, profitMargin };
-}, [scenarioA, incomeStatement.statement]);
+const { yearlyAverageRate: baseYearRate } = useExchangeRates(baseYearNumber);
 ```
 
-**4) Kalem bazli karsilastirma (`baseYearItemized`) degismeyecek** - her bir kalemin `baseAmount` degeri Reports sayfasindan topluca alinabilecek bir veri degil (kalem bazli mapping yok), bu nedenle mevcut `baseAmount` mantigi kalacak. Sadece toplam satirlar gercek veriyle uyumlu olacak.
+**2) `baseYearTotals` useMemo icinde TRY -> USD donusumu ekle:**
+
+```typescript
+const stmt = incomeStatement.statement;
+if (stmt && (stmt.netSales > 0 || stmt.costOfSales > 0)) {
+  const rate = baseYearRate || 39; // Fallback kur
+  const totalRevenue = stmt.netSales / rate;
+  const totalExpense = (stmt.costOfSales + stmt.operatingExpenses.total) / rate;
+  const netProfit = stmt.netProfit / rate;
+  // ...
+}
+```
+
+**3) Dependency array'e `baseYearRate` ekle.**
 
 ## Degisecek Dosyalar
 
 | Dosya | Degisiklik |
 |-------|------------|
-| `src/pages/finance/ScenarioComparisonPage.tsx` | `useIncomeStatement` import ve hook eklenmesi, `baseYearTotals` hesaplamasinin gercek veriye cekilmesi |
+| `src/pages/finance/ScenarioComparisonPage.tsx` | Baz yil icin `useExchangeRates` eklenmesi, TRY degerlerinin USD'ye cevrildigi bolumun guncellenmesi |
 
-## Sonuc
-- Summary kartlarindaki baz yil rakamlari Reports sayfasiyla birebir ayni olacak
-- InvestmentTab'a gonderilen baz yil verileri de gercek kaynaklardan gelecek
-- Kalem bazli karsilastirma mevcut senaryo `baseAmount` verisini kullanmaya devam edecek (en iyi mevcut kaynak)
+## Beklenen Sonuc
+- 2025 Baz satiri: ~$148K gelir, ~$121K gider, ~$24K kar (Reports sayfasiyla eslesecek)
