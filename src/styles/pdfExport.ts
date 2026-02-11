@@ -4,11 +4,9 @@
  * These are inline styles because html2canvas requires inline styles for rendering
  */
 
-import { PDF_DIMENSIONS } from '@/constants/simulation';
+// PDF dimensions for GrowthComparisonPage (still uses html2canvas)
+const PDF_DIMENSIONS = { WIDTH: 1200, HEIGHT: 848 };
 
-// =====================================================
-// PAGE DIMENSIONS
-// =====================================================
 export const PDF_PAGE_STYLE = {
   width: `${PDF_DIMENSIONS.WIDTH}px`,
   height: `${PDF_DIMENSIONS.HEIGHT}px`,

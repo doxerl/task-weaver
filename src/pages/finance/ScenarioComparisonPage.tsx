@@ -85,7 +85,6 @@ import { InvestmentConfigSummary } from '@/components/simulation/InvestmentConfi
 import { EditableProjectionTable } from '@/components/simulation/EditableProjectionTable';
 import { formatCompactUSD } from '@/lib/formatters';
 import { toast } from 'sonner';
-import { usePdfEngine } from '@/hooks/finance/usePdfEngine';
 import { useUnifiedAnalysis } from '@/hooks/finance/useUnifiedAnalysis';
 import { useInvestorAnalysis, calculateCapitalNeeds, calculateExitPlan, calculateMultiYearCapitalNeeds, calculateInvestmentScenarioComparison, AIProjectionForExitPlan } from '@/hooks/finance/useInvestorAnalysis';
 import { useScenarios } from '@/hooks/finance/useScenarios';
@@ -95,7 +94,7 @@ import { PitchDeckEditor } from '@/components/simulation/PitchDeckEditor';
 import { FinancialRatiosPanel } from '@/components/simulation/FinancialRatiosPanel';
 import { AIAnalysisSummaryCard } from '@/components/simulation/AIAnalysisSummaryCard';
 import { AIAnalysisDetails } from '@/components/simulation/AIAnalysisDetails';
-import { PdfExportContainer } from '@/components/simulation/pdf';
+import { PrintCoverPage } from '@/components/simulation/PrintCoverPage';
 import { CurrencyProvider } from '@/contexts/CurrencyContext';
 import { useExchangeRates } from '@/hooks/finance/useExchangeRates';
 import { getProjectionYears, calculateInternalGrowthRate } from '@/utils/yearCalculations';
@@ -535,7 +534,6 @@ function ScenarioComparisonContent() {
   
   const quarterlyChartRef = useRef<HTMLDivElement>(null);
   const cumulativeChartRef = useRef<HTMLDivElement>(null);
-  const presentationPdfRef = useRef<HTMLDivElement>(null);
   
   // Sheet states
   const [selectedHistoricalAnalysis, setSelectedHistoricalAnalysis] = useState<AnalysisHistoryItem | null>(null);
@@ -557,7 +555,7 @@ function ScenarioComparisonContent() {
   const hasUserEdits = editableRevenueProjection.some(i => i.userEdited) ||
                        editableExpenseProjection.some(i => i.userEdited);
 
-  const { generatePdfFromElement, isGenerating } = usePdfEngine();
+  const [isGenerating] = useState(false);
   
   // Unified Analysis Hook - TEK AI hook, tüm fonksiyonlar burada
   const { 
@@ -834,364 +832,9 @@ function ScenarioComparisonContent() {
     breakEvenAnalysis
   }), [financialRatios, breakEvenAnalysis]);
 
-  // =====================================================
-  // PDF AI PROJECTION FOR EXIT PLAN - InvestmentTab ile aynı mantık
-  // =====================================================
-  const pdfAiProjectionForExitPlan = useMemo<AIProjectionForExitPlan | undefined>(() => {
-    const projection = unifiedAnalysis?.next_year_projection;
-    if (!projection) return undefined;
-    
-    // Kullanıcı düzenlemesi varsa override et
-    const editedOverride = editableRevenueProjection.length > 0 
-      ? {
-          totalRevenue: editableRevenueProjection.reduce((sum, r) => sum + (r.total || 0), 0),
-          totalExpenses: editableExpenseProjection.reduce((sum, e) => sum + (e.total || 0), 0),
-        }
-      : undefined;
-    
-    const effectiveRevenue = editedOverride?.totalRevenue ?? projection.summary.total_revenue;
-    const effectiveExpenses = editedOverride?.totalExpenses ?? projection.summary.total_expenses;
-    
-    // AI'ın önerdiği büyüme oranını parse et
-    let growthRateHint: number | undefined;
-    if (projection.investor_hook?.revenue_growth_yoy) {
-      const match = projection.investor_hook.revenue_growth_yoy.match(/[0-9.]+/);
-      if (match) {
-        growthRateHint = parseFloat(match[0]) / 100;
-      }
-    }
-    
-    return {
-      year1Revenue: effectiveRevenue,
-      year1Expenses: effectiveExpenses,
-      year1NetProfit: effectiveRevenue - effectiveExpenses,
-      quarterlyData: {
-        revenues: {
-          q1: projection.quarterly.q1.revenue,
-          q2: projection.quarterly.q2.revenue,
-          q3: projection.quarterly.q3.revenue,
-          q4: projection.quarterly.q4.revenue,
-        },
-        expenses: {
-          q1: projection.quarterly.q1.expenses,
-          q2: projection.quarterly.q2.expenses,
-          q3: projection.quarterly.q3.expenses,
-          q4: projection.quarterly.q4.expenses,
-        },
-      },
-      growthRateHint,
-    };
-  }, [unifiedAnalysis?.next_year_projection, editableRevenueProjection, editableExpenseProjection]);
+  // (PDF-specific useMemo hooks removed - using window.print() now)
 
-  // =====================================================
-  // PDF EXIT PLAN - UI ile aynı hesaplama (Merkezi)
-  // =====================================================
-  const pdfExitPlan = useMemo(() => {
-    if (!scenarioA || !summaryA || !dealConfig) return null;
-    
-    const baseRevenue = scenarioA.revenues?.reduce(
-      (sum, r) => sum + (r.baseAmount || 0), 0
-    ) || 0;
-    const growthRate = calculateInternalGrowthRate(
-      baseRevenue, 
-      summaryA.totalRevenue, 
-      0.10
-    );
-    
-    const scenarioTargetYear = Math.max(
-      scenarioA?.targetYear || 2026,
-      scenarioB?.targetYear || 2026
-    );
-    
-    return calculateExitPlan(
-      dealConfig, 
-      summaryA.totalRevenue, 
-      summaryA.totalExpense, 
-      growthRate,
-      'default',
-      scenarioTargetYear,
-      pdfAiProjectionForExitPlan
-    );
-  }, [scenarioA, scenarioB?.targetYear, summaryA, dealConfig, pdfAiProjectionForExitPlan]);
-
-  // =====================================================
-  // PDF RUNWAY DATA - Nakit akış karşılaştırma grafiği için
-  // =====================================================
-  const pdfRunwayData = useMemo(() => {
-    if (!quarterlyComparison || quarterlyComparison.length < 4) return [];
-    
-    const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
-    const flowsA = [
-      quarterlyComparison[0]?.scenarioANet || 0,
-      quarterlyComparison[1]?.scenarioANet || 0,
-      quarterlyComparison[2]?.scenarioANet || 0,
-      quarterlyComparison[3]?.scenarioANet || 0
-    ];
-    const flowsB = [
-      quarterlyComparison[0]?.scenarioBNet || 0,
-      quarterlyComparison[1]?.scenarioBNet || 0,
-      quarterlyComparison[2]?.scenarioBNet || 0,
-      quarterlyComparison[3]?.scenarioBNet || 0
-    ];
-    
-    let cumulativeWithInvestment = dealConfig.investmentAmount;
-    let cumulativeWithoutInvestment = 0;
-    
-    return quarters.map((q, i) => {
-      cumulativeWithInvestment += flowsA[i];
-      cumulativeWithoutInvestment += flowsB[i];
-      
-      return {
-        quarter: q,
-        withInvestment: cumulativeWithInvestment,
-        withoutInvestment: cumulativeWithoutInvestment,
-        difference: cumulativeWithInvestment - cumulativeWithoutInvestment
-      };
-    });
-  }, [quarterlyComparison, dealConfig.investmentAmount]);
-
-  // =====================================================
-  // PDF GROWTH CONFIG - 2-stage growth açıklaması için
-  // =====================================================
-  const pdfGrowthConfig = useMemo((): import('@/components/simulation/pdf/types').GrowthConfig | null => {
-    if (!pdfExitPlan?.growthConfig) return null;
-    
-    return {
-      aggressiveGrowthRate: pdfExitPlan.growthConfig.aggressiveGrowthRate,
-      normalizedGrowthRate: pdfExitPlan.growthConfig.normalizedGrowthRate,
-      rawUserGrowthRate: pdfExitPlan.growthConfig.rawUserGrowthRate
-    };
-  }, [pdfExitPlan]);
-
-  // =====================================================
-  // PDF MULTI-YEAR CAPITAL PLAN - 5 yıllık projeksiyon tablosu için
-  // =====================================================
-  const pdfMultiYearCapitalPlan = useMemo((): import('@/types/simulation').MultiYearCapitalPlan | null => {
-    if (!pdfExitPlan || !summaryA) return null;
-    
-    return calculateMultiYearCapitalNeeds(
-      pdfExitPlan,
-      dealConfig.investmentAmount,
-      summaryA.netProfit,
-      dealConfig.safetyMargin / 100,
-      pdfAiProjectionForExitPlan?.quarterlyData
-    );
-  }, [pdfExitPlan, dealConfig.investmentAmount, summaryA, dealConfig.safetyMargin, pdfAiProjectionForExitPlan?.quarterlyData]);
-
-  // =====================================================
-  // PDF QUARTERLY DATA - Çeyreklik gelir/gider tabloları için
-  // =====================================================
-  const pdfQuarterlyRevenueA = useMemo(() => ({
-    q1: quarterlyComparison[0]?.scenarioARevenue || 0,
-    q2: quarterlyComparison[1]?.scenarioARevenue || 0,
-    q3: quarterlyComparison[2]?.scenarioARevenue || 0,
-    q4: quarterlyComparison[3]?.scenarioARevenue || 0
-  }), [quarterlyComparison]);
-
-  const pdfQuarterlyExpenseA = useMemo(() => ({
-    q1: quarterlyComparison[0]?.scenarioAExpense || 0,
-    q2: quarterlyComparison[1]?.scenarioAExpense || 0,
-    q3: quarterlyComparison[2]?.scenarioAExpense || 0,
-    q4: quarterlyComparison[3]?.scenarioAExpense || 0
-  }), [quarterlyComparison]);
-
-  const pdfQuarterlyRevenueB = useMemo(() => ({
-    q1: quarterlyComparison[0]?.scenarioBRevenue || 0,
-    q2: quarterlyComparison[1]?.scenarioBRevenue || 0,
-    q3: quarterlyComparison[2]?.scenarioBRevenue || 0,
-    q4: quarterlyComparison[3]?.scenarioBRevenue || 0
-  }), [quarterlyComparison]);
-
-  const pdfQuarterlyExpenseB = useMemo(() => ({
-    q1: quarterlyComparison[0]?.scenarioBExpense || 0,
-    q2: quarterlyComparison[1]?.scenarioBExpense || 0,
-    q3: quarterlyComparison[2]?.scenarioBExpense || 0,
-    q4: quarterlyComparison[3]?.scenarioBExpense || 0
-  }), [quarterlyComparison]);
-
-  // =====================================================
-  // PDF CAPITAL NEEDS - Her iki senaryo için sermaye ihtiyacı
-  // =====================================================
-  const capitalNeedA = useMemo(() => {
-    if (!quarterlyComparison || quarterlyComparison.length < 4) return null;
-    return calculateCapitalNeeds({
-      q1: quarterlyComparison[0]?.scenarioANet || 0,
-      q2: quarterlyComparison[1]?.scenarioANet || 0,
-      q3: quarterlyComparison[2]?.scenarioANet || 0,
-      q4: quarterlyComparison[3]?.scenarioANet || 0
-    });
-  }, [quarterlyComparison]);
-
-  const capitalNeedB = useMemo(() => {
-    if (!quarterlyComparison || quarterlyComparison.length < 4) return null;
-    return calculateCapitalNeeds({
-      q1: quarterlyComparison[0]?.scenarioBNet || 0,
-      q2: quarterlyComparison[1]?.scenarioBNet || 0,
-      q3: quarterlyComparison[2]?.scenarioBNet || 0,
-      q4: quarterlyComparison[3]?.scenarioBNet || 0
-    });
-  }, [quarterlyComparison]);
-
-  // =====================================================
-  // PDF INVESTMENT TIERS - Minimum/Recommended/Aggressive
-  // =====================================================
-  const investmentTiers = useMemo((): import('@/types/simulation').InvestmentTier[] => {
-    if (!capitalNeedB) return [];
-    const base = capitalNeedB.requiredInvestment;
-    if (base <= 0) return [];
-    
-    return [
-      { 
-        tier: 'minimum' as const, 
-        label: t('pdfTiming.investmentTiers.minimum'),
-        amount: base, 
-        runwayMonths: capitalNeedB.runwayMonths,
-        description: t('pdfTiming.investmentTiers.minimumDesc'),
-        safetyMargin: 15
-      },
-      { 
-        tier: 'recommended' as const, 
-        label: t('pdfTiming.investmentTiers.recommended'),
-        amount: Math.round(base * 1.5), 
-        runwayMonths: Math.round(capitalNeedB.runwayMonths * 1.5),
-        description: t('pdfTiming.investmentTiers.recommendedDesc'),
-        safetyMargin: 25
-      },
-      { 
-        tier: 'aggressive' as const, 
-        label: t('pdfTiming.investmentTiers.aggressive'),
-        amount: Math.round(base * 2), 
-        runwayMonths: Math.round(capitalNeedB.runwayMonths * 2),
-        description: t('pdfTiming.investmentTiers.aggressiveDesc'),
-        safetyMargin: 50
-      }
-    ];
-  }, [capitalNeedB, t]);
-
-  // =====================================================
-  // PDF OPTIMAL TIMING - AI Investment Timing için
-  // =====================================================
-  const optimalTiming = useMemo((): import('@/components/simulation/pdf/types').OptimalInvestmentTiming | null => {
-    if (!quarterlyComparison || quarterlyComparison.length === 0 || !capitalNeedB) return null;
-    
-    const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
-    // Use quarterly comparison data for scenario B net flow
-    const flowsB = quarterlyComparison.map(q => q.scenarioBRevenue - q.scenarioBExpense);
-    
-    let cumulative = 0;
-    let firstDeficitQuarter = '';
-    let firstDeficitAmount = 0;
-    let maxDeficit = 0;
-    const quarterlyNeeds: number[] = [];
-    
-    for (let i = 0; i < 4; i++) {
-      cumulative += flowsB[i] || 0;
-      quarterlyNeeds.push(cumulative < 0 ? Math.abs(cumulative) : 0);
-      
-      if (cumulative < 0 && !firstDeficitQuarter) {
-        firstDeficitQuarter = quarters[i];
-        firstDeficitAmount = Math.abs(cumulative);
-      }
-      
-      if (cumulative < maxDeficit) {
-        maxDeficit = cumulative;
-      }
-    }
-    
-    const targetYear = scenarioB?.targetYear || new Date().getFullYear() + 1;
-    
-    // i18n month map
-    const monthMap: Record<string, string> = { 
-      'Q1': t('pdfTiming.optimalTiming.months.march'), 
-      'Q2': t('pdfTiming.optimalTiming.months.june'), 
-      'Q3': t('pdfTiming.optimalTiming.months.september'), 
-      'Q4': t('pdfTiming.optimalTiming.months.december') 
-    };
-    
-    let recommendedQuarter: string;
-    let recommendedTiming: string;
-    
-    if (!firstDeficitQuarter) {
-      recommendedQuarter = t('pdfTiming.optimalTiming.optional');
-      recommendedTiming = t('pdfTiming.optimalTiming.anytime');
-    } else if (firstDeficitQuarter === 'Q1') {
-      recommendedQuarter = t('pdfTiming.optimalTiming.yearStart');
-      recommendedTiming = t('pdfTiming.optimalTiming.beforeMonth', { 
-        month: t('pdfTiming.optimalTiming.months.january'), 
-        year: targetYear 
-      });
-    } else {
-      const idx = quarters.indexOf(firstDeficitQuarter);
-      recommendedQuarter = quarters[idx - 1] || 'Q1';
-      recommendedTiming = t('pdfTiming.optimalTiming.byEndOf', { 
-        month: monthMap[recommendedQuarter], 
-        year: targetYear 
-      });
-    }
-    
-    let urgencyLevel: 'critical' | 'high' | 'medium' | 'low' = 'low';
-    if (!firstDeficitQuarter) urgencyLevel = 'low';
-    else if (firstDeficitQuarter === 'Q1') urgencyLevel = 'critical';
-    else if (firstDeficitQuarter === 'Q2') urgencyLevel = 'high';
-    else if (firstDeficitQuarter === 'Q3') urgencyLevel = 'medium';
-    
-    const formatK = (v: number) => `$${Math.round(v / 1000)}K`;
-    
-    const reason = firstDeficitQuarter === 'Q1'
-      ? t('pdfTiming.optimalTiming.deficitStarting', { quarter: firstDeficitQuarter, amount: formatK(firstDeficitAmount) })
-      : firstDeficitQuarter
-        ? t('pdfTiming.optimalTiming.deficitWillOccur', { quarter: firstDeficitQuarter, amount: formatK(firstDeficitAmount) })
-        : t('pdfTiming.optimalTiming.cashFlowPositive');
-        
-    const riskIfDelayed = firstDeficitQuarter
-      ? t('pdfTiming.optimalTiming.riskIfDelayed')
-      : t('pdfTiming.optimalTiming.lowRisk');
-    
-    return {
-      recommendedQuarter,
-      recommendedTiming,
-      reason,
-      riskIfDelayed,
-      requiredInvestment: Math.abs(maxDeficit) * 1.20,
-      urgencyLevel,
-      quarterlyNeeds
-    };
-  }, [quarterlyComparison, capitalNeedB, scenarioB, t]);
-
-  // =====================================================
-  // PDF SCENARIO COMPARISON - Yatırım vs Organik Büyüme
-  // =====================================================
-  const scenarioComparisonData = useMemo((): import('@/types/simulation').InvestmentScenarioComparison | null => {
-    if (!summaryA || !summaryB || !pdfExitPlan || !scenarioA || !scenarioB) return null;
-    
-    const baseRevenueA = scenarioA.revenues?.reduce((sum, r) => sum + (r.baseAmount || 0), 0) || 0;
-    const baseRevenueB = scenarioB.revenues?.reduce((sum, r) => sum + (r.baseAmount || 0), 0) || 0;
-    
-    const scenarioTargetYear = Math.max(
-      scenarioA.targetYear || 2026,
-      scenarioB.targetYear || 2026
-    );
-    
-    return calculateInvestmentScenarioComparison(
-      {
-        totalRevenue: summaryA.totalRevenue,
-        totalExpenses: summaryA.totalExpense,
-        netProfit: summaryA.netProfit,
-        profitMargin: summaryA.profitMargin,
-        baseRevenue: baseRevenueA,
-      },
-      {
-        totalRevenue: summaryB.totalRevenue,
-        totalExpenses: summaryB.totalExpense,
-        netProfit: summaryB.netProfit,
-        profitMargin: summaryB.profitMargin,
-        baseRevenue: baseRevenueB,
-      },
-      pdfExitPlan,
-      dealConfig.sectorMultiple,
-      scenarioTargetYear
-    );
-  }, [summaryA, summaryB, pdfExitPlan, scenarioA, scenarioB, dealConfig.sectorMultiple]);
+  // (scenarioComparisonData removed - no longer needed for PDF)
 
   const canCompare = scenarioA && scenarioB && scenarioAId !== scenarioBId;
 
@@ -1535,58 +1178,15 @@ function ScenarioComparisonContent() {
     );
   };
 
-  // Create next year scenario from AI projection
-  // PDF Presentation Handler - HTML yakalama ile (Türkçe karakter + grafik desteği)
-  const handleExportPresentationPdf = useCallback(async () => {
-    // Validation
-    if (!scenarioA || !scenarioB) {
-      toast.error(t('simulation:toast.scenarioDataMissing'));
-      return;
-    }
-    if (!summaryA || !summaryB) {
-      toast.error(t('simulation:toast.summaryCalcError'));
-      return;
-    }
-    if (!presentationPdfRef.current) {
-      toast.error(t('simulation:pdf.contentLoadError'));
-      return;
-    }
-
-    // Check if ref has content
-    if (!presentationPdfRef.current.innerHTML || presentationPdfRef.current.innerHTML.trim() === '') {
-      toast.error(t('simulation:pdf.contentEmpty'));
-      return;
-    }
-
-    toast.info(t('simulation:pdf.preparing'));
-
-    try {
-      const safeNameA = sanitizeFilename(scenarioA.name);
-      const safeNameB = sanitizeFilename(scenarioB.name);
-      const filenamePrefix = t('simulation:pdf.filenamePrefix');
-      const filename = `${filenamePrefix}_${safeNameA}_vs_${safeNameB}.pdf`;
-
-      const success = await generatePdfFromElement(presentationPdfRef, {
-        filename,
-        orientation: 'landscape',
-        margin: 10,
-        scale: 1.5, // Reduced from 2 for better performance
-        fitToPage: true, // Changed to true to prevent content cutoff
-        onProgress: (stage, percent) => {
-          console.log(`[PDF] ${stage}: ${percent}%`);
-        }
-      });
-
-      if (success) {
-        toast.success(t('simulation:pdf.created'));
-      } else {
-        toast.error(t('simulation:pdf.createFailed'));
-      }
-    } catch (error) {
-      console.error('[PDF Export Error]', error);
-      toast.error(`${t('simulation:pdf.downloadError')}: ${error instanceof Error ? error.message : t('simulation:toast.unknownError')}`);
-    }
-  }, [scenarioA, scenarioB, summaryA, summaryB, generatePdfFromElement, t]);
+  // Print-based PDF export - tarayıcının yerleşik yazdırma yeteneğini kullan
+  const handleExportPresentationPdf = useCallback(() => {
+    document.body.classList.add('print-landscape');
+    window.print();
+    // Print dialog kapandıktan sonra temizle
+    setTimeout(() => {
+      document.body.classList.remove('print-landscape');
+    }, 500);
+  }, []);
 
   const handleCreateNextYear = async () => {
     if (!unifiedAnalysis?.next_year_projection || !scenarioA || !scenarioB) return;
@@ -1637,7 +1237,7 @@ function ScenarioComparisonContent() {
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10">
+      <header className="border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10 print-hidden">
         <div className="container mx-auto px-4 py-4">
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-4">
@@ -1670,7 +1270,7 @@ function ScenarioComparisonContent() {
 
       <main className="container mx-auto px-4 py-6 space-y-6">
         {/* Scenario Selection */}
-        <Card>
+        <Card className="print-hidden">
           <CardContent className="pt-4 space-y-4">
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-2">
@@ -2050,45 +1650,19 @@ function ScenarioComparisonContent() {
         </SheetContent>
       </Sheet>
       
-      {/* PDF Export Container - Modular component for PDF export */}
-      <PdfExportContainer
-        presentationPdfRef={presentationPdfRef}
-        scenarioA={scenarioA}
-        scenarioB={scenarioB}
-        summaryA={summaryA}
-        summaryB={summaryB}
-        metrics={metrics}
-        calculateDiff={calculateDiff}
-        formatValue={formatValue}
-        quarterlyComparison={quarterlyComparison}
-        quarterlyCumulativeData={quarterlyCumulativeData}
-        quarterlyItemized={quarterlyItemized}
-        chartConfig={chartConfig}
-        cumulativeChartConfig={cumulativeChartConfig}
-        financialRatios={financialRatios}
-        sensitivityAnalysis={null}
-        unifiedAnalysis={unifiedAnalysis}
-        dealConfig={dealConfig}
-        pdfExitPlan={pdfExitPlan}
-        editableRevenueProjection={editableRevenueProjection}
-        editableExpenseProjection={editableExpenseProjection}
-        focusProjects={focusProjects}
-        investmentAllocation={investmentAllocation}
-        focusProjectPlan={focusProjectPlan}
-        capitalNeedA={capitalNeedA}
-        capitalNeedB={capitalNeedB}
-        investmentTiers={investmentTiers}
-        optimalTiming={optimalTiming}
-        scenarioComparison={scenarioComparisonData}
-        // NEW: Phase 2 props for additional PDF pages
-        quarterlyRevenueA={pdfQuarterlyRevenueA}
-        quarterlyExpenseA={pdfQuarterlyExpenseA}
-        quarterlyRevenueB={pdfQuarterlyRevenueB}
-        quarterlyExpenseB={pdfQuarterlyExpenseB}
-        runwayData={pdfRunwayData}
-        growthConfig={pdfGrowthConfig}
-        multiYearCapitalPlan={pdfMultiYearCapitalPlan}
-      />
+      {/* Print Cover Page - Sadece print'te görünür */}
+      {canCompare && summaryA && scenarioA && scenarioB && (
+        <PrintCoverPage
+          scenarioAName={scenarioA.name}
+          scenarioBName={scenarioB.name}
+          scenarioAYear={scenarioA.targetYear}
+          scenarioBYear={scenarioB.targetYear}
+          totalRevenue={summaryA.totalRevenue}
+          totalExpense={summaryA.totalExpense}
+          netProfit={summaryA.netProfit}
+          profitMargin={summaryA.profitMargin}
+        />
+      )}
     </div>
   );
 }

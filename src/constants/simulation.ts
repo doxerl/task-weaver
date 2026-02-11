@@ -25,19 +25,7 @@ export const DISPLAY_LIMITS = {
   RECOMMENDATIONS: 4,
 } as const;
 
-// =====================================================
-// PDF EXPORT DIMENSIONS
-// =====================================================
-export const PDF_DIMENSIONS = {
-  /** PDF container width in pixels (A4 landscape) */
-  WIDTH: 1200,
-  /** PDF container height in pixels (A4 landscape) */
-  HEIGHT: 848,
-  /** PDF scale factor for rendering */
-  SCALE: 1.5,
-  /** PDF margin in pixels */
-  MARGIN: 10,
-} as const;
+// PDF_DIMENSIONS removed - now using browser-native window.print()
 
 // =====================================================
 // FINANCIAL ASSUMPTIONS
