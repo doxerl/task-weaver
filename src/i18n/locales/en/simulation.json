@@ -49,6 +49,7 @@
   },
   "comparison": {
     "title": "Scenario Comparison",
+    "savedConfigSummary": "Saved Configuration Summary",
     "exportPdf": "Download PDF",
     "aiAnalysis": "AI Analysis",
     "growthComparison": "Growth Comparison",

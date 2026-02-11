@@ -49,6 +49,7 @@
   },
   "comparison": {
     "title": "Senaryo Karşılaştırması",
+    "savedConfigSummary": "Kayıtlı Yapılandırma Özeti",
     "exportPdf": "PDF İndir",
     "aiAnalysis": "AI Analiz",
     "growthComparison": "Büyüme Karşılaştırma",
