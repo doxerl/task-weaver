@@ -33,13 +33,12 @@ export function PrintCoverPage({
 
   return (
     <div className="print-only page-break-after" style={{ 
-      minHeight: '100vh',
       display: 'flex',
       flexDirection: 'column',
       justifyContent: 'center',
       alignItems: 'center',
       textAlign: 'center',
-      padding: '40px',
+      padding: '40px 40px 20px 40px',
     }}>
       <div style={{ marginBottom: '48px' }}>
         <h1 style={{ fontSize: '36pt', fontWeight: 'bold', color: '#1e3a8a', marginBottom: '16px' }}>

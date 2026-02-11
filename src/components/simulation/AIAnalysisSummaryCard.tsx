@@ -335,7 +335,7 @@ const AIAnalysisSummaryCardComponent: React.FC<AIAnalysisSummaryCardProps> = ({
             )}
 
             {/* Action Buttons */}
-            <div className="grid grid-cols-2 gap-3">
+            <div className="grid grid-cols-2 gap-3 print-hidden">
               {/* Pitch Deck Button */}
               <Card 
                 className="border-purple-500/30 bg-purple-500/5 hover:bg-purple-500/10 transition-colors cursor-pointer" 
