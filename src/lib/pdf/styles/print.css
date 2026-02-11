@@ -377,8 +377,4 @@ body.print-landscape {
     gap: 8px !important;
   }
   
-  /* Tıklanabilir Card elementlerini gizle (aksyon kartları) */
-  .cursor-pointer {
-    display: none !important;
-  }
 }
