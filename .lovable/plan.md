@@ -1,150 +1,98 @@
 
 
-# PDF Veri Doğruluğu Düzeltme Planı
+# i18n Eksik Anahtar Duzeltme Plani
 
-## Problem Özeti
+## Problem
 
-`ScenarioComparisonPage.tsx` dosyasında PDF için ayrı hesaplamalar yapılıyor, ancak bunlar UI'daki (`InvestmentTab.tsx`) hesaplamalarla eşleşmiyor. 5 kritik tutarsızlık var.
+5 PDF bileseninde `t('simulation:pdf.fiveYearProjection.*')` gibi var olmayan cevirilere referans veriliyor. Dogru anahtarlar `investment.*` altinda mevcut.
 
-## Tespit Edilen Kök Nedenler ve Çözümler
+## Etkilenen Dosyalar ve Degisiklikler
 
-### 1. `pdfExitPlan` - AI Projeksiyonu ve Yıl Bilgisi Eksik (Kritik)
+### 1. `PdfFiveYearProjectionPage.tsx`
+Yanlis: `pdf.fiveYearProjection.*` -> Dogru: `investment.fiveYearTable.*`
 
-**Problem:** PDF exit plan hesaplaması `aiProjectionForExitPlan` ve `scenarioTargetYear` parametrelerini atliyor. UI bunlari kullaniyor.
+| Yanlis Anahtar | Dogru Anahtar |
+|---|---|
+| `pdf.fiveYearProjection.title` | `investment.fiveYearTable.title` |
+| `pdf.fiveYearProjection.year` | `investment.fiveYearTable.year` |
+| `pdf.fiveYearProjection.opening` | `investment.fiveYearTable.opening` |
+| `pdf.fiveYearProjection.revenue` | `investment.fiveYearTable.revenue` |
+| `pdf.fiveYearProjection.expense` | `investment.fiveYearTable.expense` |
+| `pdf.fiveYearProjection.netProfit` | `investment.fiveYearTable.netProfit` |
+| `pdf.fiveYearProjection.deathValley` | `investment.fiveYearTable.deathValley` |
+| `pdf.fiveYearProjection.capitalNeed` | `investment.fiveYearTable.capitalNeed` |
+| `pdf.fiveYearProjection.yearEnd` | `investment.fiveYearTable.yearEnd` |
+| `pdf.fiveYearProjection.valuation` | `investment.fiveYearTable.valuation` |
+| `pdf.fiveYearProjection.moic` | `investment.fiveYearTable.moic` |
+| `pdf.fiveYearProjection.totalCapitalNeed` | `investment.fiveYearTable.total` + yeni anahtar ekle |
+| `pdf.fiveYearProjection.valuation` (ozet kartta) | `investment.fiveYearTable.valuation` |
 
-| Parametre | UI (InvestmentTab) | PDF (ScenarioComparisonPage) |
-|-----------|--------------------|-----------------------------|
-| `aiProjectionForExitPlan` | Gonderiliyor | Eksik |
-| `scenarioTargetYear` | Gonderiliyor | Eksik |
+Ek olarak `totalCapitalNeed` anahtari hicbir yerde mevcut degil - TR/EN JSON dosyalarina `investment.fiveYearTable.totalCapitalNeed` olarak eklenmeli.
 
-**Cozum:** `pdfExitPlan` useMemo'sunu (satir 840-858) guncelleyerek:
-- `editedProjectionOverride` state'inden turetilen `aiProjectionForExitPlan` degerini hesapla
-- `scenarioTargetYear` parametresini ekle
+### 2. `PdfFutureImpactPage.tsx`
+Yanlis: `pdf.futureImpact.*` -> Dogru: `investment.futureImpact.*`
 
-### 2. `scenarioComparisonData` - Hardcoded Buyume Oranlari (Kritik)
+| Yanlis | Dogru |
+|---|---|
+| `pdf.futureImpact.title` | `investment.futureImpact.title` |
+| `pdf.futureImpact.withInvestment` | `investment.futureImpact.withInvestment` |
+| `pdf.futureImpact.withoutInvestment` | `investment.futureImpact.withoutInvestment` |
+| `pdf.futureImpact.yearDiff` | `investment.futureImpact.yearDiff` |
+| `pdf.futureImpact.totalDifference` | `investment.futureImpact.totalDifference` |
 
-**Problem:** Satir 1125-1126'da `growthA = 0.20` ve `growthB = 0.08` hardcode edilmis. UI ise `calculateInvestmentScenarioComparison()` fonksiyonunu kullaniyor (dinamik buyume oranlari).
+### 3. `PdfRunwayChartPage.tsx`
+Yanlis: `pdf.runwayChart.*` -> Dogru: `investment.runwayChart.*`
 
-**Cozum:** Hardcoded hesaplamayi tamamen kaldirip, `calculateInvestmentScenarioComparison()` fonksiyonunu cagir (InvestmentTab ile ayni mantik).
+| Yanlis | Dogru |
+|---|---|
+| `pdf.runwayChart.title` | `investment.runwayChart.title` |
+| `pdf.runwayChart.description` | `investment.runwayChart.description` |
+| `pdf.quarterlyCashFlow.difference` | Yeni anahtar ekle: `investment.runwayChart.difference` |
 
-### 3. `pdfMultiYearCapitalPlan` - AI Ceyreklik Verisi Eksik (Orta)
+### 4. `PdfGrowthModelPage.tsx`
+Yanlis: `pdf.growthModel.*` -> Dogru: `investment.growthModel.*`
 
-**Problem:** Satir 912-921'de `calculateMultiYearCapitalNeeds` cagirilirken `aiProjectionForExitPlan?.quarterlyData` parametresi gonderilmiyor. UI gonderiyor.
+| Yanlis | Dogru |
+|---|---|
+| `pdf.growthModel.title` | `investment.growthModel.title` |
+| `pdf.growthModel.years1to2` | `investment.growthModel.year1to2` |
+| `pdf.growthModel.years3to5` | `investment.growthModel.year3to5` |
+| `pdf.growthModel.capWarning` | `investment.growthModel.capWarning` |
 
-**Cozum:** `pdfMultiYearCapitalPlan` useMemo'suna AI ceyreklik veri parametresini ekle.
+### 5. `PdfQuarterlyCashFlowPage.tsx`
+Yanlis: `pdf.quarterlyCashFlow.*` -> Dogru: `investment.quarterlyCashFlow.*`
 
-### 4. `pdfExitPlan` icin `editedProjectionOverride` Entegrasyonu (Orta)
+| Yanlis | Dogru |
+|---|---|
+| `pdf.quarterlyCashFlow.title` | `investment.quarterlyCashFlow.title` |
+| `pdf.quarterlyCashFlow.invested` | `investment.quarterlyCashFlow.withInvestment` |
+| `pdf.quarterlyCashFlow.uninvested` | `investment.quarterlyCashFlow.withoutInvestment` |
+| `pdf.quarterlyCashFlow.startingBalance` | `investment.quarterlyCashFlow.startingBalance` |
+| `pdf.quarterlyCashFlow.net` | `investment.quarterlyCashFlow.net` |
+| `pdf.quarterlyCashFlow.cumulative` | `investment.quarterlyCashFlow.cumulative` |
+| `pdf.quarterlyCashFlow.yearEnd` | `investment.quarterlyCashFlow.yearEnd` |
 
-**Problem:** Kullanici duzenlenebilir tabloda degisiklik yaptiginda, UI (InvestmentTab) bu degisiklikleri Exit Plan hesaplamasina dahil ediyor. Ancak PDF hesaplamasi bu degisiklikleri almiyior.
+## Yeni Eklenmesi Gereken Ceviri Anahtarlari
 
-**Cozum:** PDF hesaplamalarinda kullanmak uzere `pdfAiProjectionForExitPlan` adinda bir useMemo olustur. Bu, `unifiedAnalysis?.next_year_projection` ve `editedProjectionOverride` degerlerini birlestirerek InvestmentTab ile ayni formati uretecek.
+Asagidaki anahtarlar mevcut JSON dosyalarinda yok, eklenmeleri gerekiyor:
 
-### 5. `scenarioComparisonData` icinde `growthRate` Alani Formatlanma Hatasi (Dusuk)
+**EN (`src/i18n/locales/en/simulation.json`):**
+- `investment.fiveYearTable.totalCapitalNeed`: "Total Capital Need"
+- `investment.runwayChart.difference`: "Difference"
 
-**Problem:** UI'daki `calculateInvestmentScenarioComparison` fonksiyonu `growthRate` degerini ondalik (0.25) olarak dondururken, PDF'deki hardcoded versiyonu yuzde (20) olarak ayarliyor. Bu fark PDF'deki "Buyume Orani" gosterimlerini bozuyor.
-
-**Cozum:** Tek fonksiyon kullanilinca otomatik olarak duzelmis olacak.
-
----
-
-## Teknik Uygulama Detayi
-
-### Adim 1: `pdfAiProjectionForExitPlan` useMemo olustur
-
-`ScenarioComparisonPage.tsx` icerisinde, `pdfExitPlan` useMemo'sundan once yeni bir useMemo eklenecek. Bu, InvestmentTab'deki `aiProjectionForExitPlan` mantigi ile birebir ayni olacak:
-
-```typescript
-const pdfAiProjectionForExitPlan = useMemo(() => {
-  const projection = unifiedAnalysis?.next_year_projection;
-  if (!projection) return undefined;
-  
-  // Kullanici duzenlemesi varsa override et
-  const editedOverride = editableRevenueProjection.length > 0 
-    ? {
-        totalRevenue: editableRevenueProjection.reduce((sum, r) => sum + (r.total || 0), 0),
-        totalExpenses: editableExpenseProjection.reduce((sum, e) => sum + (e.total || 0), 0),
-      }
-    : undefined;
-    
-  const effectiveRevenue = editedOverride?.totalRevenue ?? projection.summary.total_revenue;
-  const effectiveExpenses = editedOverride?.totalExpenses ?? projection.summary.total_expenses;
-  
-  return {
-    year1Revenue: effectiveRevenue,
-    year1Expenses: effectiveExpenses,
-    year1NetProfit: effectiveRevenue - effectiveExpenses,
-    quarterlyData: { ... },
-    growthRateHint: ...,
-  };
-}, [unifiedAnalysis?.next_year_projection, editableRevenueProjection, editableExpenseProjection]);
-```
-
-### Adim 2: `pdfExitPlan` guncelle
-
-Mevcut hesaplamaya `pdfAiProjectionForExitPlan` ve `scenarioTargetYear` ekle:
-
-```typescript
-const pdfExitPlan = useMemo(() => {
-  // ... mevcut growthRate hesaplamasi ...
-  const scenarioTargetYear = Math.max(
-    scenarioA?.targetYear || 2026, 
-    scenarioB?.targetYear || 2026
-  );
-  return calculateExitPlan(
-    dealConfig, summaryA.totalRevenue, summaryA.totalExpense, 
-    growthRate, 'default', scenarioTargetYear,
-    pdfAiProjectionForExitPlan  // YENi
-  );
-}, [..., pdfAiProjectionForExitPlan, scenarioB?.targetYear]);
-```
-
-### Adim 3: `pdfMultiYearCapitalPlan` guncelle
-
-AI ceyreklik verisini ekle:
-
-```typescript
-const pdfMultiYearCapitalPlan = useMemo(() => {
-  return calculateMultiYearCapitalNeeds(
-    pdfExitPlan,
-    dealConfig.investmentAmount,
-    summaryA.netProfit,
-    dealConfig.safetyMargin / 100,
-    pdfAiProjectionForExitPlan?.quarterlyData  // YENi
-  );
-}, [..., pdfAiProjectionForExitPlan?.quarterlyData]);
-```
-
-### Adim 4: `scenarioComparisonData` tamamen yeniden yaz
-
-Hardcoded hesaplamayi kaldir ve `calculateInvestmentScenarioComparison()` kullan:
-
-```typescript
-const scenarioComparisonData = useMemo(() => {
-  if (!summaryA || !summaryB || !pdfExitPlan || !scenarioA || !scenarioB) return null;
-  
-  const baseRevenueA = scenarioA.revenues?.reduce((sum, r) => sum + (r.baseAmount || 0), 0) || 0;
-  const baseRevenueB = scenarioB.revenues?.reduce((sum, r) => sum + (r.baseAmount || 0), 0) || 0;
-  
-  return calculateInvestmentScenarioComparison(
-    { totalRevenue: summaryA.totalRevenue, totalExpenses: summaryA.totalExpense, ... baseRevenue: baseRevenueA },
-    { totalRevenue: summaryB.totalRevenue, totalExpenses: summaryB.totalExpense, ... baseRevenue: baseRevenueB },
-    pdfExitPlan,
-    dealConfig.sectorMultiple,
-    Math.max(scenarioA.targetYear || 2026, scenarioB.targetYear || 2026)
-  );
-}, [summaryA, summaryB, pdfExitPlan, dealConfig.sectorMultiple, scenarioA, scenarioB]);
-```
-
----
+**TR (`src/i18n/locales/tr/simulation.json`):**
+- `investment.fiveYearTable.totalCapitalNeed`: "Toplam Sermaye Ihtiyaci"
+- `investment.runwayChart.difference`: "Fark"
 
 ## Degisecek Dosyalar
 
-| Dosya | Degisiklik |
-|-------|------------|
-| `src/pages/finance/ScenarioComparisonPage.tsx` | 4 useMemo guncelleme + 1 yeni useMemo |
+| Dosya | Degisiklik Turu |
+|---|---|
+| `src/components/simulation/pdf/PdfFiveYearProjectionPage.tsx` | i18n anahtar duzeltme |
+| `src/components/simulation/pdf/PdfFutureImpactPage.tsx` | i18n anahtar duzeltme |
+| `src/components/simulation/pdf/PdfRunwayChartPage.tsx` | i18n anahtar duzeltme |
+| `src/components/simulation/pdf/PdfGrowthModelPage.tsx` | i18n anahtar duzeltme |
+| `src/components/simulation/pdf/PdfQuarterlyCashFlowPage.tsx` | i18n anahtar duzeltme |
+| `src/i18n/locales/en/simulation.json` | 2 yeni anahtar ekle |
+| `src/i18n/locales/tr/simulation.json` | 2 yeni anahtar ekle |
 
-## Beklenen Sonuc
-
-- PDF'deki Exit Plan, Valuation, 5-Year Projection, Scenario Comparison ve Runway verileri UI ile birebir eslescek
-- Kullanici duzenlemeleri hem UI hem PDF'e yansiyacak
-- Hardcoded buyume oranlari kaldirilacak, dinamik hesaplama kullanilacak
