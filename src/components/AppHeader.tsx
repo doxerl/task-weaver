@@ -1,31 +1,20 @@
-import { Link } from 'react-router-dom';
-import { ArrowLeft } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { ArrowLeft, Settings } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { LanguageToggle } from '@/components/LanguageSelector';
 
 interface AppHeaderProps {
-  /** Page title */
   title: string;
-  /** Optional subtitle */
   subtitle?: string;
-  /** Back navigation path */
   backPath?: string;
-  /** Back button label (shown on larger screens) */
   backLabel?: string;
-  /** Icon to display before title */
   icon?: React.ReactNode;
-  /** Badge to display after title */
   badge?: React.ReactNode;
-  /** Additional content for the right side (after language toggle) */
   rightContent?: React.ReactNode;
-  /** Additional CSS classes */
+  showSettings?: boolean;
   className?: string;
 }
 
-/**
- * Reusable app header with language toggle
- * Provides consistent header layout across all pages
- */
 export function AppHeader({
   title,
   subtitle,
@@ -34,13 +23,17 @@ export function AppHeader({
   icon,
   badge,
   rightContent,
+  showSettings = true,
   className = '',
 }: AppHeaderProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const isSettingsPage = location.pathname === '/settings';
+
   return (
     <header className={`border-b bg-card/50 backdrop-blur-sm sticky top-0 z-10 ${className}`}>
       <div className="container mx-auto px-4 py-3">
         <div className="flex items-center justify-between gap-4">
-          {/* Left: Back + Title */}
           <div className="flex items-center gap-3 min-w-0">
             {backPath && (
               <Link to={backPath}>
@@ -64,10 +57,14 @@ export function AppHeader({
             </div>
           </div>
           
-          {/* Right: Language Toggle + Custom Content */}
           <div className="flex items-center gap-2 shrink-0">
             <LanguageToggle />
             {rightContent}
+            {showSettings && !isSettingsPage && (
+              <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+                <Settings className="h-5 w-5" />
+              </Button>
+            )}
           </div>
         </div>
       </div>

@@ -5,7 +5,7 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronLeft, ChevronRight, Settings, Download, BookOpen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, BookOpen } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay, isWeekend } from 'date-fns';
 import { useWeekData } from '@/hooks/useWeekData';
 import { useWeeklyRetrospective } from '@/hooks/useWeeklyRetrospective';
@@ -143,9 +143,6 @@ export default function Week() {
               <Download className="h-4 w-4 mr-1 md:mr-2" />
               <span className="hidden sm:inline">{exporting ? t('planner.downloading') : t('planner.excelExport')}</span>
               <span className="sm:hidden">{exporting ? '...' : 'Excel'}</span>
-            </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')} title={t('settings.title')}>
-              <Settings className="h-4 w-4" />
             </Button>
           </div>
         }

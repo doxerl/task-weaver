@@ -13,7 +13,7 @@ import { MobileInputSheet } from '@/components/MobileInputSheet';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { AppHeader } from '@/components/AppHeader';
 import { useDayData } from '@/hooks/useDayData';
-import { Settings, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addDays, subDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { getISOWeekData } from '@/lib/weekUtils';
@@ -59,16 +59,6 @@ export default function Today() {
       <AppHeader
         title={profile?.first_name ? `${t('planner.hello')}, ${profile.first_name}` : t('planner.voicePlanning')}
         icon={<Calendar className="h-5 w-5 text-primary" />}
-        rightContent={
-          <Button 
-            variant="ghost" 
-            size="icon" 
-            onClick={() => navigate('/settings')}
-            title={t('settings.title')}
-          >
-            <Settings className="h-5 w-5" />
-          </Button>
-        }
       />
 
       {/* Date Navigation */}
