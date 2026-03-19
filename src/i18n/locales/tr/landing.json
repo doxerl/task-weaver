@@ -1,0 +1,65 @@
+{
+  "nav": {
+    "login": "Giriş Yap",
+    "tryFree": "Ücretsiz Deneyin"
+  },
+  "hero": {
+    "title": "Yapay Zeka ile Finansal Planlama ve Büyüme Simülasyonunuzu Tek Yere Taşıyın",
+    "subtitle": "Verilerinizi saniyeler içinde işleyin, geleceğe yönelik senaryolarınızı oluşturun ve yatırımcıya hazır hale gelin.",
+    "cta": "Ücretsiz Deneyin",
+    "ctaSecondary": "Nasıl Çalışır?"
+  },
+  "features": {
+    "heading": "Tüm Çözümlerimiz",
+    "subheading": "Ön muhasebeden yatırımcı sunumuna kadar, tüm finansal süreçlerinizi tek platformda yönetin.",
+    "ai": {
+      "title": "Yapay Zeka Destekli Veri Girişi",
+      "ocr": "Fiş ve faturalarınızı yükleyin; AI KDV ayrımını ve gider kategorizasyonunu otomatik yapsın.",
+      "bank": "Banka ekstrelerinizi yükleyerek saniyeler içinde gelir/gider tablolarınızı oluşturun."
+    },
+    "reporting": {
+      "title": "Kapsamlı Finansal Raporlama",
+      "official": "Mizan, bilanço ve geçmiş dönem gelir/gider tablolarınızı kolayca aktarın.",
+      "realtime": "Şirketinizin finansal sağlığını tek bir ekrandan anlık olarak takip edin."
+    },
+    "simulation": {
+      "title": "Büyüme Simülasyonu",
+      "model": "Baz yıl verileri üzerinden yapay zeka destekli büyüme simülasyonları kurgulayın.",
+      "compare": "Farklı senaryolar arasındaki finansal farkları detaylı olarak analiz edin."
+    },
+    "investor": {
+      "title": "Yatırımcıya Hazırlık",
+      "capital": "Büyüme hedeflerinize ulaşmak için gereken sermaye ihtiyacını otomatik hesaplayın.",
+      "pitch": "Analizlerinizi saniyeler içinde profesyonel bir yatırımcı sunumuna dönüştürün."
+    }
+  },
+  "howItWorks": {
+    "heading": "Nasıl Çalışır?",
+    "step": "Adım {{num}}"
+  },
+  "steps": {
+    "upload": {
+      "title": "Verilerinizi Yükleyin",
+      "desc": "Fiş, fatura, banka ekstresi veya mizan verilerinizi sisteme verin."
+    },
+    "scenario": {
+      "title": "Senaryonuzu Kurgulayın",
+      "desc": "Gelecek hedeflerinizi belirleyin ve AI büyüme simülasyonunuzu oluştursun."
+    },
+    "output": {
+      "title": "Çıktınızı Alın",
+      "desc": "Sermaye ihtiyacınızı netleştirin ve yatırımcı sunumunuzu indirin."
+    }
+  },
+  "mock": {
+    "revenue": "Gelir",
+    "expenses": "Gider",
+    "profit": "Kâr"
+  },
+  "footer": {
+    "company": "Bir Alfa Zen LTD Projesidir",
+    "privacy": "Gizlilik Politikası",
+    "terms": "Kullanım Koşulları",
+    "rights": "Tüm hakları saklıdır."
+  }
+}

@@ -49,7 +49,7 @@ const App = () => (
                 <Sonner position="top-center" />
                 <BrowserRouter>
                   <Routes>
-                    <Route path="/" element={<Navigate to="/finance" replace />} />
+                    <Route path="/" element={<Landing />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />

@@ -1057,7 +1057,7 @@ function ScenarioComparisonContent() {
   }, [originalExpenseProjection]);
   
   // Auto-save edited projections with debounce (2 seconds)
-  const saveProjectionsTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveProjectionsTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   
   useEffect(() => {
     if (!scenarioAId || !scenarioBId) return;

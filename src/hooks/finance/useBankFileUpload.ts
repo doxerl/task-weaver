@@ -90,7 +90,7 @@ export function useBankFileUpload() {
   const [canResume, setCanResume] = useState(false);
   const [pausedTransactionCount, setPausedTransactionCount] = useState(0);
   const [failedRowRanges, setFailedRowRanges] = useState<FailedBatch[]>([]);
-  const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const progressIntervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
   const abortRef = useRef<boolean>(false);
   const resumeStateRef = useRef<ResumeState | null>(null);
   const currentSessionIdRef = useRef<string | null>(null);
