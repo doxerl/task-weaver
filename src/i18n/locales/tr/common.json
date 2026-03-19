@@ -80,6 +80,7 @@
     "noItems": "Henüz öğe yok"
   },
   "navigation": {
+    "home": "Ana Sayfa",
     "finance": "Finans",
     "today": "Bugün",
     "week": "Hafta",

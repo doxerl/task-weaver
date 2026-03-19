@@ -80,6 +80,7 @@
     "noItems": "No items yet"
   },
   "navigation": {
+    "home": "Home",
     "finance": "Finance",
     "today": "Today",
     "week": "Week",
