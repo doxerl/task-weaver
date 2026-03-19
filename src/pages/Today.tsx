@@ -13,7 +13,7 @@ import { MobileInputSheet } from '@/components/MobileInputSheet';
 import { BottomTabBar } from '@/components/BottomTabBar';
 import { AppHeader } from '@/components/AppHeader';
 import { useDayData } from '@/hooks/useDayData';
-import { Settings, Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronLeft, ChevronRight } from 'lucide-react';
 import { format, addDays, subDays } from 'date-fns';
 import { useNavigate } from 'react-router-dom';
 import { getISOWeekData } from '@/lib/weekUtils';

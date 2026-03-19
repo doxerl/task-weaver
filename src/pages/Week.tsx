@@ -5,7 +5,7 @@ import { useAuthContext } from '@/contexts/AuthContext';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ChevronLeft, ChevronRight, Settings, Download, BookOpen } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Download, BookOpen } from 'lucide-react';
 import { format, startOfWeek, endOfWeek, addWeeks, subWeeks, isToday, isSameDay, isWeekend } from 'date-fns';
 import { useWeekData } from '@/hooks/useWeekData';
 import { useWeeklyRetrospective } from '@/hooks/useWeeklyRetrospective';
