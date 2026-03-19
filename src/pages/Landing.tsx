@@ -21,7 +21,7 @@ import {
 
 export default function Landing() {
   const { user, loading } = useAuthContext();
-  const { t } = useTranslation('common');
+  const { t } = useTranslation('landing');
   const navigate = useNavigate();
 
   if (loading) {

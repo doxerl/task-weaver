@@ -52,7 +52,7 @@ i18n
     resources,
     fallbackLng: 'en',
     defaultNS: 'common',
-    ns: ['common', 'finance', 'simulation', 'validation'],
+    ns: ['common', 'finance', 'simulation', 'validation', 'landing'],
 
     detection: {
       order: ['localStorage', 'navigator'],
