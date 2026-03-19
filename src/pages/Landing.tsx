@@ -5,13 +5,10 @@ import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import {
   ScanLine,
-  Landmark,
   FileBarChart,
   Activity,
   TrendingUp,
-  GitCompareArrows,
   PiggyBank,
-  Presentation,
   Upload,
   BrainCircuit,
   Download,
@@ -39,38 +36,38 @@ export default function Landing() {
   const features = [
     {
       icon: ScanLine,
-      title: t('landing.features.ai.title'),
-      items: [t('landing.features.ai.ocr'), t('landing.features.ai.bank')],
+      title: t('features.ai.title'),
+      items: [t('features.ai.ocr'), t('features.ai.bank')],
       gradient: 'from-chart-1/10 to-chart-1/5',
       iconColor: 'text-[hsl(var(--chart-1))]',
     },
     {
       icon: FileBarChart,
-      title: t('landing.features.reporting.title'),
-      items: [t('landing.features.reporting.official'), t('landing.features.reporting.realtime')],
+      title: t('features.reporting.title'),
+      items: [t('features.reporting.official'), t('features.reporting.realtime')],
       gradient: 'from-chart-2/10 to-chart-2/5',
       iconColor: 'text-[hsl(var(--chart-2))]',
     },
     {
       icon: TrendingUp,
-      title: t('landing.features.simulation.title'),
-      items: [t('landing.features.simulation.model'), t('landing.features.simulation.compare')],
+      title: t('features.simulation.title'),
+      items: [t('features.simulation.model'), t('features.simulation.compare')],
       gradient: 'from-chart-3/10 to-chart-3/5',
       iconColor: 'text-[hsl(var(--chart-3))]',
     },
     {
       icon: PiggyBank,
-      title: t('landing.features.investor.title'),
-      items: [t('landing.features.investor.capital'), t('landing.features.investor.pitch')],
+      title: t('features.investor.title'),
+      items: [t('features.investor.capital'), t('features.investor.pitch')],
       gradient: 'from-chart-4/10 to-chart-4/5',
       iconColor: 'text-[hsl(var(--chart-4))]',
     },
   ];
 
   const steps = [
-    { num: 1, icon: Upload, title: t('landing.steps.upload.title'), desc: t('landing.steps.upload.desc') },
-    { num: 2, icon: BrainCircuit, title: t('landing.steps.scenario.title'), desc: t('landing.steps.scenario.desc') },
-    { num: 3, icon: Download, title: t('landing.steps.output.title'), desc: t('landing.steps.output.desc') },
+    { num: 1, icon: Upload, title: t('steps.upload.title'), desc: t('steps.upload.desc') },
+    { num: 2, icon: BrainCircuit, title: t('steps.scenario.title'), desc: t('steps.scenario.desc') },
+    { num: 3, icon: Download, title: t('steps.output.title'), desc: t('steps.output.desc') },
   ];
 
   return (
@@ -81,10 +78,10 @@ export default function Landing() {
           <span className="text-xl font-bold tracking-tight text-primary">PlannerDeck</span>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" onClick={() => navigate('/auth')}>
-              {t('landing.nav.login')}
+              {t('nav.login')}
             </Button>
             <Button size="sm" onClick={() => navigate('/auth')}>
-              {t('landing.nav.tryFree')}
+              {t('nav.tryFree')}
             </Button>
           </div>
         </div>
@@ -95,21 +92,21 @@ export default function Landing() {
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 md:grid-cols-2">
           <div className="space-y-6">
             <h1 className="text-3xl font-extrabold leading-tight tracking-tight text-foreground sm:text-4xl lg:text-5xl">
-              {t('landing.hero.title')}
+              {t('hero.title')}
             </h1>
             <p className="max-w-lg text-lg text-muted-foreground">
-              {t('landing.hero.subtitle')}
+              {t('hero.subtitle')}
             </p>
             <div className="flex flex-wrap gap-3">
               <Button size="lg" onClick={() => navigate('/auth')}>
-                {t('landing.hero.cta')} <ArrowRight className="ml-1 h-4 w-4" />
+                {t('hero.cta')} <ArrowRight className="ml-1 h-4 w-4" />
               </Button>
               <Button
                 size="lg"
                 variant="outline"
                 onClick={() => document.getElementById('how-it-works')?.scrollIntoView({ behavior: 'smooth' })}
               >
-                {t('landing.hero.ctaSecondary')}
+                {t('hero.ctaSecondary')}
               </Button>
             </div>
           </div>
@@ -125,9 +122,9 @@ export default function Landing() {
               </div>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { label: t('landing.mock.revenue'), value: '₺847K', color: 'bg-[hsl(var(--chart-2))]/15 text-[hsl(var(--chart-2))]' },
-                  { label: t('landing.mock.expenses'), value: '₺523K', color: 'bg-[hsl(var(--chart-5))]/15 text-[hsl(var(--chart-5))]' },
-                  { label: t('landing.mock.profit'), value: '₺324K', color: 'bg-[hsl(var(--chart-1))]/15 text-[hsl(var(--chart-1))]' },
+                  { label: t('mock.revenue'), value: '₺847K', color: 'bg-[hsl(var(--chart-2))]/15 text-[hsl(var(--chart-2))]' },
+                  { label: t('mock.expenses'), value: '₺523K', color: 'bg-[hsl(var(--chart-5))]/15 text-[hsl(var(--chart-5))]' },
+                  { label: t('mock.profit'), value: '₺324K', color: 'bg-[hsl(var(--chart-1))]/15 text-[hsl(var(--chart-1))]' },
                 ].map((m) => (
                   <div key={m.label} className={`rounded-lg p-3 ${m.color}`}>
                     <p className="text-[10px] opacity-70">{m.label}</p>
@@ -153,10 +150,10 @@ export default function Landing() {
       <section className="py-16 md:py-24">
         <div className="mx-auto max-w-6xl px-4">
           <h2 className="mb-2 text-center text-2xl font-bold text-foreground sm:text-3xl">
-            {t('landing.features.heading')}
+            {t('features.heading')}
           </h2>
           <p className="mx-auto mb-12 max-w-2xl text-center text-muted-foreground">
-            {t('landing.features.subheading')}
+            {t('features.subheading')}
           </p>
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
             {features.map((f) => (
@@ -185,7 +182,7 @@ export default function Landing() {
       <section id="how-it-works" className="border-t bg-muted/30 py-16 md:py-24">
         <div className="mx-auto max-w-4xl px-4">
           <h2 className="mb-12 text-center text-2xl font-bold text-foreground sm:text-3xl">
-            {t('landing.howItWorks.heading')}
+            {t('howItWorks.heading')}
           </h2>
           <div className="grid gap-8 md:grid-cols-3">
             {steps.map((s, i) => (
@@ -197,7 +194,7 @@ export default function Landing() {
                   <s.icon className="h-7 w-7" />
                 </div>
                 <span className="mb-1 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
-                  {t('landing.howItWorks.step', { num: s.num })}
+                  {t('howItWorks.step', { num: s.num })}
                 </span>
                 <h3 className="mb-1 font-semibold text-foreground">{s.title}</h3>
                 <p className="text-sm text-muted-foreground">{s.desc}</p>
@@ -206,7 +203,7 @@ export default function Landing() {
           </div>
           <div className="mt-12 text-center">
             <Button size="lg" onClick={() => navigate('/auth')}>
-              {t('landing.hero.cta')} <ArrowRight className="ml-1 h-4 w-4" />
+              {t('hero.cta')} <ArrowRight className="ml-1 h-4 w-4" />
             </Button>
           </div>
         </div>
@@ -218,20 +215,20 @@ export default function Landing() {
           <div className="flex flex-col items-center justify-between gap-6 md:flex-row">
             <div>
               <span className="text-lg font-bold text-primary">PlannerDeck</span>
-              <p className="mt-1 text-xs text-muted-foreground">{t('landing.footer.company')}</p>
+              <p className="mt-1 text-xs text-muted-foreground">{t('footer.company')}</p>
             </div>
             <div className="flex flex-wrap gap-4 text-sm text-muted-foreground">
               <button onClick={() => navigate('/auth')} className="hover:text-foreground transition-colors">
-                {t('landing.nav.login')}
+                {t('nav.login')}
               </button>
               <span className="text-border">|</span>
-              <span>{t('landing.footer.privacy')}</span>
+              <span>{t('footer.privacy')}</span>
               <span className="text-border">|</span>
-              <span>{t('landing.footer.terms')}</span>
+              <span>{t('footer.terms')}</span>
             </div>
           </div>
           <p className="mt-6 text-center text-xs text-muted-foreground">
-            © {new Date().getFullYear()} PlannerDeck. {t('landing.footer.rights')}
+            © {new Date().getFullYear()} PlannerDeck. {t('footer.rights')}
           </p>
         </div>
       </footer>
