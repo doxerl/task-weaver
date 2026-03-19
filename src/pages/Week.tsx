@@ -144,9 +144,6 @@ export default function Week() {
               <span className="hidden sm:inline">{exporting ? t('planner.downloading') : t('planner.excelExport')}</span>
               <span className="sm:hidden">{exporting ? '...' : 'Excel'}</span>
             </Button>
-            <Button variant="ghost" size="icon" onClick={() => navigate('/settings')} title={t('settings.title')}>
-              <Settings className="h-4 w-4" />
-            </Button>
           </div>
         }
       />
