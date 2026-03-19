@@ -34,12 +34,14 @@ const resources = {
     finance: trFinance,
     simulation: trSimulation,
     validation: trValidation,
+    landing: trLanding,
   },
   en: {
     common: enCommon,
     finance: enFinance,
     simulation: enSimulation,
     validation: enValidation,
+    landing: enLanding,
   },
 };
 
