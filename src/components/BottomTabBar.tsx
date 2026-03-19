@@ -43,6 +43,7 @@ export function BottomTabBar() {
   const { t } = useTranslation('common');
 
   const isActive = (tab: TabItem) => {
+    if (tab.path === '/') return location.pathname === '/';
     const paths = tab.matchPaths || [tab.path];
     return paths.some(p => location.pathname.startsWith(p));
   };
