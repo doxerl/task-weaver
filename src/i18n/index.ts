@@ -7,11 +7,13 @@ import trCommon from './locales/tr/common.json';
 import trFinance from './locales/tr/finance.json';
 import trSimulation from './locales/tr/simulation.json';
 import trValidation from './locales/tr/validation.json';
+import trLanding from './locales/tr/landing.json';
 
 import enCommon from './locales/en/common.json';
 import enFinance from './locales/en/finance.json';
 import enSimulation from './locales/en/simulation.json';
 import enValidation from './locales/en/validation.json';
+import enLanding from './locales/en/landing.json';
 
 export const SUPPORTED_LANGUAGES = ['tr', 'en'] as const;
 export type SupportedLanguage = (typeof SUPPORTED_LANGUAGES)[number];
