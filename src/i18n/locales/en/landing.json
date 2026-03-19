@@ -1,0 +1,65 @@
+{
+  "nav": {
+    "login": "Sign In",
+    "tryFree": "Try Free"
+  },
+  "hero": {
+    "title": "Bring Financial Planning & Growth Simulation Together with AI",
+    "subtitle": "Process your data in seconds, build future scenarios, and get investor-ready.",
+    "cta": "Try Free",
+    "ctaSecondary": "How It Works?"
+  },
+  "features": {
+    "heading": "All Our Solutions",
+    "subheading": "Manage your entire financial workflow — from bookkeeping to investor pitch — on a single platform.",
+    "ai": {
+      "title": "AI-Powered Data Entry",
+      "ocr": "Upload receipts & invoices; AI automatically handles VAT separation and expense categorization.",
+      "bank": "Upload bank statements to generate income/expense reports in seconds."
+    },
+    "reporting": {
+      "title": "Comprehensive Financial Reporting",
+      "official": "Easily import trial balances, balance sheets, and prior-period income statements.",
+      "realtime": "Monitor your company's financial health in real time from a single dashboard."
+    },
+    "simulation": {
+      "title": "Growth Simulation",
+      "model": "Build AI-powered growth simulations based on your base-year data.",
+      "compare": "Analyze financial differences between multiple scenarios in detail."
+    },
+    "investor": {
+      "title": "Investor Readiness",
+      "capital": "Automatically calculate the capital you need to reach your growth targets.",
+      "pitch": "Turn your analyses into a professional investor pitch deck in seconds."
+    }
+  },
+  "howItWorks": {
+    "heading": "How It Works?",
+    "step": "Step {{num}}"
+  },
+  "steps": {
+    "upload": {
+      "title": "Upload Your Data",
+      "desc": "Feed your receipts, invoices, bank statements or trial balance into the system."
+    },
+    "scenario": {
+      "title": "Build Your Scenario",
+      "desc": "Set your future targets and let AI create your growth simulation."
+    },
+    "output": {
+      "title": "Get Your Output",
+      "desc": "Clarify your capital needs and download your investor pitch deck."
+    }
+  },
+  "mock": {
+    "revenue": "Revenue",
+    "expenses": "Expenses",
+    "profit": "Profit"
+  },
+  "footer": {
+    "company": "An Alfa Zen LTD Project",
+    "privacy": "Privacy Policy",
+    "terms": "Terms of Service",
+    "rights": "All rights reserved."
+  }
+}

@@ -92,7 +92,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
               {this.props.description ||
                 'Bileşen yüklenirken beklenmeyen bir hata oluştu. Lütfen sayfayı yenileyin veya tekrar deneyin.'}
             </p>
-            {process.env.NODE_ENV === 'development' && this.state.error && (
+            {import.meta.env.DEV && this.state.error && (
               <details className="mb-4 text-xs">
                 <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
                   Hata Detayları (Development)

@@ -17,6 +17,7 @@ import Today from "./pages/Today";
 import Settings from "./pages/Settings";
 import Week from "./pages/Week";
 import NotFound from "./pages/NotFound";
+import Landing from "./pages/Landing";
 import FinanceDashboard from "./pages/finance/FinanceDashboard";
 import BankImport from "./pages/finance/BankImport";
 import BankTransactions from "./pages/finance/BankTransactions";
@@ -48,7 +49,7 @@ const App = () => (
                 <Sonner position="top-center" />
                 <BrowserRouter>
                   <Routes>
-                    <Route path="/" element={<Navigate to="/finance" replace />} />
+                    <Route path="/" element={<Landing />} />
                     <Route path="/auth" element={<Auth />} />
                     <Route path="/today" element={<ProtectedRoute><Today /></ProtectedRoute>} />
                     <Route path="/settings" element={<ProtectedRoute><Settings /></ProtectedRoute>} />
