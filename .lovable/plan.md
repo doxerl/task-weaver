@@ -1,50 +1,45 @@
 
-# Acilis Degerlerinin Kumulatif Hesaplanmasi
 
-## Sorun
-5 Yillik Projeksiyon Tablosunda "Acilis" (opening) degerleri kumulatif degil. Her yilin acilis degeri sadece bir onceki yilin net karini gosteriyor, oysa onceki yillarin birikimini de icermeli.
+# PlannerDeck Landing Page
 
-Mevcut durum (yanlis):
-- 2025 Baz: - | $147.9K | $121.4K | $24.3K
-- 2026 Senaryo: $24.3K (dogru) | ... | $33.9K
-- 2027: $33.9K (YANLIS) | ... | $244.6K
-- 2028: $278.5K (YANLIS) | ...
+## Ozet
+Oturum acmamis ziyaretciler icin `/` rotasina bir landing page eklenecek. Giris yapmis kullanicilar otomatik olarak `/finance`'a yonlendirilecek.
 
-Olmasi gereken (kumulatif):
-- 2026 Senaryo: $24.3K | ... | $33.9K
-- 2027: $24.3K + $33.9K = $58.2K | ...
-- 2028: $58.2K + $244.6K = $302.8K | ...
+## Teknik Tasarim
 
-## Temel Neden
-`useInvestorAnalysis.ts` icindeki `calculateMultiYearCapitalNeeds` fonksiyonu `year1NetProfit` parametresini alip bunu ilk yilin (2027) acilis nakiti olarak kullaniyor. Ancak bu deger sadece 2026 senaryosunun net karidir ($33.9K), 2025 baz yilindan devir eden $24.3K dahil edilmemis.
+### Rotalama Degisikligi
+`App.tsx`'de `"/"` rotasi `<Navigate to="/finance">` yerine yeni `LandingPage` bilesenini gosterecek. Kullanici giris yapmissa bilesenin icinde `/finance`'a yonlendirme yapilacak.
 
-## Cozum
+### Yeni Dosya: `src/pages/Landing.tsx`
+Tek dosyada tum landing page. Auth durumunu kontrol edip giris yapmis kullaniciyi `/finance`'a yonlendirir.
 
-### Dosya 1: `src/components/simulation/InvestmentTab.tsx`
-`calculateMultiYearCapitalNeeds` fonksiyonuna gecirilen `year1NetProfit` parametresini baz yil net karini da icerecek sekilde guncelle:
+#### Bolumler:
 
-```typescript
-// Mevcut (satir 184):
-summaryA.netProfit, // Year 1 net profit
+**1. Navbar** — Logo "PlannerDeck", sag tarafta "Giris Yap" ve "Ucretsiz Deneyin" butonlari.
 
-// Yeni:
-(baseYearData?.netProfit || 0) + summaryA.netProfit, // Cumulative: base year + scenario year
-```
+**2. Hero Section** — Gradient arka plan, H1 baslik, alt baslik, iki CTA butonu ("Ucretsiz Deneyin" → `/auth`, "Nasil Calisir?" → sayfa ici scroll). Sag tarafta dashboard mockup (stilize edilmis kart/grafik bilesenlerinden olusan gorsel temsil).
 
-Bu tek satirlik degisiklik ile:
-- 2027 acilisi: $24.3K + $33.9K = $58.2K (kumulatif)
-- Sonraki yillar da otomatik olarak dogru hesaplanacak (cunku `carryForwardCash = endingCash + requiredCapital` zaten kumulatif calisiyor)
+**3. Ozellikler Vitrini** — 4 kategori kartlari (A: AI Veri Girisi/On Muhasebe, B: Finansal Raporlama, C: Buyume Simulasyonu, D: Yatirimci Hazirligi). Her kart: ikon, baslik, 2 madde aciklama.
 
-### Dosya 2: Degisiklik yok
-`useInvestorAnalysis.ts` icindeki hesaplama mantigi zaten kumulatif calisacak sekilde yazilmis. Sadece baslangic degeri yanlis.
+**4. Nasil Calisir? (3 Adim)** — Yatay akis: 1) Verilerinizi Yukleyin, 2) Senaryonuzu Kurgulain, 3) Ciktinizi Alin. Her adim numara + ikon + kisa aciklama.
+
+**5. Footer** — Navigasyon linkleri, yasal linkler, "Bir Alfa Zen LTD Projesidir" ibaresi.
+
+### i18n Destegi
+- `src/i18n/locales/tr/common.json` ve `src/i18n/locales/en/common.json` dosyalarina `"landing"` anahtari altinda tum metinler eklenecek.
 
 ## Degisecek Dosyalar
 
 | Dosya | Degisiklik |
 |-------|------------|
-| `src/components/simulation/InvestmentTab.tsx` | `calculateMultiYearCapitalNeeds` cagrisinda `year1NetProfit` parametresine `baseYearData.netProfit` eklenmesi |
+| `src/pages/Landing.tsx` | **Yeni** — Tum landing page bilesenini icerir |
+| `src/App.tsx` | `"/"` rotasi `Landing` sayfasina isaret edecek |
+| `src/i18n/locales/tr/common.json` | `landing` cevirileri eklenmesi |
+| `src/i18n/locales/en/common.json` | `landing` cevirileri eklenmesi |
 
-## Etki
-- 5 yillik projeksiyon tablosundaki tum acilis degerleri kumulatif olacak
-- Death valley ve sermaye ihtiyaci hesaplamalari da buna bagli olarak daha dogru sonuc verecek
-- `selfSustainingFromYear` tespiti de kumulatif nakit ile yapilacagi icin daha gercekci olacak
+## Gorunum
+- Tamamen responsive (mobil, tablet, masaustu)
+- Mevcut tema renklerini (primary, secondary, muted) kullanir
+- Lucide ikonlari kullanilir
+- Harici gorsel/resim gerektirmez — stilize edilmis UI bilesenlerinden mockup olusturulur
+
