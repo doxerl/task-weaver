@@ -1,0 +1,9 @@
+# PlannerDeck
+
+> AI-powered pre-accounting and investor growth simulation platform for Turkish SMBs and startups. A project by Alfa Zen LTD.
+
+PlannerDeck combines two workflows in one app: an operational layer that automates Turkish pre-accounting (bank-statement parsing, receipt/invoice OCR with VAT separation, cost-center analysis, VAT and KKEG reports) and a strategic layer that builds investor-ready growth simulations, capital-need analyses, and downloadable pitch decks.
+
+## Pages
+
+- [Home](/): Product overview, features, and how it works.

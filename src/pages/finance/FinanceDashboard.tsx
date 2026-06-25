@@ -64,9 +64,10 @@ export default function FinanceDashboard() {
           </Select>
         }
       />
-      <div className="p-4 space-y-6">
+      <main className="p-4 space-y-6">
 
         {/* Quick Actions */}
+        <h2 className="sr-only">{t('dashboard.tabs.quickActions', 'Quick Actions')}</h2>
         <div className="grid grid-cols-6 gap-2">
           <Link to="/finance/bank-import">
             <Card className="hover:bg-accent transition-colors cursor-pointer">
@@ -119,6 +120,7 @@ export default function FinanceDashboard() {
         </div>
 
         {/* Revenue & VAT Summary - Net vs Gross */}
+        <h2 className="sr-only">{t('dashboard.revenueSummary')}</h2>
         <Card className="border-green-200 dark:border-green-800 bg-green-50/30 dark:bg-green-950/10">
           <CardContent className="p-4">
             <div className="flex items-center gap-2 text-muted-foreground mb-3">
@@ -368,7 +370,7 @@ export default function FinanceDashboard() {
             </Card>
           </Link>
         </div>
-      </div>
+      </main>
       <BottomTabBar />
     </div>
   );
