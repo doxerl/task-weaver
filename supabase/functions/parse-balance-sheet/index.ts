@@ -163,7 +163,7 @@ Alt hesapları olan ana hesaplar için (örn: 320 Satıcılar altında 320.001 F
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-3-pro-preview',
+        model: 'google/gemini-3.1-pro-preview',
         temperature: 0.1,
         messages: [
           { role: 'system', content: systemPrompt },

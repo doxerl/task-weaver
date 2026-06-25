@@ -10,16 +10,16 @@ const corsHeaders = {
 function processBase64Chunks(base64String: string, chunkSize = 32768): Uint8Array {
   const chunks: Uint8Array[] = [];
   let position = 0;
-  
+
   while (position < base64String.length) {
     const chunk = base64String.slice(position, position + chunkSize);
     const binaryChunk = atob(chunk);
     const bytes = new Uint8Array(binaryChunk.length);
-    
+
     for (let i = 0; i < binaryChunk.length; i++) {
       bytes[i] = binaryChunk.charCodeAt(i);
     }
-    
+
     chunks.push(bytes);
     position += chunkSize;
   }
@@ -37,59 +37,66 @@ function processBase64Chunks(base64String: string, chunkSize = 32768): Uint8Arra
 }
 
 serve(async (req) => {
-  // Handle CORS preflight requests
   if (req.method === 'OPTIONS') {
     return new Response(null, { headers: corsHeaders });
   }
 
   try {
     const { audio } = await req.json();
-    
+
     if (!audio) {
-      console.error('No audio data provided');
       return new Response(
         JSON.stringify({ error: 'Ses verisi bulunamadı' }),
         { status: 400, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
-    const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
-    if (!openAIApiKey) {
-      console.error('OPENAI_API_KEY not configured');
+    const LOVABLE_API_KEY = Deno.env.get('LOVABLE_API_KEY');
+    if (!LOVABLE_API_KEY) {
+      console.error('LOVABLE_API_KEY not configured');
       return new Response(
-        JSON.stringify({ error: 'API anahtarı yapılandırılmamış' }),
+        JSON.stringify({ error: 'AI yapılandırması eksik' }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
       );
     }
 
     console.log('Processing audio data, length:', audio.length);
 
-    // Process audio in chunks
     const binaryAudio = processBase64Chunks(audio);
     console.log('Binary audio size:', binaryAudio.length, 'bytes');
-    
-    // Prepare form data for OpenAI Whisper
+
     const formData = new FormData();
     const blob = new Blob([binaryAudio.buffer as ArrayBuffer], { type: 'audio/webm' });
     formData.append('file', blob, 'audio.webm');
-    formData.append('model', 'whisper-1');
-    formData.append('language', 'tr'); // Turkish language for better accuracy
-    formData.append('response_format', 'json');
+    formData.append('model', 'openai/gpt-4o-mini-transcribe');
+    formData.append('language', 'tr');
 
-    console.log('Sending to OpenAI Whisper API...');
+    console.log('Sending to Lovable AI Gateway (transcriptions)...');
 
-    // Send to OpenAI Whisper API
-    const response = await fetch('https://api.openai.com/v1/audio/transcriptions', {
+    const response = await fetch('https://ai.gateway.lovable.dev/v1/audio/transcriptions', {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${openAIApiKey}`,
+        'Authorization': `Bearer ${LOVABLE_API_KEY}`,
       },
       body: formData,
     });
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('OpenAI API error:', response.status, errorText);
+      console.error('AI Gateway error:', response.status, errorText);
+
+      if (response.status === 429) {
+        return new Response(
+          JSON.stringify({ error: 'Rate limit aşıldı, lütfen biraz bekleyin' }),
+          { status: 429, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
+      if (response.status === 402) {
+        return new Response(
+          JSON.stringify({ error: 'AI kredisi tükendi, lütfen bakiye ekleyin' }),
+          { status: 402, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
+        );
+      }
       return new Response(
         JSON.stringify({ error: `Transkripsiyon hatası: ${response.status}` }),
         { status: 500, headers: { ...corsHeaders, 'Content-Type': 'application/json' } }
