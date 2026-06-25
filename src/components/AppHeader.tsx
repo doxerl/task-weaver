@@ -61,7 +61,7 @@ export function AppHeader({
             <LanguageToggle />
             {rightContent}
             {showSettings && !isSettingsPage && (
-              <Button variant="ghost" size="icon" onClick={() => navigate('/settings')}>
+              <Button variant="ghost" size="icon" aria-label="Settings" onClick={() => navigate('/settings')}>
                 <Settings className="h-5 w-5" />
               </Button>
             )}

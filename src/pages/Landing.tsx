@@ -87,6 +87,7 @@ export default function Landing() {
         </div>
       </nav>
 
+      <main>
       {/* Hero */}
       <section className="relative overflow-hidden border-b bg-gradient-to-br from-primary/5 via-background to-accent/10 py-20 md:py-28">
         <div className="mx-auto grid max-w-6xl items-center gap-12 px-4 md:grid-cols-2">
@@ -208,6 +209,7 @@ export default function Landing() {
           </div>
         </div>
       </section>
+      </main>
 
       {/* Footer */}
       <footer className="border-t bg-background py-10">
