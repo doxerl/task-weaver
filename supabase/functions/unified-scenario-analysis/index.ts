@@ -2439,8 +2439,8 @@ serve(async (req) => {
       throw new Error("LOVABLE_API_KEY is not configured");
     }
 
-    const PRIMARY_MODEL_ID = "google/gemini-3-pro-preview";
-    const FALLBACK_MODEL_ID = "anthropic/claude-3.5-sonnet";
+    const PRIMARY_MODEL_ID = "google/gemini-3.1-pro-preview";
+    const FALLBACK_MODEL_ID = "google/gemini-2.5-pro";
     
     // Detect scenario relationship type
     const scenarioRelationship = detectScenarioRelationship(scenarioA, scenarioB);
