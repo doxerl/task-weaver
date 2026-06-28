@@ -939,6 +939,9 @@ export function useBankFileUpload() {
                 if (detectedCurrency === 'USD') rate = rateMap.get(key) ?? USD_FALLBACK[key];
                 else if (detectedCurrency === 'EUR') rate = EUR_FALLBACK[key];
               }
+              if (key && !rate) {
+                console.warn(`⚠️ ${detectedCurrency} kuru bulunamadı: ${key} — amount_try hesaplanamayacak`);
+              }
               return {
                 ...tx,
                 currency: detectedCurrency,
