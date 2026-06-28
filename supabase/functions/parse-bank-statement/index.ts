@@ -201,7 +201,7 @@ SADECE JSON döndür, markdown code block kullanma, Türkçe karakterleri koru.`
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
+        model: 'google/gemini-3-pro-preview',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: `Dosya tipi: ${fileType}\nDosya adı: ${fileName}\n\nİçerik:\n${fileContent}` }
@@ -400,7 +400,7 @@ SADECE JSON döndür, markdown code block kullanma, Türkçe karakterleri koru.`
         fileType: fileType || 'unknown',
         transactionCount: normalizedTransactions.length,
         processedAt: new Date().toISOString(),
-        model: 'google/gemini-2.5-pro'
+        model: 'google/gemini-3-pro-preview'
       }
     }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' }

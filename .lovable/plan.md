@@ -1,46 +1,36 @@
-# AI API Denetimi ve Güncelleme
+## Sorun
 
-## Mevcut Durum
+Garanti BBVA banka extresinin satırları parse edildi, ancak **kategorize etme adımı 7 batch boyunca başarısız** oldu (her satırda "Edge Function returned a non-2xx status code").
 
-13 edge function AI çağrısı yapıyor. Denetim sonuçları:
+### Kök neden
 
-| Sorun | Dosya | Detay |
-|---|---|---|
-| ❌ Doğrudan OpenAI API kullanıyor (gateway dışı) | `transcribe-audio` | `https://api.openai.com/v1/audio/transcriptions` + `OPENAI_API_KEY` |
-| ❌ Desteklenmeyen model ID | `unified-scenario-analysis` | `google/gemini-3-pro-preview` (katalogda yok; doğrusu `gemini-3.1-pro-preview`) |
-| ❌ Desteklenmeyen fallback model | `unified-scenario-analysis` | `anthropic/claude-3.5-sonnet` (Lovable Gateway kataloğunda Anthropic yok) |
-| ❌ Desteklenmeyen model ID | `parse-income-statement` | `google/gemini-3-pro-preview` |
-| ❌ Desteklenmeyen model ID | `parse-balance-sheet` | `google/gemini-3-pro-preview` |
-| ✅ Geçerli | `analyze-scenarios`, `analyze-investor-pitch` | `google/gemini-3-flash-preview` |
-| ✅ Geçerli | `analyze-growth-scenario`, `categorize-transactions`, `parse-trial-balance` | `google/gemini-2.5-flash` |
-| ✅ Geçerli | `parse-receipt`, `parse-bank-statement`, `parse-actual`, `parse-plan` | `google/gemini-2.5-pro` |
+`supabase/functions/categorize-transactions/index.ts` (satır 176) hâlâ `google/gemini-2.5-flash` modelini kullanıyor. AI Gateway log'larında bu çağrılar **HTTP 403** dönüyor (15+ ardışık hata, 28/06 18:09):
 
-## Yapılacak Değişiklikler
+```
+status: client_error (http 403)
+model: google/gemini-2.5-flash / google/gemini-2.5-pro
+```
 
-### 1. `transcribe-audio` — Lovable AI Gateway'e migrate
-- `api.openai.com` → `https://ai.gateway.lovable.dev/v1/audio/transcriptions`
-- `OPENAI_API_KEY` → `LOVABLE_API_KEY` (`Authorization: Bearer ...`)
-- Model: `openai/gpt-4o-mini-transcribe`
-- 429 / 402 hata yönetimi eklenecek
-- Avantaj: kullanıcının OpenAI anahtarına ihtiyaç kalmıyor, workspace kredisinden düşülüyor
+Gemini 2.5 modelleri gateway'de artık erişilebilir değil (gateway 403 = model erişim reddi). Önceki AI güncellemesi sırasında bazı fonksiyonlar atlanmış. Halen `gemini-2.5` kullanan 8 fonksiyon var:
 
-### 2. `unified-scenario-analysis` — Model ID düzeltme
-- Primary: `google/gemini-3-pro-preview` → `google/gemini-3.1-pro-preview`
-- Fallback: `anthropic/claude-3.5-sonnet` → `google/gemini-2.5-pro` (gateway kataloğunda olan en güçlü alternatif)
+- categorize-transactions ← **bu hatanın kaynağı**
+- parse-actual, parse-bank-statement, parse-receipt, parse-plan, parse-trial-balance
+- unified-scenario-analysis, analyze-growth-scenario
 
-### 3. `parse-income-statement` ve `parse-balance-sheet`
-- `google/gemini-3-pro-preview` → `google/gemini-3.1-pro-preview`
+## Çözüm
 
-### 4. Standartlaştırma (opsiyonel, küçük dokunuş)
-- Tüm fonksiyonlarda 429 / 402 mesajları zaten var; sadece tutarlılık kontrolü yapılacak.
+Tüm `google/gemini-2.5-flash` ve `google/gemini-2.5-pro` referanslarını mevcut default olan **`google/gemini-3-flash-preview`** (ağır analiz için `google/gemini-3-pro-preview`) ile değiştir.
 
-## Değişecek Dosyalar
-- `supabase/functions/transcribe-audio/index.ts` (gateway migrasyonu)
-- `supabase/functions/unified-scenario-analysis/index.ts` (model ID + fallback)
-- `supabase/functions/parse-income-statement/index.ts` (model ID)
-- `supabase/functions/parse-balance-sheet/index.ts` (model ID)
+### Yapılacak değişiklikler
 
-## Etki
-- `transcribe-audio` artık `OPENAI_API_KEY` gerektirmiyor; tek anahtarla (LOVABLE_API_KEY) çalışıyor
-- Geçersiz model ID'leri kaynaklı 400 hataları ortadan kalkıyor
-- Tüm AI çağrıları Lovable AI Gateway üzerinden geçiyor (faturalama & log birliği)
+1. **`categorize-transactions`** — `gemini-2.5-flash` → `gemini-3-flash-preview` (yüksek hacim, hızlı sınıflandırma için flash).
+2. **`parse-bank-statement`, `parse-actual`, `parse-receipt`, `parse-plan`, `parse-trial-balance`** — parsing işlemleri için `gemini-3-flash-preview`.
+3. **`unified-scenario-analysis`, `analyze-growth-scenario`** — finansal analiz için `gemini-3-pro-preview` (uzun reasoning gerektiriyor); fallback olarak `gemini-3-flash-preview`.
+4. 402/429 hata mesajlarını korunduğunu doğrula.
+
+### Doğrulama
+
+- Aynı Garanti extresini yeniden yükleyerek 7 batch'in 2xx döndürdüğünü ve kategorilemenin tamamlandığını gözlemle.
+- Edge function log'larında 403 olmadığını teyit et.
+
+Yalnızca model isimleri güncellenecek — parse/kategorileme mantığı, prompt'lar ve schema değişmiyor.

@@ -2440,7 +2440,7 @@ serve(async (req) => {
     }
 
     const PRIMARY_MODEL_ID = "google/gemini-3.1-pro-preview";
-    const FALLBACK_MODEL_ID = "google/gemini-2.5-pro";
+    const FALLBACK_MODEL_ID = "google/gemini-3-pro-preview";
     
     // Detect scenario relationship type
     const scenarioRelationship = detectScenarioRelationship(scenarioA, scenarioB);
