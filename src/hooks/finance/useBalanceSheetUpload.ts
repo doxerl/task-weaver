@@ -124,11 +124,11 @@ function calculateBalanceSheetTotals(accounts: BalanceSheetParsedAccount[]): { t
         throw new Error(`Dosya yüklenemedi: ${uploadError.message}`);
       }
 
-      const { data: urlData } = supabase.storage
+      const { data: urlData } = await supabase.storage
         .from('finance-files')
-        .getPublicUrl(filePath);
+        .createSignedUrl(filePath, 3600);
 
-      setFileUrl(urlData.publicUrl);
+      setFileUrl(urlData?.signedUrl ?? filePath);
       setFileName(file.name);
 
       // 2. Call edge function to parse
