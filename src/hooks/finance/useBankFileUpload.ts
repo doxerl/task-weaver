@@ -357,7 +357,12 @@ export function useBankFileUpload() {
         if (result.success && result.transactions.length > 0) {
           transactionMap.set(result.batchIndex, result.transactions);
           successfulBatchCount++;
-          
+
+          // Capture first valid bank_info detection
+          if (!detectedBankInfo && result.bank_info) {
+            detectedBankInfo = result.bank_info;
+          }
+
           // Track if this batch was retried successfully
           if (result.wasRetried) {
             retriedBatchCount++;
@@ -367,14 +372,14 @@ export function useBankFileUpload() {
           // Track failed batch with row range
           const rowStart = result.batchIndex * PARSE_BATCH_SIZE + 2; // +2 for header offset (Excel row 1 = header)
           const rowEnd = Math.min((result.batchIndex + 1) * PARSE_BATCH_SIZE + 1, totalParseBatches * PARSE_BATCH_SIZE + 1);
-          
+
           failedBatchList.push({
             batchIndex: result.batchIndex,
             rowRange: { start: rowStart, end: rowEnd },
             error: result.error || 'Unknown error after 3 retries',
             retryCount: result.retryCount
           });
-          
+
           console.warn(`⚠️ Batch ${result.batchIndex + 1} failed permanently: rows ${rowStart}-${rowEnd}`);
         }
         completedBatches++;
