@@ -172,7 +172,14 @@ export function ParsedTransactionList({ result, onSelectTransaction }: ParsedTra
                     "text-right font-medium",
                     tx.amount >= 0 ? "text-green-600" : "text-red-600"
                   )}>
-                    {tx.amount >= 0 ? '+' : ''}{formatCurrency(tx.amount)} ₺
+                    <div>
+                      {tx.amount >= 0 ? '+' : ''}{formatCurrency(tx.amount)} {currencySymbol(tx.currency)}
+                    </div>
+                    {tx.currency && tx.currency !== 'TRY' && tx.amount_try != null && (
+                      <div className="text-[10px] text-muted-foreground font-normal">
+                        ≈ {tx.amount_try >= 0 ? '+' : ''}{formatCurrency(tx.amount_try)} ₺
+                      </div>
+                    )}
                   </TableCell>
                   <TableCell>
                     <div className={cn(
