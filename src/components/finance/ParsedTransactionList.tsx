@@ -19,8 +19,14 @@ interface ParsedTransactionListProps {
   onSelectTransaction?: (tx: ParsedTransaction) => void;
 }
 
-const formatCurrency = (n: number) => 
+const formatCurrency = (n: number) =>
   new Intl.NumberFormat('tr-TR', { minimumFractionDigits: 2 }).format(Math.abs(n));
+
+const currencySymbol = (cur?: string) => {
+  if (cur === 'USD') return '$';
+  if (cur === 'EUR') return '€';
+  return '₺';
+};
 
 export function ParsedTransactionList({ result, onSelectTransaction }: ParsedTransactionListProps) {
   const { transactions, summary, bank_info } = result;
