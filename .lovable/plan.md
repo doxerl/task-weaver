@@ -1,66 +1,43 @@
 ## Hedef
+Banka ekstresi yükleme sayfasında kullanıcının aynı anda birden fazla Excel dosyasını (2., 3., 4. vb.) seçip tek bir oturumda birleştirmesini sağlamak.
 
-1. **Para birimi otomatik tespiti** (TRY/USD/EUR) — header bilgisi + tutar sembollerinden.
-2. **Orijinal döviz + TL karşılığı** ile saklama (TCMB kuru ile çevrim).
-3. **Aynı oturumda birden fazla farklı banka/hesap Excel'i** yüklenebilsin — hepsi aynı şirketin faaliyetlerinin parçası olarak biriksin.
+## Şu anki durum
+- Mevcut ekranda tek dosya seçilebiliyor.
+- "Ek dosya" butonu ile aynı oturuma sırayla dosya eklenebiliyor, ancak her seferinde tek dosya seçiliyor.
+- Oturum ve satır numarası çakışmasını önleyen altyapı (`useBankImportSession`) zaten var: açık oturum tekrar kullanılıyor ve yeni dosyanın satırlarına `rowOffset` ekleniyor.
 
-## Değişiklikler
+## Yapılacaklar
 
-### 1. Para birimi tespiti — `supabase/functions/parse-bank-statement`
-- Prompt'a "PARA BİRİMİ TESPİTİ" bölümü ekle:
-  - Header bilgisinden: `Hesap: ... TL/USD/EUR/$/€`, `IBAN`, hesap tipi satırı.
-  - Tutar sütunundaki semboller: `₺`, `$`, `€`, `USD`, `EUR`, `TL`.
-  - Bulunamazsa default `TRY`.
-- `bank_info.currency` artık enum: `"TRY" | "USD" | "EUR"` (şu an hardcoded `"TRY"`).
-- `summary`'e `detected_currency` ve `currency_confidence` ekle.
+### 1. Arayüz: çoklu dosya seçimi
+**Dosya:** `src/pages/finance/BankImport.tsx`
+- `selectedFile` state'i `selectedFiles` (File[]) dizisine çevrilecek.
+- `<input type="file">` öğesine `multiple` özelliği eklenecek.
+- Seçilen dosyalar liste şeklinde gösterilecek; her dosyanın adı ve boyutu görünecek, tek tek kaldırılabilecek.
+- "AI ile Analiz Et" butonu tüm seçili dosyalar için çalışacak.
 
-### 2. Frontend — `useBankFileUpload.ts`
-- Hardcoded `currency: 'TRY'` yerine batch'lerden gelen `bank_info.currency` değerini kullan (ilk geçerli batch'ten alıp tüm dosyaya uygula).
-- Parse sonrası `currency !== 'TRY'` ise `useExchangeRates`'ten ilgili tarih için kur çekip her transaction'a `amount_try = amount * rate` hesapla.
-- Tarih bazlı kur cache'i (aynı günkü kuru tekrar çekme).
+### 2. Upload hook: çoklu dosya işleme
+**Dosya:** `src/hooks/finance/useBankFileUpload.ts`
+- `uploadAndParse` mutation'ı tek `File` yerine `File | File[]` kabul edecek.
+- İlk dosya yeni bir `bank_import_sessions` kaydı oluşturacak; sonraki dosyalar aynı açık oturuma eklenecek.
+- Dosyalar sırayla işlenecek:
+  1. Her dosyayı storage'a yükle.
+  2. Her dosyayı `parseFile` ile oku.
+  3. Her dosyanın işlemlerini `processBatches` ile çıkar.
+  4. Tüm dosyaların işlemlerini tek bir dizide birleştir (mevcut `rowOffset` mekanizmasını kullanarak veritabanına kaydet).
+  5. Birleştirilmiş tüm işlemleri tek seferde AI ile kategorile.
+- İlerleme çubuğu ve durum metni, işlenen dosya sırası ve toplam dosya sayısını yansıtacak.
 
-### 3. UI — `ParsedTransactionList.tsx` + `BankImport.tsx`
-- Özet kartında para birimi rozeti ("USD ekstre — TL karşılığı: ₺X").
-- İşlem tablosunda tutar `12,345.67 $` formatında, hover/yan sütunda TL karşılığı.
-- Onay öncesi banner: "Bu ekstre USD olarak algılandı. Tutarlar TCMB kuru ile TL'ye çevrilecek."
+### 3. Hata yönetimi
+- Bir dosya hata verirse işlem durmayacak; başarılı dosyalar işlenecek, hatalı dosyalar kullanıcıya listelenecek.
+- Kullanıcı duraklatma istediğinde mevcut dosya işlendikten sonra duraklatma yapılacak.
 
-### 4. Schema — yeni migration
-```sql
-ALTER TABLE bank_transactions
-  ADD COLUMN IF NOT EXISTS currency text NOT NULL DEFAULT 'TRY',
-  ADD COLUMN IF NOT EXISTS amount_try numeric,
-  ADD COLUMN IF NOT EXISTS exchange_rate numeric;
+### 4. Doğrulama
+- `.xlsx` ve `.xls` dışındaki dosyalar reddedilecek (zaten mevcut kontrol var).
+- Aynı dosyanın tekrar yüklenmesi durumunda mevcut onay dialogu korunacak.
 
-ALTER TABLE uploaded_bank_files
-  ADD COLUMN IF NOT EXISTS currency text DEFAULT 'TRY';
-
-ALTER TABLE bank_import_sessions
-  ADD COLUMN IF NOT EXISTS currency text DEFAULT 'TRY';
-```
-- Mevcut TL kayıtlar için `amount_try = amount` backfill.
-- Raporlama hook'ları (`useIncomeAnalysis`, `useFinancialDataHub`) `amount_try` öncelikli — yoksa `amount`.
-
-### 5. Çoklu dosya / çoklu hesap desteği — `useBankImportSession` + `BankImport.tsx`
-- Şu anki model: tek aktif session = tek dosya.
-- Yeni davranış: **aktif session içine ek dosya yükleme**.
-  - `bank_import_sessions`'a `file_count int default 1` ekle.
-  - `bank_import_transactions`'a `source_file_name text`, `source_bank text`, `source_currency text` ekle (her satırın hangi dosyadan geldiği görünsün).
-  - Upload bittiğinde aktif session varsa **append** et (yeni session açma); yoksa yeni session yarat.
-- BankImport UI'sına "+ Başka banka ekstresi ekle" butonu:
-  - Preview/review modunda görünür.
-  - Yeni dosya seç → parse → kategorize → mevcut session'a ekle (transaction listesi büyür).
-- Özet kartında dosya başına alt-özet sekmesi: "Garanti TL — 142 işlem", "İş Bankası USD — 38 işlem" + toplam.
-- Duplicate koruma: aynı `file_id + row_number` constraint zaten var; ek olarak `(transaction_date, amount, description, currency)` soft-dedupe uyarısı.
-
-### 6. Kategorize batch'i — `categorize-transactions`
-- Currency bilgisini prompt'a aktar (örn. USD ekstrede "MAAS" muhtemelen yurt dışı ödeme olabilir → AI bağlamı zenginleşir).
-- `txList` formatına `currency` eklenir.
-
-## Doğrulama
-- Garanti TL ekstre → eskisi gibi `TRY`, `amount_try = amount`.
-- USD ekstre → `currency: "USD"`, her satırda `amount_try` dolu, UI'da iki tutar gözükür.
-- TL ekstre + USD ekstre arka arkaya yüklenip aynı session altında tek listede toplandığı doğrulanır; raporlama hook'ları toplam TL'yi `amount_try` üzerinden doğru üretir.
-
-## Kapsam dışı
-- TCMB kuru entegrasyonu zaten `useExchangeRates`'te var — bu hook kullanılacak, yeni FX kaynağı eklenmeyecek.
-- GBP/CHF gibi diğer dövizler bu turda yok (TRY/USD/EUR).
+## Teknik detaylar
+- `useBankImportSession.createSession` zaten açık oturumu yeniden kullanıyor; bu mekanizma kullanılacak.
+- `useBankImportSession.saveTransactions` zaten mevcut satır numaralarını kontrol edip `rowOffset` uyguluyor; bu sayede farklı dosyaların satırları çakışmayacak.
+- `source_file_name` ve `source_bank` alanları zaten her işleme kaydediliyor; bu sayede hangi işlemin hangi dosyadan geldiği takip edilebiliyor.
+- Değiştirilecek ana dosyalar: `src/pages/finance/BankImport.tsx`, `src/hooks/finance/useBankFileUpload.ts`.
+- Test: Örnek 2-3 Excel dosyası seçilip aynı oturumda birleştirilerek işlemlerin doğru çıktığı ve kategorilendirildiği kontrol edilecek.
