@@ -250,6 +250,21 @@ export default function BankImport() {
               )}
             </Button>
             <Button
+              variant="outline"
+              size="sm"
+              onClick={() => {
+                // Switch back to upload screen — keeps active session so next upload appends
+                setSelectedFile(null);
+                setError(null);
+                setViewMode('upload');
+              }}
+              disabled={isSaving || isClearing || isUploading || isCategorizing}
+              title="Bu oturuma başka bir banka ekstresi ekle"
+            >
+              <Upload className="h-4 w-4 mr-1" />
+              Ek dosya
+            </Button>
+            <Button
               variant="destructive"
               size="sm"
               onClick={handleClear}

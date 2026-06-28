@@ -249,7 +249,8 @@ export function useBankFileUpload() {
     existingTransactions: ParsedTransaction[],
     existingFailedBatches: FailedBatch[] = [],
     totalRowsInFile: number = 0
-  ): Promise<{ transactions: ParsedTransaction[]; failedBatches: FailedBatch[] }> => {
+  ): Promise<{ transactions: ParsedTransaction[]; failedBatches: FailedBatch[]; detectedBankInfo: BankInfo | null }> => {
+    let detectedBankInfo: BankInfo | null = null;
     const totalParseBatches = batches.length;
     const transactionMap: Map<number, ParsedTransaction[]> = new Map();
     const failedBatchList: FailedBatch[] = [...existingFailedBatches];
@@ -356,7 +357,12 @@ export function useBankFileUpload() {
         if (result.success && result.transactions.length > 0) {
           transactionMap.set(result.batchIndex, result.transactions);
           successfulBatchCount++;
-          
+
+          // Capture first valid bank_info detection
+          if (!detectedBankInfo && result.bank_info) {
+            detectedBankInfo = result.bank_info;
+          }
+
           // Track if this batch was retried successfully
           if (result.wasRetried) {
             retriedBatchCount++;
@@ -366,14 +372,14 @@ export function useBankFileUpload() {
           // Track failed batch with row range
           const rowStart = result.batchIndex * PARSE_BATCH_SIZE + 2; // +2 for header offset (Excel row 1 = header)
           const rowEnd = Math.min((result.batchIndex + 1) * PARSE_BATCH_SIZE + 1, totalParseBatches * PARSE_BATCH_SIZE + 1);
-          
+
           failedBatchList.push({
             batchIndex: result.batchIndex,
             rowRange: { start: rowStart, end: rowEnd },
             error: result.error || 'Unknown error after 3 retries',
             retryCount: result.retryCount
           });
-          
+
           console.warn(`⚠️ Batch ${result.batchIndex + 1} failed permanently: rows ${rowStart}-${rowEnd}`);
         }
         completedBatches++;
@@ -440,7 +446,7 @@ export function useBankFileUpload() {
     }
 
     console.log(`Parsing complete: ${allTransactions.length} transactions from ${successfulBatchCount}/${totalParseBatches} batches (${PARALLEL_BATCH_COUNT}x parallel)`);
-    return { transactions: allTransactions, failedBatches: failedBatchList };
+    return { transactions: allTransactions, failedBatches: failedBatchList, detectedBankInfo };
   };
 
   // Categorize transactions using hybrid approach: Rules -> Keywords -> AI
@@ -847,10 +853,62 @@ export function useBankFileUpload() {
 
         // 5. Process batches with totalRowsInFile for accurate progress
         const batchResult = await processBatches(batches, 0, fileExt, file.name, [], [], totalRowsInFile);
-        const allTransactions = batchResult.transactions;
+        let allTransactions = batchResult.transactions;
+        const detectedBankInfo = batchResult.detectedBankInfo;
 
         if (allTransactions.length === 0) {
           throw new Error('Dosyadan işlem çıkarılamadı. Lütfen farklı bir format deneyin.');
+        }
+
+        // Multi-currency: enrich transactions with currency + TRY equivalent
+        const detectedCurrency = (detectedBankInfo?.currency as 'TRY' | 'USD' | 'EUR') || 'TRY';
+        if (detectedCurrency !== 'TRY') {
+          console.log(`💱 Foreign currency detected: ${detectedCurrency} — computing TRY equivalents`);
+          // Fetch monthly exchange rates for USD/TRY (covers USD; EUR uses fallback table)
+          const { data: rateRows } = await supabase
+            .from('monthly_exchange_rates')
+            .select('year, month, rate, currency_pair')
+            .eq('currency_pair', 'USD/TRY');
+
+          const rateMap = new Map<string, number>();
+          (rateRows ?? []).forEach((r: any) => rateMap.set(`${r.year}-${r.month}`, Number(r.rate)));
+
+          // EUR fallback (rough monthly TRY rates; refine via Settings if needed)
+          const EUR_FALLBACK: Record<string, number> = {
+            '2026-1': 55, '2026-2': 56, '2026-3': 57, '2026-4': 58, '2026-5': 58.5, '2026-6': 59,
+            '2026-7': 59.5, '2026-8': 60, '2026-9': 60.5, '2026-10': 61, '2026-11': 61.5, '2026-12': 62,
+          };
+          const USD_FALLBACK: Record<string, number> = {
+            '2026-1': 50.76, '2026-2': 51.5, '2026-3': 52, '2026-4': 52.5, '2026-5': 53, '2026-6': 53.5,
+            '2026-7': 54, '2026-8': 54.5, '2026-9': 55, '2026-10': 55.5, '2026-11': 56, '2026-12': 56.5,
+          };
+
+          allTransactions = allTransactions.map((tx) => {
+            const d = tx.date ? new Date(tx.date) : null;
+            const key = d && !isNaN(d.getTime()) ? `${d.getFullYear()}-${d.getMonth() + 1}` : null;
+            let rate: number | undefined;
+            if (key) {
+              if (detectedCurrency === 'USD') rate = rateMap.get(key) ?? USD_FALLBACK[key];
+              else if (detectedCurrency === 'EUR') rate = EUR_FALLBACK[key];
+            }
+            return {
+              ...tx,
+              currency: detectedCurrency,
+              exchange_rate: rate,
+              amount_try: rate ? Number((tx.amount * rate).toFixed(2)) : undefined,
+              source_file_name: file.name,
+              source_bank: detectedBankInfo?.detected_bank || null,
+            };
+          });
+        } else {
+          // TRY ekstre: amount_try = amount
+          allTransactions = allTransactions.map((tx) => ({
+            ...tx,
+            currency: 'TRY' as const,
+            amount_try: tx.amount,
+            source_file_name: file.name,
+            source_bank: detectedBankInfo?.detected_bank || null,
+          }));
         }
 
         // Save parsed transactions to DB (before AI categorization)
@@ -867,7 +925,12 @@ export function useBankFileUpload() {
               reference: tx.reference,
               counterparty: tx.counterparty,
               transaction_type: tx.transaction_type,
-              channel: tx.channel
+              channel: tx.channel,
+              currency: tx.currency,
+              amount_try: tx.amount_try,
+              exchange_rate: tx.exchange_rate,
+              source_file_name: tx.source_file_name,
+              source_bank: tx.source_bank,
             }));
             await bankImportSession.saveTransactions(saveParams);
             console.log('Parsed transactions saved to DB');
@@ -896,11 +959,11 @@ export function useBankFileUpload() {
           }
         };
 
-        const bankInfo: BankInfo = {
+        const bankInfo: BankInfo = detectedBankInfo || {
           detected_bank: null,
           account_number: null,
           iban: null,
-          currency: 'TRY'
+          currency: detectedCurrency,
         };
 
         // Set parse result

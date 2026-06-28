@@ -245,6 +245,13 @@ export interface ParsedTransaction {
   originalAmountValue?: number;
   // Excel label column (if available)
   excelLabel?: string;
+  // Multi-currency support
+  currency?: 'TRY' | 'USD' | 'EUR';
+  amount_try?: number;
+  exchange_rate?: number;
+  // Multi-file source tracking
+  source_file_name?: string;
+  source_bank?: string;
 }
 
 export interface ParseSummary {
@@ -263,7 +270,8 @@ export interface BankInfo {
   detected_bank: string | null;
   account_number: string | null;
   iban: string | null;
-  currency: string;
+  currency: 'TRY' | 'USD' | 'EUR' | string;
+  currency_confidence?: number;
 }
 
 export interface ParseResult {

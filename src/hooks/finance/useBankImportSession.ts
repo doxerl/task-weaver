@@ -81,6 +81,13 @@ export interface SaveTransactionParams {
   counterparty?: string | null;
   transaction_type?: string | null;
   channel?: string | null;
+  // Multi-currency support
+  currency?: 'TRY' | 'USD' | 'EUR' | string;
+  amount_try?: number;
+  exchange_rate?: number;
+  // Multi-file source tracking
+  source_file_name?: string;
+  source_bank?: string | null;
 }
 
 export interface SaveCategorizationParams {
@@ -210,16 +217,16 @@ export function useBankImportSession() {
   // MUTATIONS
   // =====================================================
 
-  // Create new session
+  // Create new session OR reuse an active one (multi-file append)
   const createSession = useMutation({
-    mutationFn: async (params: { 
-      fileName: string; 
+    mutationFn: async (params: {
+      fileName: string;
       fileHash?: string;
       fileId?: string;
     }) => {
       if (!userId) throw new Error('Giriş yapmalısınız');
 
-      // Check for existing session with same hash
+      // Check for existing session with same hash (same file uploaded again)
       if (params.fileHash) {
         const { data: existing } = await supabase
           .from('bank_import_sessions')
@@ -238,6 +245,30 @@ export function useBankImportSession() {
           });
           return { id: existing.id, status: existing.status, isExisting: true };
         }
+      }
+
+      // Multi-file support: reuse any active (non-final) session so additional files
+      // accumulate under the same review session
+      const { data: activeOpen } = await supabase
+        .from('bank_import_sessions')
+        .select('id, status')
+        .eq('user_id', userId)
+        .in('status', ['parsing', 'categorizing', 'review'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeOpen) {
+        // Flip back to parsing while we ingest the new file
+        await supabase
+          .from('bank_import_sessions')
+          .update({ status: 'parsing' })
+          .eq('id', activeOpen.id);
+        toast({
+          title: '➕ Ek Dosya',
+          description: 'Bu dosya mevcut oturuma ekleniyor.'
+        });
+        return { id: activeOpen.id, status: 'parsing', isExisting: false };
       }
 
       // Create new session
@@ -270,41 +301,96 @@ export function useBankImportSession() {
       if (!currentSessionId) throw new Error('Session bulunamadı');
       if (!userId) throw new Error('Giriş yapmalısınız');
 
-      const toInsert = txs.map(tx => ({
-        session_id: currentSessionId,
-        user_id: userId,
-        row_number: tx.row_number,
-        transaction_date: tx.transaction_date,
-        original_date: tx.original_date || null,
-        description: tx.description,
-        amount: tx.amount,
-        original_amount: tx.original_amount || null,
-        balance: tx.balance ?? null,
-        reference: tx.reference || null,
-        counterparty: tx.counterparty || null,
-        transaction_type: tx.transaction_type || null,
-        channel: tx.channel || null
-      }));
-
-      const { error } = await supabase
+      // Existing row_numbers for this session — append-only, skip duplicates per file
+      const { data: existingRows } = await supabase
         .from('bank_import_transactions')
-        .insert(toInsert);
+        .select('row_number, source_file_name')
+        .eq('session_id', currentSessionId);
 
-      if (error) throw error;
+      const existingKeys = new Set(
+        (existingRows ?? []).map((r: any) => `${r.source_file_name || ''}::${r.row_number}`)
+      );
 
-      // Update session stats
+      // Offset row_number so multiple files don't collide on (session_id, row_number) uniqueness
+      const maxRow = (existingRows ?? []).reduce(
+        (m: number, r: any) => Math.max(m, Number(r.row_number) || 0),
+        0
+      );
+      const rowOffset = maxRow > 0 ? maxRow + 1000 : 0;
+
+      const toInsert = txs
+        .filter(tx => !existingKeys.has(`${tx.source_file_name || ''}::${tx.row_number}`))
+        .map(tx => ({
+          session_id: currentSessionId,
+          user_id: userId,
+          row_number: rowOffset > 0 ? rowOffset + tx.row_number : tx.row_number,
+          transaction_date: tx.transaction_date,
+          original_date: tx.original_date || null,
+          description: tx.description,
+          amount: tx.amount,
+          original_amount: tx.original_amount || null,
+          balance: tx.balance ?? null,
+          reference: tx.reference || null,
+          counterparty: tx.counterparty || null,
+          transaction_type: tx.transaction_type || null,
+          channel: tx.channel || null,
+          currency: tx.currency || 'TRY',
+          amount_try: tx.amount_try ?? tx.amount,
+          exchange_rate: tx.exchange_rate ?? null,
+          source_file_name: tx.source_file_name || null,
+          source_bank: tx.source_bank || null,
+        }));
+
+      if (toInsert.length > 0) {
+        const { error } = await supabase
+          .from('bank_import_transactions')
+          .insert(toInsert);
+        if (error) throw error;
+      }
+
+      // Update session stats — additive (existing + new)
+      const allTotals = [...(existingRows ?? []), ...toInsert].length;
       const dates = txs.map(t => t.transaction_date).filter(Boolean).sort();
+      const fileName = txs[0]?.source_file_name || null;
+
+      // Read existing source_files to merge
+      const { data: sess } = await supabase
+        .from('bank_import_sessions')
+        .select('source_files, file_count, date_range_start, date_range_end')
+        .eq('id', currentSessionId)
+        .maybeSingle();
+
+      const existingFiles: any[] = Array.isArray(sess?.source_files) ? sess.source_files : [];
+      const fileExists = fileName && existingFiles.some((f: any) => f?.name === fileName);
+      const nextFiles = fileName && !fileExists
+        ? [...existingFiles, {
+            name: fileName,
+            bank: txs[0]?.source_bank || null,
+            currency: txs[0]?.currency || 'TRY',
+            count: toInsert.length,
+          }]
+        : existingFiles;
+
+      const newStart = sess?.date_range_start && sess.date_range_start < (dates[0] || '9999')
+        ? sess.date_range_start
+        : (dates[0] || sess?.date_range_start || null);
+      const newEnd = sess?.date_range_end && sess.date_range_end > (dates[dates.length - 1] || '0000')
+        ? sess.date_range_end
+        : (dates[dates.length - 1] || sess?.date_range_end || null);
+
       await supabase
         .from('bank_import_sessions')
         .update({
           status: 'categorizing',
-          total_transactions: txs.length,
-          date_range_start: dates[0] || null,
-          date_range_end: dates[dates.length - 1] || null
+          total_transactions: allTotals,
+          date_range_start: newStart,
+          date_range_end: newEnd,
+          file_count: nextFiles.length || 1,
+          source_files: nextFiles,
         })
         .eq('id', currentSessionId);
 
-      return { count: txs.length };
+      return { count: toInsert.length, skipped: txs.length - toInsert.length };
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['bankImportSession'] });
@@ -428,6 +514,10 @@ export function useBankImportSession() {
         const vatAmount = isCommercial ? grossAmount - netAmount : 0;
         const vatRate = isCommercial ? 20 : 0;
 
+        const txCurrency = (tx as any).currency || 'TRY';
+        const txAmountTry = (tx as any).amount_try ?? tx.amount;
+        const txRate = (tx as any).exchange_rate ?? null;
+
         return {
           file_id: session?.file_id || null,
           user_id: userId,
@@ -450,7 +540,10 @@ export function useBankImportSession() {
           net_amount: tx.amount > 0 ? netAmount : -netAmount,
           vat_amount: vatAmount,
           vat_rate: vatRate,
-          is_commercial: isCommercial
+          is_commercial: isCommercial,
+          currency: txCurrency,
+          amount_try: txAmountTry,
+          exchange_rate: txRate,
         };
       });
 
@@ -776,7 +869,12 @@ export function useBankImportSession() {
         aiConfidence: tx.ai_confidence || 0,
         aiReasoning: tx.ai_reasoning || undefined,
         affectsPnl: tx.ai_affects_pnl ?? undefined,
-        balanceImpact: (tx.ai_balance_impact as BalanceImpact) || undefined
+        balanceImpact: (tx.ai_balance_impact as BalanceImpact) || undefined,
+        currency: ((tx as any).currency as 'TRY' | 'USD' | 'EUR') || 'TRY',
+        amount_try: (tx as any).amount_try ?? tx.amount,
+        exchange_rate: (tx as any).exchange_rate ?? undefined,
+        source_file_name: (tx as any).source_file_name || undefined,
+        source_bank: (tx as any).source_bank || undefined,
       };
     });
   }, [transactions, categories]);

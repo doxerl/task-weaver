@@ -138,14 +138,17 @@ export type Database = {
           approved_at: string | null
           categorized_count: number | null
           created_at: string | null
+          currency: string | null
           date_range_end: string | null
           date_range_start: string | null
           detected_bank: string | null
+          file_count: number
           file_hash: string | null
           file_id: string | null
           file_name: string
           id: string
           low_confidence_count: number | null
+          source_files: Json
           status: string
           total_expense: number | null
           total_income: number | null
@@ -159,14 +162,17 @@ export type Database = {
           approved_at?: string | null
           categorized_count?: number | null
           created_at?: string | null
+          currency?: string | null
           date_range_end?: string | null
           date_range_start?: string | null
           detected_bank?: string | null
+          file_count?: number
           file_hash?: string | null
           file_id?: string | null
           file_name: string
           id?: string
           low_confidence_count?: number | null
+          source_files?: Json
           status?: string
           total_expense?: number | null
           total_income?: number | null
@@ -180,14 +186,17 @@ export type Database = {
           approved_at?: string | null
           categorized_count?: number | null
           created_at?: string | null
+          currency?: string | null
           date_range_end?: string | null
           date_range_start?: string | null
           detected_bank?: string | null
+          file_count?: number
           file_hash?: string | null
           file_id?: string | null
           file_name?: string
           id?: string
           low_confidence_count?: number | null
+          source_files?: Json
           status?: string
           total_expense?: number | null
           total_income?: number | null
@@ -215,11 +224,14 @@ export type Database = {
           ai_counterparty: string | null
           ai_reasoning: string | null
           amount: number
+          amount_try: number | null
           balance: number | null
           channel: string | null
           counterparty: string | null
           created_at: string | null
+          currency: string
           description: string
+          exchange_rate: number | null
           final_category_id: string | null
           id: string
           needs_review: boolean | null
@@ -230,6 +242,9 @@ export type Database = {
           reviewed_at: string | null
           row_number: number
           session_id: string
+          source_bank: string | null
+          source_file_id: string | null
+          source_file_name: string | null
           transaction_date: string
           transaction_type: string | null
           updated_at: string | null
@@ -247,11 +262,14 @@ export type Database = {
           ai_counterparty?: string | null
           ai_reasoning?: string | null
           amount: number
+          amount_try?: number | null
           balance?: number | null
           channel?: string | null
           counterparty?: string | null
           created_at?: string | null
+          currency?: string
           description: string
+          exchange_rate?: number | null
           final_category_id?: string | null
           id?: string
           needs_review?: boolean | null
@@ -262,6 +280,9 @@ export type Database = {
           reviewed_at?: string | null
           row_number: number
           session_id: string
+          source_bank?: string | null
+          source_file_id?: string | null
+          source_file_name?: string | null
           transaction_date: string
           transaction_type?: string | null
           updated_at?: string | null
@@ -279,11 +300,14 @@ export type Database = {
           ai_counterparty?: string | null
           ai_reasoning?: string | null
           amount?: number
+          amount_try?: number | null
           balance?: number | null
           channel?: string | null
           counterparty?: string | null
           created_at?: string | null
+          currency?: string
           description?: string
+          exchange_rate?: number | null
           final_category_id?: string | null
           id?: string
           needs_review?: boolean | null
@@ -294,6 +318,9 @@ export type Database = {
           reviewed_at?: string | null
           row_number?: number
           session_id?: string
+          source_bank?: string | null
+          source_file_id?: string | null
+          source_file_name?: string | null
           transaction_date?: string
           transaction_type?: string | null
           updated_at?: string | null
@@ -331,11 +358,14 @@ export type Database = {
           ai_confidence: number | null
           ai_suggested_category_id: string | null
           amount: number | null
+          amount_try: number | null
           balance: number | null
           category_id: string | null
           counterparty: string | null
           created_at: string | null
+          currency: string
           description: string | null
+          exchange_rate: number | null
           file_id: string | null
           id: string
           is_commercial: boolean | null
@@ -358,11 +388,14 @@ export type Database = {
           ai_confidence?: number | null
           ai_suggested_category_id?: string | null
           amount?: number | null
+          amount_try?: number | null
           balance?: number | null
           category_id?: string | null
           counterparty?: string | null
           created_at?: string | null
+          currency?: string
           description?: string | null
+          exchange_rate?: number | null
           file_id?: string | null
           id?: string
           is_commercial?: boolean | null
@@ -385,11 +418,14 @@ export type Database = {
           ai_confidence?: number | null
           ai_suggested_category_id?: string | null
           amount?: number | null
+          amount_try?: number | null
           balance?: number | null
           category_id?: string | null
           counterparty?: string | null
           created_at?: string | null
+          currency?: string
           description?: string | null
+          exchange_rate?: number | null
           file_id?: string | null
           id?: string
           is_commercial?: boolean | null
@@ -1866,6 +1902,7 @@ export type Database = {
         Row: {
           bank_name: string | null
           created_at: string | null
+          currency: string | null
           file_name: string
           file_size: number | null
           file_type: string
@@ -1881,6 +1918,7 @@ export type Database = {
         Insert: {
           bank_name?: string | null
           created_at?: string | null
+          currency?: string | null
           file_name: string
           file_size?: number | null
           file_type: string
@@ -1896,6 +1934,7 @@ export type Database = {
         Update: {
           bank_name?: string | null
           created_at?: string | null
+          currency?: string | null
           file_name?: string
           file_size?: number | null
           file_type?: string
