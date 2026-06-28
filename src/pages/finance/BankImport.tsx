@@ -62,7 +62,7 @@ export default function BankImport() {
     isCancelling
   } = useBankImportSession();
 
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [viewMode, setViewMode] = useState<ViewMode>('upload');
   const [error, setError] = useState<string | null>(null);
 
@@ -81,19 +81,27 @@ export default function BankImport() {
   const isSaving = isSavingUpload || isApproving;
 
   const handleFileSelect = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setSelectedFile(file);
+    const files = e.target.files;
+    if (files && files.length > 0) {
+      const excelFiles = Array.from(files).filter(file => {
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        return ext === 'xlsx' || ext === 'xls';
+      });
+      setSelectedFiles(prev => [...prev, ...excelFiles]);
       setError(null);
     }
   }, []);
 
+  const handleRemoveFile = useCallback((index: number) => {
+    setSelectedFiles(prev => prev.filter((_, i) => i !== index));
+  }, []);
+
   const handleParse = async () => {
-    if (!selectedFile) return;
+    if (selectedFiles.length === 0) return;
     setError(null);
     
     try {
-      const result = await uploadAndParse.mutateAsync(selectedFile);
+      const result = await uploadAndParse.mutateAsync(selectedFiles);
       if (result.length > 0) {
         setViewMode('preview');
       }
@@ -160,7 +168,7 @@ export default function BankImport() {
       }
       
       // 2. Reset React states
-      setSelectedFile(null);
+      setSelectedFiles([]);
       setError(null);
       setViewMode('upload');
       
@@ -254,7 +262,7 @@ export default function BankImport() {
               size="sm"
               onClick={() => {
                 // Switch back to upload screen — keeps active session so next upload appends
-                setSelectedFile(null);
+                setSelectedFiles([]);
                 setError(null);
                 setViewMode('upload');
               }}
@@ -437,6 +445,7 @@ export default function BankImport() {
               <input
                 type="file"
                 accept=".xlsx,.xls"
+                multiple
                 onChange={handleFileSelect}
                 disabled={isProcessing}
                 className="hidden"
@@ -456,24 +465,29 @@ export default function BankImport() {
               <p className="text-xs text-muted-foreground">Excel formatı (.xlsx, .xls)</p>
             </label>
 
-            {/* Selected file info */}
-            {selectedFile && !isProcessing && status !== 'paused' && (
-              <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
-                <div className="flex items-center gap-3">
-                  <FileSpreadsheet className="h-8 w-8 text-primary" />
-                  <div>
-                    <p className="text-sm font-medium">{selectedFile.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {(selectedFile.size / 1024).toFixed(1)} KB
-                    </p>
+            {/* Selected files list */}
+            {selectedFiles.length > 0 && !isProcessing && status !== 'paused' && (
+              <div className="space-y-2">
+                {selectedFiles.map((file, index) => (
+                  <div key={`${file.name}-${index}`} className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-3 min-w-0">
+                      <FileSpreadsheet className="h-8 w-8 text-primary shrink-0" />
+                      <div className="min-w-0">
+                        <p className="text-sm font-medium truncate">{file.name}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {(file.size / 1024).toFixed(1)} KB
+                        </p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleRemoveFile(index)}
+                      className="p-1 hover:bg-accent rounded shrink-0"
+                      title="Dosyayı kaldır"
+                    >
+                      <X className="h-4 w-4" />
+                    </button>
                   </div>
-                </div>
-                <button
-                  onClick={handleClear}
-                  className="p-1 hover:bg-accent rounded"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+                ))}
               </div>
             )}
 
@@ -707,14 +721,14 @@ export default function BankImport() {
             )}
 
             {/* Parse button */}
-            {selectedFile && !isProcessing && status !== 'completed' && status !== 'paused' && (
+            {selectedFiles.length > 0 && !isProcessing && status !== 'completed' && status !== 'paused' && (
               <Button
                 onClick={handleParse}
                 className="w-full"
                 disabled={isProcessing}
               >
                 <Upload className="h-4 w-4 mr-2" />
-                AI ile Analiz Et
+                AI ile Analiz Et ({selectedFiles.length} dosya)
               </Button>
             )}
           </CardContent>

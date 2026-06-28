@@ -248,7 +248,9 @@ export function useBankFileUpload() {
     fileName: string,
     existingTransactions: ParsedTransaction[],
     existingFailedBatches: FailedBatch[] = [],
-    totalRowsInFile: number = 0
+    totalRowsInFile: number = 0,
+    fileIndex: number = 0,
+    totalFiles: number = 1
   ): Promise<{ transactions: ParsedTransaction[]; failedBatches: FailedBatch[]; detectedBankInfo: BankInfo | null }> => {
     let detectedBankInfo: BankInfo | null = null;
     const totalParseBatches = batches.length;
@@ -399,8 +401,10 @@ export function useBankFileUpload() {
         estimatedTimeLeft: Math.max(0, Math.ceil((totalParseBatches - completedBatches) / PARALLEL_BATCH_COUNT) * ESTIMATED_SECONDS_PER_PARSE_BATCH),
       }));
 
-      // Update overall progress
-      const parseProgress = 30 + (completedBatches / totalParseBatches) * 35;
+      // Update overall progress (scale across multiple files)
+      const fileProgressStart = 30 + (fileIndex / totalFiles) * 35;
+      const fileProgressEnd = 30 + ((fileIndex + 1) / totalFiles) * 35;
+      const parseProgress = fileProgressStart + (completedBatches / totalParseBatches) * (fileProgressEnd - fileProgressStart);
       setProgress(parseProgress);
     }
 
@@ -710,244 +714,284 @@ export function useBankFileUpload() {
     }
   });
 
-  // Step 1: Upload file and parse with AI (returns transactions for preview)
+  // Step 1: Upload file(s) and parse with AI (returns transactions for preview)
   const uploadAndParse = useMutation({
-    mutationFn: async (file: File): Promise<ParsedTransaction[]> => {
+    mutationFn: async (files: File | File[]): Promise<ParsedTransaction[]> => {
+      const fileList = Array.isArray(files) ? files : [files];
+      if (fileList.length === 0) throw new Error('Dosya seçilmedi');
       if (!userId) throw new Error('Giriş yapmalısınız');
-      
-      // Validate file type - only Excel allowed
-      const ext = file.name.split('.').pop()?.toLowerCase();
-      if (ext === 'pdf') {
-        throw new Error('PDF formatı desteklenmiyor. Lütfen Excel (.xlsx veya .xls) dosyası yükleyin.');
+
+      // Validate all files
+      for (const file of fileList) {
+        const ext = file.name.split('.').pop()?.toLowerCase();
+        if (ext === 'pdf') {
+          throw new Error('PDF formatı desteklenmiyor. Lütfen Excel (.xlsx veya .xls) dosyası yükleyin.');
+        }
+        if (!['xlsx', 'xls'].includes(ext || '')) {
+          throw new Error('Desteklenmeyen dosya formatı. Lütfen Excel (.xlsx veya .xls) dosyası yükleyin.');
+        }
       }
-      if (!['xlsx', 'xls'].includes(ext || '')) {
-        throw new Error('Desteklenmeyen dosya formatı. Lütfen Excel (.xlsx veya .xls) dosyası yükleyin.');
-      }
-      
+
       abortRef.current = false;
       setCanResume(false);
       resumeStateRef.current = null;
       currentSessionIdRef.current = null;
-      setCanResume(false);
-      resumeStateRef.current = null;
+
+      let allTransactions: ParsedTransaction[] = [];
+      let allFailedBatches: FailedBatch[] = [];
+      const fileResults: { fileName: string; bankInfo: BankInfo | null }[] = [];
 
       try {
         setStatus('uploading');
         setProgress(5);
 
-        // Compute file hash for duplicate detection
-        const fileHash = await computeFileHash(file);
-        console.log('File hash:', fileHash);
+        for (let fileIndex = 0; fileIndex < fileList.length; fileIndex++) {
+          const file = fileList[fileIndex];
+          const fileBaseProgress = (fileIndex / fileList.length) * 100;
 
-        // Create import session first
-        try {
-          const sessionResult = await bankImportSession.createSession({
-            fileName: file.name,
-            fileHash
-          });
-          currentSessionIdRef.current = sessionResult.id;
-          
-          // If existing session found, load transactions from DB
-          if (sessionResult.isExisting && sessionResult.status === 'review') {
-            await bankImportSession.refetchTransactions();
-            const existingTransactions = bankImportSession.parsedTransactions;
-            if (existingTransactions.length > 0) {
-              setParsedTransactions(existingTransactions);
-              setProgress(100);
-              return existingTransactions;
+          // Check if processing was stopped
+          if (abortRef.current) {
+            throw new Error('PAUSED');
+          }
+
+          // Compute file hash for duplicate detection
+          const fileHash = await computeFileHash(file);
+          console.log(`File ${fileIndex + 1}/${fileList.length} hash:`, fileHash);
+
+          // Create import session on first file, reuse active session for subsequent files
+          if (fileIndex === 0) {
+            try {
+              const sessionResult = await bankImportSession.createSession({
+                fileName: file.name,
+                fileHash
+              });
+              currentSessionIdRef.current = sessionResult.id;
+
+              // If existing session found, load transactions from DB
+              if (sessionResult.isExisting && sessionResult.status === 'review') {
+                await bankImportSession.refetchTransactions();
+                const existingTransactions = bankImportSession.parsedTransactions;
+                if (existingTransactions.length > 0) {
+                  setParsedTransactions(existingTransactions);
+                  setProgress(100);
+                  return existingTransactions;
+                }
+              }
+            } catch (sessionErr) {
+              console.warn('Session creation failed, continuing without persistence:', sessionErr);
             }
           }
-        } catch (sessionErr) {
-          console.warn('Session creation failed, continuing without persistence:', sessionErr);
-        }
 
-        // Check for existing file with same name in bank_files
-        const { data: existingFile } = await supabase
-          .from('uploaded_bank_files')
-          .select('id, file_name, processing_status')
-          .eq('user_id', userId)
-          .eq('file_name', file.name)
-          .eq('processing_status', 'completed')
-          .maybeSingle();
+          // Check for existing file with same name in bank_files
+          const { data: existingFile } = await supabase
+            .from('uploaded_bank_files')
+            .select('id, file_name, processing_status')
+            .eq('user_id', userId)
+            .eq('file_name', file.name)
+            .eq('processing_status', 'completed')
+            .maybeSingle();
 
-        if (existingFile) {
-          const confirmReupload = window.confirm(
-            `"${file.name}" daha önce yüklenmiş. Mevcut verileri silip yeniden yüklemek ister misiniz?`
+          if (existingFile) {
+            const confirmReupload = window.confirm(
+              `"${file.name}" daha önce yüklenmiş. Mevcut verileri silip yeniden yüklemek ister misiniz?`
+            );
+            if (!confirmReupload) {
+              throw new Error('Yükleme iptal edildi');
+            }
+            // Delete existing data
+            await supabase.from('bank_transactions').delete().eq('file_id', existingFile.id);
+            await supabase.from('uploaded_bank_files').delete().eq('id', existingFile.id);
+          }
+
+          setProgress(Math.round(5 + (fileIndex / fileList.length) * 10));
+
+          // 1. Upload to Storage
+          const fileExt = file.name.split('.').pop()?.toLowerCase() || 'xlsx';
+          const path = `${userId}/bank/${Date.now()}_${fileIndex}.${fileExt}`;
+
+          const { error: uploadError } = await supabase.storage
+            .from('finance-files')
+            .upload(path, file);
+
+          if (uploadError) throw uploadError;
+
+          const { data: signedData } = await supabase.storage
+            .from('finance-files')
+            .createSignedUrl(path, 3600);
+          const publicUrl = signedData?.signedUrl ?? path;
+
+          setProgress(Math.round(10 + (fileIndex / fileList.length) * 10));
+
+          // 2. Create DB record
+          const { data: bankFile, error: dbError } = await supabase
+            .from('uploaded_bank_files')
+            .insert({
+              user_id: userId,
+              file_name: file.name,
+                  file_type: fileExt,
+                  file_size: file.size,
+                  file_url: publicUrl,
+                  processing_status: 'processing'
+            })
+            .select()
+            .single();
+
+          if (dbError) throw dbError;
+          setCurrentFileId(bankFile.id);
+          setProgress(Math.round(15 + (fileIndex / fileList.length) * 10));
+
+          // 3. Read file content (parse XLSX/PDF to text)
+          const parseResult = await parseFile(file);
+          const { content: fileContent, headerRow, dataRowCount, totalRowCount } = parseResult;
+
+          console.log(`📊 File ${fileIndex + 1} parsed: ${totalRowCount} total rows, ${dataRowCount} data rows`);
+          console.log(`📋 Header: "${headerRow.substring(0, 80)}..."`);
+          console.log(`📄 Content length: ${fileContent.length} chars`);
+
+          // 4. Split into batches (10 lines each)
+          setStatus('parsing');
+          setProgress(Math.round(20 + (fileIndex / fileList.length) * 15));
+
+          // Get data lines (already have [ROW X] prefix from parseFile)
+          const dataLines = fileContent.split('\n').filter(line => line.startsWith('[ROW'));
+          const totalRowsInFile = totalRowCount;
+
+          console.log(`📊 Data lines found: ${dataLines.length} (expected: ${dataRowCount})`);
+
+          // Validate line count
+          if (dataLines.length !== dataRowCount) {
+            console.warn(`⚠️ Line count mismatch: found ${dataLines.length}, expected ${dataRowCount}`);
+          }
+
+          // Create batches of 10 data lines, prepending header to each batch
+          const batches: string[] = [];
+          for (let i = 0; i < dataLines.length; i += PARSE_BATCH_SIZE) {
+            const batchLines = dataLines.slice(i, i + PARSE_BATCH_SIZE);
+            // Prepend header as "HEADER:" line for AI context
+            batches.push([`HEADER:\t${headerRow}`, ...batchLines].join('\n'));
+          }
+
+          console.log(`✅ Created ${batches.length} parse batches (${PARSE_BATCH_SIZE} rows each)`);
+
+          // 5. Process batches with totalRowsInFile for accurate progress
+          const batchResult = await processBatches(
+            batches,
+            0,
+            fileExt,
+            file.name,
+            [],
+            [],
+            totalRowsInFile,
+            fileIndex,
+            fileList.length
           );
-          if (!confirmReupload) {
-            throw new Error('Yükleme iptal edildi');
+          let fileTransactions = batchResult.transactions;
+          const detectedBankInfo = batchResult.detectedBankInfo;
+          allFailedBatches.push(...batchResult.failedBatches);
+
+          if (fileTransactions.length === 0) {
+            console.warn(`⚠️ File ${fileIndex + 1}: No transactions extracted`);
+            continue; // Skip this file but continue with others
           }
-          // Delete existing data
-          await supabase.from('bank_transactions').delete().eq('file_id', existingFile.id);
-          await supabase.from('uploaded_bank_files').delete().eq('id', existingFile.id);
-        }
 
-        setProgress(10);
+          // Multi-currency: enrich transactions with currency + TRY equivalent
+          const detectedCurrency = (detectedBankInfo?.currency as 'TRY' | 'USD' | 'EUR') || 'TRY';
+          if (detectedCurrency !== 'TRY') {
+            console.log(`💱 Foreign currency detected: ${detectedCurrency} — computing TRY equivalents`);
+            // Fetch monthly exchange rates for USD/TRY (covers USD; EUR uses fallback table)
+            const { data: rateRows } = await supabase
+              .from('monthly_exchange_rates')
+              .select('year, month, rate, currency_pair')
+              .eq('currency_pair', 'USD/TRY');
 
-        // 1. Upload to Storage
-        const fileExt = file.name.split('.').pop()?.toLowerCase() || 'xlsx';
-        const path = `${userId}/bank/${Date.now()}.${fileExt}`;
+            const rateMap = new Map<string, number>();
+            (rateRows ?? []).forEach((r: any) => rateMap.set(`${r.year}-${r.month}`, Number(r.rate)));
 
-        const { error: uploadError } = await supabase.storage
-          .from('finance-files')
-          .upload(path, file);
+            // EUR fallback (rough monthly TRY rates; refine via Settings if needed)
+            const EUR_FALLBACK: Record<string, number> = {
+              '2026-1': 55, '2026-2': 56, '2026-3': 57, '2026-4': 58, '2026-5': 58.5, '2026-6': 59,
+              '2026-7': 59.5, '2026-8': 60, '2026-9': 60.5, '2026-10': 61, '2026-11': 61.5, '2026-12': 62,
+            };
+            const USD_FALLBACK: Record<string, number> = {
+              '2026-1': 50.76, '2026-2': 51.5, '2026-3': 52, '2026-4': 52.5, '2026-5': 53, '2026-6': 53.5,
+              '2026-7': 54, '2026-8': 54.5, '2026-9': 55, '2026-10': 55.5, '2026-11': 56, '2026-12': 56.5,
+            };
 
-        if (uploadError) throw uploadError;
-
-        const { data: signedData } = await supabase.storage
-          .from('finance-files')
-          .createSignedUrl(path, 3600);
-        const publicUrl = signedData?.signedUrl ?? path;
-
-        setProgress(20);
-
-        // 2. Create DB record
-        const { data: bankFile, error: dbError } = await supabase
-          .from('uploaded_bank_files')
-          .insert({
-            user_id: userId,
-            file_name: file.name,
-            file_type: fileExt,
-            file_size: file.size,
-            file_url: publicUrl,
-            processing_status: 'processing'
-          })
-          .select()
-          .single();
-
-        if (dbError) throw dbError;
-        setCurrentFileId(bankFile.id);
-        setProgress(25);
-
-        // 3. Read file content (parse XLSX/PDF to text)
-        const parseResult = await parseFile(file);
-        const { content: fileContent, headerRow, dataRowCount, totalRowCount } = parseResult;
-        
-        console.log(`📊 File parsed: ${totalRowCount} total rows, ${dataRowCount} data rows`);
-        console.log(`📋 Header: "${headerRow.substring(0, 80)}..."`);
-        console.log(`📄 Content length: ${fileContent.length} chars`);
-
-        // 4. Split into batches (10 lines each)
-        setStatus('parsing');
-        setProgress(30);
-
-        // Get data lines (already have [ROW X] prefix from parseFile)
-        const dataLines = fileContent.split('\n').filter(line => line.startsWith('[ROW'));
-        const totalRowsInFile = totalRowCount;
-        
-        console.log(`📊 Data lines found: ${dataLines.length} (expected: ${dataRowCount})`);
-        
-        // Validate line count
-        if (dataLines.length !== dataRowCount) {
-          console.warn(`⚠️ Line count mismatch: found ${dataLines.length}, expected ${dataRowCount}`);
-        }
-
-        // Create batches of 10 data lines, prepending header to each batch
-        const batches: string[] = [];
-        for (let i = 0; i < dataLines.length; i += PARSE_BATCH_SIZE) {
-          const batchLines = dataLines.slice(i, i + PARSE_BATCH_SIZE);
-          // Prepend header as "HEADER:" line for AI context
-          batches.push([`HEADER:\t${headerRow}`, ...batchLines].join('\n'));
-        }
-
-        console.log(`✅ Created ${batches.length} parse batches (${PARSE_BATCH_SIZE} rows each)`);
-
-        // 5. Process batches with totalRowsInFile for accurate progress
-        const batchResult = await processBatches(batches, 0, fileExt, file.name, [], [], totalRowsInFile);
-        let allTransactions = batchResult.transactions;
-        const detectedBankInfo = batchResult.detectedBankInfo;
-
-        if (allTransactions.length === 0) {
-          throw new Error('Dosyadan işlem çıkarılamadı. Lütfen farklı bir format deneyin.');
-        }
-
-        // Multi-currency: enrich transactions with currency + TRY equivalent
-        const detectedCurrency = (detectedBankInfo?.currency as 'TRY' | 'USD' | 'EUR') || 'TRY';
-        if (detectedCurrency !== 'TRY') {
-          console.log(`💱 Foreign currency detected: ${detectedCurrency} — computing TRY equivalents`);
-          // Fetch monthly exchange rates for USD/TRY (covers USD; EUR uses fallback table)
-          const { data: rateRows } = await supabase
-            .from('monthly_exchange_rates')
-            .select('year, month, rate, currency_pair')
-            .eq('currency_pair', 'USD/TRY');
-
-          const rateMap = new Map<string, number>();
-          (rateRows ?? []).forEach((r: any) => rateMap.set(`${r.year}-${r.month}`, Number(r.rate)));
-
-          // EUR fallback (rough monthly TRY rates; refine via Settings if needed)
-          const EUR_FALLBACK: Record<string, number> = {
-            '2026-1': 55, '2026-2': 56, '2026-3': 57, '2026-4': 58, '2026-5': 58.5, '2026-6': 59,
-            '2026-7': 59.5, '2026-8': 60, '2026-9': 60.5, '2026-10': 61, '2026-11': 61.5, '2026-12': 62,
-          };
-          const USD_FALLBACK: Record<string, number> = {
-            '2026-1': 50.76, '2026-2': 51.5, '2026-3': 52, '2026-4': 52.5, '2026-5': 53, '2026-6': 53.5,
-            '2026-7': 54, '2026-8': 54.5, '2026-9': 55, '2026-10': 55.5, '2026-11': 56, '2026-12': 56.5,
-          };
-
-          allTransactions = allTransactions.map((tx) => {
-            const d = tx.date ? new Date(tx.date) : null;
-            const key = d && !isNaN(d.getTime()) ? `${d.getFullYear()}-${d.getMonth() + 1}` : null;
-            let rate: number | undefined;
-            if (key) {
-              if (detectedCurrency === 'USD') rate = rateMap.get(key) ?? USD_FALLBACK[key];
-              else if (detectedCurrency === 'EUR') rate = EUR_FALLBACK[key];
-            }
-            return {
+            fileTransactions = fileTransactions.map((tx) => {
+              const d = tx.date ? new Date(tx.date) : null;
+              const key = d && !isNaN(d.getTime()) ? `${d.getFullYear()}-${d.getMonth() + 1}` : null;
+              let rate: number | undefined;
+              if (key) {
+                if (detectedCurrency === 'USD') rate = rateMap.get(key) ?? USD_FALLBACK[key];
+                else if (detectedCurrency === 'EUR') rate = EUR_FALLBACK[key];
+              }
+              return {
+                ...tx,
+                currency: detectedCurrency,
+                exchange_rate: rate,
+                amount_try: rate ? Number((tx.amount * rate).toFixed(2)) : undefined,
+                source_file_name: file.name,
+                source_bank: detectedBankInfo?.detected_bank || null,
+              };
+            });
+          } else {
+            // TRY ekstre: amount_try = amount
+            fileTransactions = fileTransactions.map((tx) => ({
               ...tx,
-              currency: detectedCurrency,
-              exchange_rate: rate,
-              amount_try: rate ? Number((tx.amount * rate).toFixed(2)) : undefined,
+              currency: 'TRY' as const,
+              amount_try: tx.amount,
               source_file_name: file.name,
               source_bank: detectedBankInfo?.detected_bank || null,
-            };
-          });
-        } else {
-          // TRY ekstre: amount_try = amount
-          allTransactions = allTransactions.map((tx) => ({
-            ...tx,
-            currency: 'TRY' as const,
-            amount_try: tx.amount,
-            source_file_name: file.name,
-            source_bank: detectedBankInfo?.detected_bank || null,
-          }));
-        }
-
-        // Save parsed transactions to DB (before AI categorization)
-        if (currentSessionIdRef.current) {
-          try {
-            const saveParams: SaveTransactionParams[] = allTransactions.map(tx => ({
-              row_number: tx.row_number,
-              transaction_date: tx.date,
-              original_date: tx.original_date,
-              description: tx.description,
-              amount: tx.amount,
-              original_amount: tx.original_amount,
-              balance: tx.balance,
-              reference: tx.reference,
-              counterparty: tx.counterparty,
-              transaction_type: tx.transaction_type,
-              channel: tx.channel,
-              currency: tx.currency,
-              amount_try: tx.amount_try,
-              exchange_rate: tx.exchange_rate,
-              source_file_name: tx.source_file_name,
-              source_bank: tx.source_bank,
             }));
-            await bankImportSession.saveTransactions(saveParams);
-            console.log('Parsed transactions saved to DB');
-          } catch (saveErr) {
-            console.warn('Failed to save transactions to DB:', saveErr);
           }
+
+          // Save parsed transactions to DB (before AI categorization)
+          if (currentSessionIdRef.current) {
+            try {
+              const saveParams: SaveTransactionParams[] = fileTransactions.map(tx => ({
+                row_number: tx.row_number,
+                transaction_date: tx.date,
+                original_date: tx.original_date,
+                description: tx.description,
+                amount: tx.amount,
+                original_amount: tx.original_amount,
+                balance: tx.balance,
+                reference: tx.reference,
+                counterparty: tx.counterparty,
+                transaction_type: tx.transaction_type,
+                channel: tx.channel,
+                currency: tx.currency,
+                amount_try: tx.amount_try,
+                exchange_rate: tx.exchange_rate,
+                source_file_name: tx.source_file_name,
+                source_bank: tx.source_bank,
+              }));
+              await bankImportSession.saveTransactions(saveParams);
+              console.log(`File ${fileIndex + 1} transactions saved to DB`);
+            } catch (saveErr) {
+              console.warn(`Failed to save file ${fileIndex + 1} transactions to DB:`, saveErr);
+            }
+          }
+
+          fileResults.push({ fileName: file.name, bankInfo: detectedBankInfo });
+          allTransactions = [...allTransactions, ...fileTransactions];
+
+          // Update overall progress after each file
+          setProgress(Math.round(30 + ((fileIndex + 1) / fileList.length) * 35));
         }
 
-        // Calculate summary from transactions - include failed batch info
-        const expectedRows = dataLines.length;
+        if (allTransactions.length === 0) {
+          throw new Error('Seçilen dosyalardan işlem çıkarılamadı. Lütfen farklı bir format deneyin.');
+        }
+
+        // Calculate summary from all transactions
+        const expectedRows = allTransactions.length;
         const actualRows = allTransactions.length;
-        const missingRows = expectedRows - actualRows;
+        const missingRows = 0;
 
         const calculatedSummary: ParseSummary = {
           total_rows_in_file: expectedRows,
-          header_rows_skipped: 1,
+          header_rows_skipped: fileList.length,
           footer_rows_skipped: 0,
           empty_rows_skipped: missingRows > 0 ? missingRows : 0,
           transaction_count: allTransactions.length,
@@ -960,21 +1004,22 @@ export function useBankFileUpload() {
           }
         };
 
-        const bankInfo: BankInfo = detectedBankInfo || {
+        const firstBankInfo = fileResults.find(r => r.bankInfo)?.bankInfo || {
           detected_bank: null,
           account_number: null,
           iban: null,
-          currency: detectedCurrency,
+          currency: 'TRY',
         };
 
         // Set parse result
         setParseResult({
           transactions: allTransactions,
           summary: calculatedSummary,
-          bank_info: bankInfo
+          bank_info: firstBankInfo
         });
 
         setProgress(65);
+        setFailedRowRanges(allFailedBatches);
 
         // Step 6: AI Kategorilendirme
         setStatus('categorizing');
