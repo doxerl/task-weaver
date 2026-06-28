@@ -123,6 +123,7 @@ export default function ReceiptUpload() {
     isLoading: isLoadingReceipts,
     uploadReceipt,
     uploadReceiptsBatch,
+    retryFailedBatch,
     batchProgress,
     isBatchUploading,
     uploadProgress, 
