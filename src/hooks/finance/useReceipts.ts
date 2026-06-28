@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -64,6 +64,9 @@ export function useReceipts(year?: number, month?: number) {
   
   // Batch upload state
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
+  // Keep last uploaded files keyed by file name so that we can retry failed entries
+  // (including individual pages of multi-invoice PDFs by re-processing the parent file).
+  const lastBatchFilesRef = useRef<Map<string, File>>(new Map());
 
   // Stable queryKey reference to prevent hook dependency issues
   const queryKey = useMemo(
