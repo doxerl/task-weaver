@@ -1,0 +1,3 @@
+INSERT INTO public.transaction_categories (user_id, name, code, type, color, icon, keywords, vendor_patterns, is_system, is_financing, is_excluded, affects_partner_account, sort_order, account_code, account_subcode, match_priority)
+VALUES (NULL, 'SBT Tracker Yenileme', 'SBT_RENEW', 'INCOME', '#10b981', '🔄', ARRAY['YENİLEME','YENILEME','RENEWAL','SBT YENİLEME','SBT YENILEME','TRACKER YENİLEME','TRACKER YENILEME'], ARRAY[]::text[], true, false, false, false, 6, '600', '600.02', 35)
+ON CONFLICT DO NOTHING;
