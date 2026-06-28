@@ -228,7 +228,7 @@ YURTDIŞI FATURADA: isForeign: true, vatRate: null, vatAmount: null olmalı!`;
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'google/gemini-2.5-pro',
+        model: 'google/gemini-3-pro-preview',
         messages: [
           { 
             role: 'user', 
