@@ -60,10 +60,10 @@ export function useTrialBalance(year: number, month: number | null = null) {
 
       if (uploadError) throw uploadError;
 
-      // Get public URL
-      const { data: urlData } = supabase.storage
+      // Get signed URL (private bucket)
+      const { data: urlData } = await supabase.storage
         .from('finance-files')
-        .getPublicUrl(storagePath);
+        .createSignedUrl(storagePath, 3600);
 
       // Parse the file using edge function
       const formData = new FormData();
