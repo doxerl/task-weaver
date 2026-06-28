@@ -838,7 +838,12 @@ export function useBankImportSession() {
         aiConfidence: tx.ai_confidence || 0,
         aiReasoning: tx.ai_reasoning || undefined,
         affectsPnl: tx.ai_affects_pnl ?? undefined,
-        balanceImpact: (tx.ai_balance_impact as BalanceImpact) || undefined
+        balanceImpact: (tx.ai_balance_impact as BalanceImpact) || undefined,
+        currency: ((tx as any).currency as 'TRY' | 'USD' | 'EUR') || 'TRY',
+        amount_try: (tx as any).amount_try ?? tx.amount,
+        exchange_rate: (tx as any).exchange_rate ?? undefined,
+        source_file_name: (tx as any).source_file_name || undefined,
+        source_bank: (tx as any).source_bank || undefined,
       };
     });
   }, [transactions, categories]);
