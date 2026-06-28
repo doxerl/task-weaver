@@ -217,16 +217,16 @@ export function useBankImportSession() {
   // MUTATIONS
   // =====================================================
 
-  // Create new session
+  // Create new session OR reuse an active one (multi-file append)
   const createSession = useMutation({
-    mutationFn: async (params: { 
-      fileName: string; 
+    mutationFn: async (params: {
+      fileName: string;
       fileHash?: string;
       fileId?: string;
     }) => {
       if (!userId) throw new Error('Giriş yapmalısınız');
 
-      // Check for existing session with same hash
+      // Check for existing session with same hash (same file uploaded again)
       if (params.fileHash) {
         const { data: existing } = await supabase
           .from('bank_import_sessions')
@@ -245,6 +245,30 @@ export function useBankImportSession() {
           });
           return { id: existing.id, status: existing.status, isExisting: true };
         }
+      }
+
+      // Multi-file support: reuse any active (non-final) session so additional files
+      // accumulate under the same review session
+      const { data: activeOpen } = await supabase
+        .from('bank_import_sessions')
+        .select('id, status')
+        .eq('user_id', userId)
+        .in('status', ['parsing', 'categorizing', 'review'])
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (activeOpen) {
+        // Flip back to parsing while we ingest the new file
+        await supabase
+          .from('bank_import_sessions')
+          .update({ status: 'parsing' })
+          .eq('id', activeOpen.id);
+        toast({
+          title: '➕ Ek Dosya',
+          description: 'Bu dosya mevcut oturuma ekleniyor.'
+        });
+        return { id: activeOpen.id, status: 'parsing', isExisting: false };
       }
 
       // Create new session
