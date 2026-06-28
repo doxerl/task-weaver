@@ -798,9 +798,10 @@ export function useReceipts(year?: number, month?: number) {
     
     if (uploadError) throw uploadError;
 
-    const { data: { publicUrl } } = supabase.storage
+    const { data: signedData2 } = await supabase.storage
       .from('finance-files')
-      .getPublicUrl(path);
+      .createSignedUrl(path, 3600);
+    const publicUrl = signedData2?.signedUrl ?? path;
     
     // Handle XML e-Fatura
     if (isXml) {
