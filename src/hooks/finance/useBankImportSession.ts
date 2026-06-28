@@ -490,6 +490,10 @@ export function useBankImportSession() {
         const vatAmount = isCommercial ? grossAmount - netAmount : 0;
         const vatRate = isCommercial ? 20 : 0;
 
+        const txCurrency = (tx as any).currency || 'TRY';
+        const txAmountTry = (tx as any).amount_try ?? tx.amount;
+        const txRate = (tx as any).exchange_rate ?? null;
+
         return {
           file_id: session?.file_id || null,
           user_id: userId,
@@ -512,7 +516,10 @@ export function useBankImportSession() {
           net_amount: tx.amount > 0 ? netAmount : -netAmount,
           vat_amount: vatAmount,
           vat_rate: vatRate,
-          is_commercial: isCommercial
+          is_commercial: isCommercial,
+          currency: txCurrency,
+          amount_try: txAmountTry,
+          exchange_rate: txRate,
         };
       });
 
