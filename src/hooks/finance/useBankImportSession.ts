@@ -81,6 +81,13 @@ export interface SaveTransactionParams {
   counterparty?: string | null;
   transaction_type?: string | null;
   channel?: string | null;
+  // Multi-currency support
+  currency?: 'TRY' | 'USD' | 'EUR' | string;
+  amount_try?: number;
+  exchange_rate?: number;
+  // Multi-file source tracking
+  source_file_name?: string;
+  source_bank?: string | null;
 }
 
 export interface SaveCategorizationParams {
