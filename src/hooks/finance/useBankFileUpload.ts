@@ -794,9 +794,10 @@ export function useBankFileUpload() {
 
         if (uploadError) throw uploadError;
 
-        const { data: { publicUrl } } = supabase.storage
+        const { data: signedData } = await supabase.storage
           .from('finance-files')
-          .getPublicUrl(path);
+          .createSignedUrl(path, 3600);
+        const publicUrl = signedData?.signedUrl ?? path;
 
         setProgress(20);
 
