@@ -249,7 +249,8 @@ export function useBankFileUpload() {
     existingTransactions: ParsedTransaction[],
     existingFailedBatches: FailedBatch[] = [],
     totalRowsInFile: number = 0
-  ): Promise<{ transactions: ParsedTransaction[]; failedBatches: FailedBatch[] }> => {
+  ): Promise<{ transactions: ParsedTransaction[]; failedBatches: FailedBatch[]; detectedBankInfo: BankInfo | null }> => {
+    let detectedBankInfo: BankInfo | null = null;
     const totalParseBatches = batches.length;
     const transactionMap: Map<number, ParsedTransaction[]> = new Map();
     const failedBatchList: FailedBatch[] = [...existingFailedBatches];
