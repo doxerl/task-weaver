@@ -1276,6 +1276,7 @@ export function useReceipts(year?: number, month?: number) {
     uploadReceipt, 
     // Batch upload
     uploadReceiptsBatch,
+    retryFailedBatch,
     batchProgress,
     isBatchUploading: uploadReceiptsBatch.isPending,
     updateCategory,
