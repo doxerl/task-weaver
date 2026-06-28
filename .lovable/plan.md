@@ -1,40 +1,65 @@
-## Amaç
+## Hedef
 
-Kullanıcı 2024 veya 2025 tarihli USD/EUR ekstre yüklediğinde `amount_try` alanı boş kalmasın. Şu an `useBankFileUpload.ts` içindeki fallback tabloları sadece 2026 anahtarlarını içeriyor; DB'de ise yalnızca USD/TRY 2025 değerleri var (EUR yok, USD 2024 yok).
+Tek bir PDF içinde birden fazla fatura olduğunda (örn: 45 sayfalık toplu e-fatura çıktısı), sistem PDF'i otomatik tespit edip her sayfayı ayrı bir fatura olarak işlesin. Banka ekstresinde olduğu gibi 5 paralel batch ile ilerlesin, progress bar ve özet ekrandan takip edilebilsin. TL ve EUR (ve diğer dövizler) destekli.
 
-## Yapılacaklar
+## Mevcut durum
 
-### 1. `src/hooks/finance/useBankFileUpload.ts` (satır 911-918)
+- `ReceiptUpload.tsx` PDF'i tek dosya olarak `useReceipts.uploadReceiptsBatch`'e veriyor.
+- `useReceipts` her PDF için `parse-receipt` edge function'ını **tek seferlik** çağırıyor → çok sayfalı PDF tek faturaya düşüyor.
+- `BatchProgress` altyapısı, paralel işleme ve UI (progress bar, success/duplicate/failure özetleri) zaten mevcut — sadece "1 dosya = 1 fatura" varsayımı sorun.
 
-`EUR_FALLBACK` ve `USD_FALLBACK` sabitlerini 2024 ve 2025 yıllarıyla genişlet. Resmi/yıllık ortalama TCMB efektif satış kurları baz alınacak (aylık yaklaşık değerler):
+## Çözüm
 
-- **USD/TRY 2024**: 28.5 → 35.5 aralığında 12 aylık değer
-- **USD/TRY 2025**: DB'deki kayıtlar zaten geçerli (öncelikli olarak `rateMap` kullanılıyor); fallback yine de güvenlik için doldurulacak
-- **EUR/TRY 2024**: 31 → 38 aralığında 12 aylık
-- **EUR/TRY 2025**: 38 → 45 aralığında 12 aylık
+### 1. Yeni edge function: `detect-pdf-invoices`
+- Girdi: PDF storage URL.
+- Çıktı: `{ pageCount, invoiceCount, isMultiInvoice, invoiceMarkers: [{page, invoiceNo}] }`.
+- pdf-lib + basit metin çıkarma ile "Fatura No:" / "Invoice No:" regex sayımı yapar.
+- `invoiceCount >= 2` → `isMultiInvoice = true`.
 
-Bu fallback dosya içi sabit olarak kalacak — DB'ye yazılmayacak (kullanıcı `monthly_exchange_rates` üzerinden istediği zaman daha kesin değer girebilir, öncelik DB'de).
+### 2. Yeni edge function: `split-and-parse-pdf`
+- Girdi: PDF storage path, `documentType`, opsiyonel `pageRange`.
+- pdf-lib ile PDF'i sayfa sayfa böler, her sayfayı yeni bir tek-sayfa PDF'e çevirir (base64).
+- 5'erli paralel gruplar halinde mevcut `parse-receipt` fonksiyonunu (data URL ile) çağırır.
+- Her sayfa için sonuç döner: `[{page, success, result|error, fileName: "<original>_p1.pdf"}]`.
+- Mevcut `parse-zip-receipts` deseni birebir referans alınır (sequential yerine `Promise.all` chunked).
 
-### 2. (Opsiyonel ek) Eksik kur log mesajı
+### 3. `useReceipts.uploadReceiptsBatch` güncellemesi
+- Yükleme öncesi her PDF için `detect-pdf-invoices` çağrısı yap.
+- `isMultiInvoice === true` ise:
+  - Dosyayı storage'a tek seferlik upload et.
+  - `split-and-parse-pdf` çağır.
+  - Dönen N adet parse sonucu için N adet `receipts` insert yap (mevcut tek-fatura insert path'i parametrik hale getirilir).
+  - `BatchProgress`'i: toplam = `Σ invoiceCount`, current = işlenen sayfa sayısı şeklinde güncelle.
+- Tek faturalı PDF'ler eski akışta kalır.
 
-Eğer hem `rateMap` hem fallback'te ay bulunamazsa `console.warn` ile "X-Y için kur bulunamadı, TRY karşılığı hesaplanmadı" uyarısı bırakılacak (bugün sessizce `undefined` kalıyor; debug için faydalı).
+### 4. UI iyileştirmeleri (`ReceiptUpload.tsx`)
+- Progress satırında çok faturalı PDF tespit edildiğinde: `Toplu fatura PDF: dosya.pdf (45 fatura)` etiketi göster.
+- Sonuç özetinde her sayfa ayrı satır: `dosya.pdf - Sayfa 3 (SFT2026...003) ✓`.
+- Mevcut duplicate/failure render mantığı değiştirilmez.
 
-## Davranış (değişiklik sonrası)
+### 5. Duplicate koruması
+- Mevcut `multi-layer-duplicate-detection-v2` (receipt_no + tax_no + doc_type) zaten çalışıyor — her bölünen sayfa için ayrı uygulanır. Ek değişiklik gerekmez.
 
-| Senaryo | Sonuç |
-|---|---|
-| 2024 USD ekstre | DB'de 2024 USD yok → fallback değer kullanılır, `amount_try` dolu |
-| 2025 USD ekstre | DB'deki gerçek kur kullanılır (öncelikli) |
-| 2024/2025 EUR ekstre | Fallback değer kullanılır, `amount_try` dolu |
-| 2026 ekstre | Bugünkü davranış aynen |
-| TRY ekstre | Etkilenmez |
+### 6. Para birimi desteği
+- `parse-receipt` zaten EUR/USD/TRY tespit ediyor (`original_currency`, `original_amount`, `amount_try`, `exchange_rate_used`).
+- Bölünen sayfalar tek tek `parse-receipt`'e gittiği için ek bir çalışma gerekmez. Aylık kur fallback'i (mevcut `monthly_exchange_rates`) korunur.
 
-## Dokunulmayacaklar
+## Teknik detaylar
 
-- UI'da yıl uyarısı **eklenmeyecek** (kullanıcı "sessizce kabul et" dedi).
-- `monthly_exchange_rates` tablosuna seed migration yapılmayacak; fallback kod içinde kalacak (kullanıcı manuel olarak Settings'ten daha kesin değer girebilmeli).
-- Önceki yıl işlemlerinin finance dashboard/scenario raporlarında nasıl filtrelendiği bu task'ın dışında.
+- **pdf-lib** edge function'da: `import { PDFDocument } from "https://esm.sh/pdf-lib@1.17.1"`.
+- **Paralel batch**: `categorize-transactions`'daki `PARALLEL_BATCH_COUNT = 5` deseni.
+- **Timeout**: her parse-receipt çağrısı için 60 sn, toplam fonksiyon timeout'u 400 sn (45 sayfa × 5 paralel ≈ 9 tur × ~6 sn).
+- **Storage path**: bölünen sayfalar storage'a yazılmaz — base64 data URL ile parse-receipt'e gönderilir (parse-zip-receipts'teki örüntü).
+- **Hata politikası**: bir sayfa fail olursa diğerleri devam eder; UI sonuç özetinde başarısız sayfa işaretlenir, kullanıcı manuel yeniden deneyebilir.
 
-## Dosya değişiklikleri
+## Etkilenen dosyalar
 
-- `src/hooks/finance/useBankFileUpload.ts` — yalnızca fallback sabitleri + opsiyonel warn log
+- Yeni: `supabase/functions/detect-pdf-invoices/index.ts`
+- Yeni: `supabase/functions/split-and-parse-pdf/index.ts`
+- Düzenleme: `src/hooks/finance/useReceipts.ts` (PDF tespit + multi-invoice insert döngüsü)
+- Düzenleme: `src/pages/finance/ReceiptUpload.tsx` (progress satırı + sonuç özeti)
+
+## Kapsam dışı
+
+- XML toplu yükleme (zaten ZIP üzerinden destekleniyor).
+- Çok sayfalı tek fatura (örn: ekli olmayan fatura) ayrımı — bu sürümde "≥2 Fatura No tespit edilirse böl, aksi halde tek fatura kabul et" kuralı uygulanır.
