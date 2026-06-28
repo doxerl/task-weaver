@@ -135,9 +135,17 @@ ETİKET SÜTUNU - ÖNEMLİ:
     "detected_bank": "string | null",
     "account_number": "string | null",
     "iban": "string | null",
-    "currency": "TRY"
+    "currency": "TRY | USD | EUR",
+    "currency_confidence": 0.0
   }
 }
+
+PARA BİRİMİ TESPİTİ - KRİTİK:
+- Header alanlarına dikkat et: "Hesap: 486 - 6289977 TL" → TRY; "Hesap: ... USD" → USD; "Hesap: ... EUR" → EUR
+- Tutar sütunundaki semboller: "₺" veya "TL" → TRY, "$" veya "USD" → USD, "€" veya "EUR" → EUR
+- "Bakiye: 1.234,56 TL/USD/EUR" satırı net göstergedir
+- Sadece TR IBAN ve sembol yoksa default: "TRY"
+- currency_confidence: 1.0 (header'da açık görünüyorsa), 0.7 (sadece sembolden), 0.5 (default TRY)
 
 TÜRK BANKASI FORMAT KURALLARI:
 - Binlik ayracı: nokta (.) → 1.234.567 = 1234567
