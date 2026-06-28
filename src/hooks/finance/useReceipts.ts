@@ -778,15 +778,27 @@ export function useReceipts(year?: number, month?: number) {
   }, [reprocessReceipt, queryClient, toast]);
 
   // Batch upload single file processor
+  // Returns an array of BatchFileResult-like entries. For most files this is
+  // a single-entry array; for multi-invoice PDFs each invoice page becomes
+  // its own entry.
+  type SubResult = {
+    fileName: string;
+    receipt: Receipt | null;
+    status: 'success' | 'failed' | 'duplicate';
+    error?: string;
+    duplicateType?: 'receipt_no' | 'file_date' | 'soft';
+  };
+
   const processFileForBatch = async (
     file: File,
     documentType: DocumentType,
     receiptSubtype?: ReceiptSubtype
-  ): Promise<{ receipt: Receipt | null; status: 'success' | 'failed' | 'duplicate'; error?: string; duplicateType?: 'receipt_no' | 'file_date' | 'soft'; softDuplicateWarning?: string }> => {
+  ): Promise<SubResult[]> => {
     if (!user?.id) throw new Error('Giriş yapmalısınız');
     
     const ext = file.name.split('.').pop()?.toLowerCase() || '';
     const isXml = ext === 'xml';
+    const isPdf = ext === 'pdf' || file.type === 'application/pdf';
     const isImage = file.type.startsWith('image/');
     const fileExt = ext || (isImage ? 'jpg' : 'pdf');
     const path = `${user.id}/receipts/${Date.now()}-${Math.random().toString(36).substr(2, 9)}.${fileExt}`;
@@ -817,22 +829,88 @@ export function useReceipts(year?: number, month?: number) {
       const saveResult = await saveReceiptFromOCR(ocr, publicUrl, file.name, 'xml', documentType, 'invoice');
       
       if (saveResult.skipped) {
-        return { 
+        return [{ 
+          fileName: file.name,
           receipt: null, 
           status: 'duplicate', 
           error: saveResult.duplicateInfo,
           duplicateType: saveResult.duplicateType
-        };
+        }];
       }
       
-      return { 
+      return [{ 
+        fileName: file.name,
         receipt: saveResult.receipt, 
         status: 'success',
-        softDuplicateWarning: saveResult.softDuplicateWarning
-      };
+      }];
     }
 
-    // Handle images and PDFs
+    // PDFs: detect multi-invoice and split into pages if needed
+    if (isPdf) {
+      try {
+        const { data: multiData, error: multiError } = await supabase.functions.invoke(
+          'process-multi-invoice-pdf',
+          { body: { pdfUrl: publicUrl, documentType, originalFileName: file.name } }
+        );
+
+        if (!multiError && multiData?.isMultiInvoice && Array.isArray(multiData?.results)) {
+          console.log(`Multi-invoice PDF: ${multiData.results.length} pages from ${file.name}`);
+          const subResults: SubResult[] = [];
+
+          for (const pageRes of multiData.results) {
+            const label = `${file.name} → s.${pageRes.page}${pageRes.invoiceNo ? ` (${pageRes.invoiceNo})` : ''}`;
+            if (!pageRes.success || !pageRes.result) {
+              subResults.push({
+                fileName: label,
+                receipt: null,
+                status: 'failed',
+                error: pageRes.error || 'OCR başarısız',
+              });
+              continue;
+            }
+
+            try {
+              const saveResult = await saveReceiptFromOCR(
+                pageRes.result,
+                publicUrl, // share parent PDF URL
+                pageRes.fileName || label,
+                'pdf',
+                documentType,
+                receiptSubtype
+              );
+              if (saveResult.skipped) {
+                subResults.push({
+                  fileName: label,
+                  receipt: null,
+                  status: 'duplicate',
+                  error: saveResult.duplicateInfo,
+                  duplicateType: saveResult.duplicateType,
+                });
+              } else {
+                subResults.push({
+                  fileName: label,
+                  receipt: saveResult.receipt,
+                  status: 'success',
+                });
+              }
+            } catch (e) {
+              subResults.push({
+                fileName: label,
+                receipt: null,
+                status: 'failed',
+                error: e instanceof Error ? e.message : 'Kayıt hatası',
+              });
+            }
+          }
+          return subResults;
+        }
+        // Not multi-invoice → fall through to single parse-receipt
+      } catch (e) {
+        console.warn('Multi-invoice detection failed, falling back to single parse:', e);
+      }
+    }
+
+    // Handle single images and single-invoice PDFs
     const { data: ocrData, error: ocrError } = await supabase.functions.invoke('parse-receipt', {
       body: { imageUrl: publicUrl, documentType }
     });
@@ -850,19 +928,20 @@ export function useReceipts(year?: number, month?: number) {
     );
     
     if (saveResult.skipped) {
-      return { 
+      return [{ 
+        fileName: file.name,
         receipt: null, 
         status: 'duplicate', 
         error: saveResult.duplicateInfo,
         duplicateType: saveResult.duplicateType
-      };
+      }];
     }
     
-    return { 
+    return [{ 
+      fileName: file.name,
       receipt: saveResult.receipt, 
       status: 'success',
-      softDuplicateWarning: saveResult.softDuplicateWarning
-    };
+    }];
   };
 
   // Batch upload mutation
