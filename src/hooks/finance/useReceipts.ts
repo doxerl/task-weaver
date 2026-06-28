@@ -964,7 +964,13 @@ export function useReceipts(year?: number, month?: number) {
       
       // Filter out ZIP files - they should use single upload
       const nonZipFiles = files.filter(f => !f.name.toLowerCase().endsWith('.zip'));
-      
+
+      // Remember source files so failed entries can be retried later, even after
+      // the file picker state is cleared in the UI.
+      for (const f of nonZipFiles) {
+        lastBatchFilesRef.current.set(f.name, f);
+      }
+
       // Dynamic results list - grows as multi-invoice PDFs expand into multiple entries
       const results: BatchFileResult[] = nonZipFiles.map(f => ({
         fileName: f.name,
