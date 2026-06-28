@@ -1116,6 +1116,58 @@ export function useReceipts(year?: number, month?: number) {
     }
   });
 
+  // Retry a subset of failed batch entries. Resolves each failed fileName
+  // (including "parent.pdf → s.N (...)" sub-entries) back to its original
+  // parent File, then re-runs the batch upload only for those files.
+  // Already-saved successful pages are protected by the existing duplicate
+  // detection layer, so re-processing the parent is safe.
+  const retryFailedBatch = useCallback(async (
+    failures: Array<{ fileName: string }>,
+    options?: {
+      documentType?: DocumentType;
+      receiptSubtype?: ReceiptSubtype;
+      onProgress?: (progress: BatchProgress) => void;
+    }
+  ): Promise<BatchFileResult[]> => {
+    if (!failures.length) return [];
+
+    const parentNames = new Set<string>();
+    const missing: string[] = [];
+
+    for (const f of failures) {
+      // Multi-invoice sub-entries look like: "parent.pdf → s.3 (INV-123)"
+      const parent = f.fileName.split(' → ')[0].trim();
+      if (lastBatchFilesRef.current.has(parent)) {
+        parentNames.add(parent);
+      } else {
+        missing.push(parent);
+      }
+    }
+
+    const filesToRetry = Array.from(parentNames)
+      .map(name => lastBatchFilesRef.current.get(name))
+      .filter((f): f is File => !!f);
+
+    if (!filesToRetry.length) {
+      toast({
+        title: 'Yeniden denenemiyor',
+        description: missing.length
+          ? `Kaynak dosyalar artık bellekte değil: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? '…' : ''}`
+          : 'Tekrar denenecek dosya bulunamadı.',
+        variant: 'destructive',
+      });
+      return [];
+    }
+
+    return uploadReceiptsBatch.mutateAsync({
+      files: filesToRetry,
+      documentType: options?.documentType,
+      receiptSubtype: options?.receiptSubtype,
+      onProgress: options?.onProgress,
+    });
+  }, [uploadReceiptsBatch, toast]);
+
+
   const updateCategory = useMutation({
     mutationFn: async ({ id, categoryId }: { id: string; categoryId: string | null }) => {
       const { error } = await supabase
