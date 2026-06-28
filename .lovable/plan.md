@@ -1,36 +1,66 @@
-## Sorun
+## Hedef
 
-Garanti BBVA banka extresinin satırları parse edildi, ancak **kategorize etme adımı 7 batch boyunca başarısız** oldu (her satırda "Edge Function returned a non-2xx status code").
+1. **Para birimi otomatik tespiti** (TRY/USD/EUR) — header bilgisi + tutar sembollerinden.
+2. **Orijinal döviz + TL karşılığı** ile saklama (TCMB kuru ile çevrim).
+3. **Aynı oturumda birden fazla farklı banka/hesap Excel'i** yüklenebilsin — hepsi aynı şirketin faaliyetlerinin parçası olarak biriksin.
 
-### Kök neden
+## Değişiklikler
 
-`supabase/functions/categorize-transactions/index.ts` (satır 176) hâlâ `google/gemini-2.5-flash` modelini kullanıyor. AI Gateway log'larında bu çağrılar **HTTP 403** dönüyor (15+ ardışık hata, 28/06 18:09):
+### 1. Para birimi tespiti — `supabase/functions/parse-bank-statement`
+- Prompt'a "PARA BİRİMİ TESPİTİ" bölümü ekle:
+  - Header bilgisinden: `Hesap: ... TL/USD/EUR/$/€`, `IBAN`, hesap tipi satırı.
+  - Tutar sütunundaki semboller: `₺`, `$`, `€`, `USD`, `EUR`, `TL`.
+  - Bulunamazsa default `TRY`.
+- `bank_info.currency` artık enum: `"TRY" | "USD" | "EUR"` (şu an hardcoded `"TRY"`).
+- `summary`'e `detected_currency` ve `currency_confidence` ekle.
 
+### 2. Frontend — `useBankFileUpload.ts`
+- Hardcoded `currency: 'TRY'` yerine batch'lerden gelen `bank_info.currency` değerini kullan (ilk geçerli batch'ten alıp tüm dosyaya uygula).
+- Parse sonrası `currency !== 'TRY'` ise `useExchangeRates`'ten ilgili tarih için kur çekip her transaction'a `amount_try = amount * rate` hesapla.
+- Tarih bazlı kur cache'i (aynı günkü kuru tekrar çekme).
+
+### 3. UI — `ParsedTransactionList.tsx` + `BankImport.tsx`
+- Özet kartında para birimi rozeti ("USD ekstre — TL karşılığı: ₺X").
+- İşlem tablosunda tutar `12,345.67 $` formatında, hover/yan sütunda TL karşılığı.
+- Onay öncesi banner: "Bu ekstre USD olarak algılandı. Tutarlar TCMB kuru ile TL'ye çevrilecek."
+
+### 4. Schema — yeni migration
+```sql
+ALTER TABLE bank_transactions
+  ADD COLUMN IF NOT EXISTS currency text NOT NULL DEFAULT 'TRY',
+  ADD COLUMN IF NOT EXISTS amount_try numeric,
+  ADD COLUMN IF NOT EXISTS exchange_rate numeric;
+
+ALTER TABLE uploaded_bank_files
+  ADD COLUMN IF NOT EXISTS currency text DEFAULT 'TRY';
+
+ALTER TABLE bank_import_sessions
+  ADD COLUMN IF NOT EXISTS currency text DEFAULT 'TRY';
 ```
-status: client_error (http 403)
-model: google/gemini-2.5-flash / google/gemini-2.5-pro
-```
+- Mevcut TL kayıtlar için `amount_try = amount` backfill.
+- Raporlama hook'ları (`useIncomeAnalysis`, `useFinancialDataHub`) `amount_try` öncelikli — yoksa `amount`.
 
-Gemini 2.5 modelleri gateway'de artık erişilebilir değil (gateway 403 = model erişim reddi). Önceki AI güncellemesi sırasında bazı fonksiyonlar atlanmış. Halen `gemini-2.5` kullanan 8 fonksiyon var:
+### 5. Çoklu dosya / çoklu hesap desteği — `useBankImportSession` + `BankImport.tsx`
+- Şu anki model: tek aktif session = tek dosya.
+- Yeni davranış: **aktif session içine ek dosya yükleme**.
+  - `bank_import_sessions`'a `file_count int default 1` ekle.
+  - `bank_import_transactions`'a `source_file_name text`, `source_bank text`, `source_currency text` ekle (her satırın hangi dosyadan geldiği görünsün).
+  - Upload bittiğinde aktif session varsa **append** et (yeni session açma); yoksa yeni session yarat.
+- BankImport UI'sına "+ Başka banka ekstresi ekle" butonu:
+  - Preview/review modunda görünür.
+  - Yeni dosya seç → parse → kategorize → mevcut session'a ekle (transaction listesi büyür).
+- Özet kartında dosya başına alt-özet sekmesi: "Garanti TL — 142 işlem", "İş Bankası USD — 38 işlem" + toplam.
+- Duplicate koruma: aynı `file_id + row_number` constraint zaten var; ek olarak `(transaction_date, amount, description, currency)` soft-dedupe uyarısı.
 
-- categorize-transactions ← **bu hatanın kaynağı**
-- parse-actual, parse-bank-statement, parse-receipt, parse-plan, parse-trial-balance
-- unified-scenario-analysis, analyze-growth-scenario
+### 6. Kategorize batch'i — `categorize-transactions`
+- Currency bilgisini prompt'a aktar (örn. USD ekstrede "MAAS" muhtemelen yurt dışı ödeme olabilir → AI bağlamı zenginleşir).
+- `txList` formatına `currency` eklenir.
 
-## Çözüm
+## Doğrulama
+- Garanti TL ekstre → eskisi gibi `TRY`, `amount_try = amount`.
+- USD ekstre → `currency: "USD"`, her satırda `amount_try` dolu, UI'da iki tutar gözükür.
+- TL ekstre + USD ekstre arka arkaya yüklenip aynı session altında tek listede toplandığı doğrulanır; raporlama hook'ları toplam TL'yi `amount_try` üzerinden doğru üretir.
 
-Tüm `google/gemini-2.5-flash` ve `google/gemini-2.5-pro` referanslarını mevcut default olan **`google/gemini-3-flash-preview`** (ağır analiz için `google/gemini-3-pro-preview`) ile değiştir.
-
-### Yapılacak değişiklikler
-
-1. **`categorize-transactions`** — `gemini-2.5-flash` → `gemini-3-flash-preview` (yüksek hacim, hızlı sınıflandırma için flash).
-2. **`parse-bank-statement`, `parse-actual`, `parse-receipt`, `parse-plan`, `parse-trial-balance`** — parsing işlemleri için `gemini-3-flash-preview`.
-3. **`unified-scenario-analysis`, `analyze-growth-scenario`** — finansal analiz için `gemini-3-pro-preview` (uzun reasoning gerektiriyor); fallback olarak `gemini-3-flash-preview`.
-4. 402/429 hata mesajlarını korunduğunu doğrula.
-
-### Doğrulama
-
-- Aynı Garanti extresini yeniden yükleyerek 7 batch'in 2xx döndürdüğünü ve kategorilemenin tamamlandığını gözlemle.
-- Edge function log'larında 403 olmadığını teyit et.
-
-Yalnızca model isimleri güncellenecek — parse/kategorileme mantığı, prompt'lar ve schema değişmiyor.
+## Kapsam dışı
+- TCMB kuru entegrasyonu zaten `useExchangeRates`'te var — bu hook kullanılacak, yeni FX kaynağı eklenmeyecek.
+- GBP/CHF gibi diğer dövizler bu turda yok (TRY/USD/EUR).
