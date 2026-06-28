@@ -962,6 +962,7 @@ export function useReceipts(year?: number, month?: number) {
       // Filter out ZIP files - they should use single upload
       const nonZipFiles = files.filter(f => !f.name.toLowerCase().endsWith('.zip'));
       
+      // Dynamic results list - grows as multi-invoice PDFs expand into multiple entries
       const results: BatchFileResult[] = nonZipFiles.map(f => ({
         fileName: f.name,
         status: 'pending' as const
@@ -972,6 +973,7 @@ export function useReceipts(year?: number, month?: number) {
       let successCount = 0;
       let failedCount = 0;
       let duplicateCount = 0;
+      let totalExpected = nonZipFiles.length; // updated when multi-invoice PDFs expand
       
       for (let batchIndex = 0; batchIndex < batches.length; batchIndex++) {
         const batch = batches[batchIndex];
@@ -982,7 +984,7 @@ export function useReceipts(year?: number, month?: number) {
           totalBatches: batches.length,
           currentFile: batch.map(f => f.name).join(', '),
           processedFiles: processedCount,
-          totalFiles: nonZipFiles.length,
+          totalFiles: totalExpected,
           successCount,
           failedCount,
           duplicateCount,
@@ -992,9 +994,9 @@ export function useReceipts(year?: number, month?: number) {
         setBatchProgress(progress);
         onProgress?.(progress);
         
-        // Mark batch files as processing
+        // Mark batch files as processing (by name lookup since multi-invoice may have shifted indices)
         batch.forEach((file) => {
-          const idx = nonZipFiles.indexOf(file);
+          const idx = results.findIndex(r => r.fileName === file.name && r.status === 'pending');
           if (idx >= 0) {
             results[idx].status = 'processing';
           }
@@ -1005,37 +1007,45 @@ export function useReceipts(year?: number, month?: number) {
           batch.map(file => processFileForBatch(file, documentType, receiptSubtype))
         );
         
-        // Update results
-        batchResults.forEach((result, idx) => {
-          const fileIndex = batchIndex * BATCH_SIZE + idx;
-          
-          if (result.status === 'fulfilled') {
-            const { receipt, status, error, duplicateType } = result.value as { 
-              receipt: Receipt | null; 
-              status: 'success' | 'failed' | 'duplicate'; 
-              error?: string;
-              duplicateType?: 'receipt_no' | 'file_date' | 'soft';
-            };
-            results[fileIndex] = {
-              fileName: nonZipFiles[fileIndex].name,
-              status,
-              receipt: receipt || undefined,
-              error,
-              duplicateType
-            };
-            
-            if (status === 'success') successCount++;
-            else if (status === 'duplicate') duplicateCount++;
-          } else {
-            results[fileIndex] = {
-              fileName: nonZipFiles[fileIndex].name,
-              status: 'failed',
-              error: result.reason?.message || 'Bilinmeyen hata'
-            };
-            failedCount++;
+        // Update results - each file may yield 1 or more sub-results (multi-invoice PDFs)
+        batchResults.forEach((settled, idx) => {
+          const originalFile = batch[idx];
+          // Remove the placeholder entry for this file
+          const placeholderIdx = results.findIndex(
+            r => r.fileName === originalFile.name && (r.status === 'processing' || r.status === 'pending')
+          );
+          if (placeholderIdx >= 0) {
+            results.splice(placeholderIdx, 1);
           }
           
-          processedCount++;
+          if (settled.status === 'fulfilled') {
+            const subResults = settled.value as SubResult[];
+            // Multi-invoice PDFs expand totalExpected beyond initial 1-per-file estimate
+            if (subResults.length > 1) {
+              totalExpected += subResults.length - 1;
+            }
+            for (const sub of subResults) {
+              results.push({
+                fileName: sub.fileName,
+                status: sub.status,
+                receipt: sub.receipt || undefined,
+                error: sub.error,
+                duplicateType: sub.duplicateType,
+              });
+              if (sub.status === 'success') successCount++;
+              else if (sub.status === 'duplicate') duplicateCount++;
+              else if (sub.status === 'failed') failedCount++;
+              processedCount++;
+            }
+          } else {
+            results.push({
+              fileName: originalFile.name,
+              status: 'failed',
+              error: settled.reason?.message || 'Bilinmeyen hata'
+            });
+            failedCount++;
+            processedCount++;
+          }
         });
         
         // Update progress after batch
@@ -1044,7 +1054,7 @@ export function useReceipts(year?: number, month?: number) {
           totalBatches: batches.length,
           currentFile: '',
           processedFiles: processedCount,
-          totalFiles: nonZipFiles.length,
+          totalFiles: totalExpected,
           successCount,
           failedCount,
           duplicateCount,
