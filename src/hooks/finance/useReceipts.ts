@@ -569,9 +569,10 @@ export function useReceipts(year?: number, month?: number) {
       
       if (uploadError) throw uploadError;
 
-      const { data: { publicUrl } } = supabase.storage
+      const { data: signedData1 } = await supabase.storage
         .from('finance-files')
-        .getPublicUrl(path);
+        .createSignedUrl(path, 3600);
+      const publicUrl = signedData1?.signedUrl ?? path;
       
       setUploadProgress(30);
 
