@@ -446,7 +446,7 @@ export function useBankFileUpload() {
     }
 
     console.log(`Parsing complete: ${allTransactions.length} transactions from ${successfulBatchCount}/${totalParseBatches} batches (${PARALLEL_BATCH_COUNT}x parallel)`);
-    return { transactions: allTransactions, failedBatches: failedBatchList };
+    return { transactions: allTransactions, failedBatches: failedBatchList, detectedBankInfo };
   };
 
   // Categorize transactions using hybrid approach: Rules -> Keywords -> AI
