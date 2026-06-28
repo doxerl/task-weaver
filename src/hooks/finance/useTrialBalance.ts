@@ -83,7 +83,7 @@ export function useTrialBalance(year: number, month: number | null = null) {
         month,
         accounts: parseResult.accounts || {},
         file_name: file.name,
-        file_url: urlData.publicUrl,
+        file_url: urlData?.signedUrl ?? storagePath,
         is_approved: false,
       };
 
