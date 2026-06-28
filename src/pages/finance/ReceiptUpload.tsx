@@ -123,6 +123,7 @@ export default function ReceiptUpload() {
     isLoading: isLoadingReceipts,
     uploadReceipt,
     uploadReceiptsBatch,
+    retryFailedBatch,
     batchProgress,
     isBatchUploading,
     uploadProgress, 
@@ -1246,13 +1247,99 @@ const [editingReceipt, setEditingReceipt] = useState<Receipt | null>(null);
               
               {uploadResults.failures.length > 0 && (
                 <div className="mt-2 p-2 bg-destructive/10 rounded">
-                  <p className="text-destructive font-medium text-sm">
-                    ✕ {uploadResults.failures.length} belge yüklenemedi
-                  </p>
+                  <div className="flex items-center justify-between gap-2 mb-1">
+                    <p className="text-destructive font-medium text-sm">
+                      ✕ {uploadResults.failures.length} belge yüklenemedi
+                    </p>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      disabled={isBatchUploading}
+                      onClick={async () => {
+                        const failures = uploadResults.failures;
+                        const retryResults = await retryFailedBatch(failures, {
+                          documentType,
+                          receiptSubtype: documentType === 'received' ? receiptSubtype : undefined,
+                          onProgress: setLocalBatchProgress,
+                        });
+                        if (!retryResults.length) return;
+                        const newFailures = retryResults
+                          .filter(r => r.status === 'failed')
+                          .map(r => ({ fileName: r.fileName, error: r.error || 'İşlem başarısız' }));
+                        const newDuplicates = retryResults
+                          .filter(r => r.status === 'duplicate')
+                          .map(r => ({ fileName: r.fileName, reason: r.error || 'Zaten mevcut' }));
+                        const newSuccess = retryResults.filter(r => r.status === 'success').length;
+                        setUploadResults(prev => ({
+                          show: true,
+                          successCount: (prev?.successCount || 0) + newSuccess,
+                          duplicates: [...(prev?.duplicates || []), ...newDuplicates],
+                          failures: newFailures,
+                        }));
+                        setLocalBatchProgress(null);
+                        toast({
+                          title: 'Yeniden deneme tamamlandı',
+                          description: `${newSuccess} başarılı, ${newFailures.length} hata`,
+                        });
+                      }}
+                      className="h-7 px-2 text-xs gap-1"
+                    >
+                      <RefreshCw className={cn("h-3 w-3", isBatchUploading && "animate-spin")} />
+                      Tümünü yeniden dene
+                    </Button>
+                  </div>
                   <ul className="mt-1 space-y-1">
                     {uploadResults.failures.map((f, i) => (
-                      <li key={i} className="text-xs text-destructive/80">
-                        • {f.fileName}: {f.error}
+                      <li key={i} className="flex items-center justify-between gap-2 text-xs text-destructive/80">
+                        <span className="truncate">• {f.fileName}: {f.error}</span>
+                        <Button
+                          size="sm"
+                          variant="ghost"
+                          disabled={isBatchUploading}
+                          onClick={async () => {
+                            const retryResults = await retryFailedBatch([{ fileName: f.fileName }], {
+                              documentType,
+                              receiptSubtype: documentType === 'received' ? receiptSubtype : undefined,
+                              onProgress: setLocalBatchProgress,
+                            });
+                            if (!retryResults.length) return;
+                            const stillFailedNames = new Set(
+                              retryResults.filter(r => r.status === 'failed').map(r => r.fileName)
+                            );
+                            const newDuplicates = retryResults
+                              .filter(r => r.status === 'duplicate')
+                              .map(r => ({ fileName: r.fileName, reason: r.error || 'Zaten mevcut' }));
+                            const newFailuresArr = retryResults
+                              .filter(r => r.status === 'failed')
+                              .map(r => ({ fileName: r.fileName, error: r.error || 'İşlem başarısız' }));
+                            const newSuccess = retryResults.filter(r => r.status === 'success').length;
+                            setUploadResults(prev => {
+                              if (!prev) return prev;
+                              // Drop this row + any previous failures that retry resolved (same parent)
+                              const parent = f.fileName.split(' → ')[0].trim();
+                              const remaining = prev.failures.filter(x => {
+                                const xParent = x.fileName.split(' → ')[0].trim();
+                                if (xParent !== parent) return true;
+                                return stillFailedNames.has(x.fileName);
+                              });
+                              const mergedFailures = [
+                                ...remaining,
+                                ...newFailuresArr.filter(nf => !remaining.some(r => r.fileName === nf.fileName)),
+                              ];
+                              return {
+                                show: true,
+                                successCount: prev.successCount + newSuccess,
+                                duplicates: [...prev.duplicates, ...newDuplicates],
+                                failures: mergedFailures,
+                              };
+                            });
+                            setLocalBatchProgress(null);
+                          }}
+                          className="h-6 px-2 text-xs gap-1"
+                        >
+                          <RefreshCw className="h-3 w-3" />
+                          Yeniden dene
+                        </Button>
                       </li>
                     ))}
                   </ul>

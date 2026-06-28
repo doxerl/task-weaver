@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState, useCallback } from 'react';
+import { useMemo, useState, useCallback, useRef } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useAuthContext } from '@/contexts/AuthContext';
 import { useToast } from '@/hooks/use-toast';
@@ -64,6 +64,9 @@ export function useReceipts(year?: number, month?: number) {
   
   // Batch upload state
   const [batchProgress, setBatchProgress] = useState<BatchProgress | null>(null);
+  // Keep last uploaded files keyed by file name so that we can retry failed entries
+  // (including individual pages of multi-invoice PDFs by re-processing the parent file).
+  const lastBatchFilesRef = useRef<Map<string, File>>(new Map());
 
   // Stable queryKey reference to prevent hook dependency issues
   const queryKey = useMemo(
@@ -961,7 +964,13 @@ export function useReceipts(year?: number, month?: number) {
       
       // Filter out ZIP files - they should use single upload
       const nonZipFiles = files.filter(f => !f.name.toLowerCase().endsWith('.zip'));
-      
+
+      // Remember source files so failed entries can be retried later, even after
+      // the file picker state is cleared in the UI.
+      for (const f of nonZipFiles) {
+        lastBatchFilesRef.current.set(f.name, f);
+      }
+
       // Dynamic results list - grows as multi-invoice PDFs expand into multiple entries
       const results: BatchFileResult[] = nonZipFiles.map(f => ({
         fileName: f.name,
@@ -1107,6 +1116,58 @@ export function useReceipts(year?: number, month?: number) {
     }
   });
 
+  // Retry a subset of failed batch entries. Resolves each failed fileName
+  // (including "parent.pdf → s.N (...)" sub-entries) back to its original
+  // parent File, then re-runs the batch upload only for those files.
+  // Already-saved successful pages are protected by the existing duplicate
+  // detection layer, so re-processing the parent is safe.
+  const retryFailedBatch = useCallback(async (
+    failures: Array<{ fileName: string }>,
+    options?: {
+      documentType?: DocumentType;
+      receiptSubtype?: ReceiptSubtype;
+      onProgress?: (progress: BatchProgress) => void;
+    }
+  ): Promise<BatchFileResult[]> => {
+    if (!failures.length) return [];
+
+    const parentNames = new Set<string>();
+    const missing: string[] = [];
+
+    for (const f of failures) {
+      // Multi-invoice sub-entries look like: "parent.pdf → s.3 (INV-123)"
+      const parent = f.fileName.split(' → ')[0].trim();
+      if (lastBatchFilesRef.current.has(parent)) {
+        parentNames.add(parent);
+      } else {
+        missing.push(parent);
+      }
+    }
+
+    const filesToRetry = Array.from(parentNames)
+      .map(name => lastBatchFilesRef.current.get(name))
+      .filter((f): f is File => !!f);
+
+    if (!filesToRetry.length) {
+      toast({
+        title: 'Yeniden denenemiyor',
+        description: missing.length
+          ? `Kaynak dosyalar artık bellekte değil: ${missing.slice(0, 3).join(', ')}${missing.length > 3 ? '…' : ''}`
+          : 'Tekrar denenecek dosya bulunamadı.',
+        variant: 'destructive',
+      });
+      return [];
+    }
+
+    return uploadReceiptsBatch.mutateAsync({
+      files: filesToRetry,
+      documentType: options?.documentType,
+      receiptSubtype: options?.receiptSubtype,
+      onProgress: options?.onProgress,
+    });
+  }, [uploadReceiptsBatch, toast]);
+
+
   const updateCategory = useMutation({
     mutationFn: async ({ id, categoryId }: { id: string; categoryId: string | null }) => {
       const { error } = await supabase
@@ -1215,6 +1276,7 @@ export function useReceipts(year?: number, month?: number) {
     uploadReceipt, 
     // Batch upload
     uploadReceiptsBatch,
+    retryFailedBatch,
     batchProgress,
     isBatchUploading: uploadReceiptsBatch.isPending,
     updateCategory,
