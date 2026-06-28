@@ -78,13 +78,18 @@ export function ParsedTransactionList({ result, onSelectTransaction }: ParsedTra
             </div>
           </div>
           
-          {(bank_info.detected_bank || summary.date_range.start) && (
-            <div className="flex items-center gap-4 mt-3 pt-3 border-t text-sm text-muted-foreground">
+          {(bank_info.detected_bank || summary.date_range.start || bank_info.currency) && (
+            <div className="flex items-center gap-4 mt-3 pt-3 border-t text-sm text-muted-foreground flex-wrap">
               {bank_info.detected_bank && (
                 <span className="flex items-center gap-1">
                   <Building2 className="h-4 w-4" />
                   {bank_info.detected_bank}
                 </span>
+              )}
+              {bank_info.currency && (
+                <Badge variant={bank_info.currency === 'TRY' ? 'outline' : 'default'} className="text-xs">
+                  Para birimi: {bank_info.currency} {currencySymbol(bank_info.currency)}
+                </Badge>
               )}
               {summary.date_range.start && summary.date_range.end && (
                 <span className="flex items-center gap-1">
@@ -92,6 +97,12 @@ export function ParsedTransactionList({ result, onSelectTransaction }: ParsedTra
                   {summary.date_range.start} - {summary.date_range.end}
                 </span>
               )}
+            </div>
+          )}
+
+          {bank_info.currency && bank_info.currency !== 'TRY' && (
+            <div className="mt-3 p-3 rounded-md bg-blue-50 dark:bg-blue-950/20 border border-blue-200 text-sm text-blue-900 dark:text-blue-100">
+              Bu ekstre <strong>{bank_info.currency}</strong> olarak algılandı. Tutarlar orijinal döviz cinsinden tutuluyor, raporlamada işlem tarihindeki kur ile TL karşılığı kullanılacak.
             </div>
           )}
         </CardContent>
